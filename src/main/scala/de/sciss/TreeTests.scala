@@ -22,11 +22,13 @@ object TreeTests {
          def isLeaf = children.isEmpty
 //         def appendChild( t: Tree ) : Unit
 
+         def numChildren = children.size
+
          /**
           * '... we define that a node in a tree is heavy
           *  iff it has at least two children in the tree'
           */
-         def isHeavy = children.size >= 2
+         def isHeavy = numChildren >= 2
 
          /**
           * 'For any node v, let weight(v) be the number of
@@ -75,6 +77,7 @@ object TreeTests {
                   case Some( newT ) =>
                      t = newT
                      step += 1
+                     keepGoing = false
                   case None =>
                      keepGoing = false
                }
@@ -84,22 +87,26 @@ object TreeTests {
 
          def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]])
 
-         def toDot( edgeTest: (SimpleTree[ L ], SimpleTree[ L ]) => Boolean = (_, _) => true ) : String = {
+         def toDot( c: Double )( edgeTest: (SimpleTree[ L ], SimpleTree[ L ]) => Boolean = (_, _) => true ) : String = {
             var sb = new StringBuilder()
             sb.append( "digraph Tree {\n" )
 //            children.foldLeft( 0 )( (id, ch) => ch.appendDot( 0, id, sb ))
-            appendDot( (this, -1), 0, sb, edgeTest )
+            appendDot( (this, -1), 0, c, sb, edgeTest )
             sb.append( "}\n" )
             sb.toString()
          }
 
-         protected def appendDot( p: (SimpleTree[ L ], Int), id: Int, sb: StringBuilder, edgeTest: (SimpleTree[ L ], SimpleTree[ L ]) => Boolean ) : Int = {
-            sb.append( "  " + id + " [label=\"" + label.toString + " : " + weight + " : " + (math.round( mh( 1 ) * 100 ) * 0.01) +"\"]\n" )
+         protected def appendDot( p: (SimpleTree[ L ], Int), id: Int, c: Double, sb: StringBuilder, edgeTest: (SimpleTree[ L ], SimpleTree[ L ]) => Boolean ) : Int = {
+            sb.append( "  " + id + " [label=\"" + label.toString + (if( numChildren == 0 ) "" else (" : " + weight + " ~ " + {
+               val i = (mh( c ) * 100 + 0.5).toInt
+               (i / 100).toString + "." + (i % 100).toString
+            })) +"\"]\n" )
+
             val (parent, pid) = p
             if( pid >= 0 ) {
                sb.append( "  " + pid + " -> " + id + (if( edgeTest( parent, this )) "\n" else " [style=dotted]\n") )
             }
-            children.foldLeft( id + 1 )( (cid, ch) => ch.appendDot( (this, id), cid, sb, edgeTest ))
+            children.foldLeft( id + 1 )( (cid, ch) => ch.appendDot( (this, id), cid, c, sb, edgeTest ))
          }
       }
 
@@ -115,8 +122,9 @@ object TreeTests {
                (None, res :+ MicroTreeImpl( label, children, step ))
             } else {
                val (mroots, rem)    = children.partition( ch => ch.weight < ch.mh( c ))
+if( mroots.nonEmpty ) println( "mroots : " + mroots.map( _.label ))
 //               val oldSz            = res.size
-               val micros1          = res ++ mroots.map( ch => MicroTreeImpl( label, ch.children, step ))
+               val micros1          = res ++ mroots.map( ch => MicroTreeImpl( ch.label, ch.children, step ))
 //               val (rem1, micros2)  = rem.map( _.decomposeStep( c, step, micros1 )).unzip
 //               val rem2             = rem1.collect({ case Some( x ) => x })
 //               val newT             = copy( children = rem2 )
@@ -156,12 +164,14 @@ object TreeTests {
          iter( depth )
       }
 
+      util.Random.setSeed( 10L )
       val t    = createRandomTree( 4 )
-//      val m    = t.decompose( 3.0 / math.log(2) )
-//      val mr: Set[ Int ] = m.map( _.label )( breakOut )
-//      println( "micro roots: " + mr )
-//      val str  = t.toDot { (p, c) => !mr.contains( c.label )}
-      val str  = t.toDot()
+      val c    = 2.0
+      val m    = t.decompose( c ) // 3.0 / math.log(2) )
+      val mr: Set[ Int ] = m.map( _.label )( breakOut )
+      println( "micro roots: " + mr )
+      val str  = t.toDot( c ) { (p, c) => !mr.contains( c.label )}
+//      val str  = t.toDot()
       val f    = new File( new File( util.Properties.userHome, "Desktop" ), "tree.dot" )
       val w    = new OutputStreamWriter( new FileOutputStream( f ), "UTF-8" )
       w.write( str )
