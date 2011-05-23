@@ -12,7 +12,8 @@ object TreeTests {
     * ch. 5 -- Algorithms for Static Trees
     */
    def staticTest {
-      trait Tree[ C <: Tree[ _ ]] {
+      trait Tree[ L, C <: Tree[ L, _ ]] {
+         def label : L
          def children: IIdxSeq[ C ]
          def isLeaf = children.isEmpty
 //         def appendChild( t: Tree ) : Unit
@@ -40,11 +41,11 @@ object TreeTests {
          def mh( c: Double ) : Double = math.pow( math.log( size ), 0.25 ) * c
       }
 
-      trait MacroTree extends Tree[ MicroTree ] {
+//      trait MacroTree extends Tree[ MicroTree ] {
+//
+//      }
 
-      }
-
-      trait SimpleTree extends Tree[ SimpleTree ] {
+      trait SimpleTree[ L ] extends Tree[ L, SimpleTree[ L ]] {
          /**
           * Iteratively decomposes T into T', 'the tree T from which
           * all micro trees have
@@ -58,35 +59,47 @@ object TreeTests {
           * The level of the micro tree then equals the step in which
           * it was constructed ...'
           */
-         def decompose( c: Double ) : IIdxSeq[ MicroTree ] = decomposeStep( c, 0, IIdxSeq.empty )._2
+         def decompose( c: Double ) : IIdxSeq[ MicroTree[ L ]] = decomposeStep( c, 0, IIdxSeq.empty )._2
 
-         def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree ]) : (Option[ SimpleTree ], IIdxSeq[ MicroTree ])
+         def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]])
       }
 
-      trait MicroTree extends SimpleTree {
+      trait MicroTree[ L ] extends SimpleTree[ L ] {
          def level: Int
-         def numMarkedAncestors( t: SimpleTree ) : Int
+         def numMarkedAncestors( t: SimpleTree[ L ]) : Int
       }
 
-      case class SimpleTreeImpl( children: IIdxSeq[ SimpleTree ]) extends SimpleTree {
+      case class SimpleTreeImpl[ L ]( label: L, children: IIdxSeq[ SimpleTree[ L ]]) extends SimpleTree[ L ] {
          @tailrec
-         final def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree ]) : (Option[ SimpleTree ], IIdxSeq[ MicroTree ]) = {
+         final def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]]) = {
             if( weight >= mh( c )) {
-               (None, res :+ MicroTreeImpl( children, step ))
+               (None, res :+ MicroTreeImpl( label, children, step ))
             } else {
                val (mroots, rem)    = children.partition( ch => ch.weight >= ch.mh( c ))
-               val micros1          = res ++ mroots.map( ch => MicroTreeImpl( ch.children, step ))
-               val (rem1, micros2)  = rem.map( _.decomposeStep( c, step, micros1 )).unzip
-               val rem2             = rem1.collect({ case Some( x ) => x })
-               val newT             = copy( children = rem2 )
-               newT.decomposeStep( c, step + 1, micros2.flatten )
+               val micros1          = res ++ mroots.map( ch => MicroTreeImpl( label, ch.children, step ))
+//               val (rem1, micros2)  = rem.map( _.decomposeStep( c, step, micros1 )).unzip
+//               val rem2             = rem1.collect({ case Some( x ) => x })
+//               val newT             = copy( children = rem2 )
+//               newT.decomposeStep( c, step + 1, micros2.flatten )
+               val (rem4, micros4)  = rem.foldLeft( (IIdxSeq.empty[ SimpleTree[ L ]], micros1) )({ case ((rem1, micros2), ch) =>
+                  val (remo, micros3) = ch.decomposeStep( c, step, micros2 )
+                  val rem3 = remo match {
+                     case Some( rem2 ) => rem1 :+ rem2
+                     case None         => rem1
+                  }
+                  (rem3, micros3)
+               })
+               val newT             = copy( children = rem4 )
+               newT.decomposeStep( c, step + 1, micros4 )
             }
          }
       }
 
-      case class MicroTreeImpl( children: IIdxSeq[ SimpleTree ], level: Int ) extends MicroTree {
-         def numMarkedAncestors( t: SimpleTree ) : Int = error( "TODO" )
-         def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree ]) : (Option[ SimpleTree ], IIdxSeq[ MicroTree ]) = error( "TODO" )
+      case class MicroTreeImpl[ L ]( label: L, children: IIdxSeq[ SimpleTree[ L ]], level: Int ) extends MicroTree[ L ] {
+         def numMarkedAncestors( t: SimpleTree[ L ]) : Int = error( "TODO" )
+         def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]]) = error( "TODO" )
       }
+
+
    }
 }
