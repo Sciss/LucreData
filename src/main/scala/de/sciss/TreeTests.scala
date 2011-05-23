@@ -1,5 +1,6 @@
 package de.sciss
 
+import collection.breakOut
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import annotation.tailrec
 import sys.error
@@ -62,23 +63,43 @@ object TreeTests {
           * The level of the micro tree then equals the step in which
           * it was constructed ...'
           */
-         def decompose( c: Double ) : IIdxSeq[ MicroTree[ L ]] = decomposeStep( c, 0, IIdxSeq.empty )._2
+         def decompose( c: Double ) : IIdxSeq[ MicroTree[ L ]] = {
+            var res        = IIdxSeq.empty[ MicroTree[ L ]]
+            var keepGoing  = true
+            var t          = this
+            var step       = 0
+            while( keepGoing ) {
+               val (newTO, micros) = t.decomposeStep( c, step, IIdxSeq.empty )
+               res ++= micros
+               newTO match {
+                  case Some( newT ) =>
+                     t = newT
+                     step += 1
+                  case None =>
+                     keepGoing = false
+               }
+            }
+            res
+         }
 
          def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]])
 
-         def toDot : String = {
+         def toDot( edgeTest: (SimpleTree[ L ], SimpleTree[ L ]) => Boolean = (_, _) => true ) : String = {
             var sb = new StringBuilder()
             sb.append( "digraph Tree {\n" )
 //            children.foldLeft( 0 )( (id, ch) => ch.appendDot( 0, id, sb ))
-            appendDot( -1, 0, sb )
+            appendDot( (this, -1), 0, sb, edgeTest )
             sb.append( "}\n" )
             sb.toString()
          }
 
-         protected def appendDot( pid: Int, id: Int, sb: StringBuilder ) : Int = {
-            sb.append( "  " + id + " [label=\"" + label.toString + "\"]\n" )
-            if( pid >= 0 ) sb.append( "  " + pid + " -> " + id + "\n" )
-            children.foldLeft( id + 1 )( (cid, ch) => ch.appendDot( id, cid, sb ))
+         protected def appendDot( p: (SimpleTree[ L ], Int), id: Int, sb: StringBuilder, edgeTest: (SimpleTree[ L ], SimpleTree[ L ]) => Boolean ) : Int = {
+            sb.append( "  " + id + " [label=\"" + label.toString + " : " + weight + " : " + (math.round( mh( 1 ) * 100 ) * 0.01) +"\"]\n" )
+            val (parent, pid) = p
+            if( pid >= 0 ) {
+               sb.append( "  " + pid + " -> " + id + (if( edgeTest( parent, this )) "\n" else " [style=dotted]\n") )
+            }
+            children.foldLeft( id + 1 )( (cid, ch) => ch.appendDot( (this, id), cid, sb, edgeTest ))
          }
       }
 
@@ -88,12 +109,13 @@ object TreeTests {
       }
 
       case class SimpleTreeImpl[ L ]( label: L, children: IIdxSeq[ SimpleTree[ L ]]) extends SimpleTree[ L ] {
-         @tailrec
+         // @tailrec
          final def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]]) = {
-            if( weight >= mh( c )) {
+            if( weight < mh( c )) {
                (None, res :+ MicroTreeImpl( label, children, step ))
             } else {
-               val (mroots, rem)    = children.partition( ch => ch.weight >= ch.mh( c ))
+               val (mroots, rem)    = children.partition( ch => ch.weight < ch.mh( c ))
+//               val oldSz            = res.size
                val micros1          = res ++ mroots.map( ch => MicroTreeImpl( label, ch.children, step ))
 //               val (rem1, micros2)  = rem.map( _.decomposeStep( c, step, micros1 )).unzip
 //               val rem2             = rem1.collect({ case Some( x ) => x })
@@ -108,7 +130,10 @@ object TreeTests {
                   (rem3, micros3)
                })
                val newT             = copy( children = rem4 )
-               newT.decomposeStep( c, step + 1, micros4 )
+//               if( micros4.size == oldSz ) {
+                  (Some( newT ), micros4)
+//               }
+//               newT.decomposeStep( c, step + 1, micros4 )
             }
          }
       }
@@ -132,7 +157,11 @@ object TreeTests {
       }
 
       val t    = createRandomTree( 4 )
-      val str  = t.toDot
+//      val m    = t.decompose( 3.0 / math.log(2) )
+//      val mr: Set[ Int ] = m.map( _.label )( breakOut )
+//      println( "micro roots: " + mr )
+//      val str  = t.toDot { (p, c) => !mr.contains( c.label )}
+      val str  = t.toDot()
       val f    = new File( new File( util.Properties.userHome, "Desktop" ), "tree.dot" )
       val w    = new OutputStreamWriter( new FileOutputStream( f ), "UTF-8" )
       w.write( str )
