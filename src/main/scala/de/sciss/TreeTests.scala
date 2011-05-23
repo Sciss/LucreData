@@ -2,7 +2,10 @@ package de.sciss
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import annotation.tailrec
-import sys.error // suckers
+import sys.error
+import java.io.{FileOutputStream, OutputStreamWriter, File}
+
+// suckers
 
 object TreeTests {
    def main( args: Array[ String ]) : Unit = staticTest
@@ -62,6 +65,21 @@ object TreeTests {
          def decompose( c: Double ) : IIdxSeq[ MicroTree[ L ]] = decomposeStep( c, 0, IIdxSeq.empty )._2
 
          def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]])
+
+         def toDot : String = {
+            var sb = new StringBuilder()
+            sb.append( "digraph Tree {\n" )
+//            children.foldLeft( 0 )( (id, ch) => ch.appendDot( 0, id, sb ))
+            appendDot( -1, 0, sb )
+            sb.append( "}\n" )
+            sb.toString()
+         }
+
+         protected def appendDot( pid: Int, id: Int, sb: StringBuilder ) : Int = {
+            sb.append( "  " + id + " [label=\"" + label.toString + "\"]\n" )
+            if( pid >= 0 ) sb.append( "  " + pid + " -> " + id + "\n" )
+            children.foldLeft( id + 1 )( (cid, ch) => ch.appendDot( id, cid, sb ))
+         }
       }
 
       trait MicroTree[ L ] extends SimpleTree[ L ] {
@@ -100,6 +118,24 @@ object TreeTests {
          def decomposeStep( c: Double, step: Int, res: IIdxSeq[ MicroTree[ L ]]) : (Option[ SimpleTree[ L ]], IIdxSeq[ MicroTree[ L ]]) = error( "TODO" )
       }
 
+      def createRandomTree( depth: Int, minChildren: Int = 0, maxChildren: Int = 4 ) : SimpleTree[ Int ] = {
+         require( minChildren >= 0 && maxChildren >= minChildren )
+         var i = 0
+         def iter( d: Int ) : SimpleTree[ Int ] = {
+            val numCh   = if( d == 0 ) 0 else util.Random.nextInt( maxChildren - minChildren + 1 )
+            val subs    = IIdxSeq.fill( numCh )( iter( d - 1 ))
+            val label   = i
+            i += 1
+            SimpleTreeImpl( label, subs )
+         }
+         iter( depth )
+      }
 
+      val t    = createRandomTree( 4 )
+      val str  = t.toDot
+      val f    = new File( new File( util.Properties.userHome, "Desktop" ), "tree.dot" )
+      val w    = new OutputStreamWriter( new FileOutputStream( f ), "UTF-8" )
+      w.write( str )
+      w.close()
    }
 }
