@@ -1,5 +1,5 @@
 digraph Tree {
-    0 [label="hallo"]
+    0 [label="hallo", color=red, fillcolor="0.5,0.25,1", style=filled]
     0 -> 1
     A -> C [style=dotted]
     C -> D
