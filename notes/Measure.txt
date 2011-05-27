@@ -1,0 +1,23 @@
+c = 2.0
+
+n = 957; depth = 20; numLevels = 4; max-size(micro) = 19
+n = 1075; depth = 20; numLevels = 4; max-size(micro) = 18
+n = 4184; depth = 20; numLevels = 5; max-size(micro) = 18
+n = 4306; depth = 20; numLevels = 4; max-size(micro) = 17
+
+n = 5341; depth = 20; numLevels = 5; max-size(micro) = 18
+n = 6864; depth = 20; numLevels = 5; max-size(micro) = 20
+n = 10507; depth = 20; numLevels = 5; max-size(micro) = 21
+n = 11152; depth = 20; numLevels = 5; max-size(micro) = 28
+n = 12500; depth = 20; numLevels = 5; max-size(micro) = 19
+n = 13446; depth = 20; numLevels = 5; max-size(micro) = 29
+n = 13700; depth = 20; numLevels = 5; max-size(micro) = 20
+n = 18090; depth = 20; numLevels = 5; max-size(micro) = 24
+n = 23712; depth = 20; numLevels = 5; max-size(micro) = 22
+
+n = 27466; depth = 23; numLevels = 5; max-size(micro) = 22
+
+n = 46246; depth = 23; numLevels = 6; max-size(micro) = 21
+n = 70692; depth = 23; numLevels = 6; max-size(micro) = 25
+
+numLevels scheint in etwa aus log(n) abgeleitet zu sein

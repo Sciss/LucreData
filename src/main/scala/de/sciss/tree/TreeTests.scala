@@ -1,15 +1,13 @@
-package de.sciss
+package de.sciss.tree
 
 import collection.breakOut
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import annotation.tailrec
-import sys.error
+import sys.error // suckers
 import java.io.{FileOutputStream, OutputStreamWriter, File}
 
-// suckers
-
-object TreeTests {
-   def main( args: Array[ String ]) : Unit = staticTest
+object TreeTests extends App {
+   staticTest
 
    /**
     * Alstrup et al - Marked Ancestor Problems
@@ -124,7 +122,7 @@ object TreeTests {
                (None, res :+ MicroTreeImpl( label, children, step ))
             } else {
                val (mroots, rem)    = children.partition( ch => ch.weight < ch.mh( c ))
-if( mroots.nonEmpty ) println( "mroots : " + mroots.map( _.label ))
+//if( mroots.nonEmpty ) println( "mroots : " + mroots.map( _.label ))
 //               val oldSz            = res.size
                val micros1          = res ++ mroots.map( ch => MicroTreeImpl( ch.label, ch.children, step ))
 //               val (rem1, micros2)  = rem.map( _.decomposeStep( c, step, micros1 )).unzip
@@ -157,7 +155,7 @@ if( mroots.nonEmpty ) println( "mroots : " + mroots.map( _.label ))
          require( minChildren >= 0 && maxChildren >= minChildren )
          var i = 0
          def iter( d: Int ) : SimpleTree[ Int ] = {
-            val numCh   = if( d == 0 ) 0 else util.Random.nextInt( maxChildren - minChildren + 1 )
+            val numCh   = if( d == 0 ) 0 else util.Random.nextInt( maxChildren - minChildren + 1 ) + minChildren
             val subs    = IIdxSeq.fill( numCh )( iter( d - 1 ))
             val label   = i
             i += 1
@@ -166,10 +164,10 @@ if( mroots.nonEmpty ) println( "mroots : " + mroots.map( _.label ))
          iter( depth )
       }
 
-      util.Random.setSeed( 10L )
-      val depth         = 10
-      val minChildren   = 0
-      val maxChildren   = 3
+      //util.Random.setSeed( 10L )
+      val depth         = 23
+      val minChildren   = 1
+      val maxChildren   = 2
       val t    = createRandomTree( depth, minChildren, maxChildren )
       val c    = 2.0
       val m    = t.decompose( c ) // 3.0 / math.log(2) )
@@ -184,6 +182,7 @@ if( mroots.nonEmpty ) println( "mroots : " + mroots.map( _.label ))
          res
       }
       val numLevels = ls.values.toSet.max + 1
+println( "n = " + t.size + "; depth = " + depth + "; numLevels = " + numLevels + "; max-size(micro) = " + m.maxBy( _.size ).size )
       val ns   = {
          var res = Map.empty[ Int, SimpleTree[ Int ]]
          def gugu( t: SimpleTree[ Int ]) {
