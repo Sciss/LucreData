@@ -1,5 +1,5 @@
 /*
- *  QuadTreeTest.scala
+ *  Quad.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -28,26 +28,22 @@
 
 package de.sciss.tree
 
-import java.awt.EventQueue
-import view.QuadTreeView
-import javax.swing.{WindowConstants, JFrame}
+case class Point( x: Int, y: Int ) {
+//   def orthoDist( p: Point ) : Int = math.max( math.abs( x - p.x ), math.abs( y - p.y ))
+   def +( p: Point ) = Point( x + p.x, y + p.y )
+   def -( p: Point ) = Point( x - p.x, y - p.y )
+}
 
-object QuadTreeTest extends App with Runnable {
-   EventQueue.invokeLater( this )
-
-   def run {
-      val f    = new JFrame( "QuadTree" )
-      f.setResizable( false )
-      val cp   = f.getContentPane
-      val t    = QuadTree.fromMap( Point( 0, 0 ), 256, Map(
-         Point( -128,  128 ) -> (),
-         Point(  232, -248 ) -> (),
-         Point(  248, -232 ) -> () ))
-      val v    = new QuadTreeView( t )
-      cp.add( v, "Center" )
-      f.pack()
-      f.setLocationRelativeTo( null )
-      f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      f.setVisible( true )
-   }
+sealed trait Quad[ V ] {
+   def center: Point
+   def extent: Int
+}
+final case class QuadEmpty[ V ]( center: Point, extent: Int ) extends Quad[ V ]
+final case class QuadLeaf[ V ]( center: Point, extent: Int, point: Point, value: V ) extends Quad[ V ]
+trait QuadNode[ V ] extends Quad[ V ] {
+   def nw: Quad[ V ]
+   def ne: Quad[ V ]
+   def sw: Quad[ V ]
+   def se: Quad[ V ]
+   def insert( point: Point, value: V ) : QuadNode[ V ]
 }

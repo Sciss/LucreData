@@ -1,0 +1,15 @@
+h2. TreeTests
+
+h3. statement
+
+(C)opyright 2011 Hanns Holger Rutz. This software is released under the "GNU General Public License":http://github.com/Sciss/TreeTests/blob/master/licenses/TreeTests-License.txt .
+
+This is a sandbox project for implementing and probing various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries.
+
+* S. Alstrup, T. Husfeldt, and T. Rauhe, "Marked ancestor problems," in Proceedings of the 39th Annual Symposium on Foundations of Computer Science, p. 534, 1998.
+
+* Eppstein, D. and Goodrich, M.T. and Sun, J.Z., "The Skip Quadtree: A Simple Dynamic Data Structure for Multidimensional Data," in Proceedings of the twenty-first annual symposium on Computational geometry, pp. 296--305, 2005.
+
+h3. requirements
+
+Builds with sbt against Scala 2.9.0. Also included is a Intellij IDEA 10.5 CE project.
