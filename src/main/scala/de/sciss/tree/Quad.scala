@@ -28,22 +28,44 @@
 
 package de.sciss.tree
 
-case class Point( x: Int, y: Int ) {
+trait QuadLike {
+   def center: Point
+   def extent: Int
+   def topLeft: Point = {
+      val c = center
+      Point( c.x - extent, c.y - extent )
+   }
+}
+
+case class Point( x: Int, y: Int ) /* extends QuadLike */ {
 //   def orthoDist( p: Point ) : Int = math.max( math.abs( x - p.x ), math.abs( y - p.y ))
    def +( p: Point ) = Point( x + p.x, y + p.y )
    def -( p: Point ) = Point( x - p.x, y - p.y )
+
+//   def center = this
+//   def extent = 1
 }
 
-sealed trait Quad[ V ] {
-   def center: Point
-   def extent: Int
-}
+sealed trait Quad[ V ] extends QuadLike
 final case class QuadEmpty[ V ]( center: Point, extent: Int ) extends Quad[ V ]
 final case class QuadLeaf[ V ]( center: Point, extent: Int, point: Point, value: V ) extends Quad[ V ]
 trait QuadNode[ V ] extends Quad[ V ] {
-   def nw: Quad[ V ]
+   /**
+    * North east quadrant (aka I)
+    */
    def ne: Quad[ V ]
+   /**
+    * North west quadrant (aka II)
+    */
+   def nw: Quad[ V ]
+   /**
+    * South west quadrant (aka III)
+    */
    def sw: Quad[ V ]
+   /**
+    * South east quadrant (aka IV)
+    */
    def se: Quad[ V ]
+
    def insert( point: Point, value: V ) : QuadNode[ V ]
 }

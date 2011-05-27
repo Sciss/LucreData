@@ -29,7 +29,7 @@
 package de.sciss.tree
 
 import java.awt.EventQueue
-import view.QuadTreeView
+import view.QuadView
 import javax.swing.{WindowConstants, JFrame}
 
 object QuadTreeTest extends App with Runnable {
@@ -39,11 +39,11 @@ object QuadTreeTest extends App with Runnable {
       val f    = new JFrame( "QuadTree" )
       f.setResizable( false )
       val cp   = f.getContentPane
-      val t    = QuadTree.fromMap( Point( 0, 0 ), 256, Map(
-         Point( -128,  128 ) -> (),
-         Point(  232, -248 ) -> (),
-         Point(  248, -232 ) -> () ))
-      val v    = new QuadTreeView( t )
+      val t    = QuadTree.fromMap( Point( 256, 256 ), 256, Map(
+         Point( 128, 384 ) -> (),
+         Point( 488,   8 ) -> (),
+         Point( 504,  24 ) -> () ))
+      val v    = new QuadView( t )
       cp.add( v, "Center" )
       f.pack()
       f.setLocationRelativeTo( null )

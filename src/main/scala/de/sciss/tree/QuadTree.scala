@@ -39,13 +39,13 @@ object QuadTree {
 class QuadTree[ V ]( val center: Point, val extent: Int )
 extends QuadNode[ V ] {
    private val halfExt = math.max( 1, extent >> 1 )
-   private var nwVar: Quad[ V ] = QuadEmpty( center + Point( -halfExt, -halfExt ), halfExt )
    private var neVar: Quad[ V ] = QuadEmpty( center + Point(  halfExt, -halfExt ), halfExt )
+   private var nwVar: Quad[ V ] = QuadEmpty( center + Point( -halfExt, -halfExt ), halfExt )
    private var swVar: Quad[ V ] = QuadEmpty( center + Point( -halfExt,  halfExt ), halfExt )
    private var seVar: Quad[ V ] = QuadEmpty( center + Point(  halfExt,  halfExt ), halfExt )
 
-   def nw : Quad[ V ] = nwVar
    def ne : Quad[ V ] = neVar
+   def nw : Quad[ V ] = nwVar
    def sw : Quad[ V ] = swVar
    def se : Quad[ V ] = seVar
 
@@ -53,8 +53,8 @@ extends QuadNode[ V ] {
       val isWest  = point.x < center.x
       val isNorth = point.y < center.y
       (isWest, isNorth) match {
-         case (true,  true)   => nwVar = insert( nwVar, point, value )
          case (false, true)   => neVar = insert( neVar, point, value )
+         case (true,  true)   => nwVar = insert( nwVar, point, value )
          case (true,  false)  => swVar = insert( swVar, point, value )
          case (false, false)  => seVar = insert( seVar, point, value )
       }

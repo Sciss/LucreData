@@ -32,7 +32,7 @@ package view
 import java.awt.{Color, RenderingHints, Graphics2D, Graphics, Dimension}
 import javax.swing.{BorderFactory, JComponent}
 
-class QuadTreeView( t: QuadTree[ _ ]) extends JComponent {
+class QuadView( t: Quad[ _ ]) extends JComponent {
    setBorder( BorderFactory.createEmptyBorder( 4, 4, 4, 4 ))
 
    override def getPreferredSize : Dimension = {
