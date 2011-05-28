@@ -32,7 +32,7 @@ package view
 import java.awt.{Color, RenderingHints, Graphics2D, Graphics, Dimension}
 import javax.swing.{BorderFactory, JComponent}
 
-class QuadView( t: Quad[ _ ]) extends JComponent {
+class QuadView( t: QuadTree.Q[ _ ]) extends JComponent {
    setBorder( BorderFactory.createEmptyBorder( 4, 4, 4, 4 ))
 
    override def getPreferredSize : Dimension = {
@@ -51,7 +51,7 @@ class QuadView( t: Quad[ _ ]) extends JComponent {
       g2.setTransform( atOrig )
    }
 
-   private def draw( g2: Graphics2D, quad: Quad[ _ ]) {
+   private def draw( g2: Graphics2D, quad: QuadTree.Q[ _ ]) {
       def drawFrame {
          g2.setColor( Color.black )
          val c = quad.center
@@ -60,9 +60,9 @@ class QuadView( t: Quad[ _ ]) extends JComponent {
          g2.drawRect( c.x - e, c.y - e, w, w )
       }
       quad match {
-         case t: QuadTree[ _ ]   => List( t.nw, t.ne, t.sw, t.se ).foreach( draw( g2, _ ))
-         case _: QuadEmpty[ _ ]  => drawFrame
-         case l: QuadLeaf[ _ ]   =>
+         case t: QuadTree.QNode[ _ ]   => List( t.nw, t.ne, t.sw, t.se ).foreach( draw( g2, _ ))
+         case _: QuadTree.QEmpty[ _ ]  => drawFrame
+         case l: QuadTree.QLeaf[ _ ]   =>
             drawFrame
             g2.setColor( Color.red )
             g2.fillOval( l.point.x - 2, l.point.y - 2, 5, 5 )

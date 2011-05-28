@@ -29,50 +29,77 @@
 package de.sciss.tree
 
 object QuadTree {
-   def apply[ V ]( center: Point, extent: Int ) = new QuadTree[ V ]( center, extent )
-   def fromMap[ V ]( center: Point, extent: Int, m: Map[ Point, V ]) : QuadTree[ V ] = {
-      val t = new QuadTree[ V ]( center, extent )
+   def apply[ V ]( center: Point, extent: Int ) : QNode[ V ] = new NodeImpl[ V ]( center, extent )
+   def fromMap[ V ]( center: Point, extent: Int, m: Map[ Point, V ]) : QNode[ V ] = {
+      val t = new NodeImpl[ V ]( center, extent )
       m.foreach { case (point, value) => t.insert( point, value )}
       t
    }
-}
-class QuadTree[ V ]( val center: Point, val extent: Int )
-extends QuadNode[ V ] {
-   private val halfExt = math.max( 1, extent >> 1 )
-   private var neVar: Quad[ V ] = QuadEmpty( center + Point(  halfExt, -halfExt ), halfExt )
-   private var nwVar: Quad[ V ] = QuadEmpty( center + Point( -halfExt, -halfExt ), halfExt )
-   private var swVar: Quad[ V ] = QuadEmpty( center + Point( -halfExt,  halfExt ), halfExt )
-   private var seVar: Quad[ V ] = QuadEmpty( center + Point(  halfExt,  halfExt ), halfExt )
 
-   def ne : Quad[ V ] = neVar
-   def nw : Quad[ V ] = nwVar
-   def sw : Quad[ V ] = swVar
-   def se : Quad[ V ] = seVar
+   sealed trait Q[ V ] {
+      def center: Point
+      def extent: Int
+      def quad = Quad( center.x, center.y, extent )
+   }
+   final case class QEmpty[ V ]( center: Point, extent: Int ) extends Q[ V ]
+   final case class QLeaf[ V ]( center: Point, extent: Int, point: Point, value: V ) extends Q[ V ]
+   sealed trait QNode[ V ] extends Q[ V ] {
+      /**
+       * North east quadrant (aka I)
+       */
+      def ne: Q[ V ]
+      /**
+       * North west quadrant (aka II)
+       */
+      def nw: Q[ V ]
+      /**
+       * South west quadrant (aka III)
+       */
+      def sw: Q[ V ]
+      /**
+       * South east quadrant (aka IV)
+       */
+      def se: Q[ V ]
 
-   def insert( point: Point, value: V ) : QuadNode[ V ] = {
-      val isWest  = point.x < center.x
-      val isNorth = point.y < center.y
-      (isWest, isNorth) match {
-         case (false, true)   => neVar = insert( neVar, point, value )
-         case (true,  true)   => nwVar = insert( nwVar, point, value )
-         case (true,  false)  => swVar = insert( swVar, point, value )
-         case (false, false)  => seVar = insert( seVar, point, value )
-      }
-      this
+      def insert( point: Point, value: V ) : Unit
    }
 
-   private def insert( quad: Quad[ V ], point: Point, value: V ) : Quad[ V ] = {
-      val d = point - quad.center
-      val e = quad.extent
-      require( d.x >= -e && d.x < e && d.y >= -e && d.y < e )
-      quad match {
-         case QuadEmpty( center, extent ) => QuadLeaf( center, extent, point, value )
-         case t: QuadTree[ _ ] => t.insert( point, value ); t
-         case QuadLeaf( center, extent, point2, value2 ) =>
-            val t = QuadTree[ V ]( center, extent )
-            t.insert( point2, value2 )
-            t.insert( point, value )
-            t
+   private class NodeImpl[ V ]( val center: Point, val extent: Int ) extends QNode[ V ] {
+      private val halfExt = math.max( 1, extent >> 1 )
+      private var neVar: Q[ V ] = QEmpty( center + Point(  halfExt, -halfExt ), halfExt )
+      private var nwVar: Q[ V ] = QEmpty( center + Point( -halfExt, -halfExt ), halfExt )
+      private var swVar: Q[ V ] = QEmpty( center + Point( -halfExt,  halfExt ), halfExt )
+      private var seVar: Q[ V ] = QEmpty( center + Point(  halfExt,  halfExt ), halfExt )
+
+      def ne : Q[ V ] = neVar
+      def nw : Q[ V ] = nwVar
+      def sw : Q[ V ] = swVar
+      def se : Q[ V ] = seVar
+
+      def insert( point: Point, value: V ) {
+         val isWest  = point.x < center.x
+         val isNorth = point.y < center.y
+         (isWest, isNorth) match {
+            case (false, true)   => neVar = insert( neVar, point, value )
+            case (true,  true)   => nwVar = insert( nwVar, point, value )
+            case (true,  false)  => swVar = insert( swVar, point, value )
+            case (false, false)  => seVar = insert( seVar, point, value )
+         }
+      }
+
+      private def insert( quad: Q[ V ], point: Point, value: V ) : Q[ V ] = {
+         val d = point - quad.center
+         val e = quad.extent
+         require( d.x >= -e && d.x < e && d.y >= -e && d.y < e )
+         quad match {
+            case QEmpty( center, extent ) => QLeaf( center, extent, point, value )
+            case t: QNode[ _ ] => t.insert( point, value ); t
+            case QLeaf( center, extent, point2, value2 ) =>
+               val t = QuadTree[ V ]( center, extent )
+               t.insert( point2, value2 )
+               t.insert( point, value )
+               t
+         }
       }
    }
 }
