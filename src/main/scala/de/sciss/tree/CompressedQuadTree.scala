@@ -41,21 +41,34 @@ extends QuadNode[ V ] {
    private var swVar: Quad[ V ] = QuadEmpty( center + Point( -halfExt,  halfExt ), halfExt )
    private var seVar: Quad[ V ] = QuadEmpty( center + Point(  halfExt,  halfExt ), halfExt )
 
+   private val quads = new Array[ Quad[ V ]]( 4 )
+
    def ne : Quad[ V ] = neVar
    def nw : Quad[ V ] = nwVar
    def sw : Quad[ V ] = swVar
    def se : Quad[ V ] = seVar
 
    def insert( point: Point, value: V ) : QuadNode[ V ] = {
-      val isWest  = point.x < center.x
-      val isNorth = point.y < center.y
-      (isWest, isNorth) match {
-         case (false, true)   => neVar = insert( neVar, point, value )
-         case (true,  true)   => nwVar = insert( nwVar, point, value )
-         case (true,  false)  => swVar = insert( swVar, point, value )
-         case (false, false)  => seVar = insert( seVar, point, value )
+      val qidx = quadIdx( center, extent, point )
+      require( qidx >= 0, point.toString + " lies outside of root square " + (center, extent) )
+      quads( qidx ) = quads( qidx ) match {
+         case QuadEmpty( ec, ee ) => QuadLeaf( ec, ee, point, value )
+         case t: QuadTree[ _ ] => error( "TODO" ) // t.insert( point, value ); t
+         /*
+            "If the quadrant of p(x) that x is inserted into already contains a point y or
+            an interesting square r, then we insert to Q a new interesting square q ⊂ p
+            that contains both x and y (or r) but separates x and y (or r) into different
+            quadrants of q."
+          */
+         case QuadLeaf( lc, le, point2, value2 ) =>
+            val (ic, ie) = gisqr( lc, le, point2, point )
+            val t = CompressedQuadTree[ V ]( center, extent )
+//            t.insertQuad( point2, value2 )
+//            t.insertQuad( point, value )
+            error( "TODO" )
+            t
       }
-      this
+      error( "TODO" )
    }
 
 //   private def interesting( point: Point ) : Quad[ V ] = {
@@ -81,7 +94,8 @@ extends QuadNode[ V ] {
     * "Given a quadrant of a square p containing two points x and y, find the largest interesting square inside this quadrant."
     * (greatest interesting square)
     *
-    * @return  a tuple consisting of the centre point and extent of the greatest interesting square
+    * @return  a tuple consisting of `_1` the centre point, `_2` the extent of the greatest interesting square,
+    *          `_3` the quadrant of `a`, and `_4` the quadrant of `b` in this interesting square.
     */
    private def gisqr( pc: Point, pe: Int, a: Point, b: Point ) : (Point, Int) = {
       val tlx        = pc.x - pe
@@ -94,10 +108,50 @@ extends QuadNode[ V ] {
       val (y1, y2)   = if( aky <= bky ) (aky, bky) else (bky, aky )
       val mx         = binSplit( x1 + 1, x2 )
       val my         = binSplit( y1 + 1, y2 )
-      if( mx <= my ) { // that means the x extent is greater (x grid more coarse)!
+      // that means the x extent is greater (x grid more coarse).
+      if( mx <= my ) {
          (Point( tlx + (x2 & mx), tly + (y1 & mx) - mx ), -mx)
       } else {
          (Point( tlx + (x1 & my) - my, tly + (y2 & my) ), -my)
+      }
+   }
+
+   /**
+    * Determines the quadrant index of a point `a` in a square `p` defined
+    * by its center `pc` and extent `pe`.
+    *
+    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
+    *          outside of `p`.
+    */
+   private def quadIdx( pc: Point, pe: Int, a: Point ) : Int = {
+      if( a.y < pc.y ) {      // north
+         if( a.x >= pc.x ) {  // east
+            if( pc.x + pe >  a.x && pc.y - pe <= a.y ) 0 else -1   // ne
+         } else {             // west
+            if( pc.x - pe <= a.x && pc.y - pe <= a.y ) 1 else -2   // nw
+         }
+      } else {                // south
+         if( a.x < pc.x ) {   // west
+            if( pc.x - pe <= a.x && pc.y + pe >  a.y ) 2 else -3   // sw
+         } else {             // east
+            if( pc.x + pe >  a.x && pc.y + pe >  a.y ) 3 else -4   // se
+         }
+      }
+   }
+
+   /**
+    * Determines the quadrant index of a point `a` in a square `p` defined
+    * by its center `pc`
+    *
+    * @return  the index of the quadrant (beginning at 0)
+    */
+   private def quadIdx( pc: Point, a: Point ) : Int = {
+      if( a.y < pc.y ) {      // north
+         if( a.x >= pc.x ) 0  // ne
+         else 1               // nw
+      } else {                // south
+         if( a.x < pc.x ) 2   // sw
+         else 3               // se
       }
    }
 
@@ -114,29 +168,6 @@ extends QuadNode[ V ] {
          if( gt ) mask >> 1 else mask
       } else {
         binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
-      }
-   }
-
-   private def insert( quad: Quad[ V ], point: Point, value: V ) : Quad[ V ] = {
-      val d = point - quad.center
-      val e = quad.extent
-      require( d.x >= -e && d.x < e && d.y >= -e && d.y < e )
-      quad match {
-         case QuadEmpty( center, extent ) => QuadLeaf( center, extent, point, value )
-         case t: QuadTree[ _ ] => error( "TODO" ) // t.insert( point, value ); t
-         /*
-            "If the quadrant of p(x) that x is inserted into already contains a point y or
-            an interesting square r, then we insert to Q a new interesting square q ⊂ p
-            that contains both x and y (or r) but separates x and y (or r) into different
-            quadrants of q."
-          */
-         case QuadLeaf( center, extent, point2, value2 ) =>
-            val (ic, ie) = gisqr( center, extent, point2, point )
-            val t = CompressedQuadTree[ V ]( center, extent )
-//            t.insertQuad( point2, value2 )
-//            t.insertQuad( point, value )
-            error( "TODO" )
-            t
       }
    }
 }
