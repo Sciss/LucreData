@@ -29,8 +29,8 @@
 package de.sciss.tree
 
 import java.awt.EventQueue
-import view.QuadView
 import javax.swing.{WindowConstants, JFrame}
+import view.QuadTreeView
 
 object QuadTreeTest extends App with Runnable {
    EventQueue.invokeLater( this )
@@ -43,7 +43,7 @@ object QuadTreeTest extends App with Runnable {
          Point( 128, 384 ) -> (),
          Point( 488,   8 ) -> (),
          Point( 504,  24 ) -> () ))
-      val v    = new QuadView( t )
+      val v    = new QuadTreeView( t )
       cp.add( v, "Center" )
       f.pack()
       f.setLocationRelativeTo( null )

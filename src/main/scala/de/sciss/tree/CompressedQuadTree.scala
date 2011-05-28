@@ -38,13 +38,14 @@ object CompressedQuadTree {
       new NodeImpl[ V ]( quad, quads )
    }
 
-   sealed trait Q[ V ] {
-      def quad: Quad
+   sealed trait Q[ +V ] {
+//      def quad: Quad
    }
-   final case class QEmpty[ V ]( quad: Quad ) extends Q[ V ]
-   final case class QLeaf[ V ]( quad: Quad, point: Point, value: V ) extends Q[ V ]
+   case object QEmpty extends Q[ Nothing ] // [ V ]() /* ( quad: Quad ) */ extends Q[ V ]
+   final case class QLeaf[ V ]( /* quad: Quad, */ point: Point, value: V ) extends Q[ V ]
    sealed trait QNode[ V ] extends Q[ V ] {
       def insert( point: Point, value: V ) : Unit
+      def quad: Quad
    }
 
 //   private def createEmptyQuads[ V ]( quad: Quad, arr: Array[ Q[ V ]]) {
@@ -58,7 +59,7 @@ object CompressedQuadTree {
       // fix null squares
       {
          var i = 0; while( i < 4 ) {
-            if( quads( i ) == null ) quads( i ) = QEmpty( quad.quadrant( i ))
+            if( quads( i ) == null ) quads( i ) = QEmpty
          i += 1 }
       }
 
@@ -66,16 +67,16 @@ object CompressedQuadTree {
          val qidx = quadIdx( quad, point )
          require( qidx >= 0, point.toString + " lies outside of root square " + quad )
          quads( qidx ) = quads( qidx ) match {
-            case QEmpty( eq ) => QLeaf( eq, point, value )
+            case QEmpty => QLeaf( /* eq, */ point, value )
             case t: QNode[ _ ] =>
                val tq      = t.quad
                val te      = tq.extent
-               val iq      = gisqr( quad.quadrant( qidx ), tq.cx - te, tq.cy - te, te << 1, point )
+               val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
                val iquads  = new Array[ Q[ V ]]( 4 )
                val tidx    = quadIdx( iq, tq )
                iquads( tidx ) = t // l.copy( quad = iq.quadrant( lidx ))
                val pidx    = quadIdx( iq, point )
-               iquads( pidx ) = QLeaf( iq.quadrant( pidx ), point, value )
+               iquads( pidx ) = QLeaf( /* iq.quadrant( pidx ), */ point, value )
 //               createEmptyQuads( iq, iquads )
                new NodeImpl[ V ]( iq, iquads )
 
@@ -85,13 +86,13 @@ object CompressedQuadTree {
                that contains both x and y (or r) but separates x and y (or r) into different
                quadrants of q."
              */
-            case l @ QLeaf( lq, point2, value2 ) =>
-               val iq      = gisqr( lq, point2.x, point2.y, 1, point )
+            case l @ QLeaf( /* lq, */ point2, value2 ) =>
+               val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
                val iquads  = new Array[ Q[ V ]]( 4 )
                val lidx    = quadIdx( iq, point2 )
-               iquads( lidx ) = l.copy( quad = iq.quadrant( lidx ))
+               iquads( lidx ) = l // .copy( quad = iq.quadrant( lidx ))
                val pidx    = quadIdx( iq, point )
-               iquads( pidx ) = QLeaf( iq.quadrant( pidx ), point, value )
+               iquads( pidx ) = QLeaf( /* iq.quadrant( pidx ), */ point, value )
 //               createEmptyQuads( iq, iquads )
                new NodeImpl[ V ]( iq, iquads )
          }
@@ -142,17 +143,18 @@ object CompressedQuadTree {
 //         }
 //      }
 
-      private def gisqr( pq: Quad, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
-         val tlx        = pq.cx - pq.extent
-         val tly        = pq.cy - pq.extent
-         val akx        = aleft - tlx
-         val aky        = atop  - tly
-         val bkx        = b.x - tlx
-         val bky        = b.y - tly
-         val (x0, x1, x2)   = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
-         val (y0, y1, y2)   = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
-         val mx         = binSplit( x1, x2 )
-         val my         = binSplit( y1, y2 )
+      private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
+         val pq            = quad.quadrant( pqidx )
+         val tlx           = pq.cx - pq.extent
+         val tly           = pq.cy - pq.extent
+         val akx           = aleft - tlx
+         val aky           = atop  - tly
+         val bkx           = b.x - tlx
+         val bky           = b.y - tly
+         val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
+         val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
+         val mx            = binSplit( x1, x2 )
+         val my            = binSplit( y1, y2 )
          // that means the x extent is greater (x grid more coarse).
          if( mx <= my ) {
             Quad( tlx + (x2 & mx), tly + (y0 & mx) - mx, -mx )

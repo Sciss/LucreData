@@ -32,11 +32,30 @@ package view
 import java.awt.{Color, RenderingHints, Graphics2D, Graphics, Dimension}
 import javax.swing.{BorderFactory, JComponent}
 
-class QuadView( t: QuadTree.Q[ _ ]) extends JComponent {
+object QuadView {
+   case class PaintHelper( g2: Graphics2D ) {
+      def drawFrame( quad: Quad ) {
+         g2.setColor( Color.black )
+         val e = quad.extent
+         val w = e * 2
+         g2.drawRect( quad.cx - e, quad.cy - e, w, w )
+      }
+
+      def drawPoint( point: Point ) {
+         g2.setColor( Color.red )
+         g2.fillOval( point.x - 2, point.y - 2, 5, 5 )
+      }
+
+   }
+}
+abstract class QuadView extends JComponent {
    setBorder( BorderFactory.createEmptyBorder( 4, 4, 4, 4 ))
 
+   def rootQuad : Quad
+   protected def draw( h: QuadView.PaintHelper ) : Unit
+
    override def getPreferredSize : Dimension = {
-      val w1   = t.extent * 2 + 1
+      val w1   = rootQuad.extent * 2 + 1
       val in   = getInsets()
       new Dimension( w1 + (in.left + in.right), w1 + (in.top + in.bottom) )
    }
@@ -46,26 +65,9 @@ class QuadView( t: QuadTree.Q[ _ ]) extends JComponent {
       g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON )
       val atOrig = g2.getTransform
       val in   = getInsets()
-      g2.translate( t.extent - t.center.x + in.left, t.extent - t.center.y + in.top )
-      draw( g2, t )
+      val q    = rootQuad
+      g2.translate( q.extent - q.cx + in.left, q.extent - q.cy + in.top )
+      draw( QuadView.PaintHelper( g2 ))
       g2.setTransform( atOrig )
-   }
-
-   private def draw( g2: Graphics2D, quad: QuadTree.Q[ _ ]) {
-      def drawFrame {
-         g2.setColor( Color.black )
-         val c = quad.center
-         val e = quad.extent
-         val w = e * 2
-         g2.drawRect( c.x - e, c.y - e, w, w )
-      }
-      quad match {
-         case t: QuadTree.QNode[ _ ]   => List( t.nw, t.ne, t.sw, t.se ).foreach( draw( g2, _ ))
-         case _: QuadTree.QEmpty[ _ ]  => drawFrame
-         case l: QuadTree.QLeaf[ _ ]   =>
-            drawFrame
-            g2.setColor( Color.red )
-            g2.fillOval( l.point.x - 2, l.point.y - 2, 5, 5 )
-      }
    }
 }
