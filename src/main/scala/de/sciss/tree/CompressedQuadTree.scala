@@ -80,45 +80,63 @@ extends QuadNode[ V ] {
    /*
     * "Given a quadrant of a square p containing two points x and y, find the largest interesting square inside this quadrant."
     * (greatest interesting square)
+    *
+    * @return  a tuple consisting of the centre point and extent of the greatest interesting square
     */
-   private def gisqr( q: QuadLike, a: Point, b: Point ) : QuadLike = {
-      val tl = q.topLeft
-      val ak = a - tl
-      val bk = b - tl
-//      val (center, extent) = binSplit( ... )
-      error( "TODO" )
+   private def gisqr( pc: Point, pe: Int, a: Point, b: Point ) : (Point, Int) = {
+      val tlx        = pc.x - pe
+      val tly        = pc.y - pe
+      val akx        = a.x - tlx
+      val aky        = a.y - tly
+      val bkx        = b.x - tlx
+      val bky        = b.y - tly
+      val (x1, x2)   = if( akx <= bkx ) (akx, bkx) else (bkx, akx )
+      val (y1, y2)   = if( aky <= bky ) (aky, bky) else (bky, aky )
+      val mx         = binSplit( x1 + 1, x2 )
+      val my         = binSplit( y1 + 1, y2 )
+      if( mx <= my ) { // that means the x extent is greater (x grid more coarse)!
+         (Point( tlx + (x2 & mx), tly + (y1 & mx) - mx ), -mx)
+      } else {
+         (Point( tlx + (x1 & my) - my, tly + (y2 & my) ), -my)
+      }
    }
 
-   @tailrec private def binSplit(a: Int, b: Int, mask: Int = 0xFFFFFFFF ): (Int, Int) = {
-     val mask2 = mask << 1
-     if (a > (b & mask2)) (b & mask, -mask)
-     else binSplit(a, b, mask2 )
+//   @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFFFFFF ): Int = {
+//     val mask2 = mask << 1
+//     if( a > (b & mask2) ) mask // (b & mask, -mask)
+//     else binSplit( a, b, mask2 )
+//   }
+
+   // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
+   @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
+      val gt = a > (b & mask)
+      if( shift == 0 ) {
+         if( gt ) mask >> 1 else mask
+      } else {
+        binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
+      }
    }
 
    private def insert( quad: Quad[ V ], point: Point, value: V ) : Quad[ V ] = {
-      error( "TODO" )
-//      val d = point - quad.center
-//      val e = quad.extent
-//      require( d.x >= -e && d.x < e && d.y >= -e && d.y < e )
-//      quad match {
-//         case QuadEmpty( center, extent ) => QuadLeaf( center, extent, point, value )
-//         case t: QuadTree[ _ ] => t.insert( point, value ); t
-//         /*
-//            "If the quadrant of p(x) that x is inserted into already contains a point y or
-//            an interesting square r, then we insert to Q a new interesting square q ⊂ p
-//            that contains both x and y (or r) but separates x and y (or r) into different
-//            quadrants of q."
-//          */
-//         case QuadLeaf( center, extent, point2, value2 ) =>
-//            val x0 = binFloor( math.min( point2.x, point.x ))
-//            val y0 = binFloor( math.min( point2.y, point.y ))
-//            val x1 = binCeil(  math.max( point2.x, point.x ))
-//            val y1 = binCeil(  math.max( point2.y, point.y ))
-//
-//            val t = CompressedQuadTree[ V ]( center, extent )
-//            t.insert( point2, value2 )
-//            t.insert( point, value )
-//            t
-//      }
+      val d = point - quad.center
+      val e = quad.extent
+      require( d.x >= -e && d.x < e && d.y >= -e && d.y < e )
+      quad match {
+         case QuadEmpty( center, extent ) => QuadLeaf( center, extent, point, value )
+         case t: QuadTree[ _ ] => error( "TODO" ) // t.insert( point, value ); t
+         /*
+            "If the quadrant of p(x) that x is inserted into already contains a point y or
+            an interesting square r, then we insert to Q a new interesting square q ⊂ p
+            that contains both x and y (or r) but separates x and y (or r) into different
+            quadrants of q."
+          */
+         case QuadLeaf( center, extent, point2, value2 ) =>
+            val (ic, ie) = gisqr( center, extent, point2, point )
+            val t = CompressedQuadTree[ V ]( center, extent )
+//            t.insertQuad( point2, value2 )
+//            t.insertQuad( point, value )
+            error( "TODO" )
+            t
+      }
    }
 }
