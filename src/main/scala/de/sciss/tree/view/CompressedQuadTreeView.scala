@@ -1,5 +1,5 @@
 /*
- *  Quad.scala
+ *  CompressedQuadTreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -27,35 +27,27 @@
  */
 
 package de.sciss.tree
+package view
 
-//trait QuadLike {
-//   def cx: Int
-//   def cy: Int
-//   def extent: Int
-//   def center: Point = Point( cx, cy )
-//   def topLeft: Point = {
-//      Point( cx - extent, cy - extent )
-//   }
-//}
+class CompressedQuadTreeView( t: CompressedQuadTree.QNode[ _ ]) extends QuadView {
+   import CompressedQuadTree._
 
-final case class Quad( cx: Int, cy: Int, extent: Int ) /* extends QuadLike */ {
-   def quadrant( idx: Int ) : Quad = {
-      val e = extent >> 1
-      idx match {
-         case 0 => Quad( cx + e, cy - e, e ) // ne
-         case 1 => Quad( cx - e, cy - e, e ) // nw
-         case 2 => Quad( cx - e, cy + e, e ) // sw
-         case 3 => Quad( cx + e, cy + e, e ) // se
-         case _ => throw new IllegalArgumentException( idx.toString )
+   protected def draw( h: QuadView.PaintHelper ) {
+      draw( h, t )
+   }
+
+   def rootQuad = t.quad
+
+   private def draw( h: QuadView.PaintHelper, quad: Q[ _ ]) {
+      quad match {
+         case t: QNode[ _ ] =>
+            for( idx <- 0 until 4 ) {
+               h.drawFrame( t.quad.quadrant( idx ))
+               draw( h, t.child( idx ))
+            }
+         case QEmpty =>
+         case QLeaf( point, _ ) =>
+            h.drawPoint( point )
       }
    }
-}
-
-final case class Point( x: Int, y: Int ) /* extends QuadLike */ {
-//   def orthoDist( p: Point ) : Int = math.max( math.abs( x - p.x ), math.abs( y - p.y ))
-   def +( p: Point ) = Point( x + p.x, y + p.y )
-   def -( p: Point ) = Point( x - p.x, y - p.y )
-
-//   def center = this
-//   def extent = 1
 }

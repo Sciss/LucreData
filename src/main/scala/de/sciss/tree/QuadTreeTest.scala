@@ -28,9 +28,9 @@
 
 package de.sciss.tree
 
-import java.awt.EventQueue
 import javax.swing.{WindowConstants, JFrame}
-import view.QuadTreeView
+import java.awt.{BorderLayout, EventQueue}
+import view.{CompressedQuadTreeView, QuadTreeView}
 
 object QuadTreeTest extends App with Runnable {
    EventQueue.invokeLater( this )
@@ -38,13 +38,22 @@ object QuadTreeTest extends App with Runnable {
    def run {
       val f    = new JFrame( "QuadTree" )
       f.setResizable( false )
-      val cp   = f.getContentPane
-      val t    = QuadTree.fromMap( Point( 256, 256 ), 256, Map(
+      val cp      = f.getContentPane
+      val center  = Point( 256, 256 )
+      val extent  = 256
+      val map     =  Map(
          Point( 128, 384 ) -> (),
          Point( 488,   8 ) -> (),
-         Point( 504,  24 ) -> () ))
+         Point( 504,  24 ) -> ()
+      )
+      val t    = QuadTree.fromMap( center, extent, map )
       val v    = new QuadTreeView( t )
-      cp.add( v, "Center" )
+
+      val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
+      val cv   = new CompressedQuadTreeView( ct )
+
+      cp.add( v, BorderLayout.WEST )
+      cp.add( cv, BorderLayout.EAST )
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )

@@ -38,6 +38,12 @@ object CompressedQuadTree {
       new NodeImpl[ V ]( quad, quads )
    }
 
+   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : QNode[ V ] = {
+      val t = new NodeImpl[ V ]( quad )
+      m.foreach { case (point, value) => t.insert( point, value )}
+      t
+   }
+
    sealed trait Q[ +V ] {
 //      def quad: Quad
    }
@@ -46,6 +52,7 @@ object CompressedQuadTree {
    sealed trait QNode[ V ] extends Q[ V ] {
       def insert( point: Point, value: V ) : Unit
       def quad: Quad
+      def child( idx: Int ) : Q[ V ]
    }
 
 //   private def createEmptyQuads[ V ]( quad: Quad, arr: Array[ Q[ V ]]) {
@@ -54,7 +61,7 @@ object CompressedQuadTree {
 //      i += 1 }
 //   }
 
-   private class NodeImpl[ V ]( val quad: Quad, val quads: Array[ Q[ V ]])
+   private class NodeImpl[ V ]( val quad: Quad, quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
    extends QNode[ V ] {
       // fix null squares
       {
@@ -62,6 +69,8 @@ object CompressedQuadTree {
             if( quads( i ) == null ) quads( i ) = QEmpty
          i += 1 }
       }
+
+      def child( idx: Int ) : Q[ V ] = quads( idx )
 
       def insert( point: Point, value: V ) {
          val qidx = quadIdx( quad, point )
