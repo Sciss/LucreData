@@ -87,14 +87,20 @@ Options:
    class Figure2 extends Figure {
       def views = {
          val map = points1 ++ Map(
-            Point( 400, 332 ) -> (),
-            Point( 424, 368 ) -> (),
+//            Point( 400, 332 ) -> (),
+//            Point( 424, 368 ) -> (),
             Point( 200, 312 ) -> (),
 //            Point( 216, 296 ) -> (),
             Point( 240, 304 ) -> ()
          )
 
-         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
+         val map2 = Map(
+            Point( 240, 304 ) -> (),
+//            Point( 504,  24 ) -> (),
+            Point( 200, 312 ) -> ()
+         )
+
+         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map2 )
          val cv   = new CompressedQuadTreeView( ct )
          Seq( cv )
       }

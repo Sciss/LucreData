@@ -40,7 +40,11 @@ object CompressedQuadTree {
 
    def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : QNode[ V ] = {
       val t = new NodeImpl[ V ]( quad )
-      m.foreach { case (point, value) => t.insert( point, value )}
+      m.foreach {
+         case (point, value) =>
+println( "inserting " + point )
+            t.insert( point, value )
+      }
       t
    }
 
@@ -83,6 +87,7 @@ object CompressedQuadTree {
                val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
                val iquads  = new Array[ Q[ V ]]( 4 )
                val tidx    = quadIdx( iq, tq )
+//if( tidx < 0 ) println( "Ouch for " + point )
                iquads( tidx ) = t // l.copy( quad = iq.quadrant( lidx ))
                val pidx    = quadIdx( iq, point )
                iquads( pidx ) = QLeaf( /* iq.quadrant( pidx ), */ point, value )
