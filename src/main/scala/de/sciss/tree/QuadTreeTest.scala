@@ -48,7 +48,7 @@ Options:
       lazy val center  = Point( 256, 256 )
       lazy val extent  = 256
       lazy val points1 = Map(
-         Point( 140, 352 ) -> (),
+         Point(  80, 410 ) -> (),
          Point( 488,   8 ) -> (),
          Point( 504,  24 ) -> ()
       )
@@ -87,20 +87,22 @@ Options:
    class Figure2 extends Figure {
       def views = {
          val map = points1 ++ Map(
-//            Point( 400, 332 ) -> (),
-//            Point( 424, 368 ) -> (),
+            Point( 400, 332 ) -> (),
+            Point( 424, 368 ) -> (),
             Point( 200, 312 ) -> (),
-//            Point( 216, 296 ) -> (),
-            Point( 240, 304 ) -> ()
-         )
-
-         val map2 = Map(
+            Point( 216, 296 ) -> (),
             Point( 240, 304 ) -> (),
-//            Point( 504,  24 ) -> (),
-            Point( 200, 312 ) -> ()
+            Point( 272, 496 ) -> (),
+            Point( 300, 460 ) -> ()
          )
 
-         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map2 )
+//         val map2 = Map(
+//            Point( 240, 304 ) -> (),
+////            Point( 504,  24 ) -> (),
+//            Point( 200, 312 ) -> ()
+//         )
+
+         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
          val cv   = new CompressedQuadTreeView( ct )
          Seq( cv )
       }

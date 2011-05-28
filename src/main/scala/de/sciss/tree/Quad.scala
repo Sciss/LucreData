@@ -49,6 +49,9 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) /* extends QuadLike */ {
          case _ => throw new IllegalArgumentException( idx.toString )
       }
    }
+
+   def contains( point: Point ) : Boolean =
+      (cx - extent <= point.x) && (cx + extent > point.x) && (cy - extent <= point.y) && (cy + extent > point.y)
 }
 
 final case class Point( x: Int, y: Int ) /* extends QuadLike */ {

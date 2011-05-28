@@ -35,14 +35,14 @@ object CompressedQuadTree {
    def apply[ V ]( quad: Quad ) : QNode[ V ] = {
       val quads = new Array[ Q[ V ]]( 4 )
 //      createEmptyQuads( quad, quads )
-      new NodeImpl[ V ]( quad, quads )
+      QNode[ V ]( quad )( quads )
    }
 
    def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : QNode[ V ] = {
-      val t = new NodeImpl[ V ]( quad )
+      val t = QNode[ V ]( quad )()
       m.foreach {
          case (point, value) =>
-println( "inserting " + point )
+//println( "inserting " + point )
             t.insert( point, value )
       }
       t
@@ -53,11 +53,11 @@ println( "inserting " + point )
    }
    case object QEmpty extends Q[ Nothing ] // [ V ]() /* ( quad: Quad ) */ extends Q[ V ]
    final case class QLeaf[ V ]( /* quad: Quad, */ point: Point, value: V ) extends Q[ V ]
-   sealed trait QNode[ V ] extends Q[ V ] {
-      def insert( point: Point, value: V ) : Unit
-      def quad: Quad
-      def child( idx: Int ) : Q[ V ]
-   }
+//   sealed trait QNode[ V ] extends Q[ V ] {
+//      def insert( point: Point, value: V ) : Unit
+//      def quad: Quad
+//      def child( idx: Int ) : Q[ V ]
+//   }
 
 //   private def createEmptyQuads[ V ]( quad: Quad, arr: Array[ Q[ V ]]) {
 //      var i = 0; while( i < 4 ) {
@@ -65,8 +65,8 @@ println( "inserting " + point )
 //      i += 1 }
 //   }
 
-   private class NodeImpl[ V ]( val quad: Quad, quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
-   extends QNode[ V ] {
+   final case class QNode[ V ]( quad: Quad )( quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
+   extends Q[ V ] {
       // fix null squares
       {
          var i = 0; while( i < 4 ) {
@@ -79,20 +79,24 @@ println( "inserting " + point )
       def insert( point: Point, value: V ) {
          val qidx = quadIdx( quad, point )
          require( qidx >= 0, point.toString + " lies outside of root square " + quad )
-         quads( qidx ) = quads( qidx ) match {
-            case QEmpty => QLeaf( /* eq, */ point, value )
-            case t: QNode[ _ ] =>
-               val tq      = t.quad
-               val te      = tq.extent
-               val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
-               val iquads  = new Array[ Q[ V ]]( 4 )
-               val tidx    = quadIdx( iq, tq )
-//if( tidx < 0 ) println( "Ouch for " + point )
-               iquads( tidx ) = t // l.copy( quad = iq.quadrant( lidx ))
-               val pidx    = quadIdx( iq, point )
-               iquads( pidx ) = QLeaf( /* iq.quadrant( pidx ), */ point, value )
+         quads( qidx ) match {
+            case QEmpty => quads( qidx ) = QLeaf( /* eq, */ point, value )
+            case t @ QNode( tq ) =>
+//               val tq      = t.quad
+               if( tq.contains( point )) {
+                  t.insert( point, value )
+               } else {
+                  val te      = tq.extent
+                  val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
+                  val iquads  = new Array[ Q[ V ]]( 4 )
+                  val tidx    = quadIdx( iq, tq )
+//   if( tidx < 0 ) println( "Ouch for " + point )
+                  iquads( tidx ) = t // l.copy( quad = iq.quadrant( lidx ))
+                  val pidx    = quadIdx( iq, point )
+                  iquads( pidx ) = QLeaf( /* iq.quadrant( pidx ), */ point, value )
 //               createEmptyQuads( iq, iquads )
-               new NodeImpl[ V ]( iq, iquads )
+                  quads( qidx ) = QNode[ V ]( iq )( iquads )
+               }
 
             /*
                "If the quadrant of p(x) that x is inserted into already contains a point y or
@@ -108,7 +112,7 @@ println( "inserting " + point )
                val pidx    = quadIdx( iq, point )
                iquads( pidx ) = QLeaf( /* iq.quadrant( pidx ), */ point, value )
 //               createEmptyQuads( iq, iquads )
-               new NodeImpl[ V ]( iq, iquads )
+               quads( qidx ) = QNode[ V ]( iq )( iquads )
          }
       }
 
@@ -171,9 +175,14 @@ println( "inserting " + point )
          val my            = binSplit( y1, y2 )
          // that means the x extent is greater (x grid more coarse).
          if( mx <= my ) {
-            Quad( tlx + (x2 & mx), tly + (y0 & mx) - mx, -mx )
+//            val cx = tlx + (x2 & mx)
+//            val cy = tly + (y0 & mx) - mx
+//            Quad( cx, cy, -mx )
+//            Quad( tlx + (x2 & mx), tly + (y0 & mx) - mx, -mx )
+            Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
          } else {
-            Quad( tlx + (x0 & my) - my, tly + (y2 & my), -my )
+//            Quad( tlx + (x0 & my) - my, tly + (y2 & my), -my )
+            Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
          }
       }
 
