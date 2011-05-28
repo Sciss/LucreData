@@ -28,35 +28,75 @@
 
 package de.sciss.tree
 
-import javax.swing.{WindowConstants, JFrame}
 import java.awt.{BorderLayout, EventQueue}
 import view.{CompressedQuadTreeView, QuadTreeView}
+import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
 
-object QuadTreeTest extends App with Runnable {
-   EventQueue.invokeLater( this )
+object QuadTreeTest extends App {
+   args.headOption match {
+      case Some( "-fig1" ) => new Figure1
+      case Some( "-fig2" ) => new Figure2
+      case _ => println( """
+Options:
+-fig1
+-fig2
+""")
+         sys.exit( 1 )
+   }
 
-   def run {
-      val f    = new JFrame( "QuadTree" )
-      f.setResizable( false )
-      val cp      = f.getContentPane
-      val center  = Point( 256, 256 )
-      val extent  = 256
-      val map     =  Map(
-         Point( 128, 384 ) -> (),
+   abstract class Figure extends Runnable {
+      lazy val center  = Point( 256, 256 )
+      lazy val extent  = 256
+      lazy val points1 = Map(
+         Point( 140, 352 ) -> (),
          Point( 488,   8 ) -> (),
          Point( 504,  24 ) -> ()
       )
-      val t    = QuadTree.fromMap( center, extent, map )
-      val v    = new QuadTreeView( t )
 
-      val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
-      val cv   = new CompressedQuadTreeView( ct )
+      EventQueue.invokeLater( this )
 
-      cp.add( v, BorderLayout.WEST )
-      cp.add( cv, BorderLayout.EAST )
-      f.pack()
-      f.setLocationRelativeTo( null )
-      f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      f.setVisible( true )
+      def views : Seq[ JComponent ]
+
+      def run {
+         val f    = new JFrame( "QuadTrees" )
+         f.setResizable( false )
+         val cp      = f.getContentPane
+         val vs   = views
+         cp.setLayout( new BoxLayout( cp, BoxLayout.X_AXIS ))
+         vs.foreach( cp.add( _ ))
+         f.pack()
+         f.setLocationRelativeTo( null )
+         f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
+         f.setVisible( true )
+      }
+   }
+
+   class Figure1 extends Figure {
+      def views = {
+         val map  = points1
+         val t    = QuadTree.fromMap( center, extent, map )
+         val v    = new QuadTreeView( t )
+
+         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
+         val cv   = new CompressedQuadTreeView( ct )
+
+         Seq( v, cv )
+      }
+   }
+
+   class Figure2 extends Figure {
+      def views = {
+         val map = points1 ++ Map(
+            Point( 400, 332 ) -> (),
+            Point( 424, 368 ) -> (),
+            Point( 200, 312 ) -> (),
+//            Point( 216, 296 ) -> (),
+            Point( 240, 304 ) -> ()
+         )
+
+         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
+         val cv   = new CompressedQuadTreeView( ct )
+         Seq( cv )
+      }
    }
 }
