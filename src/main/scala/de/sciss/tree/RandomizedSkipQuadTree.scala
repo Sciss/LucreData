@@ -185,7 +185,7 @@ object RandomizedSkipQuadTree {
 //         require( qidx >= 0, point.toString + " lies outside of root square " + quad )
          quads( qidx ) match {
             case QEmpty =>
-               if( pred.flatMap( _.insertStep( point, value )).isEmpty || flipCoin ) {
+               if( pred.isEmpty || (pred.flatMap( _.insertStep( point, value )).nonEmpty && flipCoin) ) {
                   quads( qidx ) = QLeaf( point, value )
                   Some( this )
                } else None
@@ -194,8 +194,8 @@ object RandomizedSkipQuadTree {
                if( tq.contains( point )) {
                   t.insertStep( point, value )
                } else {
-                  val qpred   = pred.flatMap( _.insertStep( point, value ))
-                  if( qpred.isEmpty || flipCoin ) {
+                  val qpred = pred.flatMap( _.insertStep( point, value ))
+                  if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
                      val te      = tq.extent
                      val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
                      val iquads  = new Array[ Q[ V ]]( 4 )
@@ -211,7 +211,7 @@ object RandomizedSkipQuadTree {
 
             case l @ QLeaf( point2, value2 ) =>
                val qpred   = pred.flatMap( _.insertStep( point, value ))
-               if( qpred.isEmpty || flipCoin ) {
+               if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
                   val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
                   val iquads  = new Array[ Q[ V ]]( 4 )
                   val lidx    = quadIdx( iq, point2 )
