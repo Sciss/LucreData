@@ -29,8 +29,9 @@
 package de.sciss.tree
 
 import java.awt.{BorderLayout, EventQueue}
-import view.{CompressedQuadTreeView, QuadTreeView}
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
+import view.{RandomizedSkipQuadTreeView, CompressedQuadTreeView, QuadTreeView}
+import annotation.tailrec
 
 object QuadTreeTest extends App {
    args.headOption match {
@@ -102,9 +103,18 @@ Options:
 //            Point( 200, 312 ) -> ()
 //         )
 
-         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
-         val cv   = new CompressedQuadTreeView( ct )
-         Seq( cv )
+//         val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
+//         val cv   = new CompressedQuadTreeView( ct )
+//         Seq( cv )
+
+         val rt   = RandomizedSkipQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
+         @tailrec def add( no: Option[ RandomizedSkipQuadTree.QNode[ _ ]], vs: List[ JComponent ]) : List[ JComponent ] = {
+            no match {
+               case None => vs
+               case Some( n ) => add( n.pred, new RandomizedSkipQuadTreeView( n ) :: vs )
+            }
+         }
+         add( Some( rt.tail ), Nil )
       }
    }
 }
