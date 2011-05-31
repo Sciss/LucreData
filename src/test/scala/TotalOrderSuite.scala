@@ -10,7 +10,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
         given( "a randomly filled structure" )
         val to    = TotalOrder[ Int ]()
         val rnd   = new util.Random( 0 )
-        val n     = 10000
+        val n     = 3042 // 3041
         var pred  = to.append( 0 )
         for( i <- 1 until n ) {
            pred   = if( rnd.nextBoolean() ) {
