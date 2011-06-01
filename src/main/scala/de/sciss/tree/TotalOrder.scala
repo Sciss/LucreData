@@ -1,3 +1,31 @@
+/*
+ *  TotalOrder.scala
+ *  (TreeTests)
+ *
+ *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+ *
+ *  This software is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either
+ *  version 2, june 1991 of the License, or (at your option) any later version.
+ *
+ *  This software is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *  General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public
+ *  License (gpl.txt) along with this software; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *
+ *  For further information, please contact Hanns Holger Rutz at
+ *  contact@sciss.de
+ *
+ *
+ *  Changelog:
+ */
+
 package de.sciss.tree
 
 import collection.mutable.{ Builder, DoubleLinkedListLike, LinearSeq => MLinearSeq, Seq => MSeq }
@@ -16,13 +44,11 @@ import sys.error // suckers
  * The `relabel` method is based on the Python implementation by
  * David Eppstein, as published at http://www.ics.uci.edu/~eppstein/PADS/OrderedSequence.py
  *
- * Due to rebalancing on the integer tags used to maintain order,
- * the amortized time per insertion in an n-item list is O(log n).
+ * Original note: "Due to rebalancing on the integer tags used to maintain order,
+ * the amortized time per insertion in an n-item list is O(log n)."
  */
 object TotalOrder extends SeqFactory[ TotalOrder ] {
-   type Tag = Int // Long
-
-//   var flonky = false
+//   type Tag = Int // Long
 
 //   class Record[ T ]( private[ TotalOrder ] var v: Tag ) {
 //      private[ TotalOrder ] var succ: Record[ T ] = null
@@ -248,16 +274,18 @@ with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
          val inc = -mask / num
          if( inc >= thresh ) {   // found rebalanceable range
             var item = first
-//var cnt = 0
 //            while( !(item eq last) ) {
-var cnt = 0; while( cnt < num ) {
-
-                item.tag   = base
-cnt += 1
-                item       = item.next
-                base      += inc
+            // Note: this was probably a bug in Eppstein's code
+            // -- it ran for one iteration less which made
+            // the test suite fail for very dense tags. it
+            // seems now it is correct with the inclusion
+            // of last in the tag updating.
+            var cnt = 0; while( cnt < num ) {
+               item.tag   = base
+               item       = item.next
+               base      += inc
+               cnt += 1
             }
-//if( TotalOrder.flonky ) println( "num relabeled : " + cnt + " / num = " + num )
             return
          }
 //         mask     = (mask << 1) + 1    // expand to next power of two
