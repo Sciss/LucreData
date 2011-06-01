@@ -22,6 +22,8 @@ import sys.error // suckers
 object TotalOrder extends SeqFactory[ TotalOrder ] {
    type Tag = Int // Long
 
+//   var flonky = false
+
 //   class Record[ T ]( private[ TotalOrder ] var v: Tag ) {
 //      private[ TotalOrder ] var succ: Record[ T ] = null
 //      private[ TotalOrder ] var pred: Record[ T ] = null
@@ -61,6 +63,27 @@ object TotalOrder extends SeqFactory[ TotalOrder ] {
       def inc { v += 1 }
    }
 }
+
+object TotalOrderTest extends App {
+   val to    = TotalOrder[ Int ]()
+   val rnd   = new util.Random( 0 )
+   val n     = 3042 // 3041
+   var pred  = to.append( 0 )
+   for( i <- 1 until n ) {
+      if( i == n - 1 ) {
+         println( "last" )
+//         TotalOrder.flonky = true
+      }
+      pred   = if( rnd.nextBoolean() ) {
+         pred.insertAfter( i )
+      } else {
+         pred.insertBefore( i )
+      }
+   }
+   to.validateToEnd
+   println( "OK." )
+}
+
 final class TotalOrder[ V ] private ( protected val totalSize: TotalOrder.Size ) // (_t: Int)
 extends MLinearSeq[ V ]
 with GenericTraversableTemplate[ V, TotalOrder ]
@@ -210,9 +233,9 @@ with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
       var num     = 1
 //      val mul     = 2/((2*len(self))**(1/30.))
       val mul     = 2 / math.pow( totalSize.value << 1, 1/30.0 )
-println( "relabel" )
+//println( "relabel" )
       do {
-println( "   -mask " + -mask )
+//println( "   -mask " + -mask )
          while( !first.isHead && ((first.prev.tag & mask) == base) ) {
             first = first.prev
             num  += 1
@@ -225,11 +248,16 @@ println( "   -mask " + -mask )
          val inc = -mask / num
          if( inc >= thresh ) {   // found rebalanceable range
             var item = first
-            do {
+//var cnt = 0
+//            while( !(item eq last) ) {
+var cnt = 0; while( cnt < num ) {
+
                 item.tag   = base
+cnt += 1
                 item       = item.next
                 base      += inc
-            } while( !(item eq last) )
+            }
+//if( TotalOrder.flonky ) println( "num relabeled : " + cnt + " / num = " + num )
             return
          }
 //         mask     = (mask << 1) + 1    // expand to next power of two
@@ -250,7 +278,8 @@ println( "   -mask " + -mask )
       var prevTag = tag
       var entry   = next
       while( entry.nonEmpty ) {
-         assert( entry.tag > prevTag )
+         assert( entry.tag > prevTag, "elem " + entry.elem + " at index " + indexOf( entry.elem ) + " has tag " + entry.tag +
+            ", while previous elem has tag " + prevTag )
          prevTag  = entry.tag
          entry    = entry.next
       }

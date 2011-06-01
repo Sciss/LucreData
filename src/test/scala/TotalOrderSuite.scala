@@ -9,8 +9,10 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
      scenario( "Ordering is verified on a randomly filled structure" ) {
         given( "a randomly filled structure" )
         val to    = TotalOrder[ Int ]()
-        val rnd   = new util.Random( 0 )
-        val n     = 3042 // 3041
+        val rnd   = new util.Random() // ( 0 )
+        // would be nice to test maximum possible number of labels
+        // but we're running out of heap space ...
+        val n     = 0x200000 // 113042 // 3041
         var pred  = to.append( 0 )
         for( i <- 1 until n ) {
            pred   = if( rnd.nextBoolean() ) {
