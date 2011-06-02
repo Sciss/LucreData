@@ -40,11 +40,11 @@ import compat.Platform
  *
  * It uses the horizontal array technique with a parameter for k (minimum gap size)
  */
-object SkipList {
-   def empty[ A : Ordering : Manifest ]( minGap: Int = 1, maxKey: A ) : SkipList[ A ] = new Impl[ A ]( minGap, maxKey )
+object HASkipList {
+   def empty[ A : Ordering : Manifest ]( minGap: Int = 1, maxKey: A ) : HASkipList[ A ] = new Impl[ A ]( minGap, maxKey )
 
    private class Impl[ A ]( minGap: Int, maxKey: A )( implicit ord: Ordering[ A ], mf: Manifest[ A ])
-   extends SkipList[ A ] {
+   extends HASkipList[ A ] {
       val maxGap = (minGap << 1) + 1
       var head : NodeLike = {
          val res        = new Leaf
@@ -89,7 +89,7 @@ object SkipList {
       }
    }
 }
-trait SkipList[ A ] {
+trait HASkipList[ A ] {
    /**
     * Adds an element to this list.
     *  @param elem the element to be added
