@@ -10,6 +10,8 @@ This is a sandbox project for implementing and probing various data structures i
 
 * Eppstein, D. and Goodrich, M.T. and Sun, J.Z., "The Skip Quadtree: A Simple Dynamic Data Structure for Multidimensional Data," in Proceedings of the twenty-first annual symposium on Computational geometry, pp. 296--305, 2005.
 
+* Papadakis, T., "Skip lists and probabilistic analysis of algorithms", University of Waterloo, Waterloo (CA), 1993
+
 h3. requirements
 
 Builds with sbt against Scala 2.9.0. Also included is an Intellij IDEA 10.5 CE project.

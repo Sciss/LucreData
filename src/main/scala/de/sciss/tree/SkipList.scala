@@ -28,7 +28,7 @@
 
 package de.sciss.tree
 
-trait SkipList[ A ] {
+trait SkipList[ @specialized( Int, Long ) A ] {
    /**
     * Searches for the Node of a given key.
     *

@@ -43,6 +43,7 @@ object LLSkipListTest extends App with Runnable {
       List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ).foreach( l.add( _ ))
       l.add( 20 )
       l.add( 21 )
+      l.add( 61 )
 //      l.add( 22 )
 //      l.add( 23 )
 //      l.add( 24 )
