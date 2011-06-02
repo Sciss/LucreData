@@ -12,4 +12,4 @@ This is a sandbox project for implementing and probing various data structures i
 
 h3. requirements
 
-Builds with sbt against Scala 2.9.0. Also included is a Intellij IDEA 10.5 CE project.
+Builds with sbt against Scala 2.9.0. Also included is an Intellij IDEA 10.5 CE project.

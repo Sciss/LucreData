@@ -55,13 +55,19 @@ object TotalOrder extends SeqFactory[ TotalOrder ] {
 //      private[ TotalOrder ] var pred: Record[ T ] = null
 //   }
 
+// We don't need to define an ordering -- this will already be implicitly
+// derived from any TotalOrder
+//   implicit def ordering[ V ] = new Ordering[ TotalOrder[ V ]] {
+//      def compare( x: TotalOrder[ V ], y: TotalOrder[ V ]) = x.compare( y )
+//   }
+
    // ---- GenericCompanion ----
-  def newBuilder[ V ] = new Builder[ V, TotalOrder[ V ]] {
-      def emptyList() = new TotalOrder[ V ]( new Size )
+  def newBuilder[ A ] = new Builder[ A, TotalOrder[ A ]] {
+      def emptyList() = new TotalOrder[ A ]( new Size )
       var head = emptyList()
       var tail = head
 
-      def +=( elem: V ) : this.type = {
+      def +=( elem: A ) : this.type = {
          tail = tail.append( elem )
 //
 //         if( head.isEmpty ) {
@@ -110,16 +116,16 @@ object TotalOrderTest extends App {
    println( "OK." )
 }
 
-final class TotalOrder[ V ] private ( protected val totalSize: TotalOrder.Size ) // (_t: Int)
-extends MLinearSeq[ V ]
-with GenericTraversableTemplate[ V, TotalOrder ]
-with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
-   private type TV = TotalOrder[ V ]
+final class TotalOrder[ A ] private ( protected val totalSize: TotalOrder.Size ) // (_t: Int)
+extends MLinearSeq[ A ]
+with GenericTraversableTemplate[ A, TotalOrder ]
+with DoubleLinkedListLike[ A, TotalOrder[ A ]] with Ordered[ TotalOrder[ A ]] {
+   private type T = TotalOrder[ A ]
 
    next = this
    protected var tag: Int = 0 // _t
 
-   private def this( sz: TotalOrder.Size, elem: V, prev: TotalOrder[ V ], next: TotalOrder[ V ]) {
+   private def this( sz: TotalOrder.Size, elem: A, prev: TotalOrder[ A ], next: TotalOrder[ A ]) {
       this( sz )
       sz.inc
       this.elem      = elem
@@ -147,7 +153,7 @@ with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
    /**
     * Compares the positions of x and y in the sequence
    */
-   def compare( that: TV ) : Int = tag compare that.tag
+   def compare( that: T ) : Int = tag compare that.tag
 
    /**
     * Appends an element to the end of the sequence, and returns
@@ -156,11 +162,11 @@ with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
     * @param   elem  the element to append
     * @return  the total order entry corresponding to the newly appended element
     */
-   def append( elem: V ) : TV = {
+   def append( elem: A ) : T = {
       if( isEmpty ) {
          this.elem   = elem
          tag         = Int.MaxValue >> 1
-         val empty   = new TV( totalSize )
+         val empty   = new T( totalSize )
          totalSize.inc
          next        = empty
          empty.prev  = this
@@ -170,7 +176,7 @@ with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
       }
    }
 
-   private def lastNode : TV = {
+   private def lastNode : T = {
       var res = next
       while( !res.isEmpty ) res = res.next
       res.prev
@@ -179,8 +185,8 @@ with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
    /**
     * Inserts a new element after this node
     */
-   def insertAfter( elem: V ) : TV = {
-      val rec     = new TV( totalSize, elem, this, next )
+   def insertAfter( elem: A ) : T = {
+      val rec     = new T( totalSize, elem, this, next )
       val nextTag = if( rec.next.isEmpty ) Int.MaxValue else rec.next.tag
       rec.tag     = tag + ((nextTag - tag + 1) >> 1)
       if( rec.tag == nextTag ) rec.relabel
@@ -190,21 +196,21 @@ with DoubleLinkedListLike[ V, TotalOrder[ V ]] with Ordered[ TotalOrder[ V ]] {
    /**
     * Inserts a new element before this node
     */
-   def insertBefore( elem: V ) : TV = {
+   def insertBefore( elem: A ) : T = {
       if( isHead ) {
          // to maintain references to the 'head' of the list,
          // in the case when an element is inserted at the
          // head of the list, we instead change this entry's
          // elem and tag, and a new successor is inserted
          // after this head
-         val rec     = new TV( totalSize, this.elem, this, next )
+         val rec     = new T( totalSize, this.elem, this, next )
          this.elem   = elem
          rec.tag     = tag
          tag         = (tag + 1) >> 1
          if( tag == rec.tag ) this.relabel
          this
       } else {
-         val rec     = new TV( totalSize, elem, prev, this )
+         val rec     = new T( totalSize, elem, prev, this )
          val prevTag = rec.prev.tag
          rec.tag     = prevTag + ((tag - prevTag + 1) >> 1)
          if( rec.tag == tag ) rec.relabel

@@ -1,0 +1,11 @@
+Algorithm : Insert Element
+
+- determine p(x) in Q0
+- insert x into the total order with respect to its parent node in Q0
+- x
+
+:::::::::::
+
+Skip List impl (H.A.) Observations:
+
+- gap size 'below' is size of node below minus 1 -- correct?
