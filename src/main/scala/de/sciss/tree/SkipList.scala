@@ -1,5 +1,5 @@
 /*
- *  LLSkipListTest.scala
+ *  SkipList.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -28,35 +28,31 @@
 
 package de.sciss.tree
 
-import view.LLSkipListView
-import java.awt.{BorderLayout, EventQueue}
-import javax.swing.{WindowConstants, JFrame}
+trait SkipList[ A ] {
+   /**
+    * Searches for the Node of a given key.
+    *
+    * @param   v  the key to search for
+    * @return  `true` if the key is in the list, `false` otherwise
+    */
+   def contains( v: A ) : Boolean
 
-object LLSkipListTest extends App with Runnable {
-   EventQueue.invokeLater( this )
+   /**
+    * Inserts a new key into the list.
+    *
+    * @param   v  the key to insert
+    * @return  `true` if the key was successfully inserted,
+    *          `false` if a node with the given key already existed
+    */
+   def add( v: A ) : Boolean
 
-   def run {
-      val f    = new JFrame( "LL Skip List" )
-      f.setResizable( false )
-      val cp   = f.getContentPane
-      val l    = LLSkipList.empty
-      List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ).foreach( l.add( _ ))
-      l.add( 20 )
-      l.add( 21 )
-//      l.add( 22 )
-//      l.add( 23 )
-//      l.add( 24 )
-//      l.add( 25 )
-//      l.add( 26 )
-//      l.add( 27 )
-//      l.add( 28 )
-//      l.add( 29 )
-//      l.add( 31 )
-      val v    = new LLSkipListView( l )
-      cp.add( v, BorderLayout.CENTER )
-      f.pack()
-      f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      f.setLocationRelativeTo( null )
-      f.setVisible( true )
-   }
+   /**
+    * Queries the number of levels in the skip list.
+    */
+   def height : Int
+
+   /**
+    * Queries the number of keys in the skip list (the 'width'). This operation takes O(n) time.
+    */
+   def size : Int
 }
