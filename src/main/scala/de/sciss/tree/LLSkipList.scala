@@ -28,37 +28,6 @@
 
 package de.sciss.tree
 
-import java.lang.Boolean
-
-//trait SkipList[ A ] {
-//   /**
-//    * Searches for the Node of a given key.
-//    *
-//    * @param   v  the key to search for
-//    * @return  `true` if the key is in the list, `false` otherwise
-//    */
-//   def contains( v: A ) : Boolean
-//
-//   /**
-//    * Inserts a new key into the list.
-//    *
-//    * @param   v  the key to insert
-//    * @return  `true` if the key was successfully inserted,
-//    *          `false` if a node with the given key already existed
-//    */
-//   def add( v: A ) : Boolean
-//
-//   /**
-//    * Queries the number of levels in the skip list.
-//    */
-//   def height : Int
-//
-//   /**
-//    * Queries the number of keys in the skip list (the 'width'). This operation takes O(n) time.
-//    */
-//   def size : Int
-//}
-
 /**
  * A deterministic 1-3 skip list implemented using a linked list with
  * 'drawn back keys', as described by T. Papadakis. This is a rather
