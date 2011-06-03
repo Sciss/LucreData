@@ -143,9 +143,8 @@ object HASkipList {
                val i1            = idx + 1
 //println( "splitting into parent; new node has old size " + n.size )
                System.arraycopy( n.keyArr, idx, n.keyArr, i1, n.size - idx )
-               val i2            = i1 + 1
-               val num           = n.size - i2
-               if( num > 0 ) System.arraycopy( n.downArr, i1, n.keyArr, i2, num )
+               val num           = n.size - i1
+               if( num > 0 ) System.arraycopy( n.downArr, i1, n.downArr, i1 + 1, num )
                n.keyArr( idx )   = splitKey
                // this is already the case:
 //               n.downArr( idx )  = left
