@@ -60,8 +60,8 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
       drawNode( g2, l.top )
    }
 
-   private def drawNode( g2: Graphics2D, x: HASkipList.Node ) {
-      boxMap.get( x ).foreach { b =>
+   private def drawNode( g2: Graphics2D, n: HASkipList.Node ) {
+      boxMap.get( n ).foreach { b =>
          g2.draw( b.r )
          val x = b.r.x
          val y = b.r.y
@@ -69,9 +69,12 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
          for( i <- 1 to l.maxGap ) {
             g2.drawLine( x + (i * 23), y, x + (i * 23), y + 46 )
          }
+         for( i <- 0 until n.size ) {
+            val key     = n.key( i )
+            val keyStr  = if( key == Int.MaxValue ) "M" else key.toString
+            g2.drawString( keyStr, 4 + (i * 23), 17 )
+         }
       }
-
-
 
 //      g2.drawRect( 0, 0, 46, 46 )
 //      g2.drawLine( 23, 0, 23, 46 )

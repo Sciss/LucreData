@@ -148,7 +148,10 @@ object HASkipList {
             } else {
                val n             = node.asNode
                val i1            = idx + 1
-               n.keyArr( i1 )    = n.keyArr( idx )
+               System.arraycopy( n.keyArr, idx, n.keyArr, i1, n.size - idx )
+               val i2            = i1 + 1
+               val num           = n.size - i2
+               if( num > 0 ) System.arraycopy( n.downArr, i1, n.keyArr, i2, num )
                n.keyArr( idx )   = splitKey
                // this is already the case:
 //               n.downArr( idx )  = left
@@ -176,10 +179,12 @@ object HASkipList {
                val n             = node.asLeaf
                val i1            = idx + 1
                val sz            = n.size - idx
+println( "inserting in node of size " + n.size + " where idx = " + idx )
                System.arraycopy( n.keyArr, idx, n.keyArr, i1, sz )
                System.arraycopy( n.valArr, idx, n.valArr, i1, sz )
                n.keyArr( idx )   = key
                n.valArr( idx )   = v
+               n.size           += 1
             }
          }
       }
@@ -241,6 +246,7 @@ object HASkipList {
             val res     = new Leaf
             val roff    = arrMid + 1
             val rsz     = size - roff
+println( "Splitting a leaf of size " + size + " so that left will have " + roff + " and right " + rsz )
             System.arraycopy( keyArr, roff, res.keyArr, 0, rsz )
             System.arraycopy( valArr, roff, res.valArr, 0, rsz )
             res.size    = rsz
