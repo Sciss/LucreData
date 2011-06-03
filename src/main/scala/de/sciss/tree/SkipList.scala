@@ -30,7 +30,7 @@ package de.sciss.tree
 
 trait SkipList[ @specialized( Int, Long ) A ] {
    /**
-    * Searches for the Node of a given key.
+    * Searches for the Branch of a given key.
     *
     * @param   v  the key to search for
     * @return  `true` if the key is in the list, `false` otherwise

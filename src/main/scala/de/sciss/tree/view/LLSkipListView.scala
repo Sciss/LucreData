@@ -28,29 +28,15 @@
 
 package de.sciss.tree.view
 
-import javax.swing.JComponent
 import de.sciss.tree.LLSkipList
-import sys.error
-import java.awt.{Polygon, Font, Color, Dimension, Graphics, RenderingHints, Graphics2D}
+import java.awt.{Dimension, Graphics2D}
 import java.awt.geom.GeneralPath
 
-// suckers
-
-class LLSkipListView( l: LLSkipList ) extends JComponent {
+class LLSkipListView( l: LLSkipList ) extends SkipListView {
    setPreferredSize( new Dimension( (l.size + 1) * 64 + 16, l.height * 64 + 16 ))
-   setBackground( Color.white )
-   setForeground( Color.black )
-   setFont( new Font( "Serif", Font.ITALIC, 15 ))
 
-   override def paintComponent( g: Graphics ) {
-      val g2      = g.asInstanceOf[ Graphics2D ]
-      g2.setColor( getBackground )
-      g2.fillRect( 0, 0, getWidth, getHeight )
-      g2.setColor( getForeground )
-      g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON )
-      var x       = l.top
-      var atOrig  = g2.getTransform
-      g2.translate( 4, 4 )
+   protected def paintList( g2: Graphics2D ) {
+      var x = l.top
       while( !x.isBottom ) {
          val atRow   = g2.getTransform
          val x0      = x
@@ -63,7 +49,6 @@ class LLSkipListView( l: LLSkipList ) extends JComponent {
          g2.translate( 0, 64 )
          x = x0.down
       }
-      g2.setTransform( atOrig )
    }
 
    private def drawNode( g2: Graphics2D, x: LLSkipList.Node ) {

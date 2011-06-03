@@ -74,7 +74,7 @@ object LLSkipList {
       tail.right  = tail   // so that we can safely call r infinitely
 
       /**
-       * Searches for the Node of a given key.
+       * Searches for the Branch of a given key.
        *
        * @param   v  the key to search for
        * @return  `true` if the key is in the list, `false` otherwise
@@ -106,7 +106,7 @@ object LLSkipList {
             while( v > x.key ) x = x.right
             val dr   = x.down.right
             val drr  = dr.right
-            if( x.key > drr.key ) { // this happens when the gap has size 3
+            if( x.key > drr.key ) { // this happens when the gap has size 3, or we at the lowest level
                val t = new NodeImpl
                t.right  = x.right
                t.down   = drr

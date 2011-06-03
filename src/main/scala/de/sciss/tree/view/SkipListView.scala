@@ -1,5 +1,5 @@
 /*
- *  LLSkipListTest.scala
+ *  SkipListView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -26,38 +26,27 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.tree.view
 
-import view.LLSkipListView
-import java.awt.{BorderLayout, EventQueue}
-import javax.swing.{WindowConstants, JFrame}
+import javax.swing.JComponent
+import java.awt.{RenderingHints, Graphics2D, Graphics, Font, Color}
 
-object LLSkipListTest extends App with Runnable {
-   EventQueue.invokeLater( this )
+abstract class SkipListView extends JComponent {
+   setBackground( Color.white )
+   setForeground( Color.black )
+   setFont( new Font( "Serif", Font.ITALIC, 15 ))
 
-   def run {
-      val f    = new JFrame( "LL Skip List" )
-      f.setResizable( false )
-      val cp   = f.getContentPane
-      val l    = LLSkipList.empty
-      List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ).foreach( l.add( _ ))
-      l.add( 20 )
-      l.add( 21 )
-      l.add( 61 )
-//      l.add( 22 )
-//      l.add( 23 )
-//      l.add( 24 )
-//      l.add( 25 )
-//      l.add( 26 )
-//      l.add( 27 )
-//      l.add( 28 )
-//      l.add( 29 )
-//      l.add( 31 )
-      val v    = new LLSkipListView( l )
-      cp.add( v, BorderLayout.CENTER )
-      f.pack()
-      f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      f.setLocationRelativeTo( null )
-      f.setVisible( true )
+   override def paintComponent( g: Graphics ) {
+      val g2      = g.asInstanceOf[ Graphics2D ]
+      g2.setColor( getBackground )
+      g2.fillRect( 0, 0, getWidth, getHeight )
+      g2.setColor( getForeground )
+      g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON )
+      var atOrig  = g2.getTransform
+      g2.translate( 4, 4 )
+      paintList( g2 )
+      g2.setTransform( atOrig )
    }
+
+   protected def paintList( g2: Graphics2D ) : Unit
 }
