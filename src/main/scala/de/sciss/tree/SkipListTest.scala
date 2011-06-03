@@ -41,10 +41,19 @@ object SkipListTest extends App with Runnable {
       val cp   = f.getContentPane
       val ll   = LLSkipList.empty
       val ha   = HASkipList.withIntKey( (i: Int) => i )
-      val l    = List( 9, 13, 30, 39 ) // List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ) ++ List( 20, 21, 61 )
+//      val l    = List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ) ++ List( 20, 21, 61 )
+      val rnd  = new util.Random( 0L )
+      val l    = List.fill( 9 )( rnd.nextInt( 100 ))
+//      val l      = List( 60, 48, 29, 47 )
+      println( l )
 
       l.foreach( ll.add( _ ))
-      l.foreach( ha.add( _ ))
+      l.foreach { i =>
+         if( i == 19 ) {
+            println( "HERE" )
+         }
+         ha.add( i )
+      }
 
       val llv = new LLSkipListView( ll )
       val hav = new HASkipListView( ha )

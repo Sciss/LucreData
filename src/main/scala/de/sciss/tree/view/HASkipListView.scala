@@ -30,7 +30,7 @@ package de.sciss.tree.view
 
 import de.sciss.tree.HASkipList
 import java.awt.geom.GeneralPath
-import java.awt.{Rectangle, Dimension, Graphics2D}
+import java.awt.{Point, Rectangle, Dimension, Graphics2D}
 
 class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
    private var boxMap = Map.empty[ HASkipList.Node, NodeBox ]
@@ -40,14 +40,14 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
       if( !n.isBottom ) {
          val bb = buildBoxMap( l.top )
          bb.moveTo( 0, 0 )
-         setPreferredSize( new Dimension( bb.r.width + 8, bb.r.height + 8 ))
+         setPreferredSize( new Dimension( bb.r.width + 9, bb.r.height + 9 ))
       } else {
          setPreferredSize( new Dimension( 54, 54 ))
       }
    }
 
    private def buildBoxMap( n: HASkipList.Node ) : Box = {
-      val b = NodeBox()
+      val b = NodeBox( n )
       boxMap += n -> b
       if( n.down( 0 ).isBottom ) b else {
          val chb  = IndexedSeq.tabulate( n.size )( i => buildBoxMap( n.down( i )))
@@ -60,19 +60,26 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
       drawNode( g2, l.top )
    }
 
-   private def drawNode( g2: Graphics2D, n: HASkipList.Node ) {
+   private def drawNode( g2: Graphics2D, n: HASkipList.Node, arr: Option[ Point ] = None ) {
       boxMap.get( n ).foreach { b =>
          g2.draw( b.r )
          val x = b.r.x
          val y = b.r.y
-         g2.drawLine( x, y + 23, x + b.r.width, y + 23 )
+         val w = b.r.width
+         val h = b.r.height
+         if( h > 23 ) g2.drawLine( x, y + 23, x + b.r.width, y + 23 )
+         arr.foreach { pt =>
+            drawArrow( g2, pt.x, pt.y, x + (w >> 1), y - 2 )
+         }
          for( i <- 1 to l.maxGap ) {
-            g2.drawLine( x + (i * 23), y, x + (i * 23), y + 46 )
+            g2.drawLine( x + (i * 23), y, x + (i * 23), y + h )
          }
          for( i <- 0 until n.size ) {
+            val x1      = x + (i * 23)
             val key     = n.key( i )
             val keyStr  = if( key == Int.MaxValue ) "M" else key.toString
-            g2.drawString( keyStr, 4 + (i * 23), 17 )
+            g2.drawString( keyStr, x1 + 4, y + 17 )
+            drawNode( g2, n.down( i ), Some( new Point( x1 + 11, y + 36 )))
          }
       }
 
@@ -133,7 +140,7 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
          var x = r.x
          bs.foreach { b =>
             b.moveTo( x, r.y + ((r.height - b.r.height) >> 1) )
-            x = b.r.x + spacing
+            x = b.r.x + b.r.width + spacing
          }
       }
    }
@@ -146,15 +153,15 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
          var y = r.y
          bs.foreach { b =>
             b.moveTo( r.x + ((r.width - b.r.width) >> 1), y )
-            y = b.r.y + spacing
+            y = b.r.y + b.r.height + spacing
          }
       }
    }
 
-   private case class NodeBox() extends Box {
+   private case class NodeBox( n: HASkipList.Node ) extends Box {
 //      def calcDimensions {
          r.width  = 23 * (l.maxGap + 1) + 1
-         r.height = 46
+         r.height = if( n.down( 0 ).isBottom ) 23 else 46
 //      }
 
       def updateChildren {}

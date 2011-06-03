@@ -105,16 +105,9 @@ object HASkipList {
             idx   = 0
          }
 
-         /**
-          * Returns a 'stored' nav, that is
-          * a new nav which is at the current
-          * node and index.
-          */
-         def copy : Nav = {
-            val res  = new Nav
-            res.node = node
-            res.idx  = idx
-            res
+         def copy( target: Nav ) {
+            target.node = node
+            target.idx  = idx
          }
 
          def isFull : Boolean = node.size == arrSize
@@ -131,8 +124,7 @@ object HASkipList {
 //          */
 //         def split : Branch = node.split
 
-
-         def splitChild( ch: Nav ) {
+         def splitChild( key: Int, ch: Nav ) {
             val left       = ch.node
             val right      = left.split
             val splitKey   = left.key( arrMid )
@@ -144,10 +136,12 @@ object HASkipList {
                n.downArr( 1 )    = right
                n.size            = 2
                Head.downNode     = n
+//println( "splitting below head; new node has size " + n.size + " ; ch.node.size (left) " + ch.node.size + " ; ch.idx " + ch.idx )
                node              = n
             } else {
                val n             = node.asNode
                val i1            = idx + 1
+//println( "splitting into parent; new node has old size " + n.size )
                System.arraycopy( n.keyArr, idx, n.keyArr, i1, n.size - idx )
                val i2            = i1 + 1
                val num           = n.size - i2
@@ -158,6 +152,12 @@ object HASkipList {
                n.downArr( i1 )   = right
                n.size           += 1
             }
+            // important: if the current key of the parent
+            // is greater or equal than the splitKey,
+            // we must update the child navigation accordingly,
+            // beause it means we are now traversing the right
+            // half!
+            if( key >= splitKey ) ch.node = right
          }
 
          /**
@@ -174,12 +174,13 @@ object HASkipList {
                n.valArr( 0 )     = v
                n.size            = 2
                Head.downNode     = n
+//println( "inserting new leaf below head of new size " + n.size )
 //               node              = n
             } else {
                val n             = node.asLeaf
                val i1            = idx + 1
                val sz            = n.size - idx
-println( "inserting in node of size " + n.size + " where idx = " + idx )
+//println( "inserting in node of old size " + n.size + " where idx = " + idx )
                System.arraycopy( n.keyArr, idx, n.keyArr, i1, sz )
                System.arraycopy( n.valArr, idx, n.valArr, i1, sz )
                n.keyArr( idx )   = key
@@ -202,18 +203,15 @@ println( "inserting in node of size " + n.size + " where idx = " + idx )
       def add( v: A ) : Boolean = {
          val key  = keyFun( v )
          val x    = new Nav
-         while( true ) {
+         val x0   = new Nav
+         do {
             if( x.moveRight( key )) return false // key was already present
-            val x0 = x.copy
+            x.copy( x0 )
             x.moveDown
-            if( x.isFull ) {
-               x0.splitChild( x )
-            } else if( x.isBottom ) {
-               x0.insert( key, v )
-               return true
-            }
-         }
-         error( "Never get here" )
+            if( x.isFull ) x0.splitChild( key, x )
+         } while( !x.isBottom )
+         x0.insert( key, v )
+         true
       }
 
       sealed trait IntNode extends Node {
@@ -246,7 +244,7 @@ println( "inserting in node of size " + n.size + " where idx = " + idx )
             val res     = new Leaf
             val roff    = arrMid + 1
             val rsz     = size - roff
-println( "Splitting a leaf of size " + size + " so that left will have " + roff + " and right " + rsz )
+//println( "Splitting a leaf of size " + size + " so that left will have " + roff + " and right " + rsz )
             System.arraycopy( keyArr, roff, res.keyArr, 0, rsz )
             System.arraycopy( valArr, roff, res.valArr, 0, rsz )
             res.size    = rsz
@@ -264,6 +262,7 @@ println( "Splitting a leaf of size " + size + " so that left will have " + roff 
             val res     = new Branch
             val roff    = arrMid + 1
             val rsz     = size - roff
+//println( "Splitting a branch of size " + size + " so that left will have " + roff + " and right " + rsz )
             System.arraycopy( keyArr, roff, res.keyArr, 0, rsz )
             System.arraycopy( downArr, roff, res.downArr, 0, rsz )
             res.size    = rsz
