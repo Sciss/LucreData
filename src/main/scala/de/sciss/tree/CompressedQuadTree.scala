@@ -34,7 +34,7 @@ import sys.error  // suckers
 object CompressedQuadTree {
    def apply[ V ]( quad: Quad ) : QNode[ V ] = {
       val quads = new Array[ Q[ V ]]( 4 )
-//      createEmptyQuads( quad, quads )
+//      createEmptyQuads( quad, children )
       QNode[ V ]( quad )( quads )
    }
 
