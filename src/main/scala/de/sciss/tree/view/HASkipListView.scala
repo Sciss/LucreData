@@ -32,8 +32,8 @@ import de.sciss.tree.HASkipList
 import java.awt.geom.GeneralPath
 import java.awt.{Point, Rectangle, Dimension, Graphics2D}
 
-class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
-   private var boxMap = Map.empty[ HASkipList.Node, NodeBox ]
+class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView {
+   private var boxMap = Map.empty[ HASkipList.Node[ A ], NodeBox ]
 
    {
       val n = l.top
@@ -46,7 +46,7 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
       }
    }
 
-   private def buildBoxMap( n: HASkipList.Node ) : Box = {
+   private def buildBoxMap( n: HASkipList.Node[ A ]) : Box = {
       val b = NodeBox( n )
       boxMap += n -> b
       if( n.down( 0 ).isBottom ) b else {
@@ -60,7 +60,7 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
       drawNode( g2, l.top )
    }
 
-   private def drawNode( g2: Graphics2D, n: HASkipList.Node, arr: Option[ Point ] = None ) {
+   private def drawNode( g2: Graphics2D, n: HASkipList.Node[ A ], arr: Option[ Point ] = None ) {
       boxMap.get( n ).foreach { b =>
          g2.draw( b.r )
          val x = b.r.x
@@ -158,7 +158,7 @@ class HASkipListView( l: HASkipList[ _ ]) extends SkipListView {
       }
    }
 
-   private case class NodeBox( n: HASkipList.Node ) extends Box {
+   private case class NodeBox( n: HASkipList.Node[ A ]) extends Box {
 //      def calcDimensions {
          r.width  = 23 * (l.maxGap + 1) + 1
          r.height = if( n.down( 0 ).isBottom ) 23 else 46

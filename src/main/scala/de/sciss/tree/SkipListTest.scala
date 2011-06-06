@@ -42,9 +42,9 @@ object SkipListTest extends App with Runnable {
       f.setResizable( false )
       val cp   = f.getContentPane
       val ll   = LLSkipList.empty
-      val ha   = HASkipList.withIntKey( (i: Int) => i )
-      val ha2  = HASkipList.withIntKey( (i: Int) => i, minGap = 2 )
-      val ha3  = HASkipList.withIntKey( (i: Int) => i, minGap = 6 )
+      val ha   = HASkipList.empty[ Int ]( 0x7FFFFFFF ) // .withIntKey( (i: Int) => i )
+      val ha2  = HASkipList.empty[ Int ]( 0x7FFFFFFF ) // .withIntKey( (i: Int) => i, minGap = 2 )
+      val ha3  = HASkipList.empty[ Int ]( 0x7FFFFFFF ) // .withIntKey( (i: Int) => i, minGap = 6 )
 //      val l    = List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ) ++ List( 20, 21, 61 )
       val rnd  = new util.Random() // ( 0L )
       val l    = List.fill( n )( rnd.nextInt( 100 ))

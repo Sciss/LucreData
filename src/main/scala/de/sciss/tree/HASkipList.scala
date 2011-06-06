@@ -46,22 +46,22 @@ object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
 //      new Impl[ B, A ]( minGap, key maxKey )
 
-   def withIntKey[ @specialized( Int, Long ) A : Manifest ]( keyFun: A => Int, minGap: Int = 1 ) : HASkipList[ A ] =
-      new IntImpl( keyFun, minGap )
+   def empty[ @specialized( Int, Long ) A : Ordering : Manifest ]( maxKey: A, minGap: Int = 1 ) : HASkipList[ A ] =
+      new Impl( maxKey, minGap )
 
-   sealed trait Node {
+   sealed trait Node[ @specialized( Int, Long ) A ] {
       def size : Int
-      def key( i: Int ) : Int
-      def down( i: Int ) : Node
+      def key( i: Int ) : A // Int
+      def down( i: Int ) : Node[ A ]
       def isBottom : Boolean // = this eq Bottom
    }
 
-   private object IntImpl {
-      val MAX_KEY = 0x7FFFFFFF
-   }
-   private class IntImpl[ @specialized( Int, Long ) A : Manifest ]( keyFun: A => Int, val minGap: Int )
+//   private object Impl {
+//      val MAX_KEY = 0x7FFFFFFF
+//   }
+   private class Impl[ @specialized( Int, Long ) A ]( maxKey: A, val minGap: Int )( implicit mf: Manifest[ A ], ord: Ordering[ A ])
    extends HASkipList[ A ] { // extends Impl[ Int, A ]
-      import IntImpl._
+//      import Impl._
 
       val maxGap  = (minGap << 1) + 1
       val arrSize = maxGap + 1
@@ -69,7 +69,7 @@ object HASkipList {
 
       def size : Int = leafSizeSum( Head ) - 1
 
-      private def leafSizeSum( n: Node ) : Int = {
+      private def leafSizeSum( n: Node[ _ ]) : Int = {
          var res = 0
          var i = 0; while( i < n.size ) {
             val dn = n.down( i )
@@ -86,19 +86,19 @@ object HASkipList {
          i
       }
 
-      def top : Node = Head.downNode
+      def top : Node[ A ] = Head.downNode
 
       // a kind of finger to navigate through
       // the data structure
       final class Nav {
-         var node: IntNode = Head
+         var node: NodeImpl = Head
          var idx: Int = 0
          def isBottom : Boolean = node.isBottom
 //         def isHead : Boolean = node eq head
-         def key : Int = node.key( idx )
-         def moveRight( key: Int ) : Boolean = {
-            while( key > node.key( idx )) idx += 1
-            key == node.key( idx )
+         def key : A = node.key( idx )
+         def moveRight( key: A ) : Boolean = {
+            while( ord.gt( key, node.key( idx ))) idx += 1
+            ord.equiv( key, node.key( idx ))
          }
          def moveDown {
             node  = node.down( idx )
@@ -124,14 +124,14 @@ object HASkipList {
 //          */
 //         def split : Branch = node.split
 
-         def splitChild( key: Int, ch: Nav ) {
+         def splitChild( key: A, ch: Nav ) {
             val left       = ch.node
             val right      = left.split
             val splitKey   = left.key( arrMid )
             if( node eq Head ) {
                val n             = new Branch
                n.keyArr( 0 )     = splitKey
-               n.keyArr( 1 )     = MAX_KEY // aka right.key( right.size - 1 )
+               n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
                n.downArr( 0 )    = left
                n.downArr( 1 )    = right
                n.size            = 2
@@ -156,7 +156,7 @@ object HASkipList {
             // we must update the child navigation accordingly,
             // beause it means we are now traversing the right
             // half!
-            if( key >= splitKey ) ch.node = right
+            if( ord.gteq( key, splitKey )) ch.node = right
          }
 
          /**
@@ -165,32 +165,32 @@ object HASkipList {
           * current node which is assumed
           * to be a leaf
           */
-         def insert( key: Int, v: A ) {
+         def insert( key: A ) {
             if( node eq Head ) {
                val n             = new Leaf
                n.keyArr( 0 )     = key
-               n.keyArr( 1 )     = MAX_KEY // aka right.key( right.size - 1 )
-               n.valArr( 0 )     = v
+               n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
+//               n.valArr( 0 )     = v
                n.size            = 2
                Head.downNode     = n
 //println( "inserting new leaf below head of new size " + n.size )
 //               node              = n
             } else {
                val n             = node.asLeaf
-               val i1            = idx + 1
-               val sz            = n.size - idx
+//               val i1            = idx + 1
+//               val sz            = n.size - idx
 //println( "inserting in node of old size " + n.size + " where idx = " + idx )
-               System.arraycopy( n.keyArr, idx, n.keyArr, i1, sz )
-               System.arraycopy( n.valArr, idx, n.valArr, i1, sz )
+               System.arraycopy( n.keyArr, idx, n.keyArr, idx + 1, n.size - idx )
+//               System.arraycopy( n.valArr, idx, n.valArr, i1, sz )
                n.keyArr( idx )   = key
-               n.valArr( idx )   = v
+//               n.valArr( idx )   = v
                n.size           += 1
             }
          }
       }
 
-      def contains( v: A ) : Boolean = {
-         val key  = keyFun( v )
+      def contains( key: A ) : Boolean = {
+//         val key  = keyFun( v )
          val x    = new Nav
          while( !x.isBottom ) {
             if( x.moveRight( key )) return true
@@ -199,8 +199,8 @@ object HASkipList {
          false
       }
 
-      def add( v: A ) : Boolean = {
-         val key  = keyFun( v )
+      def add( key: A ) : Boolean = {
+//         val key  = keyFun( v )
          val x    = new Nav
          val x0   = new Nav
          do {
@@ -209,12 +209,12 @@ object HASkipList {
             x.moveDown
             if( x.isFull ) x0.splitChild( key, x )
          } while( !x.isBottom )
-         x0.insert( key, v )
+         x0.insert( key )
          true
       }
 
-      sealed trait IntNode extends Node {
-         override def down( i: Int ) : IntNode
+      sealed trait NodeImpl extends Node[ A ] {
+         override def down( i: Int ) : NodeImpl
 
          /**
           * Splits the node, and
@@ -222,30 +222,30 @@ object HASkipList {
           * as a new node. This old node
           * is shrunk to the left hand side
           */
-         def split : IntNode
+         def split : NodeImpl
 
          def asNode : Branch
          def asLeaf : Leaf
       }
 
-      sealed trait BranchOrLeaf extends IntNode {
-         var keyArr     = new Array[ Int ]( arrSize )
+      sealed trait BranchOrLeaf extends NodeImpl {
+         var keyArr     = new Array[ A ]( arrSize )
          var size       = 0
-         def key( i: Int ) : Int = keyArr( i )
+         def key( i: Int ) : A = keyArr( i )
          def isBottom   = false
 //         def isHead     = false
       }
 
       class Leaf extends BranchOrLeaf {
-         var valArr  = new Array[ A ]( arrSize )
-         def down( i: Int ) : IntNode = Bottom
-         def split : IntNode = {
+//         var valArr  = new Array[ A ]( arrSize )
+         def down( i: Int ) : NodeImpl = Bottom
+         def split : NodeImpl = {
             val res     = new Leaf
             val roff    = arrMid + 1
             val rsz     = size - roff
 //println( "Splitting a leaf of size " + size + " so that left will have " + roff + " and right " + rsz )
             System.arraycopy( keyArr, roff, res.keyArr, 0, rsz )
-            System.arraycopy( valArr, roff, res.valArr, 0, rsz )
+//            System.arraycopy( valArr, roff, res.valArr, 0, rsz )
             res.size    = rsz
             size        = roff
             res
@@ -255,9 +255,9 @@ object HASkipList {
       }
 
       class Branch extends BranchOrLeaf {
-         var downArr = new Array[ IntNode ]( arrSize )
-         def down( i: Int ) : IntNode = downArr( i )
-         def split : IntNode = {
+         var downArr = new Array[ NodeImpl ]( arrSize )
+         def down( i: Int ) : NodeImpl = downArr( i )
+         def split : NodeImpl = {
             val res     = new Branch
             val roff    = arrMid + 1
             val rsz     = size - roff
@@ -274,24 +274,24 @@ object HASkipList {
 
       private def notSupported = throw new IllegalArgumentException()
 
-      sealed trait HeadOrBottom extends IntNode {
-         def split : IntNode  = notSupported
+      sealed trait HeadOrBottom extends NodeImpl {
+         def split : NodeImpl  = notSupported
          def asNode : Branch  = notSupported
          def asLeaf : Leaf    = notSupported
       }
 
       object Head extends HeadOrBottom {
-         var downNode : IntNode = Bottom
-         def key( i: Int ) : Int = MAX_KEY
-         def down( i: Int ) : IntNode = downNode
+         var downNode : NodeImpl = Bottom
+         def key( i: Int ) : A = maxKey // MAX_KEY
+         def down( i: Int ) : NodeImpl = downNode
          val size = 1
          val isBottom   = false
 //         val isHead     = true
       }
 
       object Bottom extends HeadOrBottom {
-         def key( i: Int ) : Int       = notSupported
-         def down( i: Int ) : IntNode  = notSupported
+         def key( i: Int ) : A         = notSupported
+         def down( i: Int ) : NodeImpl  = notSupported
          val size = 0
          val isBottom   = true
 //         val isHead     = false
@@ -299,7 +299,7 @@ object HASkipList {
    }
 }
 trait HASkipList[ A ] extends SkipList[ A ] {
-   def top : HASkipList.Node
+   def top : HASkipList.Node[ A ]
    def minGap : Int
    def maxGap : Int
 }
