@@ -46,18 +46,30 @@ object DeterministicSkipQuadTree {
    type InOrder = TotalOrder[ Unit ]
 
    final class T2[ V ] private( _quad: Quad ) {
-      private var tailVar: Node = _
+      private var tail: Node = {
+         TopLeftNode( _quad )
+      }
+      val list: SkipList[ InOrder ] = HASkipList.empty( TotalOrder.max[ NonEmpty ], 2 )
 
-      trait Child {
+      def insert( point: Point, value: V ) {
+         val p0      = tail.findP0( point )
+         val ordLeaf = p0.insert( point, value )
+         list.add( ordLeaf )
       }
 
+      sealed trait Child
+
       case object Empty extends Child
-      trait NonEmpty extends Child {
+      sealed trait NonEmpty extends Child {
          def union( mq: Quad, point: Point ) : Quad
          def quadIdxIn( iq: Quad ) : Int
       }
 
-      trait Leaf extends NonEmpty {
+      type InOrder = TotalOrder[ NonEmpty ]
+
+//      sealed trait Ordered
+
+      sealed trait Leaf extends NonEmpty /* with Ordered */ {
 //         def contains( point: Point ) : Boolean = false
          def point : Point
          def union( mq: Quad, point: Point ) = {
@@ -67,8 +79,7 @@ object DeterministicSkipQuadTree {
          def quadIdxIn( iq: Quad ) : Int = pointInQuad( iq, point )
       }
 
-
-      trait Node extends NonEmpty {
+      sealed trait Node extends NonEmpty {
 //         def contains( point: Point ) : Boolean
          def children : Array[ Child ]
 //         def quadIdx( point: Point ) : Int
@@ -82,7 +93,7 @@ object DeterministicSkipQuadTree {
          def quadIdxIn( iq: Quad ) : Int = quadInQuad( iq, quad )
       }
 
-      trait RightNode extends Node {
+      sealed trait RightNode extends Node {
          def prev : Node
 
          def findP0( point: Point ) : LeftNode = {
@@ -94,9 +105,18 @@ object DeterministicSkipQuadTree {
          }
       }
 
-      trait LeftNode extends Node {
+      sealed trait LeftNode extends Node {
+         def north: InOrder
+         def south: InOrder
+
          def newLeaf( point: Point, value: V ) : Leaf
-         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : Node
+         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode
+
+         def order( child: NonEmpty ) : InOrder = {
+            val cidx = child.quadIdxIn( quad )
+            val hemi = if( cidx < 2 ) north else south
+            if( (cidx % 2) == 0 ) hemi.insertBefore( child ) else hemi.insertAfter( child )
+         }
 
          def findP0( point: Point ) : LeftNode = {
             val qidx = pointInQuad( quad, point ) // quadIdx( point )
@@ -106,20 +126,23 @@ object DeterministicSkipQuadTree {
             }
          }
 
-         def insert( point: Point, value: V ) : Leaf = {
+         def insert( point: Point, value: V ) : InOrder = {
             val qidx = pointInQuad( quad, point ) // quadIdx( point )
             val leaf = newLeaf( point, value )
             val c    = children
-            c( qidx ) = c( qidx ) match {
-               case Empty => leaf
-               case n: NonEmpty => newNode( n.union( quad.quadrant( qidx ), point ), n, leaf  )
-//                  val iq   = n.union( quad.quadrant( qidx ), point )
+            c( qidx ) match {
+               case Empty =>
+                  c( qidx ) = leaf
+                  order( leaf )
+               case n: NonEmpty =>
+                  val n2 = newNode( n.union( quad.quadrant( qidx ), point ), n, leaf  )
+                  c( qidx ) = n2
+                  n2.order( leaf )
             }
-            leaf
          }
       }
 
-      trait LeftNodeImpl extends LeftNode {
+      sealed trait LeftNodeImpl extends LeftNode {
          val children = Array.fill[ Child ]( 4 )( Empty )
 
          def newLeaf( point: Point, value: V ) : Leaf = {
@@ -127,8 +150,8 @@ object DeterministicSkipQuadTree {
             // XXX set parent; insert order
          }
 
-         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : Node = {
-            val n    = new InnerLeftNode( iq )
+         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode = {
+            val n    = InnerLeftNode( this, iq )
             val c    = n.children
             val oidx = old.quadIdxIn( iq )
             c( oidx )= old
@@ -139,22 +162,17 @@ object DeterministicSkipQuadTree {
          }
       }
 
-      case class TopLeftNode( quad: Quad ) extends LeftNodeImpl {
-
+      final case class TopLeftNode( quad: Quad ) extends LeftNodeImpl {
+         val north   = TotalOrder[ NonEmpty ]( this )
+         val south   = north.insertAfter( this )
       }
 
-      case class InnerLeftNode( quad: Quad ) extends LeftNodeImpl {
-
+      final case class InnerLeftNode( parent: LeftNode, quad: Quad ) extends LeftNodeImpl {
+         val north   = parent.order( this )
+         val south   = north.insertAfter( this )
       }
 
-      case class LeafImpl( point: Point, value: V ) extends Leaf {
-
-      }
-
-      def insert( point: Point, value: V ) {
-         val p0 = tailVar.findP0( point )
-         p0.insert( point, value )
-      }
+      final case class LeafImpl( point: Point, value: V ) extends Leaf
    }
 
    object T {
