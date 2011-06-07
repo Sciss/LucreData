@@ -61,7 +61,13 @@ object DeterministicSkipQuadTree {
       var height: Int = 0
 
       def insert( point: Point, value: V ) {
+         // "To insert or delete a point y into or from S, we first search the
+         // quadtree structure to locate y in each Qi. Then we insert or delete y
+         // in the binary Q0 ..."
          tailVar.insert0( point, value )
+         // "... and update our total order."
+
+
 //         if( qpred.isEmpty || !flipCoin ) return
 //         val hq      = head.quad
 //         val qidx    = quadIdx( hq, point )
@@ -109,7 +115,8 @@ object DeterministicSkipQuadTree {
           * and with a given interesting square and child array (which may not
           * be filled yet!)
           */
-         def createChildNode( qidx: Int, iq: Quad, children: Array[ QChild ]) : QBottomNode
+//         def createChildNode( qidx: Int, iq: Quad, children: Array[ QChild ]) : QBottomNode
+         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode
 
          /**
           * Inserts a point in Q0
@@ -123,8 +130,21 @@ object DeterministicSkipQuadTree {
       sealed trait QRightNode extends QNodeLike {
          def prev: QNodeLike
 
-         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode = {
-            new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, ichildren )
+//         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode = {
+//            new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, ichildren )
+//         }
+
+         // XXX significant code duplication with QLeftNode
+         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode = {
+            val iq               = ch1.gisqr( quad.quadrant( qidx ), point )
+            val qchildren        = new Array[ QChild ]( 4 )
+            val nidx             = quadIdx( iq )
+            val pidx             = pointInQuad( iq, point )
+            qchildren( nidx )    = ch1
+            val q                = new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, qchildren )
+            qchildren( pidx )    = new QLeaf( q, point, value )
+            ch1.parent           = q
+            q
          }
       }
 
@@ -151,17 +171,20 @@ object DeterministicSkipQuadTree {
           */
          def quadIdx( iq: Quad ) : Int
 
-         def push( pp: QNodeLike, qidx: Int, point: Point, value: V ) : QChild = {
-            val iq               = gisqr( pp.quad.quadrant( qidx ), point )
-            val ichildren        = new Array[ QChild ]( 4 )
-            val q                = pp.createChildNode( qidx, iq, ichildren )
-            val nidx             = quadIdx( iq )
-            val pidx             = pointInQuad( iq, point )
-            parent               = q
-            ichildren( nidx )    = this
-            ichildren( pidx )    = new QLeaf( q, point, value )
-            q
-         }
+         def push( pp: QNodeLike, qidx: Int, point: Point, value: V ) : QChild =
+            pp.createChildNode( qidx, /* iq, ichildren, */ this, point, value )
+
+////            val iq               = gisqr( pp.quad.quadrant( qidx ), point )
+////            val ichildren        = new Array[ QChild ]( 4 )
+////            val q                =
+//
+////            val nidx             = quadIdx( iq )
+////            val pidx             = pointInQuad( iq, point )
+////            parent               = q
+////            ichildren( nidx )    = this
+////            ichildren( pidx )    = new QLeaf( q, point, value )
+//            q
+//         }
       }
       sealed trait QBottomNode extends QNodeLike with QBottom {
          def asBottomNode : QBottomNode = this
@@ -171,11 +194,21 @@ object DeterministicSkipQuadTree {
          def north: InOrder
          def south: InOrder
 
-         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode = {
-            val hemi    = if( qidx < 2 ) north else south
-            val inorth  = hemi.insertBefore( () )
-            val isouth  = hemi.insertAfter( () )
-            new QBottomLeftNode( this, iq, inorth, isouth, ichildren )
+//         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode
+
+         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode = {
+            val iq               = ch1.gisqr( quad.quadrant( qidx ), point )
+            val qchildren        = new Array[ QChild ]( 4 )
+            val nidx             = quadIdx( iq )
+            val pidx             = pointInQuad( iq, point )
+            qchildren( nidx )    = ch1
+            val qhemi            = if( qidx < 2 ) north else south
+            val qnorth           = if( (qidx % 2) == 0 ) qhemi.insertBefore( () ) else qhemi.insertAfter( () )
+            val qsouth           = qnorth.insertAfter( () )
+            val q                = new QBottomLeftNode( this, iq, qnorth, qsouth, qchildren )
+            qchildren( pidx )    = new QLeaf( q, point, value )
+            ch1.parent           = q
+            q
          }
       }
 
