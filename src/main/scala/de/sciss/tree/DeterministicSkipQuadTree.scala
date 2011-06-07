@@ -32,10 +32,10 @@ import annotation.tailrec
 import sys.error
 
 object DeterministicSkipQuadTree {
-   def apply[ V ]( quad: Quad ) = T[ V ]( quad )
+   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
 
-   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : T[ V ] = {
-      val t = T[ V ]( quad )
+   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : DeterministicSkipQuadTree[ V ] = {
+      val t = new TreeImpl[ V ]( quad )
       m.foreach {
          case (point, value) =>
             t.insert( point, value )
@@ -45,7 +45,7 @@ object DeterministicSkipQuadTree {
 
    type InOrder = TotalOrder[ Unit ]
 
-   final class T2[ V ] private( _quad: Quad ) {
+   private class TreeImpl[ V ]( _quad: Quad ) extends DeterministicSkipQuadTree[ V ] {
       private var tail: Node = {
          TopLeftNode( _quad )
       }
@@ -67,10 +67,7 @@ object DeterministicSkipQuadTree {
 
       type InOrder = TotalOrder[ NonEmpty ]
 
-//      sealed trait Ordered
-
-      sealed trait Leaf extends NonEmpty /* with Ordered */ {
-//         def contains( point: Point ) : Boolean = false
+      sealed trait Leaf extends NonEmpty {
          def point : Point
          def union( mq: Quad, point: Point ) = {
             val p = point
@@ -80,9 +77,7 @@ object DeterministicSkipQuadTree {
       }
 
       sealed trait Node extends NonEmpty {
-//         def contains( point: Point ) : Boolean
          def children : Array[ Child ]
-//         def quadIdx( point: Point ) : Int
          def findP0( point: Point ) : LeftNode
          def quad: Quad
 
@@ -97,7 +92,7 @@ object DeterministicSkipQuadTree {
          def prev : Node
 
          def findP0( point: Point ) : LeftNode = {
-            val qidx = pointInQuad( quad, point ) // quadIdx( point )
+            val qidx = pointInQuad( quad, point )
             children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
@@ -119,7 +114,7 @@ object DeterministicSkipQuadTree {
          }
 
          def findP0( point: Point ) : LeftNode = {
-            val qidx = pointInQuad( quad, point ) // quadIdx( point )
+            val qidx = pointInQuad( quad, point )
             children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => this
@@ -127,7 +122,7 @@ object DeterministicSkipQuadTree {
          }
 
          def insert( point: Point, value: V ) : InOrder = {
-            val qidx = pointInQuad( quad, point ) // quadIdx( point )
+            val qidx = pointInQuad( quad, point )
             val leaf = newLeaf( point, value )
             val c    = children
             c( qidx ) match {
@@ -145,10 +140,7 @@ object DeterministicSkipQuadTree {
       sealed trait LeftNodeImpl extends LeftNode {
          val children = Array.fill[ Child ]( 4 )( Empty )
 
-         def newLeaf( point: Point, value: V ) : Leaf = {
-            new LeafImpl( point, value )
-            // XXX set parent; insert order
-         }
+         def newLeaf( point: Point, value: V ) : Leaf = new LeafImpl( point, value ) // XXX parent?
 
          def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode = {
             val n    = InnerLeftNode( this, iq )
@@ -157,7 +149,7 @@ object DeterministicSkipQuadTree {
             c( oidx )= old
             val nidx = nu.quadIdxIn( iq )
             c( nidx )= nu
-            // XXX set parents; insert orders
+            // XXX parents?
             n
          }
       }
@@ -175,202 +167,202 @@ object DeterministicSkipQuadTree {
       final case class LeafImpl( point: Point, value: V ) extends Leaf
    }
 
-   object T {
-      def apply[ V ]( quad: Quad ) = new T[ V ]( quad )
-   }
-   final class T[ V ] private( _quad: Quad ) {
-      private var tailVar: QNodeLike /* QTopNode */ = {
-         val inOrder = TotalOrder.empty[ Unit ]
-//         val list    = HASkipList.empty[ ]
-         val north   = inOrder.append( () )
-         val south   = north.insertAfter( () )
-         new QTopLeftNode( _quad, north, south, Array.fill[ QChild ]( 4 )( QEmpty ))
-      }
-//      private val inOrder = TotalOrder.empty
-
-      def tail: QNodeLike = tailVar
-      var height: Int = 0
-
-      def insert( point: Point, value: V ) {
-         // "To insert or delete a point y into or from S, we first search the
-         // quadtree structure to locate y in each Qi. Then we insert or delete y
-         // in the binary Q0 ..."
-         tailVar.insert0( point, value )
-         // "... and update our total order."
-
-
-//         if( qpred.isEmpty || !flipCoin ) return
-//         val hq      = head.quad
-//         val qidx    = quadIdx( hq, point )
-//         val l       = QLeaf( point, value )
-//         do {
-//            val children      = new Array[ Q[ V ]]( 4 )
-//            children( qidx )  = l
-//            tailVar        = new QNode[ V ]( hq, Some( tailVar ))( children )
-//         } while( flipCoin )
-      }
-
-//      sealed trait Q
-      sealed trait QChild /* extends Q */ {
-         def push( parent: QNodeLike, qidx: Int, point: Point, value: V ) : QChild
-         def asBottomNode : QBottomNode
-      }
-      case object QEmpty extends QChild {
-         def push( pp: QNodeLike, qidx: Int, point: Point, value: V ) : QChild = pp.createChildLeaf( qidx, point, value )
-//            new QLeaf( parent, point, value )
-
-         def asBottomNode : QBottomNode = unsupportedOp
-      }
-//      sealed trait QNonEmpty // extends Q
-
-      sealed trait QLeafLike extends /* QNonEmpty with */ QBottom {
-         def gisqr( mq: Quad, point2: Point ) : Quad = interestingSquare( mq, point.x, point.y, 1, point2 )
-         def quadIdx( iq: Quad ) : Int = pointInQuad( iq, point )
-         def asBottomNode : QBottomNode = unsupportedOp
-         def point: Point
-         def value: V
-      }
-
-      final class QLeftLeaf( var parent: QNodeLike, val tag: InOrder, val point: Point, val value: V ) extends QLeafLike
-      final class QRightLeaf( var parent: QNodeLike, val point: Point, val value: V ) extends QLeafLike
-
-      sealed trait QNodeLike /* extends QNonEmpty */ {
-         def quad: Quad
-         def children: Array[ QChild ]
-
-         var next = Option.empty[ QNodeLike ]
-
-         def quadIdx( iq: Quad ) : Int = quadInQuad( iq, quad )
-
-         def gisqr( mq: Quad, point: Point ) : Quad = {
-            val ext = quad.extent
-            interestingSquare( mq, quad.cx - ext, quad.cy - ext, ext << 1, point )
-         }
-
-         /**
-          * Creates and returns a new child node for a given quadrant index regarding this node,
-          * and with a given interesting square and child array (which may not
-          * be filled yet!)
-          */
-//         def createChildNode( qidx: Int, iq: Quad, children: Array[ QChild ]) : QBottomNode
-         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode
-
-         def createChildLeaf( qidx: Int, point: Point, value: V ) : QLeafLike
-
-         /**
-          * Inserts a point in Q0
-          */
-         def insert0( point: Point, value: V ) {
-            val qidx = pointInQuad( quad, point )
-            children( qidx ) = children( qidx ).push( this, qidx, point, value )
-         }
-      }
-
-      sealed trait QRightNode extends QNodeLike {
-         def prev: QNodeLike
-
-//         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode = {
-//            new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, ichildren )
-//         }
-
-         // XXX significant code duplication with QLeftNode
-         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode = {
-            val iq               = ch1.gisqr( quad.quadrant( qidx ), point )
-            val qchildren        = new Array[ QChild ]( 4 )
-            val nidx             = quadIdx( iq )
-            val pidx             = pointInQuad( iq, point )
-            qchildren( nidx )    = ch1
-            val q                = new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, qchildren )
-            qchildren( pidx )    = q.createChildLeaf( pidx, point, value )
-            ch1.parent           = q
-            q
-         }
-
-         def createChildLeaf( qidx: Int, point: Point, value: V ) : QLeafLike = new QRightLeaf( this, point, value )
-      }
-
-//      sealed trait QTopNode extends QNodeLike
-
-      sealed trait QBottom extends QChild {
-         def parent: QNodeLike
-         def parent_=( n: QNodeLike ) : Unit
-
-         /**
-          * Calculates the interesting square for this object's contents along with a given point
-          * and a maximum given outer square
-          *
-          * @param   mq       the maximum square to occupy
-          * @param   point    the point to unite with this node's content
-          */
-         def gisqr( mq: Quad, point: Point ) : Quad
-
-         /**
-          * Calculates the quadrant index in which this node's content will
-          * end up, given an interesting square
-          *
-          * @param   iq    the square in which to place this node's content
-          */
-         def quadIdx( iq: Quad ) : Int
-
-         def push( pp: QNodeLike, qidx: Int, point: Point, value: V ) : QChild =
-            pp.createChildNode( qidx, /* iq, ichildren, */ this, point, value )
-
-////            val iq               = gisqr( pp.quad.quadrant( qidx ), point )
-////            val ichildren        = new Array[ QChild ]( 4 )
-////            val q                =
+//   object T {
+//      def apply[ V ]( quad: Quad ) = new T[ V ]( quad )
+//   }
+//   final class T[ V ] private( _quad: Quad ) {
+//      private var tailVar: QNodeLike /* QTopNode */ = {
+//         val inOrder = TotalOrder.empty[ Unit ]
+////         val list    = HASkipList.empty[ ]
+//         val north   = inOrder.append( () )
+//         val south   = north.insertAfter( () )
+//         new QTopLeftNode( _quad, north, south, Array.fill[ QChild ]( 4 )( QEmpty ))
+//      }
+////      private val inOrder = TotalOrder.empty
 //
-////            val nidx             = quadIdx( iq )
-////            val pidx             = pointInQuad( iq, point )
-////            parent               = q
-////            ichildren( nidx )    = this
-////            ichildren( pidx )    = new QLeaf( q, point, value )
+//      def tail: QNodeLike = tailVar
+//      var height: Int = 0
+//
+//      def insert( point: Point, value: V ) {
+//         // "To insert or delete a point y into or from S, we first search the
+//         // quadtree structure to locate y in each Qi. Then we insert or delete y
+//         // in the binary Q0 ..."
+//         tailVar.insert0( point, value )
+//         // "... and update our total order."
+//
+//
+////         if( qpred.isEmpty || !flipCoin ) return
+////         val hq      = head.quad
+////         val qidx    = quadIdx( hq, point )
+////         val l       = QLeaf( point, value )
+////         do {
+////            val children      = new Array[ Q[ V ]]( 4 )
+////            children( qidx )  = l
+////            tailVar        = new QNode[ V ]( hq, Some( tailVar ))( children )
+////         } while( flipCoin )
+//      }
+//
+////      sealed trait Q
+//      sealed trait QChild /* extends Q */ {
+//         def push( parent: QNodeLike, qidx: Int, point: Point, value: V ) : QChild
+//         def asBottomNode : QBottomNode
+//      }
+//      case object QEmpty extends QChild {
+//         def push( pp: QNodeLike, qidx: Int, point: Point, value: V ) : QChild = pp.createChildLeaf( qidx, point, value )
+////            new QLeaf( parent, point, value )
+//
+//         def asBottomNode : QBottomNode = unsupportedOp
+//      }
+////      sealed trait QNonEmpty // extends Q
+//
+//      sealed trait QLeafLike extends /* QNonEmpty with */ QBottom {
+//         def gisqr( mq: Quad, point2: Point ) : Quad = interestingSquare( mq, point.x, point.y, 1, point2 )
+//         def quadIdx( iq: Quad ) : Int = pointInQuad( iq, point )
+//         def asBottomNode : QBottomNode = unsupportedOp
+//         def point: Point
+//         def value: V
+//      }
+//
+//      final class QLeftLeaf( var parent: QNodeLike, val tag: InOrder, val point: Point, val value: V ) extends QLeafLike
+//      final class QRightLeaf( var parent: QNodeLike, val point: Point, val value: V ) extends QLeafLike
+//
+//      sealed trait QNodeLike /* extends QNonEmpty */ {
+//         def quad: Quad
+//         def children: Array[ QChild ]
+//
+//         var next = Option.empty[ QNodeLike ]
+//
+//         def quadIdx( iq: Quad ) : Int = quadInQuad( iq, quad )
+//
+//         def gisqr( mq: Quad, point: Point ) : Quad = {
+//            val ext = quad.extent
+//            interestingSquare( mq, quad.cx - ext, quad.cy - ext, ext << 1, point )
+//         }
+//
+//         /**
+//          * Creates and returns a new child node for a given quadrant index regarding this node,
+//          * and with a given interesting square and child array (which may not
+//          * be filled yet!)
+//          */
+////         def createChildNode( qidx: Int, iq: Quad, children: Array[ QChild ]) : QBottomNode
+//         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode
+//
+//         def createChildLeaf( qidx: Int, point: Point, value: V ) : QLeafLike
+//
+//         /**
+//          * Inserts a point in Q0
+//          */
+//         def insert0( point: Point, value: V ) {
+//            val qidx = pointInQuad( quad, point )
+//            children( qidx ) = children( qidx ).push( this, qidx, point, value )
+//         }
+//      }
+//
+//      sealed trait QRightNode extends QNodeLike {
+//         def prev: QNodeLike
+//
+////         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode = {
+////            new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, ichildren )
+////         }
+//
+//         // XXX significant code duplication with QLeftNode
+//         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode = {
+//            val iq               = ch1.gisqr( quad.quadrant( qidx ), point )
+//            val qchildren        = new Array[ QChild ]( 4 )
+//            val nidx             = quadIdx( iq )
+//            val pidx             = pointInQuad( iq, point )
+//            qchildren( nidx )    = ch1
+//            val q                = new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, qchildren )
+//            qchildren( pidx )    = q.createChildLeaf( pidx, point, value )
+//            ch1.parent           = q
 //            q
 //         }
-      }
-      sealed trait QBottomNode extends QNodeLike with QBottom {
-         def asBottomNode : QBottomNode = this
-      }
-
-      sealed trait QLeftNode extends QNodeLike {
-         def north: InOrder
-         def south: InOrder
-
-//         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode
-
-         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode = {
-            val iq               = ch1.gisqr( quad.quadrant( qidx ), point )
-            val qchildren        = new Array[ QChild ]( 4 )
-            val nidx             = quadIdx( iq )
-            val pidx             = pointInQuad( iq, point )
-            qchildren( nidx )    = ch1
-            val qhemi            = if( qidx < 2 ) north else south
-            val qnorth           = if( (qidx % 2) == 0 ) qhemi.insertBefore( () ) else qhemi.insertAfter( () )
-            val qsouth           = qnorth.insertAfter( () )
-            val q                = new QBottomLeftNode( this, iq, qnorth, qsouth, qchildren )
-            qchildren( pidx )    = q.createChildLeaf( pidx, point, value )
-            ch1.parent           = q
-            q
-         }
-
-         def createChildLeaf( pidx: Int, point: Point, value: V ) : QLeafLike = {
-            val phemi   = if( pidx < 2 ) north else south
-            val ptag    = if( (pidx % 2) == 0 ) phemi.insertBefore( () ) else phemi.insertAfter( () )
-            new QLeftLeaf( this, ptag, point, value )
-         }
-      }
-
-      final class QTopLeftNode( val quad: Quad, val north: InOrder, val south: InOrder, val children: Array[ QChild ])
-      extends QLeftNode // with QTopNode
-
-      final class QTopRightNode( val prev: QNodeLike, val quad: Quad, val children: Array[ QChild ])
-         extends QRightNode // with QTopNode
-
-      final class QBottomLeftNode( var parent: QNodeLike, val quad: Quad, val north: InOrder, val south: InOrder, val children: Array[ QChild ])
-      extends QLeftNode with QBottomNode
-
-      final class QBottomRightNode( var parent: QNodeLike, val prev: QNodeLike, val quad: Quad, val children: Array[ QChild ])
-      extends QRightNode with QBottomNode
-   }
+//
+//         def createChildLeaf( qidx: Int, point: Point, value: V ) : QLeafLike = new QRightLeaf( this, point, value )
+//      }
+//
+////      sealed trait QTopNode extends QNodeLike
+//
+//      sealed trait QBottom extends QChild {
+//         def parent: QNodeLike
+//         def parent_=( n: QNodeLike ) : Unit
+//
+//         /**
+//          * Calculates the interesting square for this object's contents along with a given point
+//          * and a maximum given outer square
+//          *
+//          * @param   mq       the maximum square to occupy
+//          * @param   point    the point to unite with this node's content
+//          */
+//         def gisqr( mq: Quad, point: Point ) : Quad
+//
+//         /**
+//          * Calculates the quadrant index in which this node's content will
+//          * end up, given an interesting square
+//          *
+//          * @param   iq    the square in which to place this node's content
+//          */
+//         def quadIdx( iq: Quad ) : Int
+//
+//         def push( pp: QNodeLike, qidx: Int, point: Point, value: V ) : QChild =
+//            pp.createChildNode( qidx, /* iq, ichildren, */ this, point, value )
+//
+//////            val iq               = gisqr( pp.quad.quadrant( qidx ), point )
+//////            val ichildren        = new Array[ QChild ]( 4 )
+//////            val q                =
+////
+//////            val nidx             = quadIdx( iq )
+//////            val pidx             = pointInQuad( iq, point )
+//////            parent               = q
+//////            ichildren( nidx )    = this
+//////            ichildren( pidx )    = new QLeaf( q, point, value )
+////            q
+////         }
+//      }
+//      sealed trait QBottomNode extends QNodeLike with QBottom {
+//         def asBottomNode : QBottomNode = this
+//      }
+//
+//      sealed trait QLeftNode extends QNodeLike {
+//         def north: InOrder
+//         def south: InOrder
+//
+////         def createChildNode( qidx: Int, iq: Quad, ichildren: Array[ QChild ]) : QBottomNode
+//
+//         def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode = {
+//            val iq               = ch1.gisqr( quad.quadrant( qidx ), point )
+//            val qchildren        = new Array[ QChild ]( 4 )
+//            val nidx             = quadIdx( iq )
+//            val pidx             = pointInQuad( iq, point )
+//            qchildren( nidx )    = ch1
+//            val qhemi            = if( qidx < 2 ) north else south
+//            val qnorth           = if( (qidx % 2) == 0 ) qhemi.insertBefore( () ) else qhemi.insertAfter( () )
+//            val qsouth           = qnorth.insertAfter( () )
+//            val q                = new QBottomLeftNode( this, iq, qnorth, qsouth, qchildren )
+//            qchildren( pidx )    = q.createChildLeaf( pidx, point, value )
+//            ch1.parent           = q
+//            q
+//         }
+//
+//         def createChildLeaf( pidx: Int, point: Point, value: V ) : QLeafLike = {
+//            val phemi   = if( pidx < 2 ) north else south
+//            val ptag    = if( (pidx % 2) == 0 ) phemi.insertBefore( () ) else phemi.insertAfter( () )
+//            new QLeftLeaf( this, ptag, point, value )
+//         }
+//      }
+//
+//      final class QTopLeftNode( val quad: Quad, val north: InOrder, val south: InOrder, val children: Array[ QChild ])
+//      extends QLeftNode // with QTopNode
+//
+//      final class QTopRightNode( val prev: QNodeLike, val quad: Quad, val children: Array[ QChild ])
+//         extends QRightNode // with QTopNode
+//
+//      final class QBottomLeftNode( var parent: QNodeLike, val quad: Quad, val north: InOrder, val south: InOrder, val children: Array[ QChild ])
+//      extends QLeftNode with QBottomNode
+//
+//      final class QBottomRightNode( var parent: QNodeLike, val prev: QNodeLike, val quad: Quad, val children: Array[ QChild ])
+//      extends QRightNode with QBottomNode
+//   }
 
    /**
     * Determines the quadrant index of a point `a` in a square `p` defined
@@ -459,4 +451,7 @@ object DeterministicSkipQuadTree {
          Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
       }
    }
+}
+trait DeterministicSkipQuadTree[ V ] {
+   def insert( point: Point, value: V ) : Unit
 }
