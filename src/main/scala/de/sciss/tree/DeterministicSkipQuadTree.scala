@@ -54,56 +54,101 @@ object DeterministicSkipQuadTree {
       case object Empty extends Child
       trait NonEmpty extends Child {
          def union( mq: Quad, point: Point ) : Quad
+         def quadIdxIn( iq: Quad ) : Int
       }
 
       trait Leaf extends NonEmpty {
 //         def contains( point: Point ) : Boolean = false
+         def point : Point
+         def union( mq: Quad, point: Point ) = {
+            val p = point
+            interestingSquare( mq, p.x, p.y, 1, point )
+         }
+         def quadIdxIn( iq: Quad ) : Int = pointInQuad( iq, point )
       }
 
 
       trait Node extends NonEmpty {
-         def contains( point: Point ) : Boolean
+//         def contains( point: Point ) : Boolean
          def children : Array[ Child ]
-         def quadIdx( point: Point ) : Int
+//         def quadIdx( point: Point ) : Int
          def findP0( point: Point ) : LeftNode
+         def quad: Quad
+
+         def union( mq: Quad, point: Point ) = {
+            val q = quad
+            interestingSquare( mq, q.x, q.y, q.side, point )
+         }
+         def quadIdxIn( iq: Quad ) : Int = quadInQuad( iq, quad )
       }
 
       trait RightNode extends Node {
          def prev : Node
 
          def findP0( point: Point ) : LeftNode = {
-            val qidx = quadIdx( point )
+            val qidx = pointInQuad( quad, point ) // quadIdx( point )
             children( qidx ) match {
-               case n: Node if( n.contains( point )) => n.findP0( point )
+               case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
             }
          }
       }
 
       trait LeftNode extends Node {
-         def quad: Quad
+         def newLeaf( point: Point, value: V ) : Leaf
+         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : Node
 
          def findP0( point: Point ) : LeftNode = {
-            val qidx = quadIdx( point )
+            val qidx = pointInQuad( quad, point ) // quadIdx( point )
             children( qidx ) match {
-               case n: Node if( n.contains( point )) => n.findP0( point )
+               case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => this
             }
          }
 
-         def newLeaf( point: Point, value : V ) : Leaf
-         def newNode( old: NonEmpty, nu: Leaf ) : Node
-
          def insert( point: Point, value: V ) : Leaf = {
-            val qidx = quadIdx( point )
+            val qidx = pointInQuad( quad, point ) // quadIdx( point )
             val leaf = newLeaf( point, value )
-            children( qidx ) = children( qidx ) match {
+            val c    = children
+            c( qidx ) = c( qidx ) match {
                case Empty => leaf
-               case n: NonEmpty => newNode( n, leaf  )
+               case n: NonEmpty => newNode( n.union( quad.quadrant( qidx ), point ), n, leaf  )
 //                  val iq   = n.union( quad.quadrant( qidx ), point )
             }
             leaf
          }
+      }
+
+      trait LeftNodeImpl extends LeftNode {
+         val children = Array.fill[ Child ]( 4 )( Empty )
+
+         def newLeaf( point: Point, value: V ) : Leaf = {
+            new LeafImpl( point, value )
+            // XXX set parent; insert order
+         }
+
+         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : Node = {
+            val n    = new InnerLeftNode( iq )
+            val c    = n.children
+            val oidx = old.quadIdxIn( iq )
+            c( oidx )= old
+            val nidx = nu.quadIdxIn( iq )
+            c( nidx )= nu
+            // XXX set parents; insert orders
+            n
+         }
+      }
+
+      case class TopLeftNode( quad: Quad ) extends LeftNodeImpl {
+
+      }
+
+      case class InnerLeftNode( quad: Quad ) extends LeftNodeImpl {
+
+      }
+
+      case class LeafImpl( point: Point, value: V ) extends Leaf {
+
       }
 
       def insert( point: Point, value: V ) {

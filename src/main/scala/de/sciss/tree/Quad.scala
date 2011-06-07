@@ -50,6 +50,10 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) /* extends QuadLike */ {
       }
    }
 
+   def x : Int = cx - extent
+   def y : Int = cy - extent
+   def side : Int = extent << 1
+
    def contains( point: Point ) : Boolean =
       (cx - extent <= point.x) && (cx + extent > point.x) && (cy - extent <= point.y) && (cy + extent > point.y)
 }
