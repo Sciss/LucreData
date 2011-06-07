@@ -14,7 +14,7 @@
    id="svg4698"
    version="1.1"
    inkscape:version="0.48.0 r9654"
-   sodipodi:docname="New document 5">
+   sodipodi:docname="NodeTraits.svg">
   <defs
      id="defs4700" />
   <sodipodi:namedview
@@ -107,24 +107,6 @@
          id="tspan5238"
          x="29.14287"
          y="203.6479">QEmpty</tspan></text>
-    <rect
-       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
-       id="rect5240"
-       width="87.857147"
-       height="19.999998"
-       x="145.71428"
-       y="148.79076" />
-    <text
-       xml:space="preserve"
-       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
-       x="152.71429"
-       y="162.36218"
-       id="text5242"
-       sodipodi:linespacing="125%"><tspan
-         sodipodi:role="line"
-         id="tspan5244"
-         x="152.71429"
-         y="162.36218">QNonEmpty</tspan></text>
     <rect
        y="189.3622"
        x="95.714279"
@@ -237,31 +219,11 @@
          sodipodi:role="line">QNodeLike</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 211.93018,168.79075 335.7841,224.3622"
-       id="path5292"
-       inkscape:connector-type="polyline"
-       inkscape:connector-curvature="0"
-       inkscape:connection-start="#rect5240"
-       inkscape:connection-start-point="d4"
-       inkscape:connection-end="#rect5284"
-       inkscape:connection-end-point="d4" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="m 134.50362,209.3622 20.34988,39"
        id="path5294"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
        inkscape:connection-start="#rect5246"
-       inkscape:connection-start-point="d4"
-       inkscape:connection-end="#rect5252"
-       inkscape:connection-end-point="d4" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 186.67298,168.79075 163.04129,248.3622"
-       id="path5296"
-       inkscape:connector-type="polyline"
-       inkscape:connector-curvature="0"
-       inkscape:connection-start="#rect5240"
        inkscape:connection-start-point="d4"
        inkscape:connection-end="#rect5252"
        inkscape:connection-end-point="d4" />

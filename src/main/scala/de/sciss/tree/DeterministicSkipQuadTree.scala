@@ -91,9 +91,9 @@ object DeterministicSkipQuadTree {
 
          def asBottomNode : QBottomNode = unsupportedOp
       }
-      sealed trait QNonEmpty // extends Q
+//      sealed trait QNonEmpty // extends Q
 
-      sealed trait QLeafLike extends QNonEmpty with QBottom {
+      sealed trait QLeafLike extends /* QNonEmpty with */ QBottom {
          def gisqr( mq: Quad, point2: Point ) : Quad = interestingSquare( mq, point.x, point.y, 1, point2 )
          def quadIdx( iq: Quad ) : Int = pointInQuad( iq, point )
          def asBottomNode : QBottomNode = unsupportedOp
@@ -104,7 +104,7 @@ object DeterministicSkipQuadTree {
       final class QLeftLeaf( var parent: QNodeLike, val tag: InOrder, val point: Point, val value: V ) extends QLeafLike
       final class QRightLeaf( var parent: QNodeLike, val point: Point, val value: V ) extends QLeafLike
 
-      sealed trait QNodeLike extends QNonEmpty {
+      sealed trait QNodeLike /* extends QNonEmpty */ {
          def quad: Quad
          def children: Array[ QChild ]
 
