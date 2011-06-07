@@ -85,17 +85,23 @@ object DeterministicSkipQuadTree {
          def asBottomNode : QBottomNode
       }
       case object QEmpty extends QChild {
-         def push( parent: QNodeLike, qidx: Int, point: Point, value: V ) : QChild = new QLeaf( parent, point, value )
+         def push( pp: QNodeLike, qidx: Int, point: Point, value: V ) : QChild = pp.createChildLeaf( qidx, point, value )
+//            new QLeaf( parent, point, value )
+
          def asBottomNode : QBottomNode = unsupportedOp
       }
       sealed trait QNonEmpty extends Q
 
-      final class QLeaf( var parent: QNodeLike, val point: Point, val value: V )
-      extends QNonEmpty with QBottom {
+      sealed trait QLeafLike extends QNonEmpty with QBottom {
          def gisqr( mq: Quad, point2: Point ) : Quad = interestingSquare( mq, point.x, point.y, 1, point2 )
          def quadIdx( iq: Quad ) : Int = pointInQuad( iq, point )
          def asBottomNode : QBottomNode = unsupportedOp
+         def point: Point
+         def value: V
       }
+
+      final class QLeftLeaf( var parent: QNodeLike, val tag: InOrder, val point: Point, val value: V ) extends QLeafLike
+      final class QRightLeaf( var parent: QNodeLike, val point: Point, val value: V ) extends QLeafLike
 
       sealed trait QNodeLike extends QNonEmpty {
          def quad: Quad
@@ -117,6 +123,8 @@ object DeterministicSkipQuadTree {
           */
 //         def createChildNode( qidx: Int, iq: Quad, children: Array[ QChild ]) : QBottomNode
          def createChildNode( qidx: Int, ch1: QBottom, point: Point, value: V ) : QBottomNode
+
+         def createChildLeaf( qidx: Int, point: Point, value: V ) : QLeafLike
 
          /**
           * Inserts a point in Q0
@@ -142,10 +150,12 @@ object DeterministicSkipQuadTree {
             val pidx             = pointInQuad( iq, point )
             qchildren( nidx )    = ch1
             val q                = new QBottomRightNode( this, prev.children( qidx ).asBottomNode, iq, qchildren )
-            qchildren( pidx )    = new QLeaf( q, point, value )
+            qchildren( pidx )    = q.createChildLeaf( pidx, point, value )
             ch1.parent           = q
             q
          }
+
+         def createChildLeaf( qidx: Int, point: Point, value: V ) : QLeafLike = new QRightLeaf( this, point, value )
       }
 
       sealed trait QTopNode extends QNodeLike
@@ -206,9 +216,15 @@ object DeterministicSkipQuadTree {
             val qnorth           = if( (qidx % 2) == 0 ) qhemi.insertBefore( () ) else qhemi.insertAfter( () )
             val qsouth           = qnorth.insertAfter( () )
             val q                = new QBottomLeftNode( this, iq, qnorth, qsouth, qchildren )
-            qchildren( pidx )    = new QLeaf( q, point, value )
+            qchildren( pidx )    = q.createChildLeaf( pidx, point, value )
             ch1.parent           = q
             q
+         }
+
+         def createChildLeaf( pidx: Int, point: Point, value: V ) : QLeafLike = {
+            val phemi   = if( pidx < 2 ) north else south
+            val ptag    = if( (pidx % 2) == 0 ) phemi.insertBefore( () ) else phemi.insertAfter( () )
+            new QLeftLeaf( this, ptag, point, value )
          }
       }
 
