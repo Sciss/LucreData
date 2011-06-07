@@ -45,6 +45,73 @@ object DeterministicSkipQuadTree {
 
    type InOrder = TotalOrder[ Unit ]
 
+   final class T2[ V ] private( _quad: Quad ) {
+      private var tailVar: Node = _
+
+      trait Child {
+      }
+
+      case object Empty extends Child
+      trait NonEmpty extends Child {
+         def union( mq: Quad, point: Point ) : Quad
+      }
+
+      trait Leaf extends NonEmpty {
+//         def contains( point: Point ) : Boolean = false
+      }
+
+
+      trait Node extends NonEmpty {
+         def contains( point: Point ) : Boolean
+         def children : Array[ Child ]
+         def quadIdx( point: Point ) : Int
+         def findP0( point: Point ) : LeftNode
+      }
+
+      trait RightNode extends Node {
+         def prev : Node
+
+         def findP0( point: Point ) : LeftNode = {
+            val qidx = quadIdx( point )
+            children( qidx ) match {
+               case n: Node if( n.contains( point )) => n.findP0( point )
+               case _ => prev.findP0( point )
+            }
+         }
+      }
+
+      trait LeftNode extends Node {
+         def quad: Quad
+
+         def findP0( point: Point ) : LeftNode = {
+            val qidx = quadIdx( point )
+            children( qidx ) match {
+               case n: Node if( n.contains( point )) => n.findP0( point )
+               case _ => this
+            }
+         }
+
+         def newLeaf( point: Point, value : V ) : Leaf
+         def newNode( old: NonEmpty, nu: Leaf ) : Node
+
+         def insert( point: Point, value: V ) : Leaf = {
+            val qidx = quadIdx( point )
+            val leaf = newLeaf( point, value )
+            children( qidx ) = children( qidx ) match {
+               case Empty => leaf
+               case n: NonEmpty => newNode( n, leaf  )
+//                  val iq   = n.union( quad.quadrant( qidx ), point )
+            }
+            leaf
+         }
+      }
+
+      def insert( point: Point, value: V ) {
+         val p0 = tailVar.findP0( point )
+         p0.insert( point, value )
+      }
+   }
+
    object T {
       def apply[ V ]( quad: Quad ) = new T[ V ]( quad )
    }
