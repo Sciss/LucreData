@@ -49,15 +49,16 @@ object DeterministicSkipQuadTree {
       def apply[ V ]( quad: Quad ) = new T[ V ]( quad )
    }
    final class T[ V ] private( _quad: Quad ) {
-      private var tailVar: QTopNode = {
+      private var tailVar: QNodeLike /* QTopNode */ = {
          val inOrder = TotalOrder.empty[ Unit ]
+//         val list    = HASkipList.empty[ ]
          val north   = inOrder.append( () )
          val south   = north.insertAfter( () )
          new QTopLeftNode( _quad, north, south, Array.fill[ QChild ]( 4 )( QEmpty ))
       }
 //      private val inOrder = TotalOrder.empty
 
-      def tail: QTopNode = tailVar
+      def tail: QNodeLike = tailVar
       var height: Int = 0
 
       def insert( point: Point, value: V ) {
@@ -79,8 +80,8 @@ object DeterministicSkipQuadTree {
 //         } while( flipCoin )
       }
 
-      sealed trait Q
-      sealed trait QChild extends Q {
+//      sealed trait Q
+      sealed trait QChild /* extends Q */ {
          def push( parent: QNodeLike, qidx: Int, point: Point, value: V ) : QChild
          def asBottomNode : QBottomNode
       }
@@ -90,7 +91,7 @@ object DeterministicSkipQuadTree {
 
          def asBottomNode : QBottomNode = unsupportedOp
       }
-      sealed trait QNonEmpty extends Q
+      sealed trait QNonEmpty // extends Q
 
       sealed trait QLeafLike extends QNonEmpty with QBottom {
          def gisqr( mq: Quad, point2: Point ) : Quad = interestingSquare( mq, point.x, point.y, 1, point2 )
@@ -158,7 +159,7 @@ object DeterministicSkipQuadTree {
          def createChildLeaf( qidx: Int, point: Point, value: V ) : QLeafLike = new QRightLeaf( this, point, value )
       }
 
-      sealed trait QTopNode extends QNodeLike
+//      sealed trait QTopNode extends QNodeLike
 
       sealed trait QBottom extends QChild {
          def parent: QNodeLike
@@ -229,10 +230,10 @@ object DeterministicSkipQuadTree {
       }
 
       final class QTopLeftNode( val quad: Quad, val north: InOrder, val south: InOrder, val children: Array[ QChild ])
-      extends QLeftNode with QTopNode
+      extends QLeftNode // with QTopNode
 
       final class QTopRightNode( val prev: QNodeLike, val quad: Quad, val children: Array[ QChild ])
-         extends QRightNode with QTopNode
+         extends QRightNode // with QTopNode
 
       final class QBottomLeftNode( var parent: QNodeLike, val quad: Quad, val north: InOrder, val south: InOrder, val children: Array[ QChild ])
       extends QLeftNode with QBottomNode
