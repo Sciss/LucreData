@@ -57,6 +57,10 @@ object DeterministicSkipQuadTree {
          list.add( ordLeaf )
       }
 
+      def toOrderedSeq : Seq[ V ] = {
+         error( "TODO" )
+      }
+
       sealed trait Child
 
       case object Empty extends Child
@@ -452,6 +456,7 @@ object DeterministicSkipQuadTree {
       }
    }
 }
-trait DeterministicSkipQuadTree[ V ] {
-   def insert( point: Point, value: V ) : Unit
+trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
+//   def insert( point: Point, value: V ) : Unit
+   def toOrderedSeq : Seq[ V ]
 }

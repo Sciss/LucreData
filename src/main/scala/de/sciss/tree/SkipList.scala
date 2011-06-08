@@ -28,7 +28,9 @@
 
 package de.sciss.tree
 
-trait SkipList[ @specialized( Int, Long ) A ] {
+import collection.mutable.{Set => MSet}
+
+trait SkipList[ @specialized( Int, Long ) A ] extends MSet[ A ] {
    /**
     * Searches for the Branch of a given key.
     *

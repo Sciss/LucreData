@@ -30,6 +30,8 @@ package de.sciss.tree
 
 import sys.error
 import java.lang.IllegalArgumentException
+import annotation.tailrec
+import org.omg.CORBA.ORBPackage.InconsistentTypeCode
 
 // suckers
 
@@ -46,8 +48,11 @@ object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
 //      new Impl[ B, A ]( minGap, key maxKey )
 
-   def empty[ @specialized( Int, Long ) A : Ordering : Manifest ]( maxKey: A, minGap: Int = 1 ) : HASkipList[ A ] =
+   def empty[ @specialized( Int, Long ) A : Ordering : Manifest ]( maxKey: A, minGap: Int = 2 ) : HASkipList[ A ] = {
+      require( minGap >= 1 )
+      if( minGap == 1 ) println( "WARNING: HASkipList implementation currently broken for minGap = 1" )
       new Impl( maxKey, minGap )
+   }
 
    sealed trait Node[ @specialized( Int, Long ) A ] {
       def size : Int
@@ -67,7 +72,7 @@ object HASkipList {
       val arrSize = maxGap + 1
       var arrMid  = maxGap >> 1
 
-      def size : Int = leafSizeSum( Head ) - 1
+      override def size : Int = leafSizeSum( Head ) - 1
 
       private def leafSizeSum( n: Node[ _ ]) : Int = {
          var res = 0
@@ -189,6 +194,8 @@ object HASkipList {
          }
       }
 
+      // ---- set support ----
+
       def contains( key: A ) : Boolean = {
 //         val key  = keyFun( v )
          val x    = new Nav
@@ -199,7 +206,7 @@ object HASkipList {
          false
       }
 
-      def add( key: A ) : Boolean = {
+      override def add( key: A ) : Boolean = {
 //         val key  = keyFun( v )
          val x    = new Nav
          val x0   = new Nav
@@ -211,6 +218,46 @@ object HASkipList {
          } while( !x.isBottom )
          x0.insert( key )
          true
+      }
+
+      def +=( elem: A ) : this.type = { add( elem ); this }
+      def -=( elem: A ) : this.type = error( "Not yet implemented" )
+
+      def iterator : Iterator[ A ] = new Iterator[ A ] {
+         var x: Node[ A ]  = _
+         var idx: Int      = _
+         val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
+         pushDown( 0, Head )
+
+         def pushDown( idx0: Int, n: Node[ A ] ) {
+            var pred = n
+            var pidx = idx0
+            var dn   = pred.down( pidx )
+            while( !dn.isBottom ) {
+               stack.push( (pidx + 1, pred) )
+               pred  = dn
+               pidx  = 0
+               dn    = pred.down( pidx )
+            }
+            x     = pred
+            idx   = pidx
+         }
+
+         def hasNext : Boolean = !ord.equiv( x.key( idx ), maxKey )
+         def next : A = {
+            val res = x.key( idx )
+            idx += 1
+            if( idx == x.size ) {
+               @tailrec def findPush {
+                  if( stack.nonEmpty ) {
+                     val (i, n) = stack.pop
+                     if( i < n.size ) pushDown( i, n ) else findPush
+                  }
+               }
+               findPush
+            }
+            res
+         }
       }
 
       sealed trait NodeImpl extends Node[ A ] {

@@ -42,9 +42,9 @@ object SkipListTest extends App with Runnable {
       f.setResizable( false )
       val cp   = f.getContentPane
       val ll   = LLSkipList.empty
-      val ha   = HASkipList.empty[ Int ]( 0x7FFFFFFF ) // .withIntKey( (i: Int) => i )
-      val ha2  = HASkipList.empty[ Int ]( 0x7FFFFFFF ) // .withIntKey( (i: Int) => i, minGap = 2 )
-      val ha3  = HASkipList.empty[ Int ]( 0x7FFFFFFF ) // .withIntKey( (i: Int) => i, minGap = 6 )
+      val ha   = HASkipList.empty[ Int ]( 0x7FFFFFFF, 1 ) // .withIntKey( (i: Int) => i )
+      val ha2  = HASkipList.empty[ Int ]( 0x7FFFFFFF, 2 ) // .withIntKey( (i: Int) => i, minGap = 2 )
+      val ha3  = HASkipList.empty[ Int ]( 0x7FFFFFFF, 6 ) // .withIntKey( (i: Int) => i, minGap = 6 )
 //      val l    = List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ) ++ List( 20, 21, 61 )
       val rnd  = new util.Random() // ( 0L )
       val l    = List.fill( n )( rnd.nextInt( 100 ))
@@ -92,5 +92,12 @@ object SkipListTest extends App with Runnable {
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
       f.setLocationRelativeTo( null )
       f.setVisible( true )
+
+      println( ":::: HA 1-3 DSL toList ::::" )
+      println( ha.toList )
+      println( ":::: HA 2-5 DSL toList ::::" )
+      println( ha2.toList )
+      println( ":::: HA 6-13 DSL toList ::::" )
+      println( ha3.toList )
    }
 }

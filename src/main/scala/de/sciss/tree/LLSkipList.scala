@@ -28,6 +28,8 @@
 
 package de.sciss.tree
 
+import sys.error
+
 /**
  * A deterministic 1-3 skip list implemented using a linked list with
  * 'drawn back keys', as described by T. Papadakis. This is a rather
@@ -55,23 +57,25 @@ object LLSkipList {
          var down: NodeImpl = _
 
          def isBottom   = this eq bottom
-         def isTail     = this eq tail
+         def isTail     = this eq tl
       }
 
-      var head    = new NodeImpl
+      var hd      = new NodeImpl
       val bottom  = new NodeImpl
-      val tail    = new NodeImpl
+      val tl      = new NodeImpl
 
-      def top : Node = head.down
+      def top : Node = hd.down
 
       // initialize them
-      head.key    = MAX_KEY
-      head.down   = bottom
-      head.right  = tail
+      hd.key    = MAX_KEY
+      hd.down   = bottom
+      hd.right  = tl
       bottom.right= bottom // so that we can safely call r infinitely
       bottom.down = bottom // dito
-      tail.key    = MAX_KEY
-      tail.right  = tail   // so that we can safely call r infinitely
+      tl.key    = MAX_KEY
+      tl.right  = tl   // so that we can safely call r infinitely
+
+      // ---- set support ----
 
       /**
        * Searches for the Branch of a given key.
@@ -80,7 +84,7 @@ object LLSkipList {
        * @return  `true` if the key is in the list, `false` otherwise
        */
       def contains( v: Int ) : Boolean = {
-         var x = head
+         var x = hd
          while( !x.isBottom ) {
             while( v > x.key ) x = x.right
             if( x.down.isBottom ) {
@@ -98,8 +102,8 @@ object LLSkipList {
        * @return  `true` if the key was successfully inserted,
        *          `false` if a node with the given key already existed
        */
-      def add( v: Int ) : Boolean = {
-         var x       = head
+      override def add( v: Int ) : Boolean = {
+         var x       = hd
          bottom.key  = v
          var success = true
          while( !x.isBottom ) {
@@ -118,14 +122,32 @@ object LLSkipList {
             }
             x = x.down
          }
-         if( !head.right.isTail ) { // need to increase list height
+         if( !hd.right.isTail ) { // need to increase list height
             val t    = new NodeImpl
-            t.down   = head
-            t.right  = tail
+            t.down   = hd
+            t.right  = tl
             t.key    = MAX_KEY
-            head     = t
+            hd     = t
          }
          success
+      }
+
+      def +=( elem: Int ) : this.type = { add( elem ); this }
+      def -=( elem: Int ) : this.type = error( "Not yet implemented" )
+
+      def iterator : Iterator[ Int ] = new Iterator[ Int ] {
+         var x = {
+            var n = top
+            while( !n.down.isBottom ) n = n.down
+            n
+         }
+
+         def hasNext : Boolean = x.key != MAX_KEY
+         def next : Int = {
+            val res = x.key
+            x = x.right
+            res
+         }
       }
 
       /**
@@ -142,7 +164,7 @@ object LLSkipList {
       /**
        * Queries the number of keys in the skip list (the 'width'). This operation takes O(n) time.
        */
-      def size : Int = {
+      override def size : Int = {
          var x = top
          while( !x.down.isBottom ) x = x.down
          var i = 0; while( x.key != MAX_KEY ) { x = x.right; i += 1 }
