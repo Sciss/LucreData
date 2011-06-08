@@ -32,15 +32,11 @@ import annotation.tailrec
 import sys.error  // suckers
 
 object RandomizedSkipQuadTree {
-   def apply[ V ]( quad: Quad ) = T[ V ]( quad )
+   def apply[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
 
-   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : T[ V ] = {
-      val t = T[ V ]( quad )
-      m.foreach {
-         case (point, value) =>
-//println( "inserting " + point )
-            t.insert( point, value )
-      }
+   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : RandomizedSkipQuadTree[ V ] = {
+      val t = TreeImpl[ V ]( quad )
+      m.foreach( t.+=( _ ))
       t
    }
 
@@ -76,29 +72,39 @@ object RandomizedSkipQuadTree {
 //      def quad: Quad
 //   }
 
-   object T {
-      def apply[ V ]( quad: Quad ) = new T[ V ]( new QNode[ V ]( quad, None )() )
+   private object TreeImpl {
+      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( new QNode[ V ]( quad, None )() )
    }
-   final class T[ V ]( val head: QNode[ V ]) {
-      private var tailVar: QNode[ V ] = head
+   private final class TreeImpl[ V ]( val headTree: QNode[ V ]) extends RandomizedSkipQuadTree[ V ] {
+      private var tailVar: QNode[ V ] = headTree
 
-      def tail: QNode[ V ] = tailVar
+      def lastTree: QNode[ V ] = tailVar
 
-      def insert( point: Point, value: V ) {
+      // ---- map support ----
+
+      def +=( kv: (Point, V) ) : this.type = +=( kv._1, kv._2 )
+
+      def +=( point: Point, value: V ) : this.type = {
          val qpred   = tailVar.insertStep( point, value )
-         if( qpred.isEmpty || !flipCoin ) return
-         val hq      = head.quad
-         val qidx    = quadIdx( hq, point )
-         val l       = QLeaf( point, value )
-         do {
-            val quads      = new Array[ Q[ V ]]( 4 )
-            quads( qidx )  = l
-            tailVar        = new QNode[ V ]( hq, Some( tailVar ))( quads )
-         } while( flipCoin )
+         if( qpred.nonEmpty && flipCoin ) {
+            val hq      = headTree.quad
+            val qidx    = quadIdx( hq, point )
+            val l       = QLeaf( point, value )
+            do {
+               val quads      = new Array[ Q[ V ]]( 4 )
+               quads( qidx )  = l
+               tailVar        = new QNode[ V ]( hq, Some( tailVar ))( quads )
+            } while( flipCoin )
+         }
+         this
       }
+
+      def get( point: Point ) : Option[ V ]  = error( "Not yet implemented" )
+      def -=( point: Point ) : this.type     = error( "Not yet implemented" )
+      def iterator : Iterator[ (Point, V) ]  = error( "Not yet implemented" )
    }
 
-   def flipCoin : Boolean = util.Random.nextBoolean()
+   private def flipCoin : Boolean = util.Random.nextBoolean()
 
    /**
     * Determines the quadrant index of a point `a` in a square `p` defined
@@ -250,4 +256,8 @@ object RandomizedSkipQuadTree {
          }
       }
    }
+}
+trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
+   def headTree: RandomizedSkipQuadTree.QNode[ V ]
+   def lastTree: RandomizedSkipQuadTree.QNode[ V ]
 }

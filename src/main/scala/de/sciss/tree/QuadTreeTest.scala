@@ -37,10 +37,12 @@ object QuadTreeTest extends App {
    args.headOption match {
       case Some( "-fig1" ) => new Figure1
       case Some( "-fig2" ) => new Figure2
+      case Some( "-test1" ) => new Test1
       case _ => println( """
 Options:
 -fig1
 -fig2
+-test1
 """)
          sys.exit( 1 )
    }
@@ -53,10 +55,21 @@ Options:
          Point( 488,   8 ) -> (),
          Point( 504,  24 ) -> ()
       )
+      lazy val points2 = points1 ++ Map(
+         Point( 400, 332 ) -> (),
+         Point( 424, 368 ) -> (),
+         Point( 200, 312 ) -> (),
+         Point( 216, 296 ) -> (),
+         Point( 240, 304 ) -> (),
+         Point( 272, 496 ) -> (),
+         Point( 300, 460 ) -> ()
+      )
+      lazy val quad0 = Quad( center.x, center.y, extent )
 
-      EventQueue.invokeLater( this )
+      if( doRun ) EventQueue.invokeLater( this )
 
       def views : Seq[ JComponent ]
+      def doRun = true
 
       def run {
          val f    = new JFrame( "QuadTrees" )
@@ -87,15 +100,7 @@ Options:
 
    class Figure2 extends Figure {
       def views = {
-         val map = points1 ++ Map(
-            Point( 400, 332 ) -> (),
-            Point( 424, 368 ) -> (),
-            Point( 200, 312 ) -> (),
-            Point( 216, 296 ) -> (),
-            Point( 240, 304 ) -> (),
-            Point( 272, 496 ) -> (),
-            Point( 300, 460 ) -> ()
-         )
+         val map = points2
 
 //         val map2 = Map(
 //            Point( 240, 304 ) -> (),
@@ -107,14 +112,23 @@ Options:
 //         val cv   = new CompressedQuadTreeView( ct )
 //         Seq( cv )
 
-         val rt   = RandomizedSkipQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
+         val rt   = RandomizedSkipQuadTree.fromMap( quad0, map )
          @tailrec def add( no: Option[ RandomizedSkipQuadTree.QNode[ _ ]], vs: List[ JComponent ]) : List[ JComponent ] = {
             no match {
                case None => vs
                case Some( n ) => add( n.pred, new RandomizedSkipQuadTreeView( n ) :: vs )
             }
          }
-         add( Some( rt.tail ), Nil )
+         add( Some( rt.lastTree ), Nil )
       }
+   }
+
+   class Test1 extends Figure {
+      val t = DeterministicSkipQuadTree.fromMap( quad0, points2 )
+      println( "ordered:" )
+      println( t.toList.map( _._1 ))
+
+      override val doRun = false
+      def views = Nil
    }
 }

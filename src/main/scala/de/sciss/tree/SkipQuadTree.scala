@@ -1,5 +1,7 @@
 package de.sciss.tree
 
-trait SkipQuadTree[ V ] {
-   def insert( point: Point, value: V ) : Unit
+import collection.mutable.{Map => MMap}
+
+trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
+   def +=( point: Point, value: V ) : this.type
 }

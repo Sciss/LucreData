@@ -29,11 +29,7 @@
 package de.sciss.tree
 
 import sys.error
-import java.lang.IllegalArgumentException
 import annotation.tailrec
-import org.omg.CORBA.ORBPackage.InconsistentTypeCode
-
-// suckers
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -43,6 +39,9 @@ import org.omg.CORBA.ORBPackage.InconsistentTypeCode
  * It uses the horizontal array technique with a parameter for k (minimum gap size)
  *
  * XXX todo: verify the structure doesn't get damaged when we try to insert an existing key
+ *
+ * XXX todo: there is currently a bug with minGap = 1, resulting in keys occasionally being
+ * stored twice in successive bottom bins.
  */
 object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =

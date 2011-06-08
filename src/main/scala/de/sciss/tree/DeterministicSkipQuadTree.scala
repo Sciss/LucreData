@@ -36,29 +36,60 @@ object DeterministicSkipQuadTree {
 
    def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : DeterministicSkipQuadTree[ V ] = {
       val t = new TreeImpl[ V ]( quad )
-      m.foreach {
-         case (point, value) =>
-            t.insert( point, value )
-      }
+      m.foreach( t.+=( _ ))
       t
    }
 
    type InOrder = TotalOrder[ Unit ]
 
    private class TreeImpl[ V ]( _quad: Quad ) extends DeterministicSkipQuadTree[ V ] {
-      private var tail: Node = {
+      private var tl: Node = {
          TopLeftNode( _quad )
       }
-      val list: SkipList[ InOrder ] = HASkipList.empty( TotalOrder.max[ NonEmpty ], 2 )
+      val list: SkipList[ InOrder ] = HASkipList.empty( TotalOrder.max[ NonEmpty ], 2 ) // 2-5 DSL
 
-      def insert( point: Point, value: V ) {
-         val p0      = tail.findP0( point )
-         val ordLeaf = p0.insert( point, value )
-         list.add( ordLeaf )
+      // ---- map support ----
+
+      def +=( kv: (Point, V) ) : this.type = {
+         println( "insert : " + kv )
+         +=( kv._1, kv._2 )
       }
 
-      def toOrderedSeq : Seq[ V ] = {
-         error( "TODO" )
+      def +=( point: Point, value: V ) : this.type = {
+//         val (point, value)   = kv
+         val p0               = tl.findP0( point )
+         val ordLeaf          = p0.insert( point, value )
+         list.add( ordLeaf )
+         this
+      }
+
+      def get( point: Point ) : Option[ V ] = {
+         val p0   = tl.findP0( point )
+         val c    = p0.children
+         var i = 0; while( i < c.size ) {
+            c( i ) match {
+               case l: Leaf if( l.point == point ) => return Some( l.value )
+               case _ =>
+            }
+         i += 1 }
+         None
+      }
+
+      def -=( point: Point ) : this.type = error( "Not yet implemented" )
+
+      def iterator = new Iterator[ (Point, V) ] {
+         val underlying = list.iterator
+         def next : (Point, V) = {
+            // XXX ouch... the problem with the TotalOrder is
+            // that it cannot be made variant because of the
+            // double linking, thus the skip list cannot hold
+            // TotalOrder[ Leaf ] but only TotalOrder[ NonEmpty ]
+            // requiring this ugly cast :-(
+//            val l = underlying.next.elem.asInstanceOf[ Leaf ]
+//            (l.point, l.value)
+            underlying.next.elem.asMapEntry
+         }
+         def hasNext : Boolean = underlying.hasNext
       }
 
       sealed trait Child
@@ -67,12 +98,15 @@ object DeterministicSkipQuadTree {
       sealed trait NonEmpty extends Child {
          def union( mq: Quad, point: Point ) : Quad
          def quadIdxIn( iq: Quad ) : Int
+         def asMapEntry : (Point, V)
       }
 
       type InOrder = TotalOrder[ NonEmpty ]
 
       sealed trait Leaf extends NonEmpty {
          def point : Point
+         def value : V
+         def asMapEntry : (Point, V) = (point, value)
          def union( mq: Quad, point: Point ) = {
             val p = point
             interestingSquare( mq, p.x, p.y, 1, point )
@@ -84,6 +118,7 @@ object DeterministicSkipQuadTree {
          def children : Array[ Child ]
          def findP0( point: Point ) : LeftNode
          def quad: Quad
+         def asMapEntry : (Point, V) = unsupportedOp
 
          def union( mq: Quad, point: Point ) = {
             val q = quad
@@ -458,5 +493,5 @@ object DeterministicSkipQuadTree {
 }
 trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
 //   def insert( point: Point, value: V ) : Unit
-   def toOrderedSeq : Seq[ V ]
+//   def toOrderedSeq : Seq[ (Point, V) ]
 }
