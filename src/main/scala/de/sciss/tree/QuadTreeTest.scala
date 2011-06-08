@@ -126,7 +126,8 @@ Options:
    class Test1 extends Figure {
       val t = DeterministicSkipQuadTree.fromMap( quad0, points2 )
       println( "ordered:" )
-      println( t.toList.map( _._1 ))
+//      println( t.toList.map( _._1 ))
+      println( t.skipList.toList.map( _.asInstanceOf[ TotalOrder[ _ ]].elem ))
 
       override val doRun = false
       def views = Nil

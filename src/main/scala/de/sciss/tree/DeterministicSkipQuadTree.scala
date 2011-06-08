@@ -47,6 +47,7 @@ object DeterministicSkipQuadTree {
          TopLeftNode( _quad )
       }
       val list: SkipList[ InOrder ] = HASkipList.empty( TotalOrder.max[ NonEmpty ], 2 ) // 2-5 DSL
+      def skipList = list
 
       // ---- map support ----
 
@@ -59,6 +60,8 @@ object DeterministicSkipQuadTree {
 //         val (point, value)   = kv
          val p0               = tl.findP0( point )
          val ordLeaf          = p0.insert( point, value )
+         assert( ordLeaf.elem.isInstanceOf[ Leaf ])
+println( "adding to skiplist : " + ordLeaf.elem )
          list.add( ordLeaf )
          this
       }
@@ -87,7 +90,9 @@ object DeterministicSkipQuadTree {
             // requiring this ugly cast :-(
 //            val l = underlying.next.elem.asInstanceOf[ Leaf ]
 //            (l.point, l.value)
-            underlying.next.elem.asMapEntry
+            val res = underlying.next.elem.asMapEntry
+println( "iter : " + res )
+            res
          }
          def hasNext : Boolean = underlying.hasNext
       }
@@ -107,9 +112,9 @@ object DeterministicSkipQuadTree {
          def point : Point
          def value : V
          def asMapEntry : (Point, V) = (point, value)
-         def union( mq: Quad, point: Point ) = {
+         def union( mq: Quad, point2: Point ) = {
             val p = point
-            interestingSquare( mq, p.x, p.y, 1, point )
+            interestingSquare( mq, p.x, p.y, 1, point2 )
          }
          def quadIdxIn( iq: Quad ) : Int = pointInQuad( iq, point )
       }
@@ -120,9 +125,9 @@ object DeterministicSkipQuadTree {
          def quad: Quad
          def asMapEntry : (Point, V) = unsupportedOp
 
-         def union( mq: Quad, point: Point ) = {
+         def union( mq: Quad, point2: Point ) = {
             val q = quad
-            interestingSquare( mq, q.x, q.y, q.side, point )
+            interestingSquare( mq, q.x, q.y, q.side, point2 )
          }
          def quadIdxIn( iq: Quad ) : Int = quadInQuad( iq, quad )
       }
@@ -494,4 +499,5 @@ object DeterministicSkipQuadTree {
 trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
 //   def insert( point: Point, value: V ) : Unit
 //   def toOrderedSeq : Seq[ (Point, V) ]
+   def skipList : SkipList[ _ ]
 }
