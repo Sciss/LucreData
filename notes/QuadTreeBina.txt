@@ -1,0 +1,7 @@
+List(Point(504,24), Point(488,8), Point(216,296), Point(200,312), Point(240,304), Point(80,410), Point(424,368), Point(400,332), Point(272,496), Point(300,460))
+       <------------------>                                                                             <------------------>           <------------------>
+
+0 : north -> before
+1 : north -> after
+2 : south -> before
+3 : south -> after

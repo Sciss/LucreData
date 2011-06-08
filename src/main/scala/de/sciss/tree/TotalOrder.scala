@@ -172,32 +172,34 @@ object TotalOrder extends SeqFactory[ TotalOrder ] {
 
       def insertAfter( elem: A ) : T = {
          val rec     = new Impl( totalSize, elem, this, next )
-         val nextTag = if( rec.next.isEmpty ) Int.MaxValue else rec.next.tag
+         val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
          rec.tag     = tag + ((nextTag - tag + 1) >> 1)
          if( rec.tag == nextTag ) rec.relabel
          rec
       }
 
       def insertBefore( elem: A ) : T = {
-         if( isHead ) {
-            // to maintain references to the 'head' of the list,
-            // in the case when an element is inserted at the
-            // head of the list, we instead change this entry's
-            // elem and tag, and a new successor is inserted
-            // after this head
-            val rec     = new Impl( totalSize, this.elem, this, next )
-            this.elem   = elem
-            rec.tag     = tag
-            tag         = (tag + 1) >> 1
-            if( tag == rec.tag ) this.relabel
-            this
-         } else {
+//         if( isHead ) {
+// THIS WAS A CRAPPY IDEA -- IT MEANS PREVIOUSLY RETRIEVED ENTRIES ARE UNSTABLE
+//            // to maintain references to the 'head' of the list,
+//            // in the case when an element is inserted at the
+//            // head of the list, we instead change this entry's
+//            // elem and tag, and a new successor is inserted
+//            // after this head
+//            val rec     = new Impl( totalSize, this.elem, this, next )
+//            this.elem   = elem
+//            rec.tag     = tag
+//            tag         = (tag + 1) >> 1
+//            if( tag == rec.tag ) this.relabel
+//            this
+//         } else {
             val rec     = new Impl( totalSize, elem, prev, this )
-            val prevTag = rec.prev.tag
+//         val prevTag = rec.prev.tag
+            val prevTag = if( rec.isHead ) 0 else rec.prev.tag
             rec.tag     = prevTag + ((tag - prevTag + 1) >> 1)
             if( rec.tag == tag ) rec.relabel
             rec
-         }
+//         }
       }
 
 //      /**

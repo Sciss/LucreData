@@ -52,7 +52,7 @@ object DeterministicSkipQuadTree {
       // ---- map support ----
 
       def +=( kv: (Point, V) ) : this.type = {
-         println( "insert : " + kv )
+//         println( "insert : " + kv )
          +=( kv._1, kv._2 )
       }
 
@@ -60,8 +60,8 @@ object DeterministicSkipQuadTree {
 //         val (point, value)   = kv
          val p0               = tl.findP0( point )
          val ordLeaf          = p0.insert( point, value )
-         assert( ordLeaf.elem.isInstanceOf[ Leaf ])
-println( "adding to skiplist : " + ordLeaf.elem )
+//         assert( ordLeaf.elem.isInstanceOf[ Leaf ])
+//println( "adding to skiplist : " + ordLeaf.elem )
          list.add( ordLeaf )
          this
       }
@@ -90,9 +90,10 @@ println( "adding to skiplist : " + ordLeaf.elem )
             // requiring this ugly cast :-(
 //            val l = underlying.next.elem.asInstanceOf[ Leaf ]
 //            (l.point, l.value)
-            val res = underlying.next.elem.asMapEntry
-println( "iter : " + res )
-            res
+//            val res =
+               underlying.next.elem.asMapEntry
+//println( "iter : " + res )
+//            res
          }
          def hasNext : Boolean = underlying.hasNext
       }
@@ -154,6 +155,7 @@ println( "iter : " + res )
          def order( child: NonEmpty ) : InOrder = {
             val cidx = child.quadIdxIn( quad )
             val hemi = if( cidx < 2 ) north else south
+println( "order " + child + " wrt " + this + " -> idx = " + cidx )
             if( (cidx % 2) == 0 ) hemi.insertBefore( child ) else hemi.insertAfter( child )
          }
 
@@ -205,6 +207,7 @@ println( "iter : " + res )
 
       final case class InnerLeftNode( parent: LeftNode, quad: Quad ) extends LeftNodeImpl {
          val north   = parent.order( this )
+println( "...and south" )
          val south   = north.insertAfter( this )
       }
 
