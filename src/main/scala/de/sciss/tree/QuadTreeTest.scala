@@ -134,7 +134,9 @@ Options:
 //      )
       val t = DeterministicSkipQuadTree.fromMap( quad0, map )
       println( "ordered:" )
-      println( t.toList.map( _._1 ))
+      val ord = t.toList.map( _._1 )
+      println( ord )
+      assert( ord == List(Point(488,8), Point(504,24), Point(216,296), Point(200,312), Point(240,304), Point(80,410), Point(400,332), Point(424,368), Point(300,460), Point(272,496)) )
 //      println( t.skipList.toList.map( _.asInstanceOf[ TotalOrder[ _ ]].elem ))
 
       override val doRun = false
