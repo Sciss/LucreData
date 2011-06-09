@@ -103,7 +103,11 @@ object DeterministicSkipQuadTree {
          def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder
       }
 
-      case object Empty extends Child
+      case object Empty extends Child {
+         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder  = parent.insertOrderBefore( parent /* XXX ouch */, child )
+         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder   = parent.insertOrderAfter( parent /* XXX ouch */, child )
+      }
+
       sealed trait NonEmpty extends Child {
          def union( mq: Quad, point: Point ) : Quad
          def quadIdxIn( iq: Quad ) : Int
@@ -148,15 +152,18 @@ object DeterministicSkipQuadTree {
          }
       }
 
-      sealed trait LeftChild {
-         def startOrder: InOrder
-         def stopOrder: InOrder
-      }
+//      sealed trait LeftChild {
+////         def startOrder: InOrder
+////         def stopOrder: InOrder
+//      }
 
-      sealed trait LeftNode extends Node with LeftChild {
+      sealed trait LeftNode extends Node {
 //         def north: InOrder
 //         def south: InOrder
 //         override def children : Array[ LeftChild ]
+
+         def startOrder: InOrder
+         def stopOrder: InOrder
 
          def newLeaf( point: Point, value: V ) : Leaf
          def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode
@@ -167,6 +174,9 @@ object DeterministicSkipQuadTree {
 //println( "order " + child + " wrt " + this + " -> idx = " + cidx )
 //            if( (cidx % 2) == 0 ) hemi.insertBefore( child ) else hemi.insertAfter( child )
 //         }
+
+         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder  = startOrder.insertAfter( child )
+         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder   = stopOrder.insertBefore( child )
 
          def orderLeaf( qidx: Int, child: Leaf ) : InOrder = {
             (qidx: @switch) match {
@@ -237,18 +247,49 @@ object DeterministicSkipQuadTree {
       }
 
       final case class TopLeftNode( quad: Quad ) extends LeftNodeImpl {
-         val north   = TotalOrder[ NonEmpty ]( this )
-         val south   = north.insertAfter( this )
+         val startOrder = TotalOrder[ NonEmpty ]( this )
+         val stopOrder  = startOrder.insertAfter( this )
       }
 
-      final case class InnerLeftNode( parent: LeftNode, quad: Quad )( _rplc: LeftChild ) extends LeftNodeImpl {
+      final case class InnerLeftNode( parent: LeftNode, quad: Quad )( _rplc: NonEmpty ) extends LeftNodeImpl {
 //         val north   = parent.order( this )
-         val startOrder = _rplc.startOrder.insertBefore( this )
-//println( "...and south" )
-         val stopOrder  = _rplc.stopOrder.insertAfter( this )
+//         val startOrder = _rplc.startOrder.insertBefore( this )
+//         val stopOrder  = _rplc.stopOrder.insertAfter( this )
+         val startOrder = _rplc.insertOrderBefore( parent, this )
+         val stopOrder  = _rplc.insertOrderAfter( parent, this )
       }
 
-      final case class LeafImpl( point: Point, value: V ) extends Leaf
+      final case class LeafImpl( point: Point, value: V ) extends Leaf {
+         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder = {
+            val cs = parent.children
+            var i = 0; while( true ) {
+               if( cs( i ) eq this ) {
+                  val i1 = i + 1
+                  return if( i == 0 ) {
+                     parent.insertOrderBefore( parent /* XXX ouch */, child )
+                  } else {
+                     cs( i - 1 ).insertOrderBefore( parent, child )
+                  }
+               }
+            i+= 1 }
+            error( "Never here" )
+         }
+
+         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder = {
+            val cs = parent.children
+            var i = 0; while( true ) {
+               if( cs( i ) eq this ) {
+                  val i1 = i + 1
+                  return if( i1 == cs.size ) {
+                     parent.insertOrderAfter( parent /* XXX ouch */, child )
+                  } else {
+                     cs( i1 ).insertOrderAfter( parent, child )
+                  }
+               }
+            i+= 1 }
+            error( "Never here" )
+         }
+      }
    }
 
   /**
