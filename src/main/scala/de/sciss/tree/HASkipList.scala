@@ -48,7 +48,7 @@ object HASkipList {
 //      new Impl[ B, A ]( minGap, key maxKey )
 
    def empty[ @specialized( Int, Long ) A : Ordering : Manifest ]
-      ( maxKey: A, minGap: Int = 2, keyObserver: KeyObserver[ A ] = new NoKeyObserver[ A ]) : HASkipList[ A ] = {
+      ( maxKey: A, minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ]) : HASkipList[ A ] = {
 
       require( minGap >= 1 )
       if( minGap == 1 ) println( "WARNING: HASkipList implementation currently broken for minGap = 1" )
@@ -62,29 +62,7 @@ object HASkipList {
       def isBottom : Boolean // = this eq Bottom
    }
 
-   /**
-    * A trait for observing the promotion and demotion of a key
-    * in the skip list's level hierarchy
-    */
-   trait KeyObserver[ @specialized( Int, Long ) A ] {
-      /**
-       * Notifies the observer that a given key
-       * is promoted to a higher (more sparse) level
-       */
-      def keyUp( key : A ) : Unit
-      /**
-       * Notifies the observer that a given key
-       * is demoted to a lower (more dense) level
-       */
-      def keyDown( key : A ) : Unit
-   }
-
-   final class NoKeyObserver[ @specialized( Int, Long ) A ] extends KeyObserver[ A ] {
-      def keyUp( key : A ) {}
-      def keyDown( key : A ) {}
-   }
-
-   private class Impl[ @specialized( Int, Long ) A ]( maxKey: A, val minGap: Int, keyObserver: KeyObserver[ A ])
+   private class Impl[ @specialized( Int, Long ) A ]( maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
                                                     ( implicit mf: Manifest[ A ], ord: Ordering[ A ])
    extends HASkipList[ A ] {
       val maxGap  = (minGap << 1) + 1

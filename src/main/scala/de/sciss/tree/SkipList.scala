@@ -30,6 +30,30 @@ package de.sciss.tree
 
 import collection.mutable.{Set => MSet}
 
+object SkipList {
+   /**
+    * A trait for observing the promotion and demotion of a key
+    * in the skip list's level hierarchy
+    */
+   trait KeyObserver[ @specialized( Int, Long ) A ] {
+      /**
+       * Notifies the observer that a given key
+       * is promoted to a higher (more sparse) level
+       */
+      def keyUp( key : A ) : Unit
+      /**
+       * Notifies the observer that a given key
+       * is demoted to a lower (more dense) level
+       */
+      def keyDown( key : A ) : Unit
+   }
+
+   final class NoKeyObserver[ @specialized( Int, Long ) A ] extends KeyObserver[ A ] {
+      def keyUp( key : A ) {}
+      def keyDown( key : A ) {}
+   }
+
+}
 trait SkipList[ @specialized( Int, Long ) A ] extends MSet[ A ] {
    /**
     * Searches for the Branch of a given key.

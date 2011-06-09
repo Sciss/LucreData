@@ -29,8 +29,8 @@
 package de.sciss.tree
 
 import view.{HASkipListView, LLSkipListView}
-import javax.swing.{JComponent, SwingConstants, JLabel, BoxLayout, Box, WindowConstants, JFrame}
-import java.awt.{Color, BorderLayout, EventQueue}
+import javax.swing.{JComponent, JLabel, BoxLayout, Box, WindowConstants, JFrame}
+import java.awt.EventQueue
 import collection.immutable.IntMap
 
 object SkipListTest extends App with Runnable {
@@ -38,7 +38,7 @@ object SkipListTest extends App with Runnable {
 
    EventQueue.invokeLater( this )
 
-   class Observer extends HASkipList.KeyObserver[ Int ] {
+   class Observer extends SkipList.KeyObserver[ Int ] {
       var map = IntMap.empty[ Int ]
       def keyUp( i: Int ) {
          map += i -> (map.getOrElse( i, 0 ) + 1)
