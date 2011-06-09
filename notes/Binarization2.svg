@@ -26,7 +26,7 @@
      inkscape:pageshadow="2"
      inkscape:zoom="1.4"
      inkscape:cx="325.69097"
-     inkscape:cy="730.83532"
+     inkscape:cy="987.97818"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -53,7 +53,7 @@
      id="layer1">
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 215.07143,111.71932 -21.85714,16.20983"
+       d="M 0,0 0,0"
        id="path3046"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -63,7 +63,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 282.5,56.754578 442.35715,86.005035"
+       d="M 0,0 0,0"
        id="path3048"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -73,7 +73,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 223.07143,117.88847 20.71429,15.9737"
+       d="M 0,0 0,0"
        id="path3044"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -83,7 +83,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 274.5,55.290749 250.35715,78.36059"
+       d="M 0,0 0,0"
        id="path3038"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -93,7 +93,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 242.35715,86.005035 223.07143,104.18006"
+       d="M 0,0 0,0"
        id="path3040"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -726,5 +726,16 @@
          x="345.71429"
          y="507.54074"
          id="tspan3926">not nodes nor empties</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="207.85715"
+       y="17.362183"
+       id="text3083"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3085"
+         x="207.85715"
+         y="17.362183">OBSOLETE -- SEE QuadTreeBina.txt !!!</tspan></text>
   </g>
 </svg>

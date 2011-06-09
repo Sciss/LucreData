@@ -32,8 +32,8 @@
      showgrid="false"
      inkscape:window-width="1490"
      inkscape:window-height="1017"
-     inkscape:window-x="144"
-     inkscape:window-y="0"
+     inkscape:window-x="16"
+     inkscape:window-y="575"
      inkscape:window-maximized="0" />
   <metadata
      id="metadata7">
@@ -43,7 +43,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -53,7 +53,7 @@
      id="layer1">
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 290.5221,212.57645 -9.46719,14.00863"
+       d="M 0,0 0,0"
        id="path4059"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -63,7 +63,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 450.35715,87.326996 576.35718,108.14789"
+       d="M 0,0 0,0"
        id="path3997"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -73,7 +73,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 576.35718,108.14789 534.5,127.93708"
+       d="M 0,0 0,0"
        id="path3999"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -83,7 +83,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 584.35718,110.89217 60.71429,20.82714"
+       d="M 0,0 0,0"
        id="path4001"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -93,7 +93,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 442.35715,86.005035 396.07144,106.10278"
+       d="M 0,0 0,0"
        id="path3977"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -103,7 +103,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 388.07144,109.57646 -22.71429,16.90365"
+       d="M 0,0 0,0"
        id="path3987"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -113,7 +113,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 396.07144,116.14056 19.85715,16.29303"
+       d="M 0,0 0,0"
        id="path3989"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -123,7 +123,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 282.5,56.754578 442.35715,86.005035"
+       d="M 0,0 0,0"
        id="path3924"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -133,7 +133,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 223.07143,117.88847 20.71429,15.9737"
+       d="M 0,0 0,0"
        id="path3906"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -143,7 +143,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 215.07143,111.71932 -21.85714,16.20983"
+       d="M 0,0 0,0"
        id="path3867"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -153,7 +153,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 274.5,55.290749 250.35715,78.36059"
+       d="M 0,0 0,0"
        id="path3857"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -163,7 +163,7 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 242.35715,86.005035 223.07143,104.18006"
+       d="M 0,0 0,0"
        id="path3859"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -1148,5 +1148,16 @@
          id="tspan4191"
          x="403.71429"
          y="185.79076">z</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="13.571429"
+       y="18.790754"
+       id="text3125"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3127"
+         x="13.571429"
+         y="18.790754">OBSOLETE -- SEE QuadTreeBina.txt !!!</tspan></text>
   </g>
 </svg>
