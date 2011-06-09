@@ -38,11 +38,13 @@ object QuadTreeTest extends App {
       case Some( "-fig1" ) => new Figure1
       case Some( "-fig2" ) => new Figure2
       case Some( "-test1" ) => new Test1
+      case Some( "-test2" ) => new Test2
       case _ => println( """
 Options:
 -fig1
 -fig2
 -test1
+-test2 (somehow a variant of fig. 5)
 """)
          sys.exit( 1 )
    }
@@ -112,11 +114,11 @@ Options:
 //         val cv   = new CompressedQuadTreeView( ct )
 //         Seq( cv )
 
-         val rt   = RandomizedSkipQuadTree.fromMap( quad0, map )
+         val rt   = RandomizedSkipQuadTree( quad0, map.toSeq: _* )
          @tailrec def add( no: Option[ rt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
             no match {
                case None => vs
-               case Some( n ) => add( n.pred, new SkipQuadTreeView( n ) :: vs )
+               case Some( n ) => add( n.prevOption, new SkipQuadTreeView( n ) :: vs )
             }
          }
          add( Some( rt.lastTree ), Nil )
@@ -125,20 +127,52 @@ Options:
 
    class Test1 extends Figure {
       val map  = points2
-      val t    = DeterministicSkipQuadTree.fromMap( quad0, map )
+      val t    = DeterministicSkipQuadTree( quad0, map.toSeq: _* )
       println( "Points ordered by in-ordered traversal:" )
       val ord  = t.toList.map( _._1 )
       println( ord )
       assert( ord == List(Point(488,  8), Point(504, 24), Point(216,296), Point(200,312), Point(240,304),
                           Point( 80,410), Point(400,332), Point(424,368), Point(300,460), Point(272,496)) )
 
-      val rnd  = new util.Random( 0 )
-      val set2 = Seq.fill( 20 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet -- map.keys
-      println( "\nBueno -- now for some more (" + set2.size + ") points..." )
-      println( set2.toList )
-      set2.foreach( t += _ -> () )
-
       override val doRun = false
       def views = Nil
+   }
+
+   class Test2 extends Figure {
+      def views = {
+         val map = points2.toIndexedSeq
+         val map2 = map ++ IndexedSeq(
+            Point(279,  4) -> (),
+            Point( 75,361) -> (),
+            Point(195,308) -> (),
+            Point(170,129) -> (),
+            Point(374,425) -> (),
+            Point(326,158) -> (),
+            Point(320,146) -> (),
+            Point( 53,129) -> (),
+            Point(481, 90) -> (),
+            Point(504,503) -> (),
+            Point(123,310) -> (),
+            Point( 11,  0) -> (),
+            Point(493,288) -> (),
+            Point(305,400) -> (),
+            Point(210,  7) -> (),
+            Point(281, 59) -> (),
+            Point( 65,188) -> (),
+            Point(140,160) -> (),
+            Point(450, 11) -> ()
+//            Point(397,500) -> ()
+         )
+
+         val dt   = DeterministicSkipQuadTree( quad0, map2: _* )
+//         dt += Point(397,500) -> ()
+         @tailrec def add( no: Option[ dt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
+            no match {
+               case None => vs
+               case Some( n ) => add( n.prevOption, new SkipQuadTreeView( n ) :: vs )
+            }
+         }
+         add( Some( dt.lastTree ), Nil )
+      }
    }
 }

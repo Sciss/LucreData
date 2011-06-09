@@ -32,11 +32,11 @@ import annotation.tailrec
 import sys.error  // suckers
 
 object RandomizedSkipQuadTree {
-   def apply[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
+//   def apply[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
 
-   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : RandomizedSkipQuadTree[ V ] = {
+   def apply[ V ]( quad: Quad, xs: (Point, V)* ) : RandomizedSkipQuadTree[ V ] = {
       val t = TreeImpl[ V ]( quad )
-      m.foreach( t.+=( _ ))
+      xs.foreach( t.+=( _ ))
       t
    }
 
@@ -75,7 +75,7 @@ object RandomizedSkipQuadTree {
       sealed trait Child extends Q
       case object Empty extends Child with QEmpty
       final case class Leaf( point: Point, value: V ) extends Child with QLeaf
-      final case class Node( quad: Quad, pred: Option[ Node ])( quads: Array[ Child ] = new Array[ Child ]( 4 ))
+      final case class Node( quad: Quad, prevOption: Option[ Node ])( quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends Child with QNode {
          // fix null squares
          {
@@ -94,7 +94,7 @@ object RandomizedSkipQuadTree {
 //         require( qidx >= 0, point.toString + " lies outside of root square " + quad )
             quads( qidx ) match {
                case Empty =>
-                  if( pred.isEmpty || (pred.flatMap( _.insertStep( point, value )).nonEmpty && flipCoin) ) {
+                  if( prevOption.isEmpty || (prevOption.flatMap( _.insertStep( point, value )).nonEmpty && flipCoin) ) {
                      quads( qidx ) = Leaf( point, value )
                      Some( this )
                   } else None
@@ -103,8 +103,8 @@ object RandomizedSkipQuadTree {
                   if( tq.contains( point )) {
                      t.insertStep( point, value )
                   } else {
-                     val qpred = pred.flatMap( _.insertStep( point, value ))
-                     if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
+                     val qpred = prevOption.flatMap( _.insertStep( point, value ))
+                     if( prevOption.isEmpty || (qpred.nonEmpty && flipCoin) ) {
                         val te      = tq.extent
                         val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
                         val iquads  = new Array[ Child ]( 4 )
@@ -119,8 +119,8 @@ object RandomizedSkipQuadTree {
                   }
 
                case l @ Leaf( point2, value2 ) =>
-                  val qpred   = pred.flatMap( _.insertStep( point, value ))
-                  if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
+                  val qpred   = prevOption.flatMap( _.insertStep( point, value ))
+                  if( prevOption.isEmpty || (qpred.nonEmpty && flipCoin) ) {
                      val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
                      val iquads  = new Array[ Child ]( 4 )
                      val lidx    = quadIdx( iq, point2 )

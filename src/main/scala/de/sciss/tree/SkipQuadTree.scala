@@ -35,11 +35,11 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
    trait QEmpty extends Q
    trait QLeaf extends Q {
       def point: Point
-      def value : V
+      def value: V
    }
    trait QNode extends Q {
       def quad: Quad
       def child( idx: Int ) : Q
-      def pred: Option[ QNode ]
+      def prevOption: Option[ QNode ]
    }
 }

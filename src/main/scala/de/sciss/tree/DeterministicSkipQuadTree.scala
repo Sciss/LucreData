@@ -42,11 +42,11 @@ import annotation.{switch, tailrec}
  * - detect insertion of existing points (this causes a problem currently)
  */
 object DeterministicSkipQuadTree {
-   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
+//   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
 
-   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : DeterministicSkipQuadTree[ V ] = {
+   def apply[ V ]( quad: Quad, xs: (Point, V)* ) : DeterministicSkipQuadTree[ V ] = {
       val t = new TreeImpl[ V ]( quad )
-      m.foreach( t.+=( _ ))
+      xs.foreach( t.+=( _ ))
       t
    }
 
@@ -301,7 +301,7 @@ object DeterministicSkipQuadTree {
 
       sealed trait RightNode extends Node {
          // Child support
-         def pred = Some( prev: QNode )
+         def prevOption = Some( prev: QNode )
 
          def prev : Node
          def children : Array[ Child ]
@@ -374,7 +374,7 @@ println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + path
 
       sealed trait LeftNode extends Node with LeftNonEmpty {
          // Child support
-         def pred = Option.empty[ QNode ]
+         def prevOption = Option.empty[ QNode ]
 
          /**
           * For a `LeftNode`, all its children are more specific
