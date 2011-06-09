@@ -30,7 +30,7 @@ package de.sciss.tree
 
 import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
-import view.{RandomizedSkipQuadTreeView, CompressedQuadTreeView, QuadTreeView}
+import view.{SkipQuadTreeView, CompressedQuadTreeView, QuadTreeView}
 import annotation.tailrec
 
 object QuadTreeTest extends App {
@@ -113,10 +113,10 @@ Options:
 //         Seq( cv )
 
          val rt   = RandomizedSkipQuadTree.fromMap( quad0, map )
-         @tailrec def add( no: Option[ RandomizedSkipQuadTree.QNode[ _ ]], vs: List[ JComponent ]) : List[ JComponent ] = {
+         @tailrec def add( no: Option[ rt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
             no match {
                case None => vs
-               case Some( n ) => add( n.pred, new RandomizedSkipQuadTreeView( n ) :: vs )
+               case Some( n ) => add( n.pred, new SkipQuadTreeView( n ) :: vs )
             }
          }
          add( Some( rt.lastTree ), Nil )
@@ -133,9 +133,10 @@ Options:
                           Point( 80,410), Point(400,332), Point(424,368), Point(300,460), Point(272,496)) )
 
       val rnd  = new util.Random( 0 )
-      val map2 = Seq.fill( 20 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet -- map.keys
-      println( "\nBueno -- now for some more (" + map2.size + ") points..." )
-      map2.foreach( t += _ -> () )
+      val set2 = Seq.fill( 20 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet -- map.keys
+      println( "\nBueno -- now for some more (" + set2.size + ") points..." )
+      println( set2.toList )
+      set2.foreach( t += _ -> () )
 
       override val doRun = false
       def views = Nil

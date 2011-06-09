@@ -1,5 +1,5 @@
 /*
- *  RandomizedSkipQuadTreeView.scala
+ *  SkipQuadTreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -29,8 +29,8 @@
 package de.sciss.tree
 package view
 
-class RandomizedSkipQuadTreeView( t: RandomizedSkipQuadTree.QNode[ _ ]) extends QuadView {
-   import RandomizedSkipQuadTree._
+class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]#QNode ) extends QuadView {
+//   import SkipQuadTree._
 
    protected def draw( h: QuadView.PaintHelper ) {
       draw( h, t )
@@ -38,16 +38,16 @@ class RandomizedSkipQuadTreeView( t: RandomizedSkipQuadTree.QNode[ _ ]) extends 
 
    def rootQuad = t.quad
 
-   private def draw( h: QuadView.PaintHelper, quad: Q[ _ ]) {
+   private def draw( h: QuadView.PaintHelper, quad: SkipQuadTree[ V ]#Q ) {
       quad match {
-         case t: QNode[ _ ] =>
+         case t: SkipQuadTree[ _ ]#QNode =>
             for( idx <- 0 until 4 ) {
                h.drawFrame( t.quad.quadrant( idx ))
                draw( h, t.child( idx ))
             }
-         case QEmpty =>
-         case QLeaf( point, _ ) =>
-            h.drawPoint( point )
+         case _: SkipQuadTree[ _ ]#QEmpty =>
+         case l: SkipQuadTree[ _ ]#QLeaf =>
+            h.drawPoint( l.point )
       }
    }
 }

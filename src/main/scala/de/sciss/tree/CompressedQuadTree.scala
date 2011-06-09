@@ -51,17 +51,17 @@ object CompressedQuadTree {
    sealed trait Q[ +V ] {
 //      def quad: Quad
    }
-   case object QEmpty extends Q[ Nothing ] // [ V ]() /* ( quad: Quad ) */ extends Q[ V ]
+   case object QEmpty extends Q[ Nothing ] // [ V ]() /* ( quad: Quad ) */ extends Child[ V ]
    final case class QLeaf[ V ]( /* quad: Quad, */ point: Point, value: V ) extends Q[ V ]
-//   sealed trait QNode[ V ] extends Q[ V ] {
+//   sealed trait Node[ V ] extends Child[ V ] {
 //      def insert( point: Point, value: V ) : Unit
 //      def quad: Quad
-//      def child( idx: Int ) : Q[ V ]
+//      def child( idx: Int ) : Child[ V ]
 //   }
 
-//   private def createEmptyQuads[ V ]( quad: Quad, arr: Array[ Q[ V ]]) {
+//   private def createEmptyQuads[ V ]( quad: Quad, arr: Array[ Child[ V ]]) {
 //      var i = 0; while( i < 4 ) {
-//         if( arr( i ) == null ) arr( i ) = QEmpty( quad.quadrant( i ))
+//         if( arr( i ) == null ) arr( i ) = Empty( quad.quadrant( i ))
 //      i += 1 }
 //   }
 
@@ -100,7 +100,7 @@ object CompressedQuadTree {
 
             /*
                "If the quadrant of p(x) that x is inserted into already contains a point y or
-               an interesting square r, then we insert to Q a new interesting square q ⊂ p
+               an interesting square r, then we insert to Child a new interesting square q ⊂ p
                that contains both x and y (or r) but separates x and y (or r) into different
                quadrants of q."
              */

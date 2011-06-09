@@ -57,6 +57,9 @@ object DeterministicSkipQuadTree {
 
       val numChildren = 4
 
+      def headTree : QNode = TopLeftNode
+      def lastTree : QNode = tl
+
       // ---- map support ----
 
       def +=( kv: (Point, V) ) : this.type = {
@@ -123,7 +126,7 @@ object DeterministicSkipQuadTree {
        * A child is an object that can be
        * stored in a quadrant of a node.
        */
-      sealed trait Child
+      sealed trait Child extends Q
       /**
        * A left child is one which is stored in Q0.
        * This is either empty or an object (`LeftNonEmpty`)
@@ -135,7 +138,7 @@ object DeterministicSkipQuadTree {
       /**
        * A dummy object indicating a vacant quadrant in a node.
        */
-      case object Empty extends LeftChild
+      case object Empty extends LeftChild with QEmpty
 
       /**
        * An object denoting a filled quadrant of a node.
@@ -166,7 +169,7 @@ object DeterministicSkipQuadTree {
           */
          def parent_=( n: Node ) : Unit
       }
-      sealed  trait LeftNonEmpty extends NonEmpty with LeftChild {
+      sealed trait LeftNonEmpty extends NonEmpty with LeftChild {
          /**
           * A marker in the in-order list corresponding to
           * the beginning of the objects 'interval'. That is
@@ -203,7 +206,7 @@ object DeterministicSkipQuadTree {
        * points into the highest level quadtree that
        * the leaf resides in, according to the skiplist.
        */
-      sealed trait Leaf extends LeftNonEmpty with Ordered[ Leaf ] {
+      sealed trait Leaf extends LeftNonEmpty with Ordered[ Leaf ] with QLeaf {
          def point : Point
          def value : V
 
@@ -240,7 +243,7 @@ object DeterministicSkipQuadTree {
          def stopOrder : InOrder    = order
       }
 
-      sealed trait Node extends NonEmpty {
+      sealed trait Node extends NonEmpty with QNode {
          /**
           * Returns the child for a given
           * quadrant index
@@ -297,6 +300,9 @@ object DeterministicSkipQuadTree {
       }
 
       sealed trait RightNode extends Node {
+         // Child support
+         def pred = Some( prev: QNode )
+
          def prev : Node
          def children : Array[ Child ]
          def child( idx: Int ) : Child = children( idx )
@@ -354,6 +360,7 @@ println( "promoted " + point + " to " + leaf.parent.quad )
 //                  val leaf    = n2.newLeaf( point, value )
                   leaf.parent = n2
                   val lidx    = leaf.quadIdxIn( qn2 )
+assert( oidx != lidx )
                   c2( lidx )  = leaf
                   c( qidx )   = n2
                   n2
@@ -366,6 +373,9 @@ println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + path
       }
 
       sealed trait LeftNode extends Node with LeftNonEmpty {
+         // Child support
+         def pred = Option.empty[ QNode ]
+
          /**
           * For a `LeftNode`, all its children are more specific
           * -- they are instances of `LeftChild` and thus support
@@ -603,9 +613,10 @@ println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + path
          Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )   // XXX check for Int.MaxValue issues
       }
    }
+
+   // visible interface
 }
 trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
-//   def insert( point: Point, value: V ) : Unit
-//   def toOrderedSeq : Seq[ (Point, V) ]
-   def skipList : SkipList[ _ ]
+   def headTree: QNode
+   def lastTree: QNode
 }

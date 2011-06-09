@@ -40,60 +40,29 @@ object RandomizedSkipQuadTree {
       t
    }
 
-   sealed trait Q[ +V ] {
-//      def quad: Quad
-   }
-
-//   sealed trait MaybeQNode[ +V ] {
-//      def isDefined : Boolean
-//      def isEmpty : Boolean = !isDefined
-//      def map( fun: QNode[ V ] => MaybeQNode[ V ]) : MaybeQNode[ V ]
-//   }
-
-   case object QEmpty extends Q[ Nothing ] /* with MaybeQNode[ Nothing ] */ {
-//      def isDefined = false
-//      def map( fun: QNode[ Nothing ] => MaybeQNode[ Nothing ]) : MaybeQNode[ Nothing ] = QEmpty
-   }
-
-   final case class QLeaf[ V ]( /* quad: Quad, */ point: Point, value: V ) extends Q[ V ]
-//   sealed trait QNode[ V ] extends Q[ V ] {
-//      def insert( point: Point, value: V ) : Unit
-//      def quad: Quad
-//      def child( idx: Int ) : Q[ V ]
-//   }
-
-//   private def createEmptyQuads[ V ]( quad: Quad, arr: Array[ Q[ V ]]) {
-//      var i = 0; while( i < 4 ) {
-//         if( arr( i ) == null ) arr( i ) = QEmpty( quad.quadrant( i ))
-//      i += 1 }
-//   }
-
-//   sealed trait QNode[ V ] extends Q[ V ] {
-//      def quad: Quad
-//   }
-
    private object TreeImpl {
-      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( new QNode[ V ]( quad, None )() )
+      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
    }
-   private final class TreeImpl[ V ]( val headTree: QNode[ V ]) extends RandomizedSkipQuadTree[ V ] {
-      private var tailVar: QNode[ V ] = headTree
+   private final class TreeImpl[ V ]( _quad: Quad  ) extends RandomizedSkipQuadTree[ V ] {
+      val headTree         = Node( _quad, None )()
+      private var tailVar  = headTree
 
-      def lastTree: QNode[ V ] = tailVar
+      def lastTree: QNode = tailVar
 
       // ---- map support ----
 
-      def +=( kv: (Point, V) ) : this.type = +=( kv._1, kv._2 )
-
-      def +=( point: Point, value: V ) : this.type = {
+      def +=( kv: (Point, V) ) : this.type = {
+         val point   = kv._1
+         val value   = kv._2
          val qpred   = tailVar.insertStep( point, value )
          if( qpred.nonEmpty && flipCoin ) {
             val hq      = headTree.quad
             val qidx    = quadIdx( hq, point )
-            val l       = QLeaf( point, value )
+            val l       = Leaf( point, value )
             do {
-               val quads      = new Array[ Q[ V ]]( 4 )
+               val quads      = new Array[ Child ]( 4 )
                quads( qidx )  = l
-               tailVar        = new QNode[ V ]( hq, Some( tailVar ))( quads )
+               tailVar        = Node( hq, Some( tailVar ))( quads )
             } while( flipCoin )
          }
          this
@@ -102,6 +71,94 @@ object RandomizedSkipQuadTree {
       def get( point: Point ) : Option[ V ]  = error( "Not yet implemented" )
       def -=( point: Point ) : this.type     = error( "Not yet implemented" )
       def iterator : Iterator[ (Point, V) ]  = error( "Not yet implemented" )
+
+      sealed trait Child extends Q
+      case object Empty extends Child with QEmpty
+      final case class Leaf( point: Point, value: V ) extends Child with QLeaf
+      final case class Node( quad: Quad, pred: Option[ Node ])( quads: Array[ Child ] = new Array[ Child ]( 4 ))
+      extends Child with QNode {
+         // fix null squares
+         {
+            var i = 0; while( i < 4 ) {
+               if( quads( i ) == null ) quads( i ) = Empty
+            i += 1 }
+         }
+
+//      def isDefined = true
+//      def map( fun: Node[ V ] => MaybeQNode[ V ]) : MaybeQNode[ V ] = fun( this )
+
+         def child( idx: Int ) : Child = quads( idx )
+
+         def insertStep( point: Point, value: V ) : Option[ Node ] = {
+            val qidx = quadIdx( quad, point )
+//         require( qidx >= 0, point.toString + " lies outside of root square " + quad )
+            quads( qidx ) match {
+               case Empty =>
+                  if( pred.isEmpty || (pred.flatMap( _.insertStep( point, value )).nonEmpty && flipCoin) ) {
+                     quads( qidx ) = Leaf( point, value )
+                     Some( this )
+                  } else None
+
+               case t @ Node( tq, tpred ) =>
+                  if( tq.contains( point )) {
+                     t.insertStep( point, value )
+                  } else {
+                     val qpred = pred.flatMap( _.insertStep( point, value ))
+                     if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
+                        val te      = tq.extent
+                        val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
+                        val iquads  = new Array[ Child ]( 4 )
+                        val tidx    = quadIdx( iq, tq )
+                        iquads( tidx ) = t
+                        val pidx    = quadIdx( iq, point )
+                        iquads( pidx ) = Leaf( point, value )
+                        val q       = Node( iq, qpred )( iquads )
+                        quads( qidx ) = q
+                        Some( q )
+                     } else None
+                  }
+
+               case l @ Leaf( point2, value2 ) =>
+                  val qpred   = pred.flatMap( _.insertStep( point, value ))
+                  if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
+                     val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
+                     val iquads  = new Array[ Child ]( 4 )
+                     val lidx    = quadIdx( iq, point2 )
+                     iquads( lidx ) = l
+                     val pidx    = quadIdx( iq, point )
+                     iquads( pidx ) = Leaf( point, value )
+                     val q       = Node( iq, qpred )( iquads )
+                     quads( qidx ) = q
+                     Some( q )
+                  } else None
+            }
+         }
+
+         private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
+            val pq            = quad.quadrant( pqidx )
+            val tlx           = pq.cx - pq.extent
+            val tly           = pq.cy - pq.extent
+            val akx           = aleft - tlx
+            val aky           = atop  - tly
+            val bkx           = b.x - tlx
+            val bky           = b.y - tly
+            val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
+            val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
+            val mx            = binSplit( x1, x2 )
+            val my            = binSplit( y1, y2 )
+            // that means the x extent is greater (x grid more coarse).
+            if( mx <= my ) {
+//            val cx = tlx + (x2 & mx)
+//            val cy = tly + (y0 & mx) - mx
+//            Quad( cx, cy, -mx )
+//            Quad( tlx + (x2 & mx), tly + (y0 & mx) - mx, -mx )
+               Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
+            } else {
+//            Quad( tlx + (x0 & my) - my, tly + (y2 & my), -my )
+               Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
+            }
+         }
+      }
    }
 
    private def flipCoin : Boolean = util.Random.nextBoolean()
@@ -171,93 +228,8 @@ object RandomizedSkipQuadTree {
         binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
       }
    }
-
-   final case class QNode[ V ]( quad: Quad, pred: Option[ QNode[ V ]])( quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
-   extends Q[ V ] /* with MaybeQNode[ V ] */ {
-      // fix null squares
-      {
-         var i = 0; while( i < 4 ) {
-            if( quads( i ) == null ) quads( i ) = QEmpty
-         i += 1 }
-      }
-
-//      def isDefined = true
-//      def map( fun: QNode[ V ] => MaybeQNode[ V ]) : MaybeQNode[ V ] = fun( this )
-
-      def child( idx: Int ) : Q[ V ] = quads( idx )
-
-      def insertStep( point: Point, value: V ) : Option[ QNode[ V ]] = {
-         val qidx = quadIdx( quad, point )
-//         require( qidx >= 0, point.toString + " lies outside of root square " + quad )
-         quads( qidx ) match {
-            case QEmpty =>
-               if( pred.isEmpty || (pred.flatMap( _.insertStep( point, value )).nonEmpty && flipCoin) ) {
-                  quads( qidx ) = QLeaf( point, value )
-                  Some( this )
-               } else None
-
-            case t @ QNode( tq, tpred ) =>
-               if( tq.contains( point )) {
-                  t.insertStep( point, value )
-               } else {
-                  val qpred = pred.flatMap( _.insertStep( point, value ))
-                  if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
-                     val te      = tq.extent
-                     val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
-                     val iquads  = new Array[ Q[ V ]]( 4 )
-                     val tidx    = quadIdx( iq, tq )
-                     iquads( tidx ) = t
-                     val pidx    = quadIdx( iq, point )
-                     iquads( pidx ) = QLeaf( point, value )
-                     val q       = QNode[ V ]( iq, qpred )( iquads )
-                     quads( qidx ) = q
-                     Some( q )
-                  } else None
-               }
-
-            case l @ QLeaf( point2, value2 ) =>
-               val qpred   = pred.flatMap( _.insertStep( point, value ))
-               if( pred.isEmpty || (qpred.nonEmpty && flipCoin) ) {
-                  val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
-                  val iquads  = new Array[ Q[ V ]]( 4 )
-                  val lidx    = quadIdx( iq, point2 )
-                  iquads( lidx ) = l
-                  val pidx    = quadIdx( iq, point )
-                  iquads( pidx ) = QLeaf( point, value )
-                  val q       = QNode[ V ]( iq, qpred )( iquads )
-                  quads( qidx ) = q
-                  Some( q )
-               } else None
-         }
-      }
-
-      private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
-         val pq            = quad.quadrant( pqidx )
-         val tlx           = pq.cx - pq.extent
-         val tly           = pq.cy - pq.extent
-         val akx           = aleft - tlx
-         val aky           = atop  - tly
-         val bkx           = b.x - tlx
-         val bky           = b.y - tly
-         val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
-         val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
-         val mx            = binSplit( x1, x2 )
-         val my            = binSplit( y1, y2 )
-         // that means the x extent is greater (x grid more coarse).
-         if( mx <= my ) {
-//            val cx = tlx + (x2 & mx)
-//            val cy = tly + (y0 & mx) - mx
-//            Quad( cx, cy, -mx )
-//            Quad( tlx + (x2 & mx), tly + (y0 & mx) - mx, -mx )
-            Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
-         } else {
-//            Quad( tlx + (x0 & my) - my, tly + (y2 & my), -my )
-            Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
-         }
-      }
-   }
 }
 trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
-   def headTree: RandomizedSkipQuadTree.QNode[ V ]
-   def lastTree: RandomizedSkipQuadTree.QNode[ V ]
+   def headTree: QNode
+   def lastTree: QNode
 }
