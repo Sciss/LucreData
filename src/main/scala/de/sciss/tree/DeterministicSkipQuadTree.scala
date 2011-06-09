@@ -31,6 +31,15 @@ package de.sciss.tree
 import sys.error
 import annotation.{switch, tailrec}
 
+/**
+ * XXX TODO:
+ * - TotalOrder[ LeftNonEmpty ] can now be probably
+ *   TotalOrder[ Unit ], which in turn could be an optimized
+ *   TotalOrder that doesn't carry an `elem` field any more.
+ * - delete is missing
+ * - find nearest neighbour is missing
+ * - propagation to higher levels is missing
+ */
 object DeterministicSkipQuadTree {
    def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
 
@@ -40,7 +49,7 @@ object DeterministicSkipQuadTree {
       t
    }
 
-   type InOrder = TotalOrder[ Unit ]
+//   type InOrder = TotalOrder[ Unit ]
 
    private class TreeImpl[ V ]( _quad: Quad ) extends DeterministicSkipQuadTree[ V ] {
       private var tl: Node = {
