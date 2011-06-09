@@ -28,7 +28,7 @@
 
 package de.sciss.tree
 
-import java.awt.{BorderLayout, EventQueue}
+import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
 import view.{RandomizedSkipQuadTreeView, CompressedQuadTreeView, QuadTreeView}
 import annotation.tailrec
@@ -124,20 +124,18 @@ Options:
    }
 
    class Test1 extends Figure {
-      val map = points2
-//      val map = Map(
-//         Point(  80, 410 ) -> (),
-//         Point( 488,   8 ) -> (),
-//         Point( 504,  24 ) -> (),
-//         Point( 400, 332 ) -> (),
-//         Point( 424, 368 ) -> ()
-//      )
-      val t = DeterministicSkipQuadTree.fromMap( quad0, map )
-      println( "ordered:" )
-      val ord = t.toList.map( _._1 )
+      val map  = points2
+      val t    = DeterministicSkipQuadTree.fromMap( quad0, map )
+      println( "Points ordered by in-ordered traversal:" )
+      val ord  = t.toList.map( _._1 )
       println( ord )
-      assert( ord == List(Point(488,8), Point(504,24), Point(216,296), Point(200,312), Point(240,304), Point(80,410), Point(400,332), Point(424,368), Point(300,460), Point(272,496)) )
-//      println( t.skipList.toList.map( _.asInstanceOf[ TotalOrder[ _ ]].elem ))
+      assert( ord == List(Point(488,  8), Point(504, 24), Point(216,296), Point(200,312), Point(240,304),
+                          Point( 80,410), Point(400,332), Point(424,368), Point(300,460), Point(272,496)) )
+
+      val rnd  = new util.Random( 0 )
+      val map2 = Seq.fill( 20 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet -- map.keys
+      println( "\nBueno -- now for some more (" + map2.size + ") points..." )
+      map2.foreach( t += _ -> () )
 
       override val doRun = false
       def views = Nil

@@ -39,6 +39,7 @@ import annotation.{switch, tailrec}
  * - delete is missing
  * - find nearest neighbour is missing
  * - propagation to higher levels is missing
+ * - detect insertion of existing points (this causes a problem currently)
  */
 object DeterministicSkipQuadTree {
    def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
@@ -49,12 +50,8 @@ object DeterministicSkipQuadTree {
       t
    }
 
-//   type InOrder = TotalOrder[ Unit ]
-
    private class TreeImpl[ V ]( _quad: Quad ) extends DeterministicSkipQuadTree[ V ] {
-      private var tl: Node = {
-         TopLeftNode( _quad )
-      }
+      private var tl: TopNode = TopLeftNode
       val list: SkipList[ Leaf ] = HASkipList.empty[ Leaf ]( MaxLeaf, 2, KeyObserver ) // 2-5 DSL
       def skipList = list
 
@@ -98,8 +95,22 @@ object DeterministicSkipQuadTree {
 
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {
-//            println( "up : " + l )
-//            l.parent.next
+            // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
+            //  then traverse upwards in Qi until we find the lowest
+            //  ancestor q of x which is also interesting in Qi+1.
+            //  (This is the reversed process of searching x in Qi
+            //  with q = pi,start = pi+1,end so it takes at most 6
+            //  steps by Lemma 5.) Then we go to the same square q
+            //  in Qi+1 and insert x."
+            val path = new Array[ Node ]( 6 )
+            val q0o  = l.parent.findPN( path, 0 )
+            val q0   = if( q0o == null ) { // create new level
+               val res = TopRightNode( tl )
+               tl = res
+               res
+            } else q0o
+            q0.insert( l, path )
+//          path.find( _.quad == p1.quad ) ...
          }
 
          def keyDown( l: Leaf ) {
@@ -182,6 +193,16 @@ object DeterministicSkipQuadTree {
 
       type InOrder = TotalOrder[ LeftNonEmpty ]
 
+      /**
+       * A leaf in the quadtree, carrying a map entry
+       * in the form of a point and associated value.
+       * Note that a single instance of a leaf is used
+       * across the levels of the quadtree! That means
+       * that multiple child pointers may go to the
+       * same leaf, while the parent of a leaf always
+       * points into the highest level quadtree that
+       * the leaf resides in, according to the skiplist.
+       */
       sealed trait Leaf extends LeftNonEmpty with Ordered[ Leaf ] {
          def point : Point
          def value : V
@@ -242,13 +263,13 @@ object DeterministicSkipQuadTree {
           * square in Qi+1, or null if no such
           * square exists.
           */
-         def next: Node
+         def next: RightNode
 
          /**
           * Sets the corresponding interesting
           * square in Qi+1.
           */
-         def next_=( n: Node ) : Unit
+         def next_=( n: RightNode ) : Unit
 
          def union( mq: Quad, point2: Point ) = {
             val q = quad
@@ -263,19 +284,83 @@ object DeterministicSkipQuadTree {
           * which is also contained in Qi+1. Returns this node
           * in Qi+1, or null if no such node exists.
           */
-         def findPN : Node = {
-            error( "TODO" )
+         def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
+            val n = next
+            if( n != null ) n else {
+               path( pathSize ) = this
+               val p = parent
+               if( p == null ) null else {
+                  p.findPN( path, pathSize + 1 )
+               }
+            }
          }
       }
 
       sealed trait RightNode extends Node {
          def prev : Node
+         def children : Array[ Child ]
+         def child( idx: Int ) : Child = children( idx )
 
          def findP0( point: Point ) : LeftNode = {
             val qidx = pointInQuad( quad, point )
             child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
+            }
+         }
+
+         /**
+          * Abstract method which should instantiate an appropriate
+          * sub-node whose parent is this node, and whose predecessor
+          * in the lower quadtree is given.
+          */
+         def newNode( prev: Node, iq: Quad ) : RightNode
+
+         /**
+          * Promotes a leaf that exists in Qi-1 to this
+          * tree, by inserting it into this note which
+          * is its interesting node in Qi (XXX are we
+          * sure there cannot be any intermediate
+          * descendants from here?).
+          *
+          * If the result of insertion is a new child node
+          * below this node, this intermediate node will
+          * be connected to Qi by looking for the corresponding
+          * quad in the given search path that led here
+          * (i.e. that was constructed in `findPN`).
+          *
+          * This method also sets the parent of the leaf
+          * accordingly.
+          */
+         def insert( leaf: Leaf, path: Array[ Node ]) {
+            val point         = leaf.point
+            val qidx          = pointInQuad( quad, point )
+            val c             = children
+            c( qidx ) match {
+               case Empty =>
+//                  val leaf    = newLeaf( point, value )
+                  leaf.parent = this
+                  c( qidx )   = leaf
+println( "promoted " + point + " to " + leaf.parent.quad )
+
+               case old: NonEmpty =>
+                  val qn2     = old.union( quad.quadrant( qidx ), point )
+                  // find the corresponding node in the lower tree
+                  var pathIdx = 0; while( path( pathIdx ).quad != qn2 ) pathIdx += 1
+                  val n2      = newNode( path( pathIdx ), qn2 )
+                  val c2      = n2.children
+                  val oidx    = old.quadIdxIn( qn2 )
+                  c2( oidx )  = old
+//                  val leaf    = n2.newLeaf( point, value )
+                  leaf.parent = n2
+                  val lidx    = leaf.quadIdxIn( qn2 )
+                  c2( lidx )  = leaf
+                  c( qidx )   = n2
+                  n2
+println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + pathIdx + " of " + {
+   var i = pathIdx + 1; while( i < 6 && path( i ) != null ) i += 1
+   i
+} + ")" )
             }
          }
       }
@@ -336,7 +421,7 @@ object DeterministicSkipQuadTree {
 
       sealed trait LeftNodeImpl extends LeftNode {
          val children = Array.fill[ LeftChild ]( 4 )( Empty ) // XXX is apply faster?
-         var next : Node = null
+         var next : RightNode = null
 
          def newLeaf( point: Point, value: V ) : Leaf = LeafImpl( this, point, value ) { l =>
             val lne: LeftNonEmpty = l
@@ -380,15 +465,40 @@ object DeterministicSkipQuadTree {
          }
       }
 
-      final case class TopLeftNode( quad: Quad ) extends LeftNodeImpl {
+      sealed trait RightNodeImpl extends RightNode {
+         val children = Array.fill[ Child ]( 4 )( Empty ) // XXX is apply faster?
+         var next : RightNode = null
+
+         def newNode( prev: Node, iq: Quad ) : RightNode = InnerRightNode( this, prev, iq )
+      }
+
+      sealed trait TopNode extends Node {
+         val parent : Node                = null
+         def quad : Quad                  = _quad
+         def parent_=( n: Node ) : Unit   = unsupportedOp
+      }
+
+      object TopLeftNode extends LeftNodeImpl with TopNode {
          val startOrder                   = TotalOrder[ LeftNonEmpty ]( this )
          val stopOrder                    = startOrder.insertAfter( this )
-         val parent : Node                = null
-         def parent_=( n: Node ) : Unit   = unsupportedOp
       }
 
       final case class InnerLeftNode( var parent: Node, quad: Quad )( _ins: LeftNode => (InOrder, InOrder) ) extends LeftNodeImpl {
          val (startOrder, stopOrder) = _ins( this )
+      }
+
+      /**
+       * Note that this instantiation sets the `prev`'s `next` field to this new node.
+       */
+      final case class TopRightNode( prev: Node ) extends RightNodeImpl with TopNode {
+         prev.next = this
+      }
+
+      /**
+       * Note that this instantiation sets the `prev`'s `next` field to this new node.
+       */
+      final case class InnerRightNode( var parent: Node, prev: Node, quad: Quad ) extends RightNodeImpl {
+         prev.next = this
       }
 
       object MaxLeaf extends Leaf {
@@ -482,15 +592,15 @@ object DeterministicSkipQuadTree {
       val aky           = atop  - tly
       val bkx           = b.x - tlx
       val bky           = b.y - tly
-      val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
-      val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
+      val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx ) // XXX Tuple3 not specialized
+      val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky ) // XXX Tuple3 not specialized
       val mx            = binSplit( x1, x2 )
       val my            = binSplit( y1, y2 )
       // that means the x extent is greater (x grid more coarse).
       if( mx <= my ) {
-         Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
+         Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )   // XXX check for Int.MaxValue issues
       } else {
-         Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
+         Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )   // XXX check for Int.MaxValue issues
       }
    }
 }
