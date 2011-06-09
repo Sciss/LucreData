@@ -160,12 +160,62 @@ Options:
             Point(281, 59) -> (),
             Point( 65,188) -> (),
             Point(140,160) -> (),
-            Point(450, 11) -> ()
-//            Point(397,500) -> ()
+            Point(450, 11) -> (),
+            Point(397,500) -> ()
          )
 
-         val dt   = DeterministicSkipQuadTree( quad0, map2: _* )
+         val rnd     = new util.Random( 0 )
+         val set3    = map2.map(_._1).toSet ++ IndexedSeq.fill( 10000 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet
+         val keys3   = set3.toSeq
+
+         val keys3b  = Seq(
+            Point(300,460),
+            Point(279,4),
+            Point(75,361),
+            Point(197,313),
+            Point(216,296),
+            Point(272,496),
+            Point(170,129),
+            Point(374,425),
+            Point(424,368),
+            Point(429,211),
+            Point(375,291),
+            Point(326,158),
+            Point(195,308),
+            Point(320,146),
+            Point(269,371),
+            Point(382,502),
+            Point(53,129),
+            Point(240,304),
+            Point(504,24),
+            Point(481,90),
+            Point(504,503),
+            Point(460,504),
+            Point(249,444),
+            Point(123,310),
+            Point(11,0),
+            Point(493,288),
+            Point(305,400),
+            Point(200,312)
+//            Point(210,7)
+//            Point(80,410),
+//            Point(281,59),
+//            Point(507,352),
+//            Point(65,188),
+//            Point(140,160),
+//            Point(450,11)
+//            Point(397,500)
+//            Point(400,332)
+//            Point(488,8)
+//            Point(418,6)
+         )
+
+         val seq3    = keys3.map( _ -> () )
+//println( keys3 )
+
+         val dt   = DeterministicSkipQuadTree( quad0, seq3: _* )
 //         dt += Point(397,500) -> ()
+//         dt += Point(418,6) -> ()
          @tailrec def add( no: Option[ dt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
             no match {
                case None => vs

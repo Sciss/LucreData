@@ -63,13 +63,10 @@ object DeterministicSkipQuadTree {
       // ---- map support ----
 
       def +=( kv: (Point, V) ) : this.type = {
-//         println( "insert : " + kv )
-         +=( kv._1, kv._2 )
-      }
-
-      def +=( point: Point, value: V ) : this.type = {
-         val p0   = tl.findP0( point )
-         val leaf = p0.insert( point, value )
+         val point   = kv._1
+         val value   = kv._2
+         val p0      = tl.findP0( point )
+         val leaf    = p0.insert( point, value )
          list.add( leaf )
          this
       }
@@ -352,22 +349,37 @@ println( "promoted " + point + " to " + leaf.parent.quad )
                case old: NonEmpty =>
                   val qn2     = old.union( quad.quadrant( qidx ), point )
                   // find the corresponding node in the lower tree
+val gaga = old match {
+   case l: Leaf => Quad( l.point.x, l.point.y, 1 )
+   case n: Node => n.quad
+}
+print( "promoting " + point + " to union(" + gaga + ", " + point + ") = " + qn2 + " (parent = " + quad + "; path = " +
+   path.toList.takeWhile(_ != null ).map(_.quad) + ") ... " )
                   var pathIdx = 0; while( path( pathIdx ).quad != qn2 ) pathIdx += 1
                   val n2      = newNode( path( pathIdx ), qn2 )
-                  val c2      = n2.children
-                  val oidx    = old.quadIdxIn( qn2 )
-                  c2( oidx )  = old
-//                  val leaf    = n2.newLeaf( point, value )
-                  leaf.parent = n2
-                  val lidx    = leaf.quadIdxIn( qn2 )
-assert( oidx != lidx )
-                  c2( lidx )  = leaf
-                  c( qidx )   = n2
-                  n2
-println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + pathIdx + " of " + {
+println( "(pathIdx = " + pathIdx + " of " + {
    var i = pathIdx + 1; while( i < 6 && path( i ) != null ) i += 1
    i
 } + ")" )
+                  val c2      = n2.children
+                  val oidx    = old.quadIdxIn( qn2 )
+                  c2( oidx )  = old
+                  // This is a tricky bit! And a reason
+                  // why should eventually try to do without
+                  // parent pointers at all. Since `old`
+                  // may be a leaf whose parent points
+                  // to a higher level tree, we need to
+                  // check first if the parent is `this`,
+                  // and if so, adjust the parent to point
+                  // to the new intermediate node `ne`!
+                  if( old.parent eq this ) old.parent = n2
+//                  val leaf    = n2.newLeaf( point, value )
+                  val lidx    = leaf.quadIdxIn( qn2 )
+//assert( oidx != lidx )
+                  c2( lidx )  = leaf
+                  leaf.parent = n2
+                  c( qidx )   = n2
+                  n2
             }
          }
       }
@@ -416,10 +428,23 @@ println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + path
                   leaf
                case old: LeftNonEmpty =>
                   val qn2     = old.union( quad.quadrant( qidx ), point )
+val tmp = quadInQuad( quad, qn2 )
+if( tmp == -1 ) {
+   println( "Ouch! " + qn2 + " not in " + quad )
+}
                   val n2      = newNode( qn2 )
                   val c2      = n2.children
                   val oidx    = old.quadIdxIn( qn2 )
                   c2( oidx )  = old
+                  // This is a tricky bit! And a reason
+                  // why should eventually try to do without
+                  // parent pointers at all. Since `old`
+                  // may be a leaf whose parent points
+                  // to a higher level tree, we need to
+                  // check first if the parent is `this`,
+                  // and if so, adjust the parent to point
+                  // to the new intermediate node `ne`!
+                  if( old.parent eq this ) old.parent = n2
                   val leaf    = n2.newLeaf( point, value )
                   val lidx    = leaf.quadIdxIn( qn2 )
                   c2( lidx )  = leaf
@@ -502,6 +527,7 @@ println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + path
        */
       final case class TopRightNode( prev: Node ) extends RightNodeImpl with TopNode {
          prev.next = this
+//assert( prev.quad == quad )
       }
 
       /**
@@ -509,6 +535,7 @@ println( "promoted " + point + " to " + leaf.parent.quad + " (pathIdx = " + path
        */
       final case class InnerRightNode( var parent: Node, prev: Node, quad: Quad ) extends RightNodeImpl {
          prev.next = this
+//assert( prev.quad == quad )
       }
 
       object MaxLeaf extends Leaf {
