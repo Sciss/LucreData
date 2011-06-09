@@ -28,8 +28,8 @@
 
 package de.sciss.tree
 
-import annotation.tailrec
 import sys.error
+import annotation.{switch, tailrec}
 
 object DeterministicSkipQuadTree {
    def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
@@ -98,7 +98,10 @@ object DeterministicSkipQuadTree {
          def hasNext : Boolean = underlying.hasNext
       }
 
-      sealed trait Child
+      sealed trait Child {
+         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder
+         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder
+      }
 
       case object Empty extends Child
       sealed trait NonEmpty extends Child {
@@ -145,19 +148,49 @@ object DeterministicSkipQuadTree {
          }
       }
 
-      sealed trait LeftNode extends Node {
-         def north: InOrder
-         def south: InOrder
+      sealed trait LeftChild {
+         def startOrder: InOrder
+         def stopOrder: InOrder
+      }
+
+      sealed trait LeftNode extends Node with LeftChild {
+//         def north: InOrder
+//         def south: InOrder
+//         override def children : Array[ LeftChild ]
 
          def newLeaf( point: Point, value: V ) : Leaf
          def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode
 
-         def order( child: NonEmpty ) : InOrder = {
-            val cidx = child.quadIdxIn( quad )
-            val hemi = if( cidx < 2 ) north else south
-println( "order " + child + " wrt " + this + " -> idx = " + cidx )
-            if( (cidx % 2) == 0 ) hemi.insertBefore( child ) else hemi.insertAfter( child )
+//         def order( child: NonEmpty ) : InOrder = {
+//            val cidx = child.quadIdxIn( quad )
+//            val hemi = if( cidx < 2 ) north else south
+//println( "order " + child + " wrt " + this + " -> idx = " + cidx )
+//            if( (cidx % 2) == 0 ) hemi.insertBefore( child ) else hemi.insertAfter( child )
+//         }
+
+         def orderLeaf( qidx: Int, child: Leaf ) : InOrder = {
+            (qidx: @switch) match {
+               case 0 => startOrder.insertAfter( child )
+               case 1 => children( 0 ).insertOrderAfter( this, child )
+               case 2 => children( 3 ).insertOrderBefore( this, child )
+               case 3 => stopOrder.insertBefore( child )
+            }
          }
+
+//         def orderStop( child: NonEmpty ) : InOrder = {
+//            (child.quadIdxIn( quad ): @switch) match {
+//               case 0 => startOrder.insertAfter( child )
+//               case 1 => children( 0 ) match {
+//                  case n: NonEmpty => n.stopOrder.insertAfter( child )
+//                  case _ => startOrder.insertAfter( child )
+//               }
+//               case 2 => children( 3 ) match {
+//                  case n: NonEmpty => n.startOrder.insertBefore( child )
+//                  case _ => stopOrder.insertBefore( child )
+//               }
+//               case 3 => stopOrder.insertBefore( child )
+//            }
+//         }
 
          def findP0( point: Point ) : LeftNode = {
             val qidx = pointInQuad( quad, point )
@@ -174,11 +207,14 @@ println( "order " + child + " wrt " + this + " -> idx = " + cidx )
             c( qidx ) match {
                case Empty =>
                   c( qidx ) = leaf
-                  order( leaf )
+//                  order( leaf )
+                  orderLeaf( qidx, leaf )
                case n: NonEmpty =>
-                  val n2 = newNode( n.union( quad.quadrant( qidx ), point ), n, leaf  )
+                  val qn2  = n.union( quad.quadrant( qidx ), point )
+                  val n2   = newNode( qn2, n, leaf  )
                   c( qidx ) = n2
-                  n2.order( leaf )
+//                  n2.order( leaf )
+                  n2.orderLeaf( leaf.quadIdxIn( qn2 ), leaf )
             }
          }
       }
@@ -189,7 +225,7 @@ println( "order " + child + " wrt " + this + " -> idx = " + cidx )
          def newLeaf( point: Point, value: V ) : Leaf = new LeafImpl( point, value ) // XXX parent?
 
          def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode = {
-            val n    = InnerLeftNode( this, iq )
+            val n    = InnerLeftNode( this, iq )( old )
             val c    = n.children
             val oidx = old.quadIdxIn( iq )
             c( oidx )= old
@@ -205,10 +241,11 @@ println( "order " + child + " wrt " + this + " -> idx = " + cidx )
          val south   = north.insertAfter( this )
       }
 
-      final case class InnerLeftNode( parent: LeftNode, quad: Quad ) extends LeftNodeImpl {
-         val north   = parent.order( this )
-println( "...and south" )
-         val south   = north.insertAfter( this )
+      final case class InnerLeftNode( parent: LeftNode, quad: Quad )( _rplc: LeftChild ) extends LeftNodeImpl {
+//         val north   = parent.order( this )
+         val startOrder = _rplc.startOrder.insertBefore( this )
+//println( "...and south" )
+         val stopOrder  = _rplc.stopOrder.insertAfter( this )
       }
 
       final case class LeafImpl( point: Point, value: V ) extends Leaf
