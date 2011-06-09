@@ -124,14 +124,14 @@ Options:
    }
 
    class Test1 extends Figure {
-//      val map = points2
-      val map = Map(
-         Point(  80, 410 ) -> (),
-         Point( 488,   8 ) -> (),
-         Point( 504,  24 ) -> (),
-         Point( 400, 332 ) -> (),
-         Point( 424, 368 ) -> ()
-      )
+      val map = points2
+//      val map = Map(
+//         Point(  80, 410 ) -> (),
+//         Point( 488,   8 ) -> (),
+//         Point( 504,  24 ) -> (),
+//         Point( 400, 332 ) -> (),
+//         Point( 424, 368 ) -> ()
+//      )
       val t = DeterministicSkipQuadTree.fromMap( quad0, map )
       println( "ordered:" )
       println( t.toList.map( _._1 ))

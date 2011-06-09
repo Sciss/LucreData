@@ -46,8 +46,10 @@ object DeterministicSkipQuadTree {
       private var tl: Node = {
          TopLeftNode( _quad )
       }
-      val list: SkipList[ InOrder ] = HASkipList.empty( TotalOrder.max[ NonEmpty ], 2 ) // 2-5 DSL
+      val list: SkipList[ Leaf ] = HASkipList.empty[ Leaf ]( MaxLeaf, 2 ) // 2-5 DSL
       def skipList = list
+
+      val numChildren = 4
 
       // ---- map support ----
 
@@ -57,20 +59,16 @@ object DeterministicSkipQuadTree {
       }
 
       def +=( point: Point, value: V ) : this.type = {
-//         val (point, value)   = kv
-         val p0               = tl.findP0( point )
-         val ordLeaf          = p0.insert( point, value )
-//         assert( ordLeaf.elem.isInstanceOf[ Leaf ])
-//println( "adding to skiplist : " + ordLeaf.elem )
-         list.add( ordLeaf )
+         val p0   = tl.findP0( point )
+         val leaf = p0.insert( point, value )
+         list.add( leaf )
          this
       }
 
       def get( point: Point ) : Option[ V ] = {
-         val p0   = tl.findP0( point )
-         val c    = p0.children
-         var i = 0; while( i < c.size ) {
-            c( i ) match {
+         val p0 = tl.findP0( point )
+         var i = 0; while( i < numChildren ) {
+            p0.child( i ) match {
                case l: Leaf if( l.point == point ) => return Some( l.value )
                case _ =>
             }
@@ -83,55 +81,48 @@ object DeterministicSkipQuadTree {
       def iterator = new Iterator[ (Point, V) ] {
          val underlying = list.iterator
          def next : (Point, V) = {
-            // XXX ouch... the problem with the TotalOrder is
-            // that it cannot be made variant because of the
-            // double linking, thus the skip list cannot hold
-            // TotalOrder[ Leaf ] but only TotalOrder[ NonEmpty ]
-            // requiring this ugly cast :-(
-//            val l = underlying.next.elem.asInstanceOf[ Leaf ]
-//            (l.point, l.value)
-//            val res =
-               underlying.next.elem.asMapEntry
-//println( "iter : " + res )
-//            res
+            val leaf = underlying.next
+            (leaf.point, leaf.value)
          }
          def hasNext : Boolean = underlying.hasNext
       }
 
-      sealed trait Child {
-         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder
-         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder
-      }
+      sealed trait Child
+      sealed trait LeftChild extends Child
 
-      case object Empty extends Child {
-         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder  = parent.insertOrderBefore( parent /* XXX ouch */, child )
-         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder   = parent.insertOrderAfter( parent /* XXX ouch */, child )
-      }
-
+      case object Empty extends LeftChild
       sealed trait NonEmpty extends Child {
          def union( mq: Quad, point: Point ) : Quad
          def quadIdxIn( iq: Quad ) : Int
-         def asMapEntry : (Point, V)
+      }
+      sealed  trait LeftNonEmpty extends NonEmpty with LeftChild {
+         def startOrder: InOrder
+         def stopOrder: InOrder
       }
 
-      type InOrder = TotalOrder[ NonEmpty ]
+      type InOrder = TotalOrder[ LeftNonEmpty ]
 
-      sealed trait Leaf extends NonEmpty {
+      sealed trait Leaf extends LeftNonEmpty with Ordered[ Leaf ] {
          def point : Point
          def value : V
-         def asMapEntry : (Point, V) = (point, value)
+         def order : InOrder
+
+         def compare( that: Leaf ) : Int = order.compare( that.order )
+
          def union( mq: Quad, point2: Point ) = {
             val p = point
             interestingSquare( mq, p.x, p.y, 1, point2 )
          }
          def quadIdxIn( iq: Quad ) : Int = pointInQuad( iq, point )
+         def startOrder : InOrder   = order
+         def stopOrder : InOrder    = order
       }
 
       sealed trait Node extends NonEmpty {
-         def children : Array[ Child ]
+         def child( idx: Int ) : Child
+
          def findP0( point: Point ) : LeftNode
          def quad: Quad
-         def asMapEntry : (Point, V) = unsupportedOp
 
          def union( mq: Quad, point2: Point ) = {
             val q = quad
@@ -145,150 +136,113 @@ object DeterministicSkipQuadTree {
 
          def findP0( point: Point ) : LeftNode = {
             val qidx = pointInQuad( quad, point )
-            children( qidx ) match {
+            child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
             }
          }
       }
 
-//      sealed trait LeftChild {
-////         def startOrder: InOrder
-////         def stopOrder: InOrder
-//      }
-
-      sealed trait LeftNode extends Node {
-//         def north: InOrder
-//         def south: InOrder
-//         override def children : Array[ LeftChild ]
-
-         def startOrder: InOrder
-         def stopOrder: InOrder
+      sealed trait LeftNode extends Node with LeftNonEmpty {
+         def children : Array[ LeftChild ]
+         def child( idx: Int ) : Child = children( idx )
 
          def newLeaf( point: Point, value: V ) : Leaf
-         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode
-
-//         def order( child: NonEmpty ) : InOrder = {
-//            val cidx = child.quadIdxIn( quad )
-//            val hemi = if( cidx < 2 ) north else south
-//println( "order " + child + " wrt " + this + " -> idx = " + cidx )
-//            if( (cidx % 2) == 0 ) hemi.insertBefore( child ) else hemi.insertAfter( child )
-//         }
-
-         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder  = startOrder.insertAfter( child )
-         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder   = stopOrder.insertBefore( child )
-
-         def orderLeaf( qidx: Int, child: Leaf ) : InOrder = {
-            (qidx: @switch) match {
-               case 0 => startOrder.insertAfter( child )
-               case 1 => children( 0 ).insertOrderAfter( this, child )
-               case 2 => children( 3 ).insertOrderBefore( this, child )
-               case 3 => stopOrder.insertBefore( child )
-            }
-         }
-
-//         def orderStop( child: NonEmpty ) : InOrder = {
-//            (child.quadIdxIn( quad ): @switch) match {
-//               case 0 => startOrder.insertAfter( child )
-//               case 1 => children( 0 ) match {
-//                  case n: NonEmpty => n.stopOrder.insertAfter( child )
-//                  case _ => startOrder.insertAfter( child )
-//               }
-//               case 2 => children( 3 ) match {
-//                  case n: NonEmpty => n.startOrder.insertBefore( child )
-//                  case _ => stopOrder.insertBefore( child )
-//               }
-//               case 3 => stopOrder.insertBefore( child )
-//            }
-//         }
+         def newNode( iq: Quad ) : LeftNode
 
          def findP0( point: Point ) : LeftNode = {
             val qidx = pointInQuad( quad, point )
-            children( qidx ) match {
+            child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => this
             }
          }
 
-         def insert( point: Point, value: V ) : InOrder = {
+         def insert( point: Point, value: V ) : Leaf = {
             val qidx = pointInQuad( quad, point )
-            val leaf = newLeaf( point, value )
             val c    = children
             c( qidx ) match {
                case Empty =>
-                  c( qidx ) = leaf
-//                  order( leaf )
-                  orderLeaf( qidx, leaf )
-               case n: NonEmpty =>
-                  val qn2  = n.union( quad.quadrant( qidx ), point )
-                  val n2   = newNode( qn2, n, leaf  )
-                  c( qidx ) = n2
-//                  n2.order( leaf )
-                  n2.orderLeaf( leaf.quadIdxIn( qn2 ), leaf )
+                  val leaf    = newLeaf( point, value )
+                  c( qidx )   = leaf
+                  leaf
+               case old: LeftNonEmpty =>
+                  val qn2     = old.union( quad.quadrant( qidx ), point )
+                  val n2      = newNode( qn2 )
+                  val c2      = n2.children
+                  val oidx    = old.quadIdxIn( qn2 )
+                  c2( oidx )  = old
+                  val leaf    = n2.newLeaf( point, value )
+                  val lidx    = leaf.quadIdxIn( qn2 )
+                  c2( lidx )  = leaf
+                  c( qidx )   = n2
+                  leaf
             }
          }
       }
 
       sealed trait LeftNodeImpl extends LeftNode {
-         val children = Array.fill[ Child ]( 4 )( Empty )
+         val children = Array.fill[ LeftChild ]( 4 )( Empty )
 
-         def newLeaf( point: Point, value: V ) : Leaf = new LeafImpl( point, value ) // XXX parent?
+         def newLeaf( point: Point, value: V ) : Leaf = LeafImpl( point, value ) { l =>
+            val lne: LeftNonEmpty = l
+            ((lne.quadIdxIn( quad ): @switch) match {
+               case 0 => startOrder.insertAfter( lne )
+               case 1 => children( 0 ) match {
+                  case n2: LeftNonEmpty => n2.stopOrder.insertAfter( l )
+                  case _ => startOrder.insertAfter( lne )
+               }
+               case 2 => children( 3 ) match {
+                  case n2: LeftNonEmpty => n2.startOrder.insertBefore( l )
+                  case _ => stopOrder.insertBefore( lne )
+               }
+               case 3 => stopOrder.insertBefore( lne )
+            }) : InOrder // to satisfy idea's presentation compiler
+         }
 
-         def newNode( iq: Quad, old: NonEmpty, nu: Leaf ) : LeftNode = {
-            val n    = InnerLeftNode( this, iq )( old )
-            val c    = n.children
-            val oidx = old.quadIdxIn( iq )
-            c( oidx )= old
-            val nidx = nu.quadIdxIn( iq )
-            c( nidx )= nu
-            // XXX parents?
-            n
+         @tailrec final def insetStart( n: LeftNonEmpty, idx: Int ) : InOrder = {
+            if( idx == -1 ) {
+               startOrder.insertAfter( n )
+            } else children( idx ) match {
+               case n2: LeftNonEmpty => n2.startOrder.insertBefore( n )
+               case _ => insetStart( n, idx  - 1 )
+            }
+         }
+         @tailrec final def insetStop( n: LeftNonEmpty, idx: Int ) : InOrder = {
+            if( idx == 4 ) {
+               stopOrder.insertBefore( n )
+            } else children( idx ) match {
+               case n2: LeftNonEmpty => n2.stopOrder.insertAfter( n )
+               case _ => insetStop( n, idx + 1 )
+            }
+         }
+
+         def insets( n: LeftNode, nidx: Int ) : (InOrder, InOrder) = {
+            (insetStart( n, nidx ), insetStop( n, nidx ))
+         }
+
+         def newNode( iq: Quad ) : LeftNode = InnerLeftNode( this, iq ) { n =>
+            insets( n, n.quadIdxIn( quad ))
          }
       }
 
       final case class TopLeftNode( quad: Quad ) extends LeftNodeImpl {
-         val startOrder = TotalOrder[ NonEmpty ]( this )
+         val startOrder = TotalOrder[ LeftNonEmpty ]( this )
          val stopOrder  = startOrder.insertAfter( this )
       }
 
-      final case class InnerLeftNode( parent: LeftNode, quad: Quad )( _rplc: NonEmpty ) extends LeftNodeImpl {
-//         val north   = parent.order( this )
-//         val startOrder = _rplc.startOrder.insertBefore( this )
-//         val stopOrder  = _rplc.stopOrder.insertAfter( this )
-         val startOrder = _rplc.insertOrderBefore( parent, this )
-         val stopOrder  = _rplc.insertOrderAfter( parent, this )
+      final case class InnerLeftNode( parent: LeftNode, quad: Quad )( _ins: LeftNode => (InOrder, InOrder) ) extends LeftNodeImpl {
+         val (startOrder, stopOrder) = _ins( this )
       }
 
-      final case class LeafImpl( point: Point, value: V ) extends Leaf {
-         def insertOrderBefore( parent: Node, child: NonEmpty ) : InOrder = {
-            val cs = parent.children
-            var i = 0; while( true ) {
-               if( cs( i ) eq this ) {
-                  val i1 = i + 1
-                  return if( i == 0 ) {
-                     parent.insertOrderBefore( parent /* XXX ouch */, child )
-                  } else {
-                     cs( i - 1 ).insertOrderBefore( parent, child )
-                  }
-               }
-            i+= 1 }
-            error( "Never here" )
-         }
+      object MaxLeaf extends Leaf {
+         val point   = Point( Int.MaxValue, Int.MaxValue )
+         val value   = null.asInstanceOf[ V ]
+         val order   = TotalOrder.max[ LeftNonEmpty ]
+      }
 
-         def insertOrderAfter( parent: Node, child: NonEmpty ) : InOrder = {
-            val cs = parent.children
-            var i = 0; while( true ) {
-               if( cs( i ) eq this ) {
-                  val i1 = i + 1
-                  return if( i1 == cs.size ) {
-                     parent.insertOrderAfter( parent /* XXX ouch */, child )
-                  } else {
-                     cs( i1 ).insertOrderAfter( parent, child )
-                  }
-               }
-            i+= 1 }
-            error( "Never here" )
-         }
+      final case class LeafImpl( point: Point, value: V )( _ins: Leaf => InOrder ) extends Leaf {
+         val order = _ins( this )
       }
    }
 
@@ -348,7 +302,7 @@ object DeterministicSkipQuadTree {
       }
    }
 
-   private def unsupportedOp : Nothing = error( "Operation not supported" )
+//   private def unsupportedOp : Nothing = error( "Operation not supported" )
 
    // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
    @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
