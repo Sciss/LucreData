@@ -31,20 +31,41 @@ package de.sciss.tree
 import view.{HASkipListView, LLSkipListView}
 import javax.swing.{JComponent, SwingConstants, JLabel, BoxLayout, Box, WindowConstants, JFrame}
 import java.awt.{Color, BorderLayout, EventQueue}
+import collection.immutable.IntMap
 
 object SkipListTest extends App with Runnable {
    val n = 50  // <= 25 to show the same list for the LL implementation!
 
    EventQueue.invokeLater( this )
 
+   class Observer extends HASkipList.KeyObserver[ Int ] {
+      var map = IntMap.empty[ Int ]
+      def keyUp( i: Int ) {
+         map += i -> (map.getOrElse( i, 0 ) + 1)
+      }
+      def keyDown( i: Int ) {
+         val c = map( i ) - 1
+         if( c == 0 ) map -= i else map += i -> c
+      }
+      def report {
+         val m = map.toList.groupBy( _._2 ).mapValues( _.map( _._1 ))
+         m.keys.toList.sorted.reverse.foreach { k => println( "@ lvl " + k + " : " + m( k ).mkString( ", " ))}
+      }
+   }
+
+   def obs() = new Observer
+
    def run {
       val f    = new JFrame( "Skip Lists" )
       f.setResizable( false )
       val cp   = f.getContentPane
       val ll   = LLSkipList.empty
-      val ha   = HASkipList.empty[ Int ]( 0x7FFFFFFF, 1 ) // .withIntKey( (i: Int) => i )
-      val ha2  = HASkipList.empty[ Int ]( 0x7FFFFFFF, 2 ) // .withIntKey( (i: Int) => i, minGap = 2 )
-      val ha3  = HASkipList.empty[ Int ]( 0x7FFFFFFF, 6 ) // .withIntKey( (i: Int) => i, minGap = 6 )
+      val hao  = obs()
+      val hao2 = obs()
+      val hao3 = obs()
+      val ha   = HASkipList.empty[ Int ]( 0x7FFFFFFF, 1, hao )
+      val ha2  = HASkipList.empty[ Int ]( 0x7FFFFFFF, 2, hao2 )
+      val ha3  = HASkipList.empty[ Int ]( 0x7FFFFFFF, 6, hao3 )
 //      val l    = List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ) ++ List( 20, 21, 61 )
       val rnd  = new util.Random() // ( 0L )
       val l    = List.fill( n )( rnd.nextInt( 100 ))
@@ -95,9 +116,12 @@ object SkipListTest extends App with Runnable {
 
       println( ":::: HA 1-3 DSL toList ::::" )
       println( ha.toList )
+      hao.report
       println( ":::: HA 2-5 DSL toList ::::" )
       println( ha2.toList )
+      hao2.report
       println( ":::: HA 6-13 DSL toList ::::" )
       println( ha3.toList )
+      hao3.report
    }
 }

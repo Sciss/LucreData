@@ -47,10 +47,12 @@ object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
 //      new Impl[ B, A ]( minGap, key maxKey )
 
-   def empty[ @specialized( Int, Long ) A : Ordering : Manifest ]( maxKey: A, minGap: Int = 2 ) : HASkipList[ A ] = {
+   def empty[ @specialized( Int, Long ) A : Ordering : Manifest ]
+      ( maxKey: A, minGap: Int = 2, keyObserver: KeyObserver[ A ] = new NoKeyObserver[ A ]) : HASkipList[ A ] = {
+
       require( minGap >= 1 )
       if( minGap == 1 ) println( "WARNING: HASkipList implementation currently broken for minGap = 1" )
-      new Impl( maxKey, minGap )
+      new Impl( maxKey, minGap, keyObserver )
    }
 
    sealed trait Node[ @specialized( Int, Long ) A ] {
@@ -60,13 +62,31 @@ object HASkipList {
       def isBottom : Boolean // = this eq Bottom
    }
 
-//   private object Impl {
-//      val MAX_KEY = 0x7FFFFFFF
-//   }
-   private class Impl[ @specialized( Int, Long ) A ]( maxKey: A, val minGap: Int )( implicit mf: Manifest[ A ], ord: Ordering[ A ])
-   extends HASkipList[ A ] { // extends Impl[ Int, A ]
-//      import Impl._
+   /**
+    * A trait for observing the promotion and demotion of a key
+    * in the skip list's level hierarchy
+    */
+   trait KeyObserver[ @specialized( Int, Long ) A ] {
+      /**
+       * Notifies the observer that a given key
+       * is promoted to a higher (more sparse) level
+       */
+      def keyUp( key : A ) : Unit
+      /**
+       * Notifies the observer that a given key
+       * is demoted to a lower (more dense) level
+       */
+      def keyDown( key : A ) : Unit
+   }
 
+   final class NoKeyObserver[ @specialized( Int, Long ) A ] extends KeyObserver[ A ] {
+      def keyUp( key : A ) {}
+      def keyDown( key : A ) {}
+   }
+
+   private class Impl[ @specialized( Int, Long ) A ]( maxKey: A, val minGap: Int, keyObserver: KeyObserver[ A ])
+                                                    ( implicit mf: Manifest[ A ], ord: Ordering[ A ])
+   extends HASkipList[ A ] {
       val maxGap  = (minGap << 1) + 1
       val arrSize = maxGap + 1
       var arrMid  = maxGap >> 1
@@ -161,6 +181,9 @@ object HASkipList {
             // beause it means we are now traversing the right
             // half!
             if( ord.gteq( key, splitKey )) ch.node = right
+
+            // notify observer
+            keyObserver.keyUp( splitKey )
          }
 
          /**
