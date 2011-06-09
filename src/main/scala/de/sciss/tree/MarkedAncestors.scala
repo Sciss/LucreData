@@ -30,10 +30,13 @@ package de.sciss.tree
 
 import collection.breakOut
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import annotation.tailrec
-import sys.error // suckers
+import sys.error
 import java.io.{FileOutputStream, OutputStreamWriter, File}
 
+// Note: It was not possible to get clarification from the
+// original paper authors regarding the division of
+// the micro trees into dynamic paths; the implementation
+// is thus abandoned at this stage.
 object MarkedAncestors extends App {
    staticTest
 

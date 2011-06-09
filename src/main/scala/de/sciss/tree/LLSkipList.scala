@@ -36,6 +36,8 @@ import sys.error
  * literal translation of his original C code, and serves as a basis
  * for developing the horizontal array technique. As a study, it is
  * limited to insertion of Ints.
+ *
+ * TODO: Add key observers
  */
 object LLSkipList {
    val MAX_KEY = 0x7FFFFFFF

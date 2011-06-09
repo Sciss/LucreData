@@ -55,7 +55,7 @@ object DeterministicSkipQuadTree {
       private var tl: Node = {
          TopLeftNode( _quad )
       }
-      val list: SkipList[ Leaf ] = HASkipList.empty[ Leaf ]( MaxLeaf, 2 ) // 2-5 DSL
+      val list: SkipList[ Leaf ] = HASkipList.empty[ Leaf ]( MaxLeaf, 2, KeyObserver ) // 2-5 DSL
       def skipList = list
 
       val numChildren = 4
@@ -85,7 +85,9 @@ object DeterministicSkipQuadTree {
          None
       }
 
-      def -=( point: Point ) : this.type = error( "Not yet implemented" )
+      def notYetImplemented : Nothing = error( "Not yet implemented" )
+
+      def -=( point: Point ) : this.type = notYetImplemented
 
       def iterator = new Iterator[ (Point, V) ] {
          val underlying = list.iterator
@@ -94,6 +96,17 @@ object DeterministicSkipQuadTree {
             (leaf.point, leaf.value)
          }
          def hasNext : Boolean = underlying.hasNext
+      }
+
+      object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
+         def keyUp( l: Leaf ) {
+            println( "up : " + l )
+         }
+
+         def keyDown( l: Leaf ) {
+            println( "down : " + l )
+            notYetImplemented
+         }
       }
 
       sealed trait Child
