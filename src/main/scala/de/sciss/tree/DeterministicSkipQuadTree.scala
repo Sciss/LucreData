@@ -102,7 +102,7 @@ object DeterministicSkipQuadTree {
             //  with q = pi,start = pi+1,end so it takes at most 6
             //  steps by Lemma 5.) Then we go to the same square q
             //  in Qi+1 and insert x."
-            val path = new Array[ Node ]( 6 )
+            val path = new Array[ Node ]( 6 ) // hmmm... according to what i've seen, the maximum necessary size is 4 ?!
             val q0o  = l.parent.findPN( path, 0 )
             val q0   = if( q0o == null ) { // create new level
                val res = TopRightNode( tl )
@@ -344,23 +344,23 @@ object DeterministicSkipQuadTree {
 //                  val leaf    = newLeaf( point, value )
                   leaf.parent = this
                   c( qidx )   = leaf
-println( "promoted " + point + " to " + leaf.parent.quad )
+//println( "promoted " + point + " to " + leaf.parent.quad )
 
                case old: NonEmpty =>
                   val qn2     = old.union( quad.quadrant( qidx ), point )
                   // find the corresponding node in the lower tree
-val gaga = old match {
-   case l: Leaf => Quad( l.point.x, l.point.y, 1 )
-   case n: Node => n.quad
-}
-print( "promoting " + point + " to union(" + gaga + ", " + point + ") = " + qn2 + " (parent = " + quad + "; path = " +
-   path.toList.takeWhile(_ != null ).map(_.quad) + ") ... " )
+//val gaga = old match {
+//   case l: Leaf => Quad( l.point.x, l.point.y, 1 )
+//   case n: Node => n.quad
+//}
+//print( "promoting " + point + " to union(" + gaga + ", " + point + ") = " + qn2 + " (parent = " + quad + "; path = " +
+//   path.toList.takeWhile(_ != null ).map(_.quad) + ") ... " )
                   var pathIdx = 0; while( path( pathIdx ).quad != qn2 ) pathIdx += 1
                   val n2      = newNode( path( pathIdx ), qn2 )
-println( "(pathIdx = " + pathIdx + " of " + {
-   var i = pathIdx + 1; while( i < 6 && path( i ) != null ) i += 1
-   i
-} + ")" )
+//println( "(pathIdx = " + pathIdx + " of " + {
+//   var i = pathIdx + 1; while( i < 6 && path( i ) != null ) i += 1
+//   i
+//} + ")" )
                   val c2      = n2.children
                   val oidx    = old.quadIdxIn( qn2 )
                   c2( oidx )  = old
@@ -431,6 +431,7 @@ println( "(pathIdx = " + pathIdx + " of " + {
 val tmp = quadInQuad( quad, qn2 )
 if( tmp == -1 ) {
    println( "Ouch! " + qn2 + " not in " + quad )
+   old.union( quad.quadrant( qidx ), point )
 }
                   val n2      = newNode( qn2 )
                   val c2      = n2.children
@@ -621,24 +622,56 @@ if( tmp == -1 ) {
       }
    }
 
+//   private def interestingSquare( pq: Quad, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
+//      val tlx           = pq.cx - pq.extent
+//      val tly           = pq.cy - pq.extent
+//      val akx           = aleft - tlx
+//      val aky           = atop  - tly
+//      val bkx           = b.x - tlx
+//      val bky           = b.y - tly
+//      val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx ) // XXX Tuple3 not specialized
+//      val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky ) // XXX Tuple3 not specialized
+//      val mx            = binSplit( x1, x2 )
+//      val my            = binSplit( y1, y2 )
+//      // that means the x extent is greater (x grid more coarse).
+//      if( mx <= my ) {
+//         Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )   // XXX check for Int.MaxValue issues
+//      } else {
+//         Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )   // XXX check for Int.MaxValue issues
+//      }
+//   }
+
    private def interestingSquare( pq: Quad, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
-//         val pq            = quad.quadrant( pqidx )
-      val tlx           = pq.cx - pq.extent
-      val tly           = pq.cy - pq.extent
-      val akx           = aleft - tlx
-      val aky           = atop  - tly
-      val bkx           = b.x - tlx
-      val bky           = b.y - tly
-      val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx ) // XXX Tuple3 not specialized
-      val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky ) // XXX Tuple3 not specialized
-      val mx            = binSplit( x1, x2 )
-      val my            = binSplit( y1, y2 )
-      // that means the x extent is greater (x grid more coarse).
-      if( mx <= my ) {
-         Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )   // XXX check for Int.MaxValue issues
+      val tlx  = pq.x
+      val tly  = pq.y
+      val akx  = aleft - tlx
+      val aky  = atop  - tly
+      val bkx  = b.x - tlx
+      val bky  = b.y - tly
+      var x0, x1, x2, y0, y1, y2 = 0
+
+      if( akx <= bkx ) {
+         x0 = akx
+         x1 = akx + asize
+         x2 = bkx
       } else {
-         Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )   // XXX check for Int.MaxValue issues
+         x0 = bkx
+         x1 = bkx + 1
+         x2 = akx
       }
+      if( aky <= bky ) {
+         y0 = aky
+         y1 = aky + asize
+         y2 = bky
+      } else {
+         y0 = bky
+         y1 = bky + 1
+         y2 = aky
+      }
+      val mask = math.min( binSplit( x1, x2 ), binSplit( y1, y2 ))
+      val ext  = -mask
+      val m2   = mask << 1
+      Quad( tlx + (x0 & m2) + ext, tly + (y0 & m2) + ext, ext )
    }
 
    // visible interface

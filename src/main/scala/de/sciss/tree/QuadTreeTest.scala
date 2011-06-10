@@ -44,7 +44,7 @@ Options:
 -fig1
 -fig2
 -test1
--test2 (somehow a variant of fig. 5)
+-test2 (somehow a variant of fig. 5 -- only with high n and skewed dist)
 """)
          sys.exit( 1 )
    }
@@ -165,7 +165,9 @@ Options:
          )
 
          val rnd     = new util.Random( 0 )
-         val set3    = map2.map(_._1).toSet ++ IndexedSeq.fill( 10000 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet
+//         val set3    = /* map2.map(_._1).toSet ++ */ IndexedSeq.fill( 10000 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet
+         val set3    =IndexedSeq.fill( 10000 )( Point( (math.log( rnd.nextDouble() * 8886109.0 + 1 ) * 32).toInt,
+                                                       (math.log( rnd.nextDouble() * 8886109.0 + 1 ) * 32).toInt )).toSet
          val keys3   = set3.toSeq
 
          val keys3b  = Seq(
