@@ -52,7 +52,6 @@ object SkipList {
       def keyUp( key : A ) {}
       def keyDown( key : A ) {}
    }
-
 }
 trait SkipList[ @specialized( Int, Long ) A ] extends MSet[ A ] {
    /**

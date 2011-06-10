@@ -51,7 +51,10 @@ object DeterministicSkipQuadTree {
 
    private class TreeImpl[ V ]( _quad: Quad ) extends DeterministicSkipQuadTree[ V ] {
       private var tl: TopNode = TopLeftNode
-      val list: SkipList[ Leaf ] = HASkipList.empty[ Leaf ]( MaxLeaf, 2, KeyObserver ) // 2-5 DSL
+      val list: SkipList[ Leaf ] = {
+         val mf = implicitly[ Manifest[ Leaf ]]
+         HASkipList.empty[ Leaf ]( 2, KeyObserver )( Ordering.ordered[ Leaf ], MaxKey( MaxLeaf ), mf )
+      } // 2-5 DSL
       def skipList = list
 
       val numChildren = 4
@@ -204,6 +207,9 @@ object DeterministicSkipQuadTree {
        * points into the highest level quadtree that
        * the leaf resides in, according to the skiplist.
        */
+//      object Leaf {
+//         implicit val mx = MaxKey( MaxLeaf )
+//      }
       sealed trait Leaf extends LeftNonEmpty with Ordered[ Leaf ] with QLeaf {
          def point : Point
          def value : V

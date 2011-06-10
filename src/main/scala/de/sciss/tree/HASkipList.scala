@@ -47,12 +47,12 @@ object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
 //      new Impl[ B, A ]( minGap, key maxKey )
 
-   def empty[ @specialized( Int, Long ) A : Ordering : Manifest ]
-      ( maxKey: A, minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ]) : HASkipList[ A ] = {
-
-      require( minGap >= 1 )
+   def empty[ A : Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty()
+   def empty[ A ]( minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ])
+                 ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
+      require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
       if( minGap == 1 ) println( "WARNING: HASkipList implementation currently broken for minGap = 1" )
-      new Impl( maxKey, minGap, keyObserver )
+      new Impl( maxKey.value, minGap, keyObserver )
    }
 
    sealed trait Node[ @specialized( Int, Long ) A ] {

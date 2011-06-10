@@ -51,7 +51,7 @@ object InteractiveSkipListView extends App with Runnable {
    }
 }
 class InteractiveSkipListView extends JPanel( new BorderLayout() ) {
-   val l    = LLSkipList.empty( Int.MaxValue )
+   val l    = LLSkipList.empty[ Int ]
    val slv  = new LLSkipListView( l )
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
 

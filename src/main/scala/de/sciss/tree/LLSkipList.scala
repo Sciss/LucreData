@@ -39,9 +39,10 @@ import sys.error
  * TODO: - implement -=
  */
 object LLSkipList {
-   def empty[ @specialized( Int, Long ) A : Ordering /* : Manifest */ ]
-      ( maxKey: A, keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ]) : LLSkipList[ A ] =
-      new Impl( maxKey, keyObserver )
+   def empty[ A : Ordering : MaxKey ] : LLSkipList[ A ] = empty()
+   def empty[ A ]( keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ])
+                 ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ]) : LLSkipList[ A ] =
+      new Impl( maxKey.value, keyObserver )
 
    sealed trait Node[ @specialized( Int, Long ) A ] {
       def key: A
