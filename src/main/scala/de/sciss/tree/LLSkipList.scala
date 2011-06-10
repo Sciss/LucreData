@@ -86,6 +86,7 @@ object LLSkipList {
        * @return  `true` if the key is in the list, `false` otherwise
        */
       def contains( v: A ) : Boolean = {
+         if( ordering.gteq( v, maxKey )) return false
          var x = hd
          while( !x.isBottom ) {
             while( ordering.gt( v, x.key )) x = x.right
@@ -105,6 +106,7 @@ object LLSkipList {
        *          `false` if a node with the given key already existed
        */
       override def add( v: A ) : Boolean = {
+         require( ordering.lt( v, maxKey ), "Cannot add key (" + v + ") greater or equal to maxKey" )
          var x       = hd
          bottom.key  = v
          var success = true
@@ -146,7 +148,7 @@ object LLSkipList {
             n
          }
 
-         def hasNext : Boolean = !ordering.equiv( x.key, maxKey )
+         def hasNext : Boolean = !x.right.isTail // ordering.equiv( x.key, maxKey )
          def next : A = {
             val res = x.key
             x = x.right
@@ -171,7 +173,7 @@ object LLSkipList {
       override def size : Int = {
          var x = top
          while( !x.down.isBottom ) x = x.down
-         var i = 0; while( !ordering.equiv( x.key, maxKey )) { x = x.right; i += 1 }
+         var i = -1; while( x.isTail ) { x = x.right; i += 1 }
          i
       }
    }

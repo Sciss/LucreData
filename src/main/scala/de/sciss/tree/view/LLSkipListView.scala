@@ -29,14 +29,16 @@
 package de.sciss.tree.view
 
 import de.sciss.tree.LLSkipList
-import java.awt.{Dimension, Graphics2D}
 import java.awt.geom.GeneralPath
+import java.awt.{Color, Dimension, Graphics2D}
 
 class LLSkipListView[ A ]( l: LLSkipList[ A ]) extends SkipListView {
    private val ord = l.ordering
    private val mx  = l.maxKey
 
    setPreferredSize( new Dimension( (l.size + 1) * 64 + 16, l.height * 64 + 16 ))
+
+   var highlight = Option.empty[ A ]
 
    protected def paintList( g2: Graphics2D ) {
       var x = l.top
@@ -60,7 +62,11 @@ class LLSkipListView[ A ]( l: LLSkipList[ A ]) extends SkipListView {
       g2.drawLine( 0, 23, 46, 23 )
       val key = x.key
       val keyStr = if( ord.equiv( key, mx )) "M" else key.toString
+      if( Some( key ) == highlight ) {
+         g2.setColor( Color.red )
+      }
       g2.drawString( keyStr, 4, 17 )
+      g2.setColor( Color.black )
       g2.fillOval( 34, 10, 3, 3 )
       val harrLen = gapSize( x ) * 64 + 27
       g2.drawLine( 36, 11, 36 + harrLen - 1, 11 )
