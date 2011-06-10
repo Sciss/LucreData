@@ -428,11 +428,11 @@ object DeterministicSkipQuadTree {
                   leaf
                case old: LeftNonEmpty =>
                   val qn2     = old.union( quad.quadrant( qidx ), point )
-val tmp = quadInQuad( quad, qn2 )
-if( tmp == -1 ) {
-   println( "Ouch! " + qn2 + " not in " + quad )
-   old.union( quad.quadrant( qidx ), point )
-}
+//val tmp = quadInQuad( quad, qn2 )
+//if( tmp == -1 ) {
+//   println( "Ouch! " + qn2 + " not in " + quad )
+//   old.union( quad.quadrant( qidx ), point )
+//}
                   val n2      = newNode( qn2 )
                   val c2      = n2.children
                   val oidx    = old.quadIdxIn( qn2 )
