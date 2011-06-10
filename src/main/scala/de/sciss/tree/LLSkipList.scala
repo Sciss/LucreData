@@ -34,10 +34,9 @@ import sys.error
  * A deterministic 1-3 skip list implemented using a linked list with
  * 'drawn back keys', as described by T. Papadakis. This is a rather
  * literal translation of his original C code, and serves as a basis
- * for developing the horizontal array technique. As a study, it is
- * limited to insertion of Ints.
+ * for developing the horizontal array technique.
  *
- * TODO: Add key observers
+ * TODO: - implement -=
  */
 object LLSkipList {
    def empty[ @specialized( Int, Long ) A : Ordering /* : Manifest */ ]
@@ -111,6 +110,7 @@ object LLSkipList {
          var success = true
          while( !x.isBottom ) {
             while( ordering.gt( v, x.key )) x = x.right
+            val d    = x.down
             val dr   = x.down.right
             val drr  = dr.right
             if( ordering.gt( x.key, drr.key )) { // this happens when the gap has size 3, or we at the lowest level
@@ -120,10 +120,11 @@ object LLSkipList {
                x.right  = t
                t.key    = x.key
                x.key    = dr.key
+               if( !d.isBottom ) keyObserver.keyUp( x.key )
             } else {
-               if( x.down.isBottom ) success = false
+               if( d.isBottom ) success = false
             }
-            x = x.down
+            x = d
          }
          if( !hd.right.isTail ) { // need to increase list height
             val t    = new NodeImpl

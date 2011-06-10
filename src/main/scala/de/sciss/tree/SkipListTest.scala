@@ -59,7 +59,8 @@ object SkipListTest extends App with Runnable {
       val f    = new JFrame( "Skip Lists" )
       f.setResizable( false )
       val cp   = f.getContentPane
-      val ll   = LLSkipList.empty[ Int ]( 0x7FFFFFFF )
+      val llo  = obs()
+      val ll   = LLSkipList.empty[ Int ]( 0x7FFFFFFF, llo )
       val hao  = obs()
       val hao2 = obs()
       val hao3 = obs()
@@ -114,6 +115,9 @@ object SkipListTest extends App with Runnable {
       f.setLocationRelativeTo( null )
       f.setVisible( true )
 
+      println( ":::: LL 1-3 DSL toList ::::" )
+      println( ll.toList )
+      llo.report
       println( ":::: HA 1-3 DSL toList ::::" )
       println( ha.toList )
       hao.report
