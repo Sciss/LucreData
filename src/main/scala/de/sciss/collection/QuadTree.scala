@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.collection
 
 object QuadTree {
    def apply[ V ]( center: Point, extent: Int ) : QNode[ V ] = new NodeImpl[ V ]( center, extent )

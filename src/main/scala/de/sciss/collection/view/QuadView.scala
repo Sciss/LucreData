@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.collection
 package view
 
 import java.awt.{Color, RenderingHints, Graphics2D, Graphics, Dimension}

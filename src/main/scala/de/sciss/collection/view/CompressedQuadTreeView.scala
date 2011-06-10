@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.collection
 package view
 
 class CompressedQuadTreeView( t: CompressedQuadTree.QNode[ _ ]) extends QuadView {

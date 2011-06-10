@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.collection
 
 import collection.mutable.{ Builder, DoubleLinkedListLike, LinearSeq => MLinearSeq, Seq => MSeq }
 import collection.generic.{SeqFactory, GenericCompanion, GenericTraversableTemplate}

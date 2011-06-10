@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.collection
 
 import view.{HASkipListView, LLSkipListView}
 import javax.swing.{JComponent, JLabel, BoxLayout, Box, WindowConstants, JFrame}

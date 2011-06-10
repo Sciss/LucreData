@@ -1,5 +1,5 @@
 /*
- *  SkipQuadTreeView.scala
+ *  QuadTreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -26,27 +26,22 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.collection
 package view
 
-class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]#QNode ) extends QuadView {
-//   import SkipQuadTree._
-
+class QuadTreeView( t: QuadTree.Q[ _ ]) extends QuadView {
    protected def draw( h: QuadView.PaintHelper ) {
       draw( h, t )
    }
 
    def rootQuad = t.quad
 
-   private def draw( h: QuadView.PaintHelper, quad: SkipQuadTree[ V ]#Q ) {
+   private def draw( h: QuadView.PaintHelper, quad: QuadTree.Q[ _ ]) {
       quad match {
-         case t: SkipQuadTree[ _ ]#QNode =>
-            for( idx <- 0 until 4 ) {
-               h.drawFrame( t.quad.quadrant( idx ))
-               draw( h, t.child( idx ))
-            }
-         case _: SkipQuadTree[ _ ]#QEmpty =>
-         case l: SkipQuadTree[ _ ]#QLeaf =>
+         case t: QuadTree.QNode[ _ ]   => List( t.nw, t.ne, t.sw, t.se ).foreach( draw( h, _ ))
+         case _: QuadTree.QEmpty[ _ ]  => h.drawFrame( quad.quad )
+         case l: QuadTree.QLeaf[ _ ]   =>
+            h.drawFrame( quad.quad )
             h.drawPoint( l.point )
       }
    }

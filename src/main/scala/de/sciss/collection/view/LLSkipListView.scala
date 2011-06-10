@@ -26,9 +26,9 @@
  *  Changelog:
  */
 
-package de.sciss.tree.view
+package de.sciss.collection.view
 
-import de.sciss.tree.LLSkipList
+import de.sciss.collection.LLSkipList
 import java.awt.geom.GeneralPath
 import java.awt.{Color, Dimension, Graphics2D}
 

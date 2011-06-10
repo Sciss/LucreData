@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.tree
+package de.sciss.collection
 
 import annotation.tailrec
 import sys.error  // suckers

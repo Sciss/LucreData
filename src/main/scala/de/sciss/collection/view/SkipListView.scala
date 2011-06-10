@@ -26,7 +26,7 @@
  *  Changelog:
  */
 
-package de.sciss.tree.view
+package de.sciss.collection.view
 
 import javax.swing.JComponent
 import java.awt.{RenderingHints, Graphics2D, Graphics, Font, Color}

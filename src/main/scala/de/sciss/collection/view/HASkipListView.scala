@@ -26,9 +26,9 @@
  *  Changelog:
  */
 
-package de.sciss.tree.view
+package de.sciss.collection.view
 
-import de.sciss.tree.HASkipList
+import de.sciss.collection.HASkipList
 import java.awt.geom.GeneralPath
 import java.awt.{Point, Rectangle, Dimension, Graphics2D}
 

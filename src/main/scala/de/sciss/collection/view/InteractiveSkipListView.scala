@@ -26,9 +26,9 @@
  *  Changelog:
  */
 
-package de.sciss.tree.view
+package de.sciss.collection.view
 
-import de.sciss.tree.LLSkipList
+import de.sciss.collection.LLSkipList
 import java.awt.event.{ActionListener, ActionEvent}
 import java.awt.{EventQueue, FlowLayout, BorderLayout, Dimension}
 import javax.swing.{WindowConstants, JFrame, JTextField, JButton, JPanel}
