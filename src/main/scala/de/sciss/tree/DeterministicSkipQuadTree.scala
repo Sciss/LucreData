@@ -38,8 +38,7 @@ import annotation.{switch, tailrec}
  *   TotalOrder that doesn't carry an `elem` field any more.
  * - delete is missing
  * - find nearest neighbour is missing
- * - propagation to higher levels is missing
- * - detect insertion of existing points (this causes a problem currently)
+ * - detect insertion of existing points (this causes a corruption currently!)
  */
 object DeterministicSkipQuadTree {
 //   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
@@ -82,7 +81,9 @@ object DeterministicSkipQuadTree {
          None
       }
 
-      def -=( point: Point ) : this.type = notYetImplemented
+      def -=( point: Point ) : this.type = {
+         error( "TODO" )
+      }
 
       def iterator = new Iterator[ (Point, V) ] {
          val underlying = list.iterator
@@ -206,6 +207,7 @@ object DeterministicSkipQuadTree {
       sealed trait Leaf extends LeftNonEmpty with Ordered[ Leaf ] with QLeaf {
          def point : Point
          def value : V
+//         def value_=( v: V ) : Unit  // XXX hmmm, not so nice
 
          /**
           * The position of this leaf in the in-order list.
@@ -346,6 +348,8 @@ object DeterministicSkipQuadTree {
                   c( qidx )   = leaf
 //println( "promoted " + point + " to " + leaf.parent.quad )
 
+//               case l: Leaf if( l.point == leaf.point )
+
                case old: NonEmpty =>
                   val qn2     = old.union( quad.quadrant( qidx ), point )
                   // find the corresponding node in the lower tree
@@ -403,6 +407,15 @@ object DeterministicSkipQuadTree {
           */
          def newLeaf( point: Point, value: V ) : Leaf
 
+//         /**
+//          * Creates a new leaf based on a given leaf,
+//          * but with a new value. The caller is responsible for
+//          * replacing the leaf in the children array, however
+//          * the method must ensure the old leaf is removed from
+//          * the order and the new one is inserted accordingly.
+//          */
+//         def newValue( leaf: Leaf, value: V ) : Leaf
+
          /**
           * Abstract method which should instantiate an appropriate
           * sub-node whose parent is this node, and which should be
@@ -426,6 +439,9 @@ object DeterministicSkipQuadTree {
                   val leaf    = newLeaf( point, value )
                   c( qidx )   = leaf
                   leaf
+//               case l: Leaf if( l.point == point ) => // replace value
+//                  l.value     = value
+//                  l
                case old: LeftNonEmpty =>
                   val qn2     = old.union( quad.quadrant( qidx ), point )
 //val tmp = quadInQuad( quad, qn2 )
@@ -474,6 +490,12 @@ object DeterministicSkipQuadTree {
                case 3 => stopOrder.insertBefore( lne )
             }) : InOrder // to satisfy idea's presentation compiler
          }
+
+//         def newValue( old: Leaf, value: V ) : Leaf = LeafImpl( this, leaf.point, value ) { l =>
+//            val ord = old.order
+//            ord.elem = l
+//            ord
+//         }
 
          @tailrec final def insetStart( n: LeftNonEmpty, idx: Int ) : InOrder = {
             if( idx == -1 ) {
@@ -544,11 +566,16 @@ object DeterministicSkipQuadTree {
          val order                        = TotalOrder.max[ LeftNonEmpty ]
 
          def value : V                    = unsupportedOp
+//         def value_=( v: V ) : Unit       = unsupportedOp
          def parent : Node                = unsupportedOp
          def parent_=( n: Node ) : Unit   = unsupportedOp
       }
 
-      final case class LeafImpl( var parent: Node, point: Point, value: V )( _ins: Leaf => InOrder ) extends Leaf {
+      // it would be better to replace the leaf instead of updating value; however
+      // the problem is there can be several pointers to a leaf, so at least for now,
+      // let's not make life more complicated than necessary. also skip list would
+      // need to be made 'replace-aware'.
+      final case class LeafImpl( var parent: Node, point: Point, /* var */ value: V )( _ins: Leaf => InOrder ) extends Leaf {
          val order = _ins( this )
       }
    }

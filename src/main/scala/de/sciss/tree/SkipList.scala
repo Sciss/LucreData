@@ -81,4 +81,15 @@ trait SkipList[ @specialized( Int, Long ) A ] extends MSet[ A ] {
     * Queries the number of keys in the skip list (the 'width'). This operation takes O(n) time.
     */
    def size : Int
+
+   /**
+    * Queries the 'maximum' key. In the ordering of the skip list,
+    * no is allowed to be greater or equal to this maximum key.
+    */
+   def maxKey : A
+
+   /**
+    * Queries the ordering used for the keys of this list.
+    */
+   def ordering : Ordering[ A ]
 }

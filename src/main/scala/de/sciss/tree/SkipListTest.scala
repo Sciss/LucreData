@@ -59,7 +59,7 @@ object SkipListTest extends App with Runnable {
       val f    = new JFrame( "Skip Lists" )
       f.setResizable( false )
       val cp   = f.getContentPane
-      val ll   = LLSkipList.empty
+      val ll   = LLSkipList.empty[ Int ]( 0x7FFFFFFF )
       val hao  = obs()
       val hao2 = obs()
       val hao3 = obs()

@@ -32,7 +32,10 @@ import de.sciss.tree.LLSkipList
 import java.awt.{Dimension, Graphics2D}
 import java.awt.geom.GeneralPath
 
-class LLSkipListView( l: LLSkipList ) extends SkipListView {
+class LLSkipListView[ A ]( l: LLSkipList[ A ]) extends SkipListView {
+   private val ord = l.ordering
+   private val mx  = l.maxKey
+
    setPreferredSize( new Dimension( (l.size + 1) * 64 + 16, l.height * 64 + 16 ))
 
    protected def paintList( g2: Graphics2D ) {
@@ -51,11 +54,12 @@ class LLSkipListView( l: LLSkipList ) extends SkipListView {
       }
    }
 
-   private def drawNode( g2: Graphics2D, x: LLSkipList.Node ) {
+   private def drawNode( g2: Graphics2D, x: LLSkipList.Node[ A ]) {
       g2.drawRect( 0, 0, 46, 46 )
       g2.drawLine( 23, 0, 23, 46 )
       g2.drawLine( 0, 23, 46, 23 )
-      val keyStr = if( x.key == LLSkipList.MAX_KEY ) "M" else x.key.toString
+      val key = x.key
+      val keyStr = if( ord.equiv( key, mx )) "M" else key.toString
       g2.drawString( keyStr, 4, 17 )
       g2.fillOval( 34, 10, 3, 3 )
       val harrLen = gapSize( x ) * 64 + 27
@@ -89,11 +93,11 @@ class LLSkipListView( l: LLSkipList ) extends SkipListView {
       }
    }
 
-   private def gapSize( x: LLSkipList.Node ) : Int = {
+   private def gapSize( x: LLSkipList.Node[ A ]) : Int = {
       if( x.down.isBottom ) 0 else {
          var y = x
          while( !y.down.isBottom ) y = y.down
-         var i = 0; while( y.key != x.key ) { y = y.right; i += 1 }
+         var i = 0; while( !ord.equiv( y.key, x.key )) { y = y.right; i += 1 }
          i
       }
    }

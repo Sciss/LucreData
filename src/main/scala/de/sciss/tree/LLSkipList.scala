@@ -40,42 +40,43 @@ import sys.error
  * TODO: Add key observers
  */
 object LLSkipList {
-   val MAX_KEY = 0x7FFFFFFF
+   def empty[ @specialized( Int, Long ) A : Ordering /* : Manifest */ ]
+      ( maxKey: A, keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ]) : LLSkipList[ A ] =
+      new Impl( maxKey, keyObserver )
 
-   def empty : LLSkipList = new Impl
-
-   trait Node {
-      def key: Int
-      def right: Node
-      def down: Node
+   sealed trait Node[ @specialized( Int, Long ) A ] {
+      def key: A
+      def right: Node[ A ]
+      def down: Node[ A ]
       def isBottom: Boolean
       def isTail: Boolean
    }
 
-   private class Impl extends LLSkipList {
-      class NodeImpl extends Node {
-         var key: Int = _
+   private class Impl[ @specialized( Int, Long ) A ]( val maxKey: A, keyObserver: SkipList.KeyObserver[ A ])( implicit val ordering: Ordering[ A ])
+   extends LLSkipList[ A ] {
+      var hd            = new NodeImpl
+      lazy val bottom   = new NodeImpl  // XXX fucking shit : scala has a specialization bug; we need to add lazy here!
+      lazy val tl       = new NodeImpl  // XXX fucking shit : scala has a specialization bug; we need to add lazy here!
+
+      def top : Node[ A ] = hd.down
+
+      // initialize them
+      hd.key      = maxKey
+      hd.down     = bottom
+      hd.right    = tl
+      bottom.right= bottom // so that we can safely call r infinitely
+      bottom.down = bottom // dito
+      tl.key      = maxKey
+      tl.right    = tl   // so that we can safely call r infinitely
+
+      class NodeImpl extends Node[ A ] {
+         var key: A = _
          var right: NodeImpl = _
          var down: NodeImpl = _
 
          def isBottom   = this eq bottom
          def isTail     = this eq tl
       }
-
-      var hd      = new NodeImpl
-      val bottom  = new NodeImpl
-      val tl      = new NodeImpl
-
-      def top : Node = hd.down
-
-      // initialize them
-      hd.key    = MAX_KEY
-      hd.down   = bottom
-      hd.right  = tl
-      bottom.right= bottom // so that we can safely call r infinitely
-      bottom.down = bottom // dito
-      tl.key    = MAX_KEY
-      tl.right  = tl   // so that we can safely call r infinitely
 
       // ---- set support ----
 
@@ -85,12 +86,12 @@ object LLSkipList {
        * @param   v  the key to search for
        * @return  `true` if the key is in the list, `false` otherwise
        */
-      def contains( v: Int ) : Boolean = {
+      def contains( v: A ) : Boolean = {
          var x = hd
          while( !x.isBottom ) {
-            while( v > x.key ) x = x.right
+            while( ordering.gt( v, x.key )) x = x.right
             if( x.down.isBottom ) {
-               return( v == x.key )
+               return( ordering.equiv( v, x.key ))
             }
             x = x.down
          }
@@ -104,15 +105,15 @@ object LLSkipList {
        * @return  `true` if the key was successfully inserted,
        *          `false` if a node with the given key already existed
        */
-      override def add( v: Int ) : Boolean = {
+      override def add( v: A ) : Boolean = {
          var x       = hd
          bottom.key  = v
          var success = true
          while( !x.isBottom ) {
-            while( v > x.key ) x = x.right
+            while( ordering.gt( v, x.key )) x = x.right
             val dr   = x.down.right
             val drr  = dr.right
-            if( x.key > drr.key ) { // this happens when the gap has size 3, or we at the lowest level
+            if( ordering.gt( x.key, drr.key )) { // this happens when the gap has size 3, or we at the lowest level
                val t = new NodeImpl
                t.right  = x.right
                t.down   = drr
@@ -128,24 +129,24 @@ object LLSkipList {
             val t    = new NodeImpl
             t.down   = hd
             t.right  = tl
-            t.key    = MAX_KEY
-            hd     = t
+            t.key    = maxKey
+            hd       = t
          }
          success
       }
 
-      def +=( elem: Int ) : this.type = { add( elem ); this }
-      def -=( elem: Int ) : this.type = error( "Not yet implemented" )
+      def +=( elem: A ) : this.type = { add( elem ); this }
+      def -=( elem: A ) : this.type = error( "Not yet implemented" )
 
-      def iterator : Iterator[ Int ] = new Iterator[ Int ] {
+      def iterator : Iterator[ A ] = new Iterator[ A ] {
          var x = {
             var n = top
             while( !n.down.isBottom ) n = n.down
             n
          }
 
-         def hasNext : Boolean = x.key != MAX_KEY
-         def next : Int = {
+         def hasNext : Boolean = !ordering.equiv( x.key, maxKey )
+         def next : A = {
             val res = x.key
             x = x.right
             res
@@ -169,11 +170,11 @@ object LLSkipList {
       override def size : Int = {
          var x = top
          while( !x.down.isBottom ) x = x.down
-         var i = 0; while( x.key != MAX_KEY ) { x = x.right; i += 1 }
+         var i = 0; while( !ordering.equiv( x.key, maxKey )) { x = x.right; i += 1 }
          i
       }
    }
 }
-trait LLSkipList extends SkipList[ Int ] {
-   def top : LLSkipList.Node
+trait LLSkipList[ @specialized( Int, Long ) A ] extends SkipList[ A ] {
+   def top : LLSkipList.Node[ A ]
 }

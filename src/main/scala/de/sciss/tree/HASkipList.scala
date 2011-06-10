@@ -62,8 +62,8 @@ object HASkipList {
       def isBottom : Boolean // = this eq Bottom
    }
 
-   private class Impl[ @specialized( Int, Long ) A ]( maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
-                                                    ( implicit mf: Manifest[ A ], ord: Ordering[ A ])
+   private class Impl[ @specialized( Int, Long ) A ]( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
+                                                    ( implicit mf: Manifest[ A ], val ordering: Ordering[ A ])
    extends HASkipList[ A ] {
       val maxGap  = (minGap << 1) + 1
       val arrSize = maxGap + 1
@@ -99,8 +99,8 @@ object HASkipList {
 //         def isHead : Boolean = node eq head
          def key : A = node.key( idx )
          def moveRight( key: A ) : Boolean = {
-            while( ord.gt( key, node.key( idx ))) idx += 1
-            ord.equiv( key, node.key( idx ))
+            while( ordering.gt( key, node.key( idx ))) idx += 1
+            ordering.equiv( key, node.key( idx ))
          }
          def moveDown {
             node  = node.down( idx )
@@ -158,7 +158,7 @@ object HASkipList {
             // we must update the child navigation accordingly,
             // beause it means we are now traversing the right
             // half!
-            if( ord.gteq( key, splitKey )) ch.node = right
+            if( ordering.gteq( key, splitKey )) ch.node = right
 
             // notify observer
             keyObserver.keyUp( splitKey )
@@ -211,7 +211,7 @@ object HASkipList {
          val x    = new Nav
          val x0   = new Nav
          do {
-            if( x.moveRight( key )) return false // key was already present
+            if( x.moveRight( key )) return false // key was already present; XXX should replace though!
             x.copy( x0 )
             x.moveDown
             if( x.isFull ) x0.splitChild( key, x )
@@ -243,7 +243,7 @@ object HASkipList {
             idx   = pidx
          }
 
-         def hasNext : Boolean = !ord.equiv( x.key( idx ), maxKey )
+         def hasNext : Boolean = !ordering.equiv( x.key( idx ), maxKey )
          def next : A = {
             val res = x.key( idx )
             idx += 1
