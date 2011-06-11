@@ -91,4 +91,14 @@ trait SkipList[ @specialized( Int, Long ) A ] extends MSet[ A ] {
     * Queries the ordering used for the keys of this list.
     */
    def ordering : Ordering[ A ]
+
+   /**
+    * The minimum gap of each skip level
+    */
+   def minGap : Int
+
+   /**
+    * The maximum gap of each skip level
+    */
+   def maxGap : Int = (minGap << 1) + 1
 }

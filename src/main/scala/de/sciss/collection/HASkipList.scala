@@ -65,7 +65,6 @@ object HASkipList {
    private class Impl[ @specialized( Int, Long ) A ]( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
                                                     ( implicit mf: Manifest[ A ], val ordering: Ordering[ A ])
    extends HASkipList[ A ] {
-      val maxGap  = (minGap << 1) + 1
       val arrSize = maxGap + 1
       var arrMid  = maxGap >> 1
 
@@ -347,6 +346,4 @@ object HASkipList {
 }
 trait HASkipList[ A ] extends SkipList[ A ] {
    def top : HASkipList.Node[ A ]
-   def minGap : Int
-   def maxGap : Int
 }
