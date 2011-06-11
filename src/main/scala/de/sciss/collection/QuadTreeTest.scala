@@ -114,7 +114,7 @@ Options:
 //         val cv   = new CompressedQuadTreeView( ct )
 //         Seq( cv )
 
-         val rt   = RandomizedSkipQuadTree( quad0, map.toSeq: _* )
+         val rt   = RandomizedSkipQuadTree( quad0 )( map.toSeq: _* )
          @tailrec def add( no: Option[ rt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
             no match {
                case None => vs
@@ -127,7 +127,7 @@ Options:
 
    class Test1 extends Figure {
       val map  = points2
-      val t    = DeterministicSkipQuadTree( quad0, map.toSeq: _* )
+      val t    = DeterministicSkipQuadTree( quad0 )( map.toSeq: _* )
       println( "Points ordered by in-ordered traversal:" )
       val ord  = t.toList.map( _._1 )
       println( ord )
@@ -215,7 +215,7 @@ Options:
          val seq3    = keys3.map( _ -> () )
 //println( keys3 )
 
-         val dt   = DeterministicSkipQuadTree( quad0, seq3: _* )
+         val dt   = DeterministicSkipQuadTree( quad0 )( seq3: _* )
 //         dt += Point(397,500) -> ()
 //         dt += Point(418,6) -> ()
          @tailrec def add( no: Option[ dt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {

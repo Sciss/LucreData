@@ -33,4 +33,4 @@ object MaxKey {
    implicit val intKey  = MaxKey( Int.MaxValue )
    implicit val longKey = MaxKey( Long.MaxValue )
 }
-final case class MaxKey[ @specialized( Int, Long ) A ]( value : A )
+final case class MaxKey[ @specialized( Int, Long ) +A ]( value : A )

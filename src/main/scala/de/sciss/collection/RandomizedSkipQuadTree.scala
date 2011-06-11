@@ -34,7 +34,7 @@ import sys.error  // suckers
 object RandomizedSkipQuadTree {
 //   def apply[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
 
-   def apply[ V ]( quad: Quad, xs: (Point, V)* ) : RandomizedSkipQuadTree[ V ] = {
+   def apply[ V ]( quad: Quad )( xs: (Point, V)* ) : RandomizedSkipQuadTree[ V ] = {
       val t = TreeImpl[ V ]( quad )
       xs.foreach( t.+=( _ ))
       t

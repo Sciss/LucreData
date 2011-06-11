@@ -43,17 +43,23 @@ import annotation.{switch, tailrec}
 object DeterministicSkipQuadTree {
 //   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
 
-   def apply[ V ]( quad: Quad, xs: (Point, V)* ) : DeterministicSkipQuadTree[ V ] = {
-      val t = new TreeImpl[ V ]( quad )
+   def apply[ V ]( quad: Quad, skipGap: Int = 2 )( xs: (Point, V)* ) : DeterministicSkipQuadTree[ V ] = {
+      val t = new TreeImpl[ V ]( quad, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private class TreeImpl[ V ]( _quad: Quad ) extends DeterministicSkipQuadTree[ V ] {
+   private class TreeImpl[ V ]( _quad: Quad, _skipGap: Int ) extends DeterministicSkipQuadTree[ V ] {
       private var tl: TopNode = TopLeftNode
       val list: SkipList[ Leaf ] = {
-         val mf = implicitly[ Manifest[ Leaf ]]
-         HASkipList.empty[ Leaf ]( 2, KeyObserver )( Ordering.ordered[ Leaf ], MaxKey( MaxLeaf ), mf )
+         implicit def maxKey = MaxKey( MaxLeaf )
+         if( _skipGap < 2 ) {
+            require( _skipGap == 1, "Illegal skipGap value (" + _skipGap + ")" )
+            LLSkipList.empty[ Leaf ]( KeyObserver ) // ( Ordering.ordered[ Leaf ], )
+         } else {
+//            val mf = implicitly[ Manifest[ Leaf ]]
+            HASkipList.empty[ Leaf ]( _skipGap, KeyObserver ) // ( Ordering.ordered[ Leaf ], maxKey, mf )
+         }
       } // 2-5 DSL
       def skipList = list
 
