@@ -78,6 +78,10 @@ class InteractiveSkipListView extends JPanel( new BorderLayout() ) {
       status( l.add( i ).toString )
       slv.highlight = Some( i )
    }}
+   but( "Remove" ) { tryNum { i =>
+      status( l.remove( i ).toString )
+      slv.highlight = None
+   }}
    but( "Contains" ) { tryNum { i =>
       status( l.contains( i ).toString )
       slv.highlight = Some( i )

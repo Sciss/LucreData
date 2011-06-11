@@ -29,6 +29,7 @@
 package de.sciss.collection
 
 import sys.error
+import com.sun.tools.javac.util.Abort
 
 /**
  * A deterministic 1-3 skip list implemented using a linked list with
@@ -140,7 +141,70 @@ object LLSkipList {
       }
 
       def +=( elem: A ) : this.type = { add( elem ); this }
-      def -=( elem: A ) : this.type = error( "Not yet implemented" )
+      def -=( elem: A ) : this.type = { remove( elem ); this }
+
+      override def remove( v: A ) : Boolean = {
+         if( ordering.gteq( v, maxKey )) return false
+
+         var x: NodeImpl   = hd.down // x = current elm in search path
+         var success       = !x.isBottom
+         bottom.key        = v
+         var px: NodeImpl  = null
+         var pred: A       = null.asInstanceOf[ A ]
+         var lastAbove     = hd.key  // last key at level above
+         while( !x.isBottom ) { // do at every level
+            while( ordering.gt( v, x.key )) { // find where you drop
+               px = x   // keeping track of the previous gap
+               x  = x.right
+            }
+            val nx = x.down   // mark where to drop at level below
+            // if {only 1 elm in gap to drop}, or {at bottom level & must delete}
+            if( ordering.equiv( x.key, nx.right.key )) {
+               if( !ordering.equiv( x.key, lastAbove )) { // if does NOT drop in last gap
+                  val tmp = x.right
+                  // if 1 elm in next gap, or at bottom level
+                  if( ordering.equiv( tmp.key, tmp.down.right.key ) || nx.isBottom ) {
+                     x.right  = tmp.right   // lower separator of current+next gap
+                     x.key    = tmp.key
+                  } else {	   // if >=2 elms in next gap
+                     x.key    = tmp.down.key   // raise 1st elm in next gap & lower...
+                     tmp.down = tmp.down.right // ... separator of current+next gap
+                  }
+               } else {    // if DOES drop in last gap
+                  if( ordering.lteq( px.key, px.down.right.key )) { // if only 1 elm in previous gap
+                     if( nx.isBottom ) { // if del_Key is in elm of height>1
+                        pred = px.key  // predecessor of del_key at bottom level
+                     }
+                     px.right = x.right   // lower separator of previous+current gap
+                     px.key   = x.key
+                     x        = px
+                  } else {    // if >=2 elms in previous gap
+                     // t = last elm in previous gap
+                     val dr   = px.down.right
+                     val drr  = dr.right
+                     val tmp  = if( ordering.equiv( px.key, drr.key )) dr else drr
+                     px.key   = tmp.key     // raise last elm in previous gap & lower...
+                     x.down   = tmp.right   // ... separator of previous+current gap
+                  }
+               }
+            } else if( nx.isBottom ) { // if del_Key not in DSL
+               success = false
+            }
+            lastAbove   = x.key
+            x           = nx
+         }  // while
+         x = hd.down  // Do a 2nd pass; del_key might have been in elm of height>1
+         while( x.isBottom ) {
+            while( ordering.gt( v, x.key )) x = x.right
+            if( ordering.equiv( v, x.key )) x.key = pred
+            x = x.down
+         }
+         if( hd.down.right.isTail ) { // lower header of DSL, if necessary
+            x     = hd
+            hd    = x.down
+         }
+         success
+      }
 
       def iterator : Iterator[ A ] = new Iterator[ A ] {
          var x = {
