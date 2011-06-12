@@ -72,33 +72,34 @@ trait SkipList[ @specialized( Int, Long ) A ] extends MSet[ A ] {
    def add( v: A ) : Boolean
 
    /**
-    * Queries the number of levels in the skip list.
+    * The number of levels in the skip list.
     */
    def height : Int
 
    /**
-    * Queries the number of keys in the skip list (the 'width'). This operation takes O(n) time.
+    * The number of keys in the skip list (size of the bottom level).
+    * This operation may take up to O(n) time, depending on the implementation.
     */
    def size : Int
 
    /**
-    * Queries the 'maximum' key. In the ordering of the skip list,
+    * The 'maximum' key. In the ordering of the skip list,
     * no is allowed to be greater or equal to this maximum key.
     */
    def maxKey : A
 
    /**
-    * Queries the ordering used for the keys of this list.
+    * The ordering used for the keys of this list.
     */
    def ordering : Ordering[ A ]
 
    /**
-    * The minimum gap of each skip level
+    * The minimum gap within elements of each skip level
     */
    def minGap : Int
 
    /**
-    * The maximum gap of each skip level
+    * The maximum gap within elements of each skip level
     */
    def maxGap : Int = (minGap << 1) + 1
 }

@@ -715,7 +715,4 @@ object DeterministicSkipQuadTree {
 
    // visible interface
 }
-trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
-   def headTree: QNode
-   def lastTree: QNode
-}
+trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ]

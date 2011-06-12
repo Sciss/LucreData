@@ -29,16 +29,21 @@
 package de.sciss.collection
 
 import annotation.tailrec
+import scala.collection.mutable.{Stack => MStack}
 import sys.error  // suckers
 
 object RandomizedSkipQuadTree {
 //   def apply[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
+
+   def empty[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
 
    def apply[ V ]( quad: Quad )( xs: (Point, V)* ) : RandomizedSkipQuadTree[ V ] = {
       val t = TreeImpl[ V ]( quad )
       xs.foreach( t.+=( _ ))
       t
    }
+
+   private def unsupportedOp : Nothing       = error( "Operation not supported" )
 
    private object TreeImpl {
       def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
@@ -54,27 +59,88 @@ object RandomizedSkipQuadTree {
       def +=( kv: (Point, V) ) : this.type = {
          val point   = kv._1
          val value   = kv._2
-         val qpred   = tailVar.insertStep( point, value )
-         if( qpred.nonEmpty && flipCoin ) {
-            val hq      = headTree.quad
-            val qidx    = quadIdx( hq, point )
-            val l       = Leaf( point, value )
-            do {
-               val quads      = new Array[ Child ]( 4 )
-               quads( qidx )  = l
-               tailVar        = Node( hq, Some( tailVar ))( quads )
-            } while( flipCoin )
+         require( _quad.contains( point ), point.toString + " lies out of root square " + _quad )
+
+         val ns      = MStack.empty[ Node ]
+         tailVar.findP0( point, ns )
+         var coin    = true
+         var n: Node = null
+         while( ns.nonEmpty ) {
+            n = ns.pop
+            if( coin ) n.insert( point, value )
+            coin &= flipCoin
+         }
+         while( coin ) {
+            n        = Node( _quad, Some( n ))()
+            n.insert( point, value )
+            tailVar  = n
+            coin    &= flipCoin
          }
          this
       }
 
-      def get( point: Point ) : Option[ V ]  = error( "Not yet implemented" )
-      def -=( point: Point ) : this.type     = error( "Not yet implemented" )
-      def iterator : Iterator[ (Point, V) ]  = error( "Not yet implemented" )
+      override def contains( point: Point ) : Boolean = tailVar.findLeaf( point ).isDefined
+      override def apply( point: Point ) : V = {
+         val leaf = tailVar.findLeaf( point ).getOrElse( throw new java.util.NoSuchElementException( "key not found: " + point ))
+         leaf.value
+      }
+      def get( point: Point ) : Option[ V ]  = tailVar.findLeaf( point ).map( _.value )
+      def -=( point: Point ) : this.type = {
+         error( "Not yet implemented" )
+      }
 
-      sealed trait Child extends Q
-      case object Empty extends Child with QEmpty
-      final case class Leaf( point: Point, value: V ) extends Child with QLeaf
+      def iterator = new Iterator[ (Point, V) ] {
+         val stack   = MStack.empty[ (Node, Int) ]
+         var n       = headTree
+         var leaf: Leaf = _
+         var idx     = 0
+         var hasNext = true
+
+         prepareNext
+
+         def prepareNext {
+            while( true ) {
+               if( idx > 4 ) {
+                  if( stack.isEmpty ) {
+                     hasNext = false
+                     return
+                  }
+                  val (pn, pidx) = stack.pop
+                  n  = pn
+                  idx= pidx
+               }
+               n.child( idx ) match {
+                  case l: Leaf =>
+                     leaf  = l
+                     idx  += 1
+                     return
+                  case Empty =>
+                     idx  += 1
+                  case n2: Node =>
+                     stack.push( n -> (idx + 1) )
+                     n     = n2
+                     idx   = 0
+               }
+            }
+         }
+
+         def next : (Point, V) = {
+            require( hasNext, "Iterator exhausted" )
+            val res = (leaf.point, leaf.value)
+            prepareNext
+            res
+         }
+      }
+
+      sealed trait Child extends Q {
+         def asNode : Node
+      }
+      case object Empty extends Child with QEmpty {
+         def asNode : Node = unsupportedOp
+      }
+      final case class Leaf( point: Point, value: V ) extends Child with QLeaf {
+         def asNode : Node = unsupportedOp
+      }
       final case class Node( quad: Quad, prevOption: Option[ Node ])( quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends Child with QNode {
          // fix null squares
@@ -84,53 +150,65 @@ object RandomizedSkipQuadTree {
             i += 1 }
          }
 
-//      def isDefined = true
-//      def map( fun: Node[ V ] => MaybeQNode[ V ]) : MaybeQNode[ V ] = fun( this )
+         def asNode : Node = this
 
          def child( idx: Int ) : Child = quads( idx )
 
-         def insertStep( point: Point, value: V ) : Option[ Node ] = {
+         def findP0( point: Point, ns: MStack[ Node ]) {
             val qidx = quadIdx( quad, point )
-//         require( qidx >= 0, point.toString + " lies outside of root square " + quad )
             quads( qidx ) match {
-               case Empty =>
-                  if( prevOption.isEmpty || (prevOption.flatMap( _.insertStep( point, value )).nonEmpty && flipCoin) ) {
-                     quads( qidx ) = Leaf( point, value )
-                     Some( this )
-                  } else None
+               case n: Node if( n.quad.contains( point )) => n.findP0( point, ns )
+               case _ =>
+                  ns.push( this )
+                  prevOption.foreach( _.findP0( point, ns ))
+            }
+         }
+
+         def findLeaf( point: Point ) : Option[ Leaf ] = {
+            val qidx = quadIdx( quad, point )
+            quads( qidx ) match {
+               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
+               case l: Leaf if( l.point == point ) => Some( l )
+               case _ => prevOption match {
+                  case Some( prev ) => prev.findLeaf( point )
+                  case None         => None
+               }
+            }
+         }
+
+         def insert( point: Point, value: V ) {
+            val qidx = quadIdx( quad, point )
+            val l    = Leaf( point, value )
+            quads( qidx ) match {
+               case Empty => quads( qidx ) = l
 
                case t @ Node( tq, tpred ) =>
-                  if( tq.contains( point )) {
-                     t.insertStep( point, value )
-                  } else {
-                     val qpred = prevOption.flatMap( _.insertStep( point, value ))
-                     if( prevOption.isEmpty || (qpred.nonEmpty && flipCoin) ) {
-                        val te      = tq.extent
-                        val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
-                        val iquads  = new Array[ Child ]( 4 )
-                        val tidx    = quadIdx( iq, tq )
-                        iquads( tidx ) = t
-                        val pidx    = quadIdx( iq, point )
-                        iquads( pidx ) = Leaf( point, value )
-                        val q       = Node( iq, qpred )( iquads )
-                        quads( qidx ) = q
-                        Some( q )
-                     } else None
-                  }
+                  assert( !tq.contains( point ))
+                  val te      = tq.extent
+                  val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
+                  val iquads  = new Array[ Child ]( 4 )
+                  val tidx    = quadIdx( iq, tq )
+                  iquads( tidx ) = t
+                  val pidx    = quadIdx( iq, point )
+                  iquads( pidx ) = l
+                  val qpred   = prevOption.map( _.child( qidx ).asNode )
+                  val q       = Node( iq, qpred )( iquads )
+                  quads( qidx ) = q
 
-               case l @ Leaf( point2, value2 ) =>
-                  val qpred   = prevOption.flatMap( _.insertStep( point, value ))
-                  if( prevOption.isEmpty || (qpred.nonEmpty && flipCoin) ) {
+               case l2 @ Leaf( point2, value2 ) =>
+                  if( point == point2 ) {
+                     quads( qidx ) = l
+                  } else {
                      val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
                      val iquads  = new Array[ Child ]( 4 )
                      val lidx    = quadIdx( iq, point2 )
-                     iquads( lidx ) = l
+                     iquads( lidx ) = l2
                      val pidx    = quadIdx( iq, point )
-                     iquads( pidx ) = Leaf( point, value )
+                     iquads( pidx ) = l
+                     val qpred   = prevOption.map( _.child( qidx ).asNode )
                      val q       = Node( iq, qpred )( iquads )
                      quads( qidx ) = q
-                     Some( q )
-                  } else None
+                  }
             }
          }
 
@@ -229,7 +307,4 @@ object RandomizedSkipQuadTree {
       }
    }
 }
-trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ] {
-   def headTree: QNode
-   def lastTree: QNode
-}
+trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ]

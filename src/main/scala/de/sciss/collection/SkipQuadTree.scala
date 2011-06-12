@@ -30,7 +30,23 @@ package de.sciss.collection
 
 import collection.mutable.{Map => MMap}
 
+/**
+ * A `SkipQuadTree` is a two-dimensional data structure that
+ * maps coordinates to values. It extends the interface
+ * of scala's mutable `Map` and adds further operations such
+ * as range requires and nearest neighbour search.
+ */
 trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
+   def headTree: QNode
+   def lastTree: QNode
+
+   /**
+    * An `Iterator` which iterates over the points stored
+    * in the quadtree, using an in-order traversal directed
+    * by the quadrant indices of the nodes of the tree
+    */
+   def iterator : Iterator[ (Point, V) ]
+
    trait Q
    trait QEmpty extends Q
    trait QLeaf extends Q {
