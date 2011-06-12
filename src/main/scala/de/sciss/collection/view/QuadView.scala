@@ -33,6 +33,8 @@ import java.awt.{Color, RenderingHints, Graphics2D, Graphics, Dimension}
 import javax.swing.{BorderFactory, JComponent}
 
 object QuadView {
+   private val colrGreen = new Color( 0x00, 0xC0, 0x00 )
+
    case class PaintHelper( g2: Graphics2D ) {
       def drawFrame( quad: Quad ) {
          g2.setColor( Color.black )
@@ -43,8 +45,8 @@ object QuadView {
 
       def translate( x: Int, y: Int ) { g2.translate( x, y )}
 
-      def drawPoint( point: Point ) {
-         g2.setColor( Color.red )
+      def drawPoint( point: Point, highlight: Boolean = false ) {
+         g2.setColor( if( highlight ) colrGreen else Color.red )
          g2.fillOval( point.x - 2, point.y - 2, 5, 5 )
       }
 
@@ -52,6 +54,7 @@ object QuadView {
 }
 abstract class QuadView extends JComponent {
    setBorder( BorderFactory.createEmptyBorder( 4, 4, 4, 4 ))
+   setBackground( Color.white )
 
    protected def draw( h: QuadView.PaintHelper ) : Unit
 
@@ -62,6 +65,9 @@ abstract class QuadView extends JComponent {
       val in   = getInsets()
 //      val q    = rootQuad
 //      g2.translate( q.extent - q.cx + in.left, q.extent - q.cy + in.top )
+      g2.setColor( getBackground )
+      g2.fillRect( 0, 0, getWidth, getHeight )
+      g2.setColor( getForeground )
       g2.translate( in.left, in.top )
       draw( QuadView.PaintHelper( g2 ))
       g2.setTransform( atOrig )

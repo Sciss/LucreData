@@ -103,7 +103,7 @@ object DeterministicSkipQuadTree {
          def hasNext : Boolean = underlying.hasNext
       }
 
-      def rangeQuery( qs: QueryShape ) : Iterator[ V ] = notYetImplemented
+      def rangeQuery( qs: QueryShape ) : Iterator[ (Point, V) ] = notYetImplemented
 
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {

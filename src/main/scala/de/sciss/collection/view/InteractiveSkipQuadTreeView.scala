@@ -28,8 +28,9 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    val toolGrp = new ButtonGroup()
    add( tools, BorderLayout.NORTH )
 
-   private val ggX = new JTextField( 3 )
-   private val ggY = new JTextField( 3 )
+   private val ggX   = new JTextField( 3 )
+   private val ggY   = new JTextField( 3 )
+   private val ggExt = new JTextField( 3 )
 
    private def updateNum( x: Int, y: Int ) {
       ggX.setText( x.toString )
@@ -40,6 +41,17 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
       try {
          val p = Point( ggX.getText().toInt, ggY.getText().toInt )
          fun( p )
+      } catch {
+         case n: NumberFormatException =>
+      }
+   }
+
+   private def tryQuad( fun: Quad => Unit ) {
+      try {
+         val ext = ggExt.getText().toInt
+         require( ext > 0 )
+         val q = Quad( ggX.getText().toInt, ggY.getText().toInt, ext )
+         fun( q )
       } catch {
          case n: NumberFormatException =>
       }
@@ -61,10 +73,27 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
 
    p.add( ggX )
    p.add( ggY )
+   p.add( ggExt )
 
-   private val ggAdd             = but( "Add" )      { tryPoint( p => t += p -> () )}
-   private val ggRemove          = but( "Remove" )   { tryPoint( t -= _ )}
-   /* private val ggContains = */  but( "Contains" ) { tryPoint( p => status( t.contains( p ).toString ))}
+   private val ggAdd = but( "Add" ) { tryPoint { p =>
+      t += p -> ()
+      slv.highlight = Set( p )
+   }}
+   private val ggRemove = but( "Remove" ) { tryPoint( t -= _ )}
+   but( "Contains" ) { tryPoint { p =>
+      status( t.contains( p ).toString )
+      slv.highlight = Set( p )
+   }}
+
+   but( "Add 10x Random" ) {
+      val ps = Seq.fill( 10 )( Point( util.Random.nextInt( 512 ), util.Random.nextInt( 512 )))
+      t ++= ps.map( _ -> () )
+      slv.highlight = ps.toSet
+   }
+
+   but( "Remove 10x" ) {
+      t --= t.keysIterator.take( 10 )
+   }
 
    slv.addMouseListener( new MouseAdapter {
       override def mousePressed( e: MouseEvent ) {

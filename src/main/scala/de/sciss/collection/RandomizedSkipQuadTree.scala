@@ -29,7 +29,7 @@
 package de.sciss.collection
 
 import annotation.tailrec
-import scala.collection.mutable.{Stack => MStack}
+import scala.collection.mutable.{Queue => MQueue, Stack => MStack}
 import sys.error
 
 object RandomizedSkipQuadTree {
@@ -135,26 +135,75 @@ object RandomizedSkipQuadTree {
          }
       }
 
-      def rangeQuery( qs: QueryShape ) : Iterator[ V ] = new RangeQuery( qs )
+      def rangeQuery( qs: QueryShape ) : Iterator[ (Point, V) ] = new RangeQuery( qs )
 
-      private class RangeQuery( qs: QueryShape ) extends Iterator[ V ] {
-//         headTree.findMaxNonCriticial( qs )
+      private class RangeQuery( qs: QueryShape ) extends Iterator[ (Point, V) ] {
+         val stabbing      = MQueue.empty[ (Node, Long) ]
+         val in            = MQueue.empty[ NonEmpty ]
+         var current : (Point, V) = _
+         var hasNext       = true
 
-         def next : V = error( "TODO" )
-         def hasNext : Boolean = error( "TODO" )
+         stabbing += headTree -> qs.overlapArea( headTree.quad )
+         findNextValue
+
+         def next : (Point, V) = {
+            if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
+            val res = current
+            findNextValue
+            res
+         }
+
+         def findNextValue : Unit = while( true ) {
+            if( in.isEmpty ) {
+               if( stabbing.isEmpty ) {
+                  hasNext = false
+                  return
+               }
+               val tup  = stabbing.dequeue()
+               val ns   = tup._1                         // stabbing node
+               val as   = tup._2
+               val nc   = ns.rangeQueryRight( as, qs )   // critical node
+               var i = 0; while( i < 4 ) {
+                  nc.child( i ) match {
+                     case cl: Leaf =>
+                        if( qs.contains( cl.point )) in += cl
+                     case cn: Node =>
+                        val q    = cn.quad
+                        val ao   = qs.overlapArea( q )
+                        if( ao > 0 ) {
+                           if( ao < q.area ) {           // stabbing
+                              stabbing += cn -> ao
+                           } else {                      // in
+                              in += cn
+                           }
+                        }
+                     case _ =>
+                  }
+               i += 1 }
+
+            } else in.dequeue() match {
+               case l: Leaf =>
+                  current = (l.point, l.value)
+                  return
+               case n: Node =>
+                  var i = 0; while( i < 4 ) {
+                     n.child( i ) match {
+                        case ne: NonEmpty => in += ne // sucky `enqueue` creates intermediate Seq because of varargs
+                        case _ =>
+                     }
+                  i += 1 }
+            }
+         }
       }
 
-      sealed trait Child extends Q {
-//         def asNode : Node
-      }
-      case object Empty extends Child with QEmpty {
-//         def asNode : Node = unsupportedOp
-      }
-      final case class Leaf( point: Point, value: V ) extends Child with QLeaf {
-//         def asNode : Node = unsupportedOp
-      }
+      sealed trait Child extends Q
+      case object Empty extends Child with QEmpty
+
+      sealed trait NonEmpty extends Child
+
+      final case class Leaf( point: Point, value: V ) extends NonEmpty with QLeaf
       final case class Node( quad: Quad, var parent: Node, prev: Node )( quads: Array[ Child ] = new Array[ Child ]( 4 ))
-      extends Child with QNode {
+      extends NonEmpty with QNode {
          var next: Node = null
 
          // fix null squares and link
@@ -166,26 +215,47 @@ object RandomizedSkipQuadTree {
             if( prev != null ) prev.next = this
          }
 
-
-//         def findCriticial( qs: QueryShape, a: Long, qsa: Long ) : Node = {
-////            val a = qs.overlapArea( quad )
-//            var i = 0; while( i < 4 ) {
-//               child( i ) match {
-//                  case n: Node =>
-//                     val a2 = qs.overlapArea( n.quad )
-//                     if( a2 == a ) { // this renders 'this' uncritical
-//                        return n.findCriticial( qs, a2, qsa )
-//                     }
-//                  case _ =>
-//               }
-//            i += 1 }
-//            this
-//         }
-
          def child( idx: Int ) : Child = quads( idx )
 
          def prevOption = Option( prev: QNode ) // Option( null ) becomes None
          def nextOption = Option( next: QNode ) // Option( null ) becomes None
+
+         def rangeQueryRight( area: Long, qs: QueryShape ) : Node = {
+            var i = 0; while( i < 4 ) {
+               quads( i ) match {
+                  case n2: Node =>
+                     val a2 = qs.overlapArea( n2.quad )
+                     if( a2 == area ) {
+                        if( next != null ) {
+                           next.rangeQueryRight( area, qs )
+                        } else {
+                           n2.rangeQueryLeft( a2, qs )
+                        }
+                     }
+                  case _ =>
+               }
+            i += 1 }
+            // at this point, we know `this` is critical
+            if( prev != null ) prev else this
+         }
+
+         def rangeQueryLeft( area: Long, qs: QueryShape ) : Node = {
+            var i = 0; while( i < 4 ) {
+               quads( i ) match {
+                  case n2: Node =>
+                     val a2 = qs.overlapArea( n2.quad )
+                     if( a2 == area ) {
+                        if( next != null ) {
+                           next.rangeQueryLeft( area, qs )
+                        } else {
+                           n2.rangeQueryLeft( a2, qs )
+                        }
+                     }
+                  case _ =>
+               }
+            i += 1 }
+            this
+         }
 
          def findP0( point: Point, ns: MStack[ Node ]) {
             val qidx = quadIdx( quad, point )

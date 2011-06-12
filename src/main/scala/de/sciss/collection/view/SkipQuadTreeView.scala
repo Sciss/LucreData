@@ -34,6 +34,8 @@ import java.awt.Dimension
 class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
    setPrefSz( 3 )
 
+   var highlight = Set.empty[ Point ]
+
    private def setPrefSz( lvl: Int ) {
       val w1         = (t.quad.extent << 1) + 1
       val in         = getInsets()
@@ -65,7 +67,7 @@ class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
             }
          case _: SkipQuadTree[ _ ]#QEmpty =>
          case l: SkipQuadTree[ _ ]#QLeaf =>
-            h.drawPoint( l.point )
+            h.drawPoint( l.point, highlight.contains( l.point ))
       }
    }
 }

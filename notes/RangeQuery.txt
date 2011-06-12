@@ -1,0 +1,131 @@
+right( n, area ) {
+   if( exists n2 where( n2 covers same area )) {
+      if( n.next == null ) left( n2 )
+      else right( n.next )
+   } else {
+      done( n )
+   }
+}
+
+left( n ) {
+   if( exists n2 where( n2 covers same area )) {
+      left( n2 )
+   } else if( n.prev != null ) {
+      left( n.prev )
+   } else {
+      done( n )
+   }
+}
+
+done( n ) {
+   n.children foreach match {
+      case out => ()
+      case in => add to in set
+      case stabbing => right( n, area )
+   }
+}
+
+// for iterator
+done_v2( n ) {
+   n.children foreach match {
+      case isOut => ()
+      case isIn => in += n
+      case isStabbing => stabbing += (n, area)
+   }
+}
+
+iterator {
+   stabbing = set( root0 )
+   in = set.empty
+   prepare
+
+   nextValue = _
+   hasNext   = true
+
+   next {
+      require( hasNext )
+      res = nextValue
+      repare
+      res
+   }
+
+   prepare {
+      in.removeOption {
+         case Some( node ) =>
+            in ++= node.children
+            prepare
+         case Some( leaf ) =>
+            nextValue = leaf
+         case None =>
+            stabbing.removeOption {
+               case Some( (node, area) ) => 
+                  right( node, area )
+                  prepare
+               case None =>
+                  hasNext = false
+            }
+      }
+   }
+}
+
+:: further reasoning -- do we need a stack or seq, or isn't the number of objects
+   per 'prepare' bound by a maximum, such as the number of children (4)? ::
+---> no
+
+right( n, area ) = {
+   if( exists n2 where( n2 covers same area )) {
+      if( n.next == null ) left( n2 )
+      else right( n.next )
+   } else { // this is critical, return prev if it exists
+      if( prev != null ) prev else this
+   }
+}
+
+left( n ) = {
+   if( exists n2 where( n2 covers same area )) {
+      left( n2 )
+   } else if( n.prev != null ) {
+      left( n.prev )
+   } else {
+      n // return critical
+   }
+}
+
+iterator {
+   stabbing = set( root0 -> queryShape.overlapArea( root0 ))
+   in = set.empty[ NonEmpty ]
+   prepare
+
+   nextValue = _
+   hasNext   = true
+
+   next {
+      require( hasNext )
+      res = nextValue
+      prepare
+      res
+   }
+
+   prepare { while( true ) {
+      in.removeOption {
+         case Some( node ) =>
+            in ++= node.children
+         case Some( leaf ) =>
+            nextValue = leaf
+            return
+         case None =>
+            if( stabbing != null ) {
+               case Some( (node, area) ) => 
+                  n = right( node, area )
+                  n.children foreach match {
+                     case isOut => ()
+                     case i: isIn => in += i
+                     case s: isStabbing => stabbing += (s.node, s.area)
+                  }
+            } else {
+               hasNext = false
+               return
+            }
+      }
+   }}
+}

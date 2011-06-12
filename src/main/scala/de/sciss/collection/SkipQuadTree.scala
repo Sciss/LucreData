@@ -52,7 +52,7 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
       i
    }
 
-   def rangeQuery( qs: QueryShape ) : Iterator[ V ]
+   def rangeQuery( qs: QueryShape ) : Iterator[ (Point, V) ]
 
    /**
     * An `Iterator` which iterates over the points stored
