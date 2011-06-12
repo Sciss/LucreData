@@ -30,11 +30,9 @@ package de.sciss.collection
 
 import annotation.tailrec
 import scala.collection.mutable.{Stack => MStack}
-import sys.error  // suckers
+import sys.error
 
 object RandomizedSkipQuadTree {
-//   def apply[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
-
    def empty[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
 
    def apply[ V ]( quad: Quad )( xs: (Point, V)* ) : RandomizedSkipQuadTree[ V ] = {
@@ -49,7 +47,7 @@ object RandomizedSkipQuadTree {
       def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
    }
    private final class TreeImpl[ V ]( _quad: Quad  ) extends RandomizedSkipQuadTree[ V ] {
-      val headTree         = Node( _quad, None )()
+      val headTree         = Node( _quad, null, null )()
       private var tailVar  = headTree
 
       def lastTree: QNode = tailVar
@@ -65,26 +63,31 @@ object RandomizedSkipQuadTree {
          tailVar.findP0( point, ns )
          var coin    = true
          var n: Node = null
+         var pr: Node= null
          while( ns.nonEmpty ) {
-            n = ns.pop
-            if( coin ) n.insert( point, value )
+            n        = ns.pop
+            if( coin ) pr = n.insert( point, value, pr )
             coin &= flipCoin
          }
          while( coin ) {
-            n        = Node( _quad, Some( n ))()
-            n.insert( point, value )
+            n        = Node( _quad, null, n )()
+            pr       = n.insert( point, value, pr )
             tailVar  = n
             coin    &= flipCoin
          }
          this
       }
 
-      override def contains( point: Point ) : Boolean = tailVar.findLeaf( point ).isDefined
+      override def contains( point: Point ) : Boolean = tailVar.findLeaf( point ) != null
       override def apply( point: Point ) : V = {
-         val leaf = tailVar.findLeaf( point ).getOrElse( throw new java.util.NoSuchElementException( "key not found: " + point ))
+         val leaf = tailVar.findLeaf( point )
+         if( leaf == null ) throw new java.util.NoSuchElementException( "key not found: " + point )
          leaf.value
       }
-      def get( point: Point ) : Option[ V ]  = tailVar.findLeaf( point ).map( _.value )
+      def get( point: Point ) : Option[ V ] = {
+         val leaf = tailVar.findLeaf( point )
+         if( leaf == null ) None else Some( leaf.value )
+      }
       def -=( point: Point ) : this.type = {
          error( "Not yet implemented" )
       }
@@ -133,15 +136,15 @@ object RandomizedSkipQuadTree {
       }
 
       sealed trait Child extends Q {
-         def asNode : Node
+//         def asNode : Node
       }
       case object Empty extends Child with QEmpty {
-         def asNode : Node = unsupportedOp
+//         def asNode : Node = unsupportedOp
       }
       final case class Leaf( point: Point, value: V ) extends Child with QLeaf {
-         def asNode : Node = unsupportedOp
+//         def asNode : Node = unsupportedOp
       }
-      final case class Node( quad: Quad, prevOption: Option[ Node ])( quads: Array[ Child ] = new Array[ Child ]( 4 ))
+      final case class Node( quad: Quad, var parent: Node, prev: Node )( quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends Child with QNode {
          // fix null squares
          {
@@ -150,9 +153,9 @@ object RandomizedSkipQuadTree {
             i += 1 }
          }
 
-         def asNode : Node = this
-
          def child( idx: Int ) : Child = quads( idx )
+
+         def prevOption = Option( prev: QNode ) // Option( null ) becomes None
 
          def findP0( point: Point, ns: MStack[ Node ]) {
             val qidx = quadIdx( quad, point )
@@ -160,29 +163,31 @@ object RandomizedSkipQuadTree {
                case n: Node if( n.quad.contains( point )) => n.findP0( point, ns )
                case _ =>
                   ns.push( this )
-                  prevOption.foreach( _.findP0( point, ns ))
+                  if( prev != null ) prev.findP0( point, ns )
             }
          }
 
-         def findLeaf( point: Point ) : Option[ Leaf ] = {
+         def findLeaf( point: Point ) : Leaf = {
             val qidx = quadIdx( quad, point )
             quads( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
-               case l: Leaf if( l.point == point ) => Some( l )
-               case _ => prevOption match {
-                  case Some( prev ) => prev.findLeaf( point )
-                  case None         => None
-               }
+               case l: Leaf if( l.point == point ) => l
+               case _ => if( prev == null ) null else prev.findLeaf( point )
             }
          }
 
-         def insert( point: Point, value: V ) {
+         def findSameSquare( iq: Quad ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
+
+         def insert( point: Point, value: V, prevP: Node ) : Node = {
             val qidx = quadIdx( quad, point )
             val l    = Leaf( point, value )
             quads( qidx ) match {
-               case Empty => quads( qidx ) = l
+               case Empty =>
+                  quads( qidx ) = l
+                  this
 
-               case t @ Node( tq, tpred ) =>
+               case t: Node =>
+                  val tq      = t.quad
                   assert( !tq.contains( point ))
                   val te      = tq.extent
                   val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
@@ -191,13 +196,16 @@ object RandomizedSkipQuadTree {
                   iquads( tidx ) = t
                   val pidx    = quadIdx( iq, point )
                   iquads( pidx ) = l
-                  val qpred   = prevOption.map( _.child( qidx ).asNode )
-                  val q       = Node( iq, qpred )( iquads )
+                  val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
+                  val q       = Node( iq, this, qpred )( iquads )
+                  t.parent    = q
                   quads( qidx ) = q
+                  q
 
-               case l2 @ Leaf( point2, value2 ) =>
+               case l2 @ Leaf( point2, _ ) =>
                   if( point == point2 ) {
                      quads( qidx ) = l
+                     this
                   } else {
                      val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
                      val iquads  = new Array[ Child ]( 4 )
@@ -205,9 +213,10 @@ object RandomizedSkipQuadTree {
                      iquads( lidx ) = l2
                      val pidx    = quadIdx( iq, point )
                      iquads( pidx ) = l
-                     val qpred   = prevOption.map( _.child( qidx ).asNode )
-                     val q       = Node( iq, qpred )( iquads )
+                     val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
+                     val q       = Node( iq, this, qpred )( iquads )
                      quads( qidx ) = q
+                     q
                   }
             }
          }
