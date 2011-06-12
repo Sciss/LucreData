@@ -30,7 +30,7 @@ package de.sciss.collection
 
 import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
-import view.{SkipQuadTreeView, CompressedQuadTreeView, QuadTreeView}
+import view.{SkipQuadTreeView, CompressedQuadTreeView, UncompressedQuadTreeView}
 import annotation.tailrec
 
 object QuadTreeTest extends App {
@@ -91,7 +91,7 @@ Options:
       def views = {
          val map  = points1
          val t    = QuadTree.fromMap( center, extent, map )
-         val v    = new QuadTreeView( t )
+         val v    = new UncompressedQuadTreeView( t )
 
          val ct   = CompressedQuadTree.fromMap( Quad( center.x, center.y, extent ), map )
          val cv   = new CompressedQuadTreeView( ct )
@@ -115,13 +115,14 @@ Options:
 //         Seq( cv )
 
          val rt   = RandomizedSkipQuadTree( quad0 )( map.toSeq: _* )
-         @tailrec def add( no: Option[ rt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
-            no match {
-               case None => vs
-               case Some( n ) => add( n.prevOption, new SkipQuadTreeView( n ) :: vs )
-            }
-         }
-         add( Some( rt.lastTree ), Nil )
+//         @tailrec def add( no: Option[ rt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
+//            no match {
+//               case None => vs
+//               case Some( n ) => add( n.prevOption, new SkipQuadTreeView( n ) :: vs )
+//            }
+//         }
+//         add( Some( rt.lastTree ), Nil )
+         new SkipQuadTreeView( rt ) :: Nil
       }
    }
 
@@ -218,13 +219,16 @@ Options:
          val dt   = DeterministicSkipQuadTree( quad0 )( seq3: _* )
 //         dt += Point(397,500) -> ()
 //         dt += Point(418,6) -> ()
-         @tailrec def add( no: Option[ dt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
-            no match {
-               case None => vs
-               case Some( n ) => add( n.prevOption, new SkipQuadTreeView( n ) :: vs )
-            }
-         }
-         add( Some( dt.lastTree ), Nil )
+//         @tailrec def add( no: Option[ dt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
+//            no match {
+//               case None => vs
+//               case Some( n ) => add( n.prevOption, new SkipQuadTreeView( n ) :: vs )
+//            }
+//         }
+//         add( Some( dt.lastTree ), Nil )
+         val v = new SkipQuadTreeView( dt )
+         v.adjustPreferredSize
+         v :: Nil
       }
    }
 }

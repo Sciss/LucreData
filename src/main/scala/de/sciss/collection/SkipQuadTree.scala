@@ -40,6 +40,18 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
    def headTree: QNode
    def lastTree: QNode
 
+   def quad : Quad = headTree.quad
+
+   def numLevels : Int = {
+      var n = headTree
+      val t = lastTree
+      var i = 1; while( !(n eq t) ) {
+         n = n.nextOption.orNull
+         i += 1
+      }
+      i
+   }
+
    def rangeQuery( qs: QueryShape ) : Iterator[ V ]
 
    /**
@@ -59,5 +71,6 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
       def quad: Quad
       def child( idx: Int ) : Q
       def prevOption: Option[ QNode ]
+      def nextOption: Option[ QNode ]
    }
 }

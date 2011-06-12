@@ -135,8 +135,13 @@ object RandomizedSkipQuadTree {
          }
       }
 
-      def rangeQuery( qs: QueryShape ) : Iterator[ V ] = {
-         error( "TODO" )
+      def rangeQuery( qs: QueryShape ) : Iterator[ V ] = new RangeQuery( qs )
+
+      private class RangeQuery( qs: QueryShape ) extends Iterator[ V ] {
+//         headTree.findMaxNonCriticial( qs )
+
+         def next : V = error( "TODO" )
+         def hasNext : Boolean = error( "TODO" )
       }
 
       sealed trait Child extends Q {
@@ -150,16 +155,37 @@ object RandomizedSkipQuadTree {
       }
       final case class Node( quad: Quad, var parent: Node, prev: Node )( quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends Child with QNode {
-         // fix null squares
+         var next: Node = null
+
+         // fix null squares and link
          {
             var i = 0; while( i < 4 ) {
                if( quads( i ) == null ) quads( i ) = Empty
             i += 1 }
+
+            if( prev != null ) prev.next = this
          }
+
+
+//         def findCriticial( qs: QueryShape, a: Long, qsa: Long ) : Node = {
+////            val a = qs.overlapArea( quad )
+//            var i = 0; while( i < 4 ) {
+//               child( i ) match {
+//                  case n: Node =>
+//                     val a2 = qs.overlapArea( n.quad )
+//                     if( a2 == a ) { // this renders 'this' uncritical
+//                        return n.findCriticial( qs, a2, qsa )
+//                     }
+//                  case _ =>
+//               }
+//            i += 1 }
+//            this
+//         }
 
          def child( idx: Int ) : Child = quads( idx )
 
          def prevOption = Option( prev: QNode ) // Option( null ) becomes None
+         def nextOption = Option( next: QNode ) // Option( null ) becomes None
 
          def findP0( point: Point, ns: MStack[ Node ]) {
             val qidx = quadIdx( quad, point )

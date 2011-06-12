@@ -29,14 +29,32 @@
 package de.sciss.collection
 package view
 
-class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]#QNode ) extends QuadView {
-//   import SkipQuadTree._
+import java.awt.Dimension
 
-   protected def draw( h: QuadView.PaintHelper ) {
-      draw( h, t )
+class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
+   setPrefSz( 3 )
+
+   private def setPrefSz( lvl: Int ) {
+      val w1         = (t.quad.extent << 1) + 1
+      val in         = getInsets()
+      setPreferredSize( new Dimension( ((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom) ))
    }
 
-   def rootQuad = t.quad
+   def adjustPreferredSize {
+      setPrefSz( t.numLevels )
+   }
+
+   protected def draw( h: QuadView.PaintHelper ) {
+      var n = t.headTree
+      val q = t.quad
+//      h.translate( q.cx, q.cy )
+      val dx = (q.extent << 1) + 16
+      while( n != null ) {
+         draw( h, n )
+         h.translate( dx, 0 )
+         n = n.nextOption.orNull
+      }
+   }
 
    private def draw( h: QuadView.PaintHelper, quad: SkipQuadTree[ V ]#Q ) {
       quad match {

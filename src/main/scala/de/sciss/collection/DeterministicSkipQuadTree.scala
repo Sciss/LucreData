@@ -281,6 +281,8 @@ object DeterministicSkipQuadTree {
           */
          def next: RightNode
 
+         def nextOption: Option[ QNode ] = Option( next )
+
          /**
           * Sets the corresponding interesting
           * square in Qi+1.

@@ -9,7 +9,7 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
    EventQueue.invokeLater( this )
    def run {
       val f    = new JFrame( "Skip Quadtree" )
-      f.setResizable( false )
+//      f.setResizable( false )
       val cp   = f.getContentPane
       val iv   = new InteractiveSkipQuadTreeView
       cp.add( iv, BorderLayout.CENTER )
@@ -21,7 +21,7 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
 }
 class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    val t    = RandomizedSkipQuadTree.empty[ Unit ]( Quad( 256, 256, 256 ))
-   val slv  = new SkipQuadTreeView( t.headTree )
+   val slv  = new SkipQuadTreeView( t )
    private val in = slv.getInsets
 
    val tools   = new JToolBar()
