@@ -71,6 +71,16 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
       b
    }
 
+   but( "Help" ) {
+      println( """
+- Number fields are cx, cy, and extent (for range queries)
+- Mouse:
+     Double-click to insert point
+     Alt-click to remove point
+     Shift-drag for range query
+""" )
+   }
+
    p.add( ggX )
    p.add( ggY )
    p.add( ggExt )
@@ -85,6 +95,17 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
       slv.highlight = Set( p )
    }}
 
+   private def rangeString( pt: Set[ Point ]) : String = {
+      val s = pt.map( p => "(" + p.x + "," + p.y + ")" ).mkString( " " )
+      if( s.isEmpty ) "(empty)" else s
+   }
+
+   but( "Range" ) { tryQuad { q =>
+      val set = t.rangeQuery( q ).map( _._1 ).toSet
+      status( rangeString( set.take( 3 )))
+      println( rangeString( set ))
+   }}
+
    but( "Add 10x Random" ) {
       val ps = Seq.fill( 10 )( Point( util.Random.nextInt( 512 ), util.Random.nextInt( 512 )))
       t ++= ps.map( _ -> () )
@@ -95,22 +116,76 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
       t --= t.keysIterator.take( 10 )
    }
 
-   slv.addMouseListener( new MouseAdapter {
+   private val ma = new MouseAdapter {
+      var drag = Option.empty[ (MouseEvent, Option[ MouseEvent ])]
+
+      val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
+      val topPointer = (h: QuadView.PaintHelper) => {
+         tryQuad { q =>
+            h.g2.setColor( Color.blue )
+            h.g2.drawRect( q.left, q.top, q.side, q.side )
+            h.g2.setColor( colrTrns )
+            h.g2.fillRect( q.left, q.top, q.side, q.side )
+         }
+      }
+
+      override def mouseDragged( e: MouseEvent ) {
+         drag match {
+            case Some( (m1, None) ) =>
+               val dist = e.getPoint().distance( m1.getPoint() )
+//println( "Kieka " + dist )
+               if( dist > 4 ) {
+                  slv.topPainter = Some( topPointer )
+                  drag( m1, e )
+               }
+            case Some( (m1, Some( _ ))) => drag( m1, e )
+            case _ =>
+         }
+      }
+
+      def drag( m1: MouseEvent, m2: MouseEvent ) {
+         drag = Some( m1 -> Some( m2 ))
+         val ext = math.max( math.abs( m1.getPoint().x - m2.getPoint().x ),
+                             math.abs( m1.getPoint().y - m2.getPoint().y ))
+         ggExt.setText( ext.toString )
+         tryQuad { q =>
+            val set = t.rangeQuery( q ).map( _._1 ).toSet
+            slv.highlight = set
+            slv.repaint()
+            status( rangeString( set.take( 3 )))
+         }
+      }
+
+      override def mouseReleased( e: MouseEvent ) {
+         drag match {
+            case Some( (_, Some( _ ))) =>
+               slv.topPainter = None
+               slv.repaint()
+            case _ =>
+         }
+         drag = None
+      }
+
       override def mousePressed( e: MouseEvent ) {
          val x = e.getX - in.left
          val y = e.getY - in.top
          updateNum( x, y )
-         if( e.isAltDown ) {
+         if( e.isAltDown ) {  // remove point
             ggRemove.doClick( 100 )
-         } else if( e.getClickCount == 2 ) {
+         } else if( e.isShiftDown ) {  // range search
+//println( "Kuuka" )
+            drag = Some( e -> None )
+         } else if( e.getClickCount == 2 ) { // add point
             ggAdd.doClick( 100 )
          }
       }
-   })
+   }
+   slv.addMouseListener( ma )
+   slv.addMouseMotionListener( ma )
 
    add( slv, BorderLayout.CENTER )
 //   private def tryNum( fun: Int => Unit ) { try { val i = ggNum.getText().toInt; fun( i )} catch { case nfe: NumberFormatException => }}
-   private val ggStatus = new JTextField( 12 )
+   private val ggStatus = new JTextField( 18 )
    ggStatus.setEditable( false )
    private def status( str: String ) { ggStatus.setText( str )}
    private val colrGreen = new Color( 0x00, 0xA0, 0x00 )
