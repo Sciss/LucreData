@@ -135,6 +135,10 @@ object RandomizedSkipQuadTree {
          }
       }
 
+      def rangeQuery( qs: QueryShape ) : Iterator[ V ] = {
+         error( "TODO" )
+      }
+
       sealed trait Child extends Q {
 //         def asNode : Node
       }

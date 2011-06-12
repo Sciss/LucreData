@@ -28,17 +28,66 @@
 
 package de.sciss.collection
 
-//trait QuadLike {
-//   def cx: Int
-//   def cy: Int
-//   def extent: Int
-//   def center: Point = Point( cx, cy )
-//   def topLeft: Point = {
-//      Point( cx - extent, cy - extent )
-//   }
-//}
+import sys.error
 
-final case class Quad( cx: Int, cy: Int, extent: Int ) /* extends QuadLike */ {
+//object QueryShape {
+//   sealed trait Overlap
+//   case object In extends Overlap
+//   case object Out extends Overlap
+//   case object Stabbing extends Overlap
+//}
+trait QueryShape {
+//   import QueryShape._
+
+//   /**
+//    * Queries the overlap of this shape
+//    * with a given `Quad q`
+//    *
+//    * @return  `Out` if `q` lies outside of this shape,
+//    *           `Stabbing` if `q` stabs this shape (there is
+//    *           and intersection, but it is smaller than `q`;
+//    *           this includes the case that this shape is
+//    *           completely contained in `q`)
+//    *           `In` if `q` is completely contained
+//    *           inside this shape
+//    */
+//   def overlapType( q: Quad ) : Overlap
+
+   def overlapArea( q: Quad ) : Long
+   def area : Long
+
+   /**
+    * Queries the overlap of this shape with a given
+    * `Point p`. The point is considered to have
+    * a side length of 1!
+    *
+    * @return  `true` if this shape contains or partly overlaps
+    *          the given point
+    */
+   def contains( p: Point ) : Boolean
+}
+
+final case class Circle( cx: Int, cy: Int, radius: Int ) extends QueryShape {
+//   import QueryShape._
+
+   def contains( p: Point ) : Boolean = {
+      val dx   = (cx - p.x).toLong
+      val dy   = (cy - p.y).toLong
+      val rd   = radius.toLong
+      dx * dx + dy * dy < rd * rd
+   }
+
+   /*
+    * (cf. http://paulbourke.net/geometry/sphereline/)
+    */
+   def overlapArea( q: Quad ) : Long = error( "TODO" )
+   def area : Long = {
+      val rd = radius.toLong
+      (math.Pi * (rd * rd) + 0.5).toLong
+   }
+}
+
+final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
    def quadrant( idx: Int ) : Quad = {
       val e = extent >> 1
       idx match {
@@ -50,19 +99,35 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) /* extends QuadLike */ {
       }
    }
 
-   def x : Int = cx - extent
-   def y : Int = cy - extent
-   def side : Int = extent << 1
+   def top : Int     = cy - extent
+   def left : Int    = cx - extent
+   def bottom : Int  = cy + extent
+   def right : Int   = cx + extent
+
+   def side : Int    = extent << 1
 
    def contains( point: Point ) : Boolean =
       (cx - extent <= point.x) && (cx + extent > point.x) && (cy - extent <= point.y) && (cy + extent > point.y)
+
+   def area : Long = {
+      val sd = side.toLong
+      sd * sd
+   }
+
+   def overlapArea( q: Quad ) : Long = {
+      val l = math.max( q.left, left )
+      val r = math.min( q.right, right )
+      val w = r - l
+      if( w <= 0 ) return 0L
+      val t = math.max( q.top, top )
+      val b = math.min( q.bottom, bottom )
+      val h = b - t
+      if( h <= 0 ) return 0L
+      w.toLong * h.toLong
+   }
 }
 
-final case class Point( x: Int, y: Int ) /* extends QuadLike */ {
-//   def orthoDist( p: Point ) : Int = math.max( math.abs( x - p.x ), math.abs( y - p.y ))
+final case class Point( x: Int, y: Int ) {
    def +( p: Point ) = Point( x + p.x, y + p.y )
    def -( p: Point ) = Point( x - p.x, y - p.y )
-
-//   def center = this
-//   def extent = 1
 }

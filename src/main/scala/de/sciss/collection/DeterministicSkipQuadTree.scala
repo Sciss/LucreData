@@ -103,6 +103,8 @@ object DeterministicSkipQuadTree {
          def hasNext : Boolean = underlying.hasNext
       }
 
+      def rangeQuery( qs: QueryShape ) : Iterator[ V ] = notYetImplemented
+
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {
             // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
@@ -287,7 +289,7 @@ object DeterministicSkipQuadTree {
 
          def union( mq: Quad, point2: Point ) = {
             val q = quad
-            interestingSquare( mq, q.x, q.y, q.side, point2 )
+            interestingSquare( mq, q.left, q.top, q.side, point2 )
          }
 
          def quadIdxIn( iq: Quad ) : Int = quadInQuad( iq, quad )
@@ -681,8 +683,8 @@ object DeterministicSkipQuadTree {
 //   }
 
    private def interestingSquare( pq: Quad, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
-      val tlx  = pq.x
-      val tly  = pq.y
+      val tlx  = pq.left
+      val tly  = pq.top
       val akx  = aleft - tlx
       val aky  = atop  - tly
       val bkx  = b.x - tlx

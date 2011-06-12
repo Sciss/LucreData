@@ -40,6 +40,8 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
    def headTree: QNode
    def lastTree: QNode
 
+   def rangeQuery( qs: QueryShape ) : Iterator[ V ]
+
    /**
     * An `Iterator` which iterates over the points stored
     * in the quadtree, using an in-order traversal directed
