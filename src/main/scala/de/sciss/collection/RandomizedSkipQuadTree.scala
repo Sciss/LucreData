@@ -185,8 +185,20 @@ object RandomizedSkipQuadTree {
             al * al
          }
 
+         var n0: Node = null
+//         var bend = 0
+//
+//         def checkBend( dnIdx: Int ) {
+//println( "go down " + dnIdx )
+//            if( bend == -1 ) {
+//               bend = dnIdx
+//            } else if( bend != dnIdx ) {
+//               bend = -2
+//            }
+//         }
+
          // n0 is in Q0, while _n is any successor of n0, not necessarily the highest
-         def findNNTail( n0: Node, equiDist: Long, _n: Node /*, chDists: Array[ Long ] */ ) : Node = {
+         def findNNTail( /* n0: Node, */ equiDist: Long, _n: Node /*, chDists: Array[ Long ] */ ) /* : Node = */ {
             // "start from p at the highest level in the
             // skip structure that contains p"
             var n = _n; while( n.next != null ) n = n.next
@@ -195,6 +207,7 @@ object RandomizedSkipQuadTree {
             // child squares equidistant with p."
             var equiCnt0 = 0
             var equiCh: Node = null
+            var equiIdx = 0
             var i = 0; while( i < 4 ) {
                n0.child( i ) match {
                   case nn0: Node =>
@@ -203,13 +216,14 @@ object RandomizedSkipQuadTree {
                      if( nn0dist == equiDist ) {
                         equiCnt0 += 1
                         equiCh    = nn0
+                        equiIdx   = i
                      }
                   case _ =>
 //                     chDists( i ) = Long.MaxValue   // indicates skip
                }
             i += 1 }
             // "If so we stop and return q."
-            if( equiCnt0 >= 2 ) return n0
+            if( equiCnt0 >= 2 ) return // n0
 
             // "we either go to a child square of q in Qi that is
             // equidistant to p, if such a child square exists,
@@ -220,27 +234,37 @@ object RandomizedSkipQuadTree {
                      case nn: Node =>
                         val nndist = nn.quad.closestDistanceSq( point )
                         if( nndist == equiDist ) {
-                           var nn0 = nn; while( nn0.prev != null ) nn0 = nn0.prev
-                           return findNNTail( nn0, equiDist, nn )
+                           n0 = nn; while( n0.prev != null ) n0 = n0.prev
+//                           checkBend( i )
+                           findNNTail( /* nn0, */ equiDist, nn )
+                           return
                         }
                      case _ =>
                   }
                i += 1 }
                n = n.prev
             }
-            if( equiCnt0 == 0 ) n0 else /* must be 1 */ findNNTail( equiCh, equiDist, equiCh )
+//            if( equiCnt0 == 0 ) n0 else /* must be 1 */ findNNTail( equiCh, equiDist, equiCh )
+            if( equiCnt0 == 1 ) {
+               n0 = equiCh
+//               checkBend( equiIdx )
+               findNNTail( /* equiCh, */ equiDist, n0 )
+            }
          }
 
          val pri        = PriorityQueue.empty( Ordering.by[ (Long, Node), Long ]( -_._1 )) // reverse!
          var bestLeaf: Leaf = null
          var bestDist   = Long.MaxValue   // all distances here are squared!
-         var p          = headTree
+//         var p          = headTree
+         n0             = headTree
          var pdist      = headTree.quad.closestDistanceSq( point )
 
-         while( (p != null) && (bestDist > abortSq) ) {
-            val n = findNNTail( p, pdist, p )
+         while( (n0 != null) && (bestDist > abortSq) ) {
+//            bend = -1
+          /* val n = */ findNNTail( /* p, */ pdist, n0 )
+//            println( "bend = " + (bend == -2) )
             var i = 0; while( i < 4 ) {
-               n.child( i ) match {
+               n0.child( i ) match {
                   case l: Leaf =>
                      val ld = l.point.distanceSq( point )
                      if( ld < bestDist ) {
@@ -254,11 +278,11 @@ object RandomizedSkipQuadTree {
                }
             i += 1 }
             if( pri.isEmpty ) {
-               p        = null
+               n0       = null
             } else {
                val tup  = pri.dequeue()
                pdist    = tup._1
-               p        = tup._2
+               n0       = tup._2
             }
          }
          if( bestLeaf != null ) {
