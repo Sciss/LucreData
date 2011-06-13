@@ -28,9 +28,10 @@
 
 package de.sciss.collection
 
-import annotation.tailrec
-import scala.collection.mutable.{Queue => MQueue, Stack => MStack}
 import sys.error
+import collection.mutable.{PriorityQueue, Queue => MQueue, Stack => MStack}
+import javax.xml.soap.Node
+import annotation.{switch, tailrec}
 
 object RandomizedSkipQuadTree {
    def empty[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = TreeImpl[ V ]( quad )
@@ -136,6 +137,107 @@ object RandomizedSkipQuadTree {
       }
 
       def rangeQuery( qs: QueryShape ) : Iterator[ (Point, V) ] = new RangeQuery( qs )
+
+      /**
+       * XXX TODO: this currently doesn't maintain the lowest-ancestor pointers needed,
+       * thus this search may report false positives (i.e. an entry which in fact is not the
+       * nearest)
+       *
+       * XXX TODO: could easily extend from 1 NN to k NN
+       */
+      def nearestNeighbor( point: Point, abort: Int = 0 ) : Option[ (Point, V) ] = {
+         val chDists    = new Array[ Long ]( 4 )
+         val abortSq    = {
+            val al = abort.toLong
+            al * al
+         }
+
+//         def findNNTail( _n: Node /*, chDists: Array[ Long ] */ ) : Node = {
+//            var n0         = _n; while( n0.prev != null ) n0 = n0.prev
+//            val equiDist   = n0.quad.closestDistanceSq( point )
+//            findNNTail0( n0, equiDist, _n, chDists )
+//         }
+
+         // n0 is in Q0, while _n is any successor of n0, not necessarily the highest
+         def findNNTail( n0: Node, equiDist: Long, _n: Node /*, chDists: Array[ Long ] */ ) : Node = {
+            // "start from p at the highest level in the
+            // skip structure that contains p"
+            var n = _n; while( n.next != null ) n = n.next
+
+            // "we first check if q ∈ Q0 has two or more
+            // child squares equidistant with p."
+            var equiCnt0 = 0
+            var equiCh: Node = null
+            var i = 0; while( i < 4 ) {
+               n0.child( i ) match {
+                  case nn0: Node =>
+                     val nn0dist = nn0.quad.closestDistanceSq( point )
+                     chDists( i ) = nn0dist
+                     if( nn0dist == equiDist ) {
+                        equiCnt0 += 1
+                        equiCh    = nn0
+                     }
+                  case _ =>
+//                     chDists( i ) = Long.MaxValue   // indicates skip
+               }
+            i += 1 }
+            // "If so we stop and return q."
+            if( equiCnt0 >= 2 ) return n0
+
+            // "we either go to a child square of q in Qi that is
+            // equidistant to p, if such a child square exists,
+            // or jump to the next level q ∈ Qi−1."
+            while( !(n0 eq n) ) {
+               var i = 0; while( i < 4 ) {
+                  n.child( i ) match {
+                     case nn: Node =>
+                        val nndist = nn.quad.closestDistanceSq( point )
+                        if( nndist == equiDist ) {
+                           var nn0 = nn; while( nn0.prev != null ) nn0 = nn0.prev
+                           return findNNTail( nn0, equiDist, nn )
+                        }
+                     case _ =>
+                  }
+               i += 1 }
+               n = n.prev
+            }
+            if( equiCnt0 == 0 ) n0 else /* must be 1 */ findNNTail( equiCh, equiDist, equiCh )
+         }
+
+         val pri        = PriorityQueue.empty( Ordering.by[ (Long, Node), Long ]( -_._1 )) // reverse!
+         var bestLeaf: Leaf = null
+         var bestDist   = Long.MaxValue   // all distances here are squared!
+         var p          = headTree
+         var pdist      = headTree.quad.closestDistanceSq( point )
+
+         while( (p != null) && (bestDist > abortSq) ) {
+            val n = findNNTail( p, pdist, p )
+            var i = 0; while( i < 4 ) {
+               n.child( i ) match {
+                  case l: Leaf =>
+                     val ld = l.point.distanceSq( point )
+                     if( ld < bestDist ) {
+                        bestDist = ld
+                        bestLeaf = l
+                     }
+                  case n: Node =>
+                     val nd = chDists( i )
+                     if( nd < bestDist ) pri += nd -> n
+                  case _ =>
+               }
+            i += 1 }
+            if( pri.isEmpty ) {
+               p        = null
+            } else {
+               val tup  = pri.dequeue()
+               pdist    = tup._1
+               p        = tup._2
+            }
+         }
+         if( bestLeaf != null ) {
+            Some( bestLeaf.point -> bestLeaf.value )
+         } else None
+      }
 
       private class RangeQuery( qs: QueryShape ) extends Iterator[ (Point, V) ] {
          val stabbing      = MQueue.empty[ (Node, Long) ]

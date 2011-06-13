@@ -55,6 +55,17 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
    def rangeQuery( qs: QueryShape ) : Iterator[ (Point, V) ]
 
    /**
+    * Reports the nearest neighbor entry with respect to
+    * a given point.
+    *
+    * @param   point the point of which the nearest neighbor is to be found
+    * @param   a threshold which is an acceptable abortion criterion. I.e.,
+    *    if a point is found whose distance is smaller or equal to this
+    *    value, the search is immediately terminated and that entry is returned
+    */
+   def nearestNeighbor( point: Point, abort: Int = 0 ) : Option[ (Point, V) ]
+
+   /**
     * An `Iterator` which iterates over the points stored
     * in the quadtree, using an in-order traversal directed
     * by the quadrant indices of the nodes of the tree

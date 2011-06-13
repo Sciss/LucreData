@@ -76,8 +76,9 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
 - Number fields are cx, cy, and extent (for range queries)
 - Mouse:
      Double-click to insert point
-     Alt-click to remove point
+     Alt-click to remove point (-NOT YET WORKING-)
      Shift-drag for range query
+     Ctrl-click for NN (-NOT FULLY WORKING-)
 """ )
    }
 
@@ -99,6 +100,17 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
       val s = pt.map( p => "(" + p.x + "," + p.y + ")" ).mkString( " " )
       if( s.isEmpty ) "(empty)" else s
    }
+
+   def findNN { tryPoint { p =>
+      val set = t.nearestNeighbor( p ) match {
+         case Some( (p2, _) ) => Set( p2 )
+         case None => Set.empty[ Point ]
+      }
+      slv.highlight = set
+      status( rangeString( set ))
+   }}
+
+   but( "NN" )( findNN )
 
    but( "Range" ) { tryQuad { q =>
       val set = t.rangeQuery( q ).map( _._1 ).toSet
@@ -170,10 +182,12 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
          val x = e.getX - in.left
          val y = e.getY - in.top
          updateNum( x, y )
-         if( e.isAltDown ) {  // remove point
+         if( e.isControlDown ) {
+            findNN
+            slv.repaint()
+         } else if( e.isAltDown ) {  // remove point
             ggRemove.doClick( 100 )
          } else if( e.isShiftDown ) {  // range search
-//println( "Kuuka" )
             drag = Some( e -> None )
          } else if( e.getClickCount == 2 ) { // add point
             ggAdd.doClick( 100 )

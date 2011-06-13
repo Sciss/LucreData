@@ -1,0 +1,12 @@
+three possible translations between master and marked tree
+
+1. master relabellings are immediately forwarded to all children
+2. master relabellings are lazily applied to children, for example
+    as soon as a child is read or written to;
+    although this sound beautiful the problem is to maintain
+    information to determine if the marked tree went out of sync;
+    it's not sufficient to check the boundaries as there might
+    have occured relabellings only affecting inner regions of
+    the marked tree.
+3. marked tree has independant ordering, and a translation is
+    applied for each read or write
