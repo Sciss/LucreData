@@ -125,7 +125,7 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    }
 
    but( "Remove 10x" ) {
-      t --= t.keysIterator.take( 10 )
+      t --= t.keysIterator.take( 10 ).toList
    }
 
    private val ma = new MouseAdapter {
