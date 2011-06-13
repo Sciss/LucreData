@@ -118,7 +118,13 @@ object RandomizedSkipQuadTree {
          if( leaf == null ) None else Some( leaf.value )
       }
 
-      protected def removeLeaf( point: Point ) : Leaf = tailVar.remove( point )
+      protected def removeLeaf( point: Point ) : Leaf = {
+         if( !_quad.contains( point )) {
+//println( "wooops " + point )
+            return null
+         }
+         tailVar.remove( point )
+      }
 
       def iterator = new Iterator[ (Point, V) ] {
          val stack   = MStack.empty[ (Node, Int) ]
@@ -410,22 +416,27 @@ object RandomizedSkipQuadTree {
                case n: Node if( n.quad.contains( point )) => n.remove( point )
                case l: Leaf if( l.point == point ) =>
                   quads( qidx ) = Empty
-                  if( parent != null ) {
-                     var lonely: NonEmpty = null
-                     var numNonEmpty = 0
-                     var i = 0; while( i < 4 ) {
-                        quads( i ) match {
-                           case n: NonEmpty =>
-                              numNonEmpty += 1
-                              lonely = n
-                           case _ =>
-                        }
-                     i += 1 }
-                     if( numNonEmpty == 1 ) { // gotta remove this node and put remaining non empty element in parent
-                        if( prev != null ) prev.next = null // note: since remove is called from Qn to Q0, there is no this.next !
-                        val myIdx = quadIdx( parent.quad, quad )
-                        parent.quads( myIdx ) = lonely
+                  var lonely: NonEmpty = null
+                  var numNonEmpty = 0
+                  var i = 0; while( i < 4 ) {
+                     quads( i ) match {
+                        case n: NonEmpty =>
+                           numNonEmpty += 1
+                           lonely = n
+                        case _ =>
                      }
+                  i += 1 }
+                  if( numNonEmpty == 1 && parent != null ) {   // gotta remove this node and put remaining non empty element in parent
+                     if( prev != null ) prev.next = null       // note: since remove is called from Qn to Q0, there is no this.next !
+                     val myIdx = quadIdx( parent.quad, quad )
+                     parent.quads( myIdx ) = lonely
+                     lonely match {
+                        case n: Node => n.parent = parent
+                        case _ =>
+                     }
+                  } else if( numNonEmpty == 0 && prev != null ) {  // meaning that this is a root node (but not headTree)
+                     prev.next   = null
+                     tailVar     = prev
                   }
                   if( prev != null ) prev.remove( point ) else l
 
