@@ -1,0 +1,26 @@
+space efficiency
+----------------
+- can there be more than two lowest ancestor pointers (in Q0)?
+- it doesn't look that way. and since we don't need to know the ancestor _directions_ (according to eppstein et al we should always consider all directions, and this is also evident from the experiments), it would be sufficient to have two (unordered) ancestor pointers.
+
+- it also looks like of those two pointers, one will be static and not change even if parent nodes are exchanged
+(which would easy the update -- just pass in the new parent to the one and only variable ancestor pointer...)
+
+- and the variable one is always the inside one?
+
+:::::
+
+wrong: there may be more ancestors; three?
+would make sense, as a node is always in a quad of a parent node, thus that parent node accounts as ancestor for two directions of four, so there would be max three distinct in total; where one of them is always identical with the parent -- correct?
+
+::::::
+
+we might solve the problem by making the definition of what is an equidistant child wider. e.g. not just a node, but also leafs if their distance is <bestDist
+--> the question is if this impairs the worst case performance?
+
+; or be defining equidistance wider, e.g. in the most-distant edge sense? that is, if i enter a child because the equi distance is zero, i also need to include the oder children at the same level whose distance is < equi + child-extent
+
+e.g. in Screen shot 2011-06-14 at 02.42.56
+wenn q am unteren rand des quad des gruenen punkt laege : "normal" waere p0 nicht tail, weil p0.NE der einzige quadrant mit gleicher equidistance waere. wenn wir aber sagen das die effektive equidistance z.b. max( equi, dist(ch,v) - parent_extent ) ist, was ja der worst case waere, in dem ein sibling doch noch beteiligt ist, waere vielleicht die such vollstaendig auch ohne ancestor pointers. dieser 'erweiterte equidistante baum' wuerde dann einfach in der priority queue abgelegt, waehrend nach wie vor der equidistante pfad im engen sinn abgelaufen wuerde (und damit nach wie vor die skip-struktur effektiv waere).
+
+korrekt?

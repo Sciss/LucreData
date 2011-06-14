@@ -259,7 +259,7 @@ object RandomizedSkipQuadTree {
          n0             = headTree
          var pdist      = headTree.quad.closestDistanceSq( point )
 
-         while( (n0 != null) && (bestDist > abortSq) ) {
+         while( true ) {
 //            bend = -1
           /* val n = */ findNNTail( /* p, */ pdist, n0 )
 //            println( "bend = " + (bend == -2) )
@@ -268,6 +268,7 @@ object RandomizedSkipQuadTree {
                   case l: Leaf =>
                      val ld = l.point.distanceSq( point )
                      if( ld < bestDist ) {
+                        if( ld <= abortSq ) return Some( l.point -> l.value )
                         bestDist = ld
                         bestLeaf = l
                      }
@@ -277,17 +278,19 @@ object RandomizedSkipQuadTree {
                   case _ =>
                }
             i += 1 }
-            if( pri.isEmpty ) {
-               n0       = null
-            } else {
-               val tup  = pri.dequeue()
-               pdist    = tup._1
-               n0       = tup._2
-            }
+            do {
+               if( pri.isEmpty ) {
+                  return if( bestLeaf != null ) {
+                     Some( bestLeaf.point -> bestLeaf.value )
+                  } else None
+               } else {
+                  val tup  = pri.dequeue()
+                  pdist    = tup._1
+                  n0       = tup._2
+               }
+            } while( pdist < bestDist )
          }
-         if( bestLeaf != null ) {
-            Some( bestLeaf.point -> bestLeaf.value )
-         } else None
+         error( "never here" )
       }
 
       private class RangeQuery( qs: QueryShape ) extends Iterator[ (Point, V) ] {
