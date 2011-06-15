@@ -675,7 +675,8 @@ object RandomizedSkipQuadTree {
       }
    }
 
-   private def flipCoin : Boolean = util.Random.nextBoolean()
+   val random = new util.Random()
+   private def flipCoin : Boolean = random.nextBoolean()
 
    /**
     * Determines the quadrant index of a point `a` in a square `p` defined

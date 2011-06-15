@@ -1,7 +1,7 @@
 package de.sciss.collection
 
 import org.scalatest.{FeatureSpec, GivenWhenThen}
-import collection.mutable.{Map => MMap, Set => MSet}
+import collection.mutable.{Map => MMap}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -13,15 +13,19 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = false     // currently doesn't pass tests
 
-   val rnd   = new util.Random( 0L )
+   val rnd   = new util.Random( 2L )
 
    val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
    if( RANDOMIZED ) withTree( "randomized", RandomizedSkipQuadTree.empty[ Int ]( quad ))
    if( DETERMINISTIC ) withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
 
+   RandomizedSkipQuadTree.random.setSeed( 0L )
+
    def randFill( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
       given( "a randomly filled structure" )
-      val n     = 0x200000
+
+      // seed = 2
+      val n     = 0x467 // 0x2F80
       for( i <- 0 until n ) {
          val k = Point( rnd.nextInt( 0x40000000 ),
                         rnd.nextInt( 0x40000000 ))
@@ -32,10 +36,61 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
+   def verifyConsistency( t: SkipQuadTree[ Int ]) {
+      when( "the internals of the structure are checked" )
+      then( "they should be consistent with underlying algorithm" )
+      val q = t.quad
+      var h = t.lastTree
+      var currUnlinkedQuads   =  Set.empty[ Quad ]
+      var currPoints          = Set.empty[ Point ]
+      var prevs = 0
+      do {
+         assert( h.quad == q, "Root level quad is " + h.quad + " while it should be " + q + " in level n - " + prevs )
+         val nextUnlinkedQuads   = currUnlinkedQuads
+         val nextPoints          = currPoints
+         currUnlinkedQuads       = Set.empty
+         currPoints              = Set.empty
+         def checkChildren( n: SkipQuadTree[ Int ]#QNode ) {
+            var i = 0; while( i < 4 ) {
+               n.child( i ) match {
+                  case c: SkipQuadTree[ _ ]#QNode =>
+                     val nq = n.quad.quadrant( i )
+                     val cq = c.quad
+                     assert( cq == nq, "Child has invalid quad (" + cq + "), expected: " + nq )
+                     c.nextOption match {
+                        case Some( next ) =>
+                           assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + " in level n - " + prevs )
+                           assert( next.quad == cq, "Next quad does not match (" + cq + " vs. " + next.quad + ")" )
+                        case None =>
+                           assert( !nextUnlinkedQuads.contains( cq ), "Double missing link for " + cq + " in level n - " + prevs )
+                     }
+                     c.prevOption match {
+                        case Some( prev ) =>
+                           assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + " in level n - " + prevs )
+                           assert( prev.quad == cq, "Next quad do not match (" + cq + " vs. " + prev.quad + ")" )
+                        case None => currUnlinkedQuads += cq
+                     }
+                     checkChildren( c )
+                  case l: SkipQuadTree[ _ ]#QLeaf =>
+                     currPoints += l.point
+                  case _: SkipQuadTree[ _ ]#QEmpty =>
+               }
+            i += 1 }
+         }
+         checkChildren( h )
+         val pointsOnlyInNext    = nextPoints.filterNot( currPoints.contains( _ ))
+         assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + ")" )
+         h                       = h.prevOption.orNull
+         prevs += 1
+      } while( h != null )
+   }
 
    def verifyElems( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
       when( "the structure t is compared to an independently maintained map m" )
-      val onlyInM  = m.filterNot( e => t.contains( e._1 ))
+      val onlyInM  = m.filterNot { e =>
+         println( "Contains ? " + e._1 )
+         t.contains( e._1 )
+      }
       val onlyInT  = t.filterNot( e => m.contains( e._1 ))
       val szT      = t.size
       val szM      = m.size
@@ -55,7 +110,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          if( !m.contains( x )) testSet += x
       }
       val inT = testSet.filter { p =>
-println( "testin " + p )
+//println( "testin " + p )
          t.contains( p )
       }
       then( "none of them should be contained in t" )
@@ -90,6 +145,7 @@ println( "testin " + p )
             val t  = tf // ( None )
             val m  = MMap.empty[ Point, Int ]
             randFill( t, m )
+            verifyConsistency( t )
 //            verifyOrder( t )
             verifyElems( t, m )
             verifyContainsNot( t, m )

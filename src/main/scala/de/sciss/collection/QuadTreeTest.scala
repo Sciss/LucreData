@@ -32,6 +32,7 @@ import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
 import view.{SkipQuadTreeView, CompressedQuadTreeView, UncompressedQuadTreeView}
 import annotation.tailrec
+import scala.collection.mutable.{Map => MMap}
 
 object QuadTreeTest extends App {
    args.headOption match {
@@ -235,32 +236,28 @@ Options:
    }
 
    class Test3 {
-      val pts = Seq(
-         Point(784870680,892752974),
-         Point(651058223,684421757),
-         Point(591027245,125634880),
-         Point(839166427,357790538),
-         Point(413593736,658242131),
-         Point(1055294422,944015042),
-         Point(1010658620,188953660),
-         Point(336012444,138402262),
-         Point(157412326,757175630),
-         Point(1488941,587057346),
-         Point(1035609872,604462622),
-         Point(271531193,671245801),
-         Point(441089062,16027826),
-         Point(1048721317,1063780480),
-         Point(523162277,931662865),
-         Point(1053281845,787216037)
-      )
-      val q = Quad( 0x20000000, 0x20000000, 0x20000000 )
+      RandomizedSkipQuadTree.random.setSeed( 0L )
 
-      val t = RandomizedSkipQuadTree.empty[ Int ]( q )
-      pts.foreach( t.put(_, -1 ))
-      pts.foreach { p =>
-//         println( "Contains " + p + " ? " )
-         t.contains( p )
+      val rnd   = new util.Random( 2L )
+      def randFill( t: SkipQuadTree[ Int ]) {
+         // seed = 2
+         val n     = 0x467 // 0x2F80
+         for( i <- 0 until n ) {
+            val k = Point( rnd.nextInt( 0x40000000 ),
+                           rnd.nextInt( 0x40000000 ))
+            val v = rnd.nextInt()
+//println( "Putting " + k )
+            if( i == 0x466 ) {
+//               println( "ahora" )
+            }
+            t.put( k, v )
+//            m.put( k, v )
+         }
       }
-      t.contains( Point(-998828580,-1206282339 ))
+
+      val q = Quad( 0x20000000, 0x20000000, 0x20000000 )
+      val t = RandomizedSkipQuadTree.empty[ Int ]( q )
+      randFill( t )
+      t.contains( Point(1019607265,594590615))
    }
 }
