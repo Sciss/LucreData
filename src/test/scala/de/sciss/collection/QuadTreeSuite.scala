@@ -3,15 +3,21 @@ package de.sciss.collection
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.mutable.{Map => MMap, Set => MSet}
 
+/**
+ * To run this test copy + paste the following into sbt:
+ * {{
+ * test-only de.sciss.collection.QuadTreeSuite
+ * }}
+ */
 class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = false     // currently doesn't pass tests
 
-   val rnd   = new util.Random()
+   val rnd   = new util.Random( 0L )
 
    val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
    if( RANDOMIZED ) withTree( "randomized", RandomizedSkipQuadTree.empty[ Int ]( quad ))
-   if( RANDOMIZED ) withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
+   if( DETERMINISTIC ) withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
 
    def randFill( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
       given( "a randomly filled structure" )
@@ -20,6 +26,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          val k = Point( rnd.nextInt( 0x40000000 ),
                         rnd.nextInt( 0x40000000 ))
          val v = rnd.nextInt()
+//println( "Putting " + k )
          t.put( k, v )
          m.put( k, v )
       }
@@ -47,7 +54,10 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          val x = Point( rnd.nextInt(), rnd.nextInt() )
          if( !m.contains( x )) testSet += x
       }
-      val inT = testSet.filter( t.contains( _ ))
+      val inT = testSet.filter { p =>
+println( "testin " + p )
+         t.contains( p )
+      }
       then( "none of them should be contained in t" )
       assert( inT.isEmpty, inT.take( 10 ).toString )
    }

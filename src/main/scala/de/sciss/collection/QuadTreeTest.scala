@@ -39,12 +39,14 @@ object QuadTreeTest extends App {
       case Some( "-fig2" ) => new Figure2
       case Some( "-test1" ) => new Test1
       case Some( "-test2" ) => new Test2
+      case Some( "-test3" ) => new Test3
       case _ => println( """
 Options:
 -fig1
 -fig2
 -test1
 -test2 (somehow a variant of fig. 5 -- only with high n and skewed dist)
+-test3
 """)
          sys.exit( 1 )
    }
@@ -230,5 +232,35 @@ Options:
          v.adjustPreferredSize
          v :: Nil
       }
+   }
+
+   class Test3 {
+      val pts = Seq(
+         Point(784870680,892752974),
+         Point(651058223,684421757),
+         Point(591027245,125634880),
+         Point(839166427,357790538),
+         Point(413593736,658242131),
+         Point(1055294422,944015042),
+         Point(1010658620,188953660),
+         Point(336012444,138402262),
+         Point(157412326,757175630),
+         Point(1488941,587057346),
+         Point(1035609872,604462622),
+         Point(271531193,671245801),
+         Point(441089062,16027826),
+         Point(1048721317,1063780480),
+         Point(523162277,931662865),
+         Point(1053281845,787216037)
+      )
+      val q = Quad( 0x20000000, 0x20000000, 0x20000000 )
+
+      val t = RandomizedSkipQuadTree.empty[ Int ]( q )
+      pts.foreach( t.put(_, -1 ))
+      pts.foreach { p =>
+//         println( "Contains " + p + " ? " )
+         t.contains( p )
+      }
+      t.contains( Point(-998828580,-1206282339 ))
    }
 }

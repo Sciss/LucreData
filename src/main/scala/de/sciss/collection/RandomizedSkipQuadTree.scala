@@ -107,7 +107,11 @@ object RandomizedSkipQuadTree {
          l
       }
 
-      override def contains( point: Point ) : Boolean = tailVar.findLeaf( point ) != null
+      override def contains( point: Point ) : Boolean = {
+         if( !_quad.contains( point )) return false
+         tailVar.findLeaf( point ) != null
+      }
+
       override def apply( point: Point ) : V = {
          val leaf = tailVar.findLeaf( point )
          if( leaf == null ) throw new java.util.NoSuchElementException( "key not found: " + point )
