@@ -43,6 +43,9 @@ import annotation.{switch, tailrec}
 object DeterministicSkipQuadTree {
 //   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
 
+   def empty[ V ]( quad: Quad, skipGap: Int = 2 ) : DeterministicSkipQuadTree[ V ] =
+      new TreeImpl[ V ]( quad, skipGap )
+
    def apply[ V ]( quad: Quad, skipGap: Int = 2 )( xs: (Point, V)* ) : DeterministicSkipQuadTree[ V ] = {
       val t = new TreeImpl[ V ]( quad, skipGap )
       xs.foreach( t.+=( _ ))

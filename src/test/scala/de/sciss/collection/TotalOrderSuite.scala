@@ -1,4 +1,5 @@
-import de.sciss.collection.TotalOrder
+package de.sciss.collection
+
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 class TotalOrderSuite extends FeatureSpec with GivenWhenThen {

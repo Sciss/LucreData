@@ -1,7 +1,8 @@
-import collection.immutable.IntMap
-import de.sciss.collection.{HASkipList, LLSkipList, SkipList}
-import org.scalatest.{GivenWhenThen, FeatureSpec}
+package de.sciss.collection
+
+import scala.collection.immutable.IntMap
 import scala.collection.mutable.{Set => MSet}
+import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 class SkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
