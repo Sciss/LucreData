@@ -112,6 +112,13 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
       (cx - extent <= px) && (cx + extent > px) && (cy - extent <= py) && (cy + extent > py)
    }
 
+   /**
+    * Checks whether a given quad is fully contained in this quad.
+    * This is also the case if their bounds full match.
+    */
+   def contains( quad: Quad ) : Boolean =
+      quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
+
    def area : Long = {
       val sd = side.toLong
       sd * sd

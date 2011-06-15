@@ -25,7 +25,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       given( "a randomly filled structure" )
 
       // seed = 2
-      val n     = 0x467 // 0x2F80
+      val n     = 0x467 // 0x467 // 0x2F80
       for( i <- 0 until n ) {
          val k = Point( rnd.nextInt( 0x40000000 ),
                         rnd.nextInt( 0x40000000 ))
@@ -38,10 +38,10 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyConsistency( t: SkipQuadTree[ Int ]) {
       when( "the internals of the structure are checked" )
-      then( "they should be consistent with underlying algorithm" )
+      then( "they should be consistent with the underlying algorithm" )
       val q = t.quad
       var h = t.lastTree
-      var currUnlinkedQuads   =  Set.empty[ Quad ]
+      var currUnlinkedQuads   = Set.empty[ Quad ]
       var currPoints          = Set.empty[ Point ]
       var prevs = 0
       do {
@@ -50,36 +50,38 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          val nextPoints          = currPoints
          currUnlinkedQuads       = Set.empty
          currPoints              = Set.empty
-         def checkChildren( n: SkipQuadTree[ Int ]#QNode ) {
+         def checkChildren( n: SkipQuadTree[ Int ]#QNode, depth: Int ) {
+            def assertInfo = " in level n-" + prevs + " / depth " + depth
+
             var i = 0; while( i < 4 ) {
                n.child( i ) match {
                   case c: SkipQuadTree[ _ ]#QNode =>
                      val nq = n.quad.quadrant( i )
                      val cq = c.quad
-                     assert( cq == nq, "Child has invalid quad (" + cq + "), expected: " + nq )
+                     assert( nq.contains( cq ), "Child has invalid quad (" + cq + "), expected: " + nq + assertInfo )
                      c.nextOption match {
                         case Some( next ) =>
-                           assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + " in level n - " + prevs )
-                           assert( next.quad == cq, "Next quad does not match (" + cq + " vs. " + next.quad + ")" )
+                           assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
+                           assert( next.quad == cq, "Next quad does not match (" + cq + " vs. " + next.quad + ")" + assertInfo )
                         case None =>
-                           assert( !nextUnlinkedQuads.contains( cq ), "Double missing link for " + cq + " in level n - " + prevs )
+                           assert( !nextUnlinkedQuads.contains( cq ), "Double missing link for " + cq + assertInfo )
                      }
                      c.prevOption match {
                         case Some( prev ) =>
-                           assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + " in level n - " + prevs )
-                           assert( prev.quad == cq, "Next quad do not match (" + cq + " vs. " + prev.quad + ")" )
+                           assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + assertInfo )
+                           assert( prev.quad == cq, "Next quad do not match (" + cq + " vs. " + prev.quad + ")" + assertInfo )
                         case None => currUnlinkedQuads += cq
                      }
-                     checkChildren( c )
+                     checkChildren( c, depth + 1 )
                   case l: SkipQuadTree[ _ ]#QLeaf =>
                      currPoints += l.point
                   case _: SkipQuadTree[ _ ]#QEmpty =>
                }
             i += 1 }
          }
-         checkChildren( h )
+         checkChildren( h, 0 )
          val pointsOnlyInNext    = nextPoints.filterNot( currPoints.contains( _ ))
-         assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + ")" )
+         assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + "); in level n-" + prevs )
          h                       = h.prevOption.orNull
          prevs += 1
       } while( h != null )
@@ -88,7 +90,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    def verifyElems( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
       when( "the structure t is compared to an independently maintained map m" )
       val onlyInM  = m.filterNot { e =>
-         println( "Contains ? " + e._1 )
+//         println( "Contains ? " + e._1 )
          t.contains( e._1 )
       }
       val onlyInT  = t.filterNot( e => m.contains( e._1 ))
