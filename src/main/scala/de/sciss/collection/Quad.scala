@@ -151,6 +151,32 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
 //
 //   }
 
+   def furthestDistanceSq( point: Point ) : Long = {
+      val px   = point.x
+      val py   = point.y
+      if( px < cx ) {
+         val dx   = (right - px).toLong
+         val dxs  = dx * dx
+         if( py < cy ) {   // bottom right is furthest
+            val dy   = (bottom - py).toLong
+            dxs + dy * dy
+         } else {          // top right is furthest
+            val dy   = (py - top).toLong
+            dxs + dy * dy
+         }
+      } else {
+         val dx   = (px - left).toLong
+         val dxs  = dx * dx
+         if( py < cy ) {   // bottom left is furthest
+            val dy   = (bottom - py).toLong
+            dxs + dy * dy
+         } else {          // top left is furthest
+            val dy   = (py - top).toLong
+            dxs + dy * dy
+         }
+      }
+   }
+
    /**
     * The squared (euclidean) distance of the closest of the quad's corners
     * to the point, if the point is outside the quad,
