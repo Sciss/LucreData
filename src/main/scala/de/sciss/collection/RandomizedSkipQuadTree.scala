@@ -93,7 +93,7 @@ object RandomizedSkipQuadTree {
                coin &= flipCoin
             }
             while( coin ) {
-               n        = Node( _quad, null, n )()
+               n        = Node( _quad, null, tailVar )()
                pr       = n.insert( point, value, pr )
                tailVar  = n
                coin    &= flipCoin

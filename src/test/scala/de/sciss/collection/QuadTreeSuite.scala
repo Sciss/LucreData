@@ -12,6 +12,7 @@ import collection.mutable.{Map => MMap}
 class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = false     // currently doesn't pass tests
+   val n             = 0x1000    // 0x4000 is the maximum acceptable speed
 
    val rnd   = new util.Random( 2L )
 
@@ -25,7 +26,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       given( "a randomly filled structure" )
 
       // seed = 2
-      val n     = 0x467 // 0x467 // 0x2F80
+//      val n     = 0x4000 // 0x10000 // 0x467 // 0x467 // 0x2F80
       for( i <- 0 until n ) {
          val k = Point( rnd.nextInt( 0x40000000 ),
                         rnd.nextInt( 0x40000000 ))
@@ -119,24 +120,24 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       assert( inT.isEmpty, inT.take( 10 ).toString )
    }
 
-//   def verifyAddRemoveAll( l: SkipList[ Int ], s: MSet[ Int ]) {
-//      when( "all elements of the independently maintained set are added again to l" )
-//      val szBefore = l.size
-//      val newInL   = s.filter( l.add( _ ))
-//      val szAfter  = l.size
-//      then( "none of the add operations should return 'true'" )
-//      assert( newInL.isEmpty, newInL.take( 10 ).toString )
-//      then( "the size of l should not change" )
-//      assert( szBefore == szAfter, "l had size " + szBefore + " before, but now reports " + szAfter )
-//
-//      when( "all elements of the independently maintained set are removed from l" )
-//      val keptInL  = s.filterNot( l.remove( _ ))
-//      val szAfter2 = l.size
-//      then( "all of the remove operations should return 'true'" )
-//      assert( keptInL.isEmpty, keptInL.take( 10 ).toString )
-//      then( "the size of l should be zero" )
-//      assert( szAfter2 == 0, szAfter2.toString )
-//   }
+   def verifyAddRemoveAll( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
+      when( "all elements of the independently maintained map are added again to t" )
+      val szBefore = t.size
+      val newInT   = m.filter( tup => t.put( tup._1, tup._2 ).isEmpty )
+      val szAfter  = t.size
+      then( "all of the put operations should return 'Some'" )
+      assert( newInT.isEmpty, newInT.take( 10 ).toString )
+      then( "the size of t should not change" )
+      assert( szBefore == szAfter, "t had size " + szBefore + " before, but now reports " + szAfter )
+
+      when( "all elements of the independently maintained map are removed from t" )
+      val keptInT  = m.filter( tup => t.remove( tup._1 ).isEmpty )
+      val szAfter2 = t.size
+      then( "all of the remove operations should return 'Some'" )
+      assert( keptInT.isEmpty, keptInT.take( 10 ).toString )
+      then( "the size of t should be zero" )
+      assert( szAfter2 == 0, szAfter2.toString )
+   }
 
    def withTree( name: String, tf: => SkipQuadTree[ Int ]) {
       feature( "The " + name + " quadtree structure should be consistent" ) {
@@ -151,7 +152,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 //            verifyOrder( t )
             verifyElems( t, m )
             verifyContainsNot( t, m )
-//            verifyAddRemoveAll( t, m )
+            verifyAddRemoveAll( t, m )
          }
       }
    }

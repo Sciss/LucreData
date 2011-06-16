@@ -248,7 +248,7 @@ Options:
             val v = rnd.nextInt()
 //println( "Putting " + k )
             if( i == 0x466 ) {
-//               println( "ahora" )
+               println( "ahora" )
             }
             t.put( k, v )
 //            m.put( k, v )
