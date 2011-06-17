@@ -58,6 +58,10 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
     * Reports the nearest neighbor entry with respect to
     * a given point.
     *
+    * XXX TODO: Should just return the tuple, not an option.
+    * Because if the tree is non-empty the search is guaranteed to
+    * succeed. Otherwise (tree empty) we can throw an error
+    *
     * @param   point the point of which the nearest neighbor is to be found
     * @param   a threshold which is an acceptable abortion criterion. I.e.,
     *    if a point is found whose distance is smaller or equal to this

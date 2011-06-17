@@ -139,6 +139,32 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szAfter2 == 0, szAfter2.toString )
    }
 
+   def verifyRangeSearch( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
+      when( "the quadtree is range searched" )
+      val qs = Seq.fill( 20 )( Quad( rnd.nextInt( 0x7FFFFFFF ) - 0x40000000,
+                                     rnd.nextInt( 0x7FFFFFFF ) - 0x40000000, rnd.nextInt( 0x40000000 )))
+      val rangesT = qs.map( q => t.rangeQuery( q ).map( _._1 ).toSet )
+      val ks      = m.keySet
+      val rangesM = qs.map( q => ks.filter( q.contains( _ )))
+      then( "the results should match brute force with the corresponding set" )
+      rangesT.zip(rangesM).foreach { case (s1, s2) =>
+         assert( s1 == s2, s1.toList.sortBy( p => (p.x, p.y) ).take( 10 ).toString + " -- " +
+                           s2.toList.sortBy( p => (p.x, p.y) ).take( 10 ))
+      }
+   }
+
+   def verifyNN( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
+      when( "the quadtree is searched for nearest neighbours" )
+      val ps0  = Seq.fill( 666 )( Point( rnd.nextInt(), rnd.nextInt() ))
+println( "WARNING: restricting search to points inside the tree' quad for now" )
+val ps = ps0.filter( t.quad.contains( _ ))
+      val nnT  = ps.map( p => p -> t.nearestNeighbor( p ).getOrElse( error( p.toString ))._1 )
+      val ks   = m.keySet
+      val nnM  = ps.map( p => p -> ks.minBy( _.distanceSq( p )))
+      then( "the results should match brute force with the corresponding set" )
+      assert( nnT == nnM, nnT.take( 10 ).toString + " -- " + nnM.take( 10 ))
+   }
+
    def withTree( name: String, tf: => SkipQuadTree[ Int ]) {
       feature( "The " + name + " quadtree structure should be consistent" ) {
          info( "Several mass operations on the structure" )
@@ -152,6 +178,8 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 //            verifyOrder( t )
             verifyElems( t, m )
             verifyContainsNot( t, m )
+            verifyRangeSearch( t, m )
+            verifyNN( t, m )
             verifyAddRemoveAll( t, m )
          }
       }
