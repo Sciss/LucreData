@@ -400,9 +400,10 @@ Options:
 //         Point( 465227848, 388362456), Point(2000906506, 729878800)
 //      )
       val q = Quad( 0x40000000, 0x40000000, 0x40000000 )
+      RandomizedSkipQuadTree.random.setSeed( 0L )
       val t = RandomizedSkipQuadTree[ Int ]( q )( pts.map( p => p -> 0 ): _* )
-      // query Point(1609162490,1507881173), result Point(1598649701,1592263107), correct Point(1657161143,1524021651)
-      // query Point( 310852551,1213007527), result Point( 257112136,1084105610), correct Point( 226535009,1195010500)
+      // query Point(1609162490,1507881173), wrong result Point(1598649701,1592263107), correct result Point(1657161143,1524021651)
+      // query Point( 310852551,1213007527), wrong result Point( 257112136,1084105610), correct result Point( 226535009,1195010500)
       val q1   = Point(1609162490,1507881173)
       val res1 = t.nearestNeighbor( q1 ).get
       println( q1 -> res1 )

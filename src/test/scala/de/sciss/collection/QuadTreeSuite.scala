@@ -30,18 +30,16 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 
       // seed = 2
 //      val n     = 0x4000 // 0x10000 // 0x467 // 0x467 // 0x2F80
-println( "::::::::::::::::: Putting" )
       for( i <- 0 until n ) {
 //         val k = Point( rnd.nextInt( 0x40000000 ),
 //                        rnd.nextInt( 0x40000000 ))
          val k = Point( rnd.nextInt() & 0x7FFFFFFF,
                         rnd.nextInt() & 0x7FFFFFFF )
          val v = rnd.nextInt()
-println( k )
+//println( k )
          t.put( k, v )
          m.put( k, v )
       }
-println( ":::::::::::::::::" )
    }
 
    def verifyConsistency( t: SkipQuadTree[ Int ]) {
@@ -187,11 +185,50 @@ val ps = ps0.filter( t.quad.contains( _ ))
 //println( ":::::::::::::::::: POINTS ::::::::::::::::::" )
 //m.foreach( tup => println( tup._1 ))
 //println( "::::::::::::::::::        ::::::::::::::::::" )
+
+//            {
+//               val q1   = Point(1609162490,1507881173)
+//               val res1 = t.nearestNeighbor( q1 ).get
+//               println( "HALOCHILA 1" )
+//               println( q1 -> res1 )
+//            }
+
             verifyConsistency( t )
-//            verifyOrder( t )
+
+//            {
+//               val q1   = Point(1609162490,1507881173)
+//               val res1 = t.nearestNeighbor( q1 ).get
+//               println( "HALOCHILA 2" )
+//               println( q1 -> res1 )
+//            }
+
             verifyElems( t, m )
+
+//            {
+//               val q1   = Point(1609162490,1507881173)
+//               val res1 = t.nearestNeighbor( q1 ).get
+//               println( "HALOCHILA 3" )
+//               println( q1 -> res1 )
+//            }
+
             verifyContainsNot( t, m )
+
+//            {
+//               val q1   = Point(1609162490,1507881173)
+//               val res1 = t.nearestNeighbor( q1 ).get
+//               println( "HALOCHILA 4" )
+//               println( q1 -> res1 )
+//            }
+
             verifyRangeSearch( t, m )
+
+//            {
+//               val q1   = Point(1609162490,1507881173)
+//               val res1 = t.nearestNeighbor( q1 ).get
+//               println( "HALOCHILA 5" )
+//               println( q1 -> res1 )
+//            }
+
             verifyNN( t, m )
             verifyAddRemoveAll( t, m )
          }
