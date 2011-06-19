@@ -20,8 +20,8 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 
 //   val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
    val quad = Quad( 0x40000000, 0x40000000, 0x40000000 )
-   if( RANDOMIZED ) withTree( "randomized", RandomizedSkipQuadTree.empty[ Int ]( quad ))
-   if( DETERMINISTIC ) withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
+   if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadTree.empty[    Int ]( quad ))
+   if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
 
    RandomizedSkipQuadTree.random.setSeed( 0L )
 
@@ -182,6 +182,8 @@ val ps = ps0.filter( t.quad.contains( _ ))
             val t  = tf // ( None )
             val m  = MMap.empty[ Point, Int ]
             randFill( t, m )
+println( "POINTS:" )
+println( m.keys.toList )
             verifyConsistency( t )
 //            verifyOrder( t )
             verifyElems( t, m )
