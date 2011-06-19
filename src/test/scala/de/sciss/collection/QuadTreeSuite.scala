@@ -1,7 +1,9 @@
 package de.sciss.collection
 
 import org.scalatest.{FeatureSpec, GivenWhenThen}
+import collection.breakOut
 import collection.mutable.{Map => MMap}
+import sys.error
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -17,6 +19,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val rnd   = new util.Random( 2L )
 
    val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
+//   val quad = Quad( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED ) withTree( "randomized", RandomizedSkipQuadTree.empty[ Int ]( quad ))
    if( DETERMINISTIC ) withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
 
@@ -30,6 +33,8 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       for( i <- 0 until n ) {
          val k = Point( rnd.nextInt( 0x40000000 ),
                         rnd.nextInt( 0x40000000 ))
+//         val k = Point( rnd.nextInt() & 0x7FFFFFFF,
+//                        rnd.nextInt() & 0x7FFFFFFF )
          val v = rnd.nextInt()
 //println( "Putting " + k )
          t.put( k, v )
@@ -158,11 +163,14 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       val ps0  = Seq.fill( 666 )( Point( rnd.nextInt(), rnd.nextInt() ))
 println( "WARNING: restricting search to points inside the tree' quad for now" )
 val ps = ps0.filter( t.quad.contains( _ ))
-      val nnT  = ps.map( p => p -> t.nearestNeighbor( p ).getOrElse( error( p.toString ))._1 )
+      val nnT: Map[ Point, Point ] = ps.map( p => p -> t.nearestNeighbor( p ).getOrElse( error( p.toString ))._1 )( breakOut )
       val ks   = m.keySet
-      val nnM  = ps.map( p => p -> ks.minBy( _.distanceSq( p )))
+      val nnM: Map[ Point, Point ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )
       then( "the results should match brute force with the corresponding set" )
-      assert( nnT == nnM, nnT.take( 10 ).toString + " -- " + nnM.take( 10 ))
+      assert( nnT == nnM, {
+         (nnT.collect { case (q, v) if( nnM( q ) != v ) => (q, v, nnM( q ))}).take( 10 ).toString
+//         nnT.take( 10 ).toString + " -- " + nnM.take( 10 )
+      })
    }
 
    def withTree( name: String, tf: => SkipQuadTree[ Int ]) {

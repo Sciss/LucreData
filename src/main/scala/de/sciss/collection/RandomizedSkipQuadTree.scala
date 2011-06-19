@@ -30,7 +30,7 @@ package de.sciss.collection
 
 import sys.error
 import collection.mutable.{PriorityQueue, Queue => MQueue, Stack => MStack}
-import annotation.{switch, tailrec}
+import annotation.tailrec
 
 object RandomizedSkipQuadTree {
    def empty[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
@@ -296,128 +296,6 @@ object RandomizedSkipQuadTree {
          error( "never here" )
       }
 
-      /**
-       * XXX TODO: this currently doesn't maintain the lowest-ancestor pointers needed,
-       * thus this search may report false positives (i.e. an entry which in fact is not the
-       * nearest)
-       *
-       * XXX TODO: could easily extend from 1 NN to k NN
-       */
-      def nearestNeighborX( point: Point, abort: Int = 0 ) : Option[ (Point, V) ] = {
-         val chDists    = new Array[ Long ]( 4 )
-         val abortSq    = {
-            val al = abort.toLong
-            al * al
-         }
-
-         var n0: Node = null
-//         var bend = 0
-//
-//         def checkBend( dnIdx: Int ) {
-//println( "go down " + dnIdx )
-//            if( bend == -1 ) {
-//               bend = dnIdx
-//            } else if( bend != dnIdx ) {
-//               bend = -2
-//            }
-//         }
-
-         // n0 is in Q0, while _n is any successor of n0, not necessarily the highest
-         def findNNTail( /* n0: Node, */ equiDist: Long, _n: Node /*, chDists: Array[ Long ] */ ) /* : Node = */ {
-            // "start from p at the highest level in the
-            // skip structure that contains p"
-            var n = _n; while( n.next != null ) n = n.next
-
-            // "we first check if q ∈ Q0 has two or more
-            // child squares equidistant with p."
-            var equiCnt0 = 0
-            var equiCh: Node = null
-            var equiIdx = 0
-            var i = 0; while( i < 4 ) {
-               n0.child( i ) match {
-                  case nn0: Node =>
-                     val nn0dist = nn0.quad.closestDistanceSq( point )
-                     chDists( i ) = nn0dist
-                     if( nn0dist == equiDist ) {
-                        equiCnt0 += 1
-                        equiCh    = nn0
-                        equiIdx   = i
-                     }
-                  case _ =>
-//                     chDists( i ) = Long.MaxValue   // indicates skip
-               }
-            i += 1 }
-            // "If so we stop and return q."
-            if( equiCnt0 >= 2 ) return // n0
-
-            // "we either go to a child square of q in Qi that is
-            // equidistant to p, if such a child square exists,
-            // or jump to the next level q ∈ Qi−1."
-            while( !(n0 eq n) ) {
-               var i = 0; while( i < 4 ) {
-                  n.child( i ) match {
-                     case nn: Node =>
-                        val nndist = nn.quad.closestDistanceSq( point )
-                        if( nndist == equiDist ) {
-                           n0 = nn; while( n0.prev != null ) n0 = n0.prev
-//                           checkBend( i )
-                           findNNTail( /* nn0, */ equiDist, nn )
-                           return
-                        }
-                     case _ =>
-                  }
-               i += 1 }
-               n = n.prev
-            }
-//            if( equiCnt0 == 0 ) n0 else /* must be 1 */ findNNTail( equiCh, equiDist, equiCh )
-            if( equiCnt0 == 1 ) {
-               n0 = equiCh
-//               checkBend( equiIdx )
-               findNNTail( /* equiCh, */ equiDist, n0 )
-            }
-         }
-
-         val pri        = PriorityQueue.empty( Ordering.by[ (Long, Node), Long ]( -_._1 )) // reverse!
-         var bestLeaf: Leaf = null
-         var bestDist   = Long.MaxValue   // all distances here are squared!
-//         var p          = headTree
-         n0             = headTree
-         var pdist      = headTree.quad.closestDistanceSq( point )
-
-         while( true ) {
-//            bend = -1
-          /* val n = */ findNNTail( /* p, */ pdist, n0 )
-//            println( "bend = " + (bend == -2) )
-            var i = 0; while( i < 4 ) {
-               n0.child( i ) match {
-                  case l: Leaf =>
-                     val ld = l.point.distanceSq( point )
-                     if( ld < bestDist ) {
-                        if( ld <= abortSq ) return Some( l.point -> l.value )
-                        bestDist = ld
-                        bestLeaf = l
-                     }
-                  case n: Node =>
-                     val nd = chDists( i )
-                     if( nd < bestDist ) pri += nd -> n
-                  case _ =>
-               }
-            i += 1 }
-            do {
-               if( pri.isEmpty ) {
-                  return if( bestLeaf != null ) {
-                     Some( bestLeaf.point -> bestLeaf.value )
-                  } else None
-               } else {
-                  val tup  = pri.dequeue()
-                  pdist    = tup._1
-                  n0       = tup._2
-               }
-            } while( pdist > bestDist ) // while( pdist < bestDist )
-         }
-         error( "never here" )
-      }
-
       private class RangeQuery( qs: QueryShape ) extends Iterator[ (Point, V) ] {
          val stabbing      = MQueue.empty[ (Node, Long) ]
          val in            = MQueue.empty[ NonEmpty ]
@@ -539,7 +417,7 @@ object RandomizedSkipQuadTree {
          }
 
          def findP0( point: Point, ns: MStack[ Node ]) /* : Leaf = */ {
-            val qidx = quadIdx( quad, point )
+            val qidx = quad.indexOf( point )
             quads( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point, ns )
 //               case l: Leaf if( prev == null && l.point == point ) =>
@@ -552,7 +430,7 @@ object RandomizedSkipQuadTree {
          }
 
          def findLeaf( point: Point ) : Leaf = {
-            val qidx = quadIdx( quad, point )
+            val qidx = quad.indexOf( point )
             quads( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
                case l: Leaf if( l.point == point ) => l
@@ -563,7 +441,7 @@ object RandomizedSkipQuadTree {
          def findSameSquare( iq: Quad ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
 
          def remove( point: Point ) : Leaf = {
-            val qidx = quadIdx( quad, point )
+            val qidx = quad.indexOf( point )
             quads( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.remove( point )
                case l: Leaf if( l.point == point ) =>
@@ -580,7 +458,7 @@ object RandomizedSkipQuadTree {
                   i += 1 }
                   if( numNonEmpty == 1 && parent != null ) {   // gotta remove this node and put remaining non empty element in parent
                      if( prev != null ) prev.next = null       // note: since remove is called from Qn to Q0, there is no this.next !
-                     val myIdx = quadIdx( parent.quad, quad )
+                     val myIdx = parent.quad.indexOf( quad )
                      parent.quads( myIdx ) = lonely
                      lonely match {
                         case n: Node => n.parent = parent
@@ -602,7 +480,7 @@ object RandomizedSkipQuadTree {
           * updates its value accordingly.
           */
          def update( point: Point, value: V ) {
-            val qidx = quadIdx( quad, point )
+            val qidx = quad.indexOf( point )
             quads( qidx ) match {
                case l: Leaf if( l.point == point ) => quads( qidx ) = Leaf( point, value )
                case _ =>
@@ -610,7 +488,7 @@ object RandomizedSkipQuadTree {
          }
 
          def insert( point: Point, value: V, prevP: Node ) : Node = {
-            val qidx = quadIdx( quad, point )
+            val qidx = quad.indexOf( point )
             val l    = Leaf( point, value )
             quads( qidx ) match {
                case Empty =>
@@ -623,9 +501,9 @@ object RandomizedSkipQuadTree {
                   val te      = tq.extent
                   val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
                   val iquads  = new Array[ Child ]( 4 )
-                  val tidx    = quadIdx( iq, tq )
+                  val tidx    = iq.indexOf( tq )
                   iquads( tidx ) = t
-                  val pidx    = quadIdx( iq, point )
+                  val pidx    = iq.indexOf( point )
                   iquads( pidx ) = l
                   val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
                   val q       = Node( iq, this, qpred )( iquads )
@@ -637,9 +515,9 @@ object RandomizedSkipQuadTree {
                   assert( point != point2 )
                   val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
                   val iquads  = new Array[ Child ]( 4 )
-                  val lidx    = quadIdx( iq, point2 )
+                  val lidx    = iq.indexOf( point2 )
                   iquads( lidx ) = l2
-                  val pidx    = quadIdx( iq, point )
+                  val pidx    = iq.indexOf( point )
                   iquads( pidx ) = l
                   val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
                   val q       = Node( iq, this, qpred )( iquads )
@@ -650,25 +528,21 @@ object RandomizedSkipQuadTree {
 
          private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
             val pq            = quad.quadrant( pqidx )
-            val tlx           = pq.cx - pq.extent
-            val tly           = pq.cy - pq.extent
+            val tlx           = pq.left   // pq.cx - pq.extent
+            val tly           = pq.top    // pq.cy - pq.extent
             val akx           = aleft - tlx
             val aky           = atop  - tly
             val bkx           = b.x - tlx
             val bky           = b.y - tly
+            // XXX TODO : Tuple3 is not specialized
             val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
             val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
             val mx            = binSplit( x1, x2 )
             val my            = binSplit( y1, y2 )
             // that means the x extent is greater (x grid more coarse).
             if( mx <= my ) {
-//            val cx = tlx + (x2 & mx)
-//            val cy = tly + (y0 & mx) - mx
-//            Quad( cx, cy, -mx )
-//            Quad( tlx + (x2 & mx), tly + (y0 & mx) - mx, -mx )
                Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
             } else {
-//            Quad( tlx + (x0 & my) - my, tly + (y2 & my), -my )
                Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
             }
          }
@@ -677,62 +551,6 @@ object RandomizedSkipQuadTree {
 
    val random = new util.Random()
    private def flipCoin : Boolean = random.nextBoolean()
-
-   /**
-    * Determines the quadrant index of a point `a` in a square `p` defined
-    * by its center `pc` and extent `pe`.
-    *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
-    *          outside of `p`.
-    */
-   private def quadIdx( pq: Quad, a: Point ) : Int = {
-      val cx   = pq.cx
-      val cy   = pq.cy
-      val e    = pq.extent
-      val ax   = a.x
-      val ay   = a.y
-      if( ay < cy ) {      // north
-         if( ax >= cx ) {  // east
-            if( cx + e >  ax && cy - e <= ay ) 0 else -1   // ne
-         } else {             // west
-            if( cx - e <= ax && cy - e <= ay ) 1 else -2   // nw
-         }
-      } else {                // south
-         if( ax < cx ) {   // west
-            if( cx - e <= ax && cy + e >  ay ) 2 else -3   // sw
-         } else {             // east
-            if( cx + e >  ax && cy + e >  ay ) 3 else -4   // se
-         }
-      }
-   }
-
-   private def quadIdx( pq: Quad, aq: Quad ) : Int = {
-      val cx      = pq.cx
-      val cy      = pq.cy
-      val e       = pq.extent
-      val ae      = aq.extent
-      val aleft   = aq.cx - ae
-      val atop    = aq.cy - ae
-      val aright  = aq.cx + ae
-      val abottom = aq.cy + ae
-      if( atop < cy ) {       // north
-         if( cy - e <= atop && abottom <= cy ) {
-            if( aleft >= cx ) {  // east
-               if( cx + e >= aright ) 0 else -1  // ne
-            } else {             // west
-               if( cx - e <= aleft && aright <= cx ) 1 else -1  // nw
-            }
-         } else -1
-      } else {                // south
-         if( cy + e >= abottom && atop >= cy ) {
-            if( aleft < cx ) {   // west
-               if( cx - e <= aleft && aright <= cx ) 2 else -1   // sw
-            } else {             // east
-               if( cx + e >= aright ) 3 else -1    // se
-            }
-         } else - 1
-      }
-   }
 
    // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
    @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {

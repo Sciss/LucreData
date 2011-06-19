@@ -101,15 +101,37 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
 
    def top : Int     = cy - extent
    def left : Int    = cx - extent
-   def bottom : Int  = cy + extent
-   def right : Int   = cx + extent
+//   def bottom : Int  = cy + extent
+//   def right : Int   = cx + extent
 
+   /**
+    * The bottom is defined as the center y coordinate plus
+    * the extent minus one, it thus designed the 'last pixel'
+    * still inside the quad. This was changed from the previous
+    * definition of 'cy + extent' to be able to use the full
+    * 31 bit signed int space for a quad without resorting
+    * to long conversion.
+    */
+   def bottom : Int  = cy + (extent - 1)
+   /**
+    * The right is defined as the center x coordinate plus
+    * the extent minus one, it thus designed the 'last pixel'
+    * still inside the quad. This was changed from the previous
+    * definition of 'cx + extent' to be able to use the full
+    * 31 bit signed int space for a quad without resorting
+    * to long conversion.
+    */
+   def right : Int   = cx + (extent - 1)
+
+   /**
+    * The side length is two times the extent.
+    */
    def side : Int    = extent << 1
 
    def contains( point: Point ) : Boolean = {
       val px = point.x
       val py = point.y
-      (cx - extent <= px) && (cx + extent > px) && (cy - extent <= py) && (cy + extent > py)
+      (left <= px) && (right >= px) && (top <= py) && (bottom >= py)
    }
 
    /**
@@ -127,33 +149,33 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
    def overlapArea( q: Quad ) : Long = {
       val l = math.max( q.left, left )
       val r = math.min( q.right, right )
-      val w = r - l
-      if( w <= 0 ) return 0L
+      val w = (r - l).toLong + 1
+      if( w <= 0L ) return 0L
       val t = math.max( q.top, top )
       val b = math.min( q.bottom, bottom )
-      val h = b - t
-      if( h <= 0 ) return 0L
-      w.toLong * h.toLong
+      val h = (b - t).toLong + 1
+      if( h <= 0L ) return 0L
+      w * h
    }
 
    def closestDistance( point: Point ) : Double = math.sqrt( closestDistanceSq( point ))
 
-   /**
-    * Returns the orientation of the point wrt the quad, according
-    * to the following scheme:
-    *
-    *   5   4    7
-    *     +---+
-    *   1 | 0 |  3
-    *     +---+
-    *  13  12   15
-    *
-    *  Therefore the horizontal orientation can be extracted
-    *  with `_ & 3`, and the vertical orientation with `_ >> 2`,
-    *  where orientation is 0 for 'parallel', 1 for 'before' and
-    *  '3' for 'after', so that if the orient is before or
-    *  after, the sign can be retrieved via `_ - 2`
-    */
+//   /**
+//    * Returns the orientation of the point wrt the quad, according
+//    * to the following scheme:
+//    *
+//    *   5   4    7
+//    *     +---+
+//    *   1 | 0 |  3
+//    *     +---+
+//    *  13  12   15
+//    *
+//    *  Therefore the horizontal orientation can be extracted
+//    *  with `_ & 3`, and the vertical orientation with `_ >> 2`,
+//    *  where orientation is 0 for 'parallel', 1 for 'before' and
+//    *  '3' for 'after', so that if the orient is before or
+//    *  after, the sign can be retrieved via `_ - 2`
+//    */
 //   def orient( point: Point ) : Int = {
 //
 //   }
@@ -185,6 +207,60 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
    }
 
    /**
+    * Determines the quadrant index of a point `a`.
+    *
+    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
+    *          outside of this quad.
+    */
+   def indexOf( a: Point ) : Int = {
+      val ax   = a.x
+      val ay   = a.y
+      if( ay < cy ) {      // north
+         if( ax >= cx ) {  // east
+            if( right >= ax && top <= ay ) 0 else -1   // ne
+         } else {             // west
+            if( left <= ax && top <= ay ) 1 else -2   // nw
+         }
+      } else {                // south
+         if( ax < cx ) {   // west
+            if( left <= ax && bottom >= ay ) 2 else -3   // sw
+         } else {             // east
+            if( right >= ax && bottom >= ay ) 3 else -4   // se
+         }
+      }
+   }
+
+   /**
+    * Determines the quadrant index of another internal quad `aq`.
+    *
+    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `aq` lies
+    *          outside of this quad.
+    */
+   def indexOf( aq: Quad ) : Int = {
+      val atop = aq.top
+      if( atop < cy ) {       // north
+         if( top <= atop && aq.bottom <= cy ) {
+            val aleft = aq.left
+            if( aleft >= cx ) {  // east
+               if( right >= aq.right ) 0 else -1  // ne
+            } else {             // west
+               if( left <= aleft && aq.right <= cx ) 1 else -1  // nw
+            }
+         } else -1
+      } else {                // south
+         if( bottom >= aq.bottom && atop >= cy ) {
+            val aleft = aq.left
+            if( aleft < cx ) {   // west
+               if( left <= aleft && aq.right <= cx ) 2 else -1   // sw
+            } else {             // east
+               if( right >= aq.right ) 3 else -1    // se
+            }
+         } else -1
+      }
+   }
+
+
+   /**
     * The squared (euclidean) distance of the closest of the quad's corners
     * to the point, if the point is outside the quad,
     * or `0L`, if the point is contained
@@ -202,14 +278,14 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
             return dxs + dy * dy
          }
          val b = bottom
-         if( py >= b ) {
-            val dy = (py - b - 1).toLong
+         if( py > b ) {
+            val dy = (py - b).toLong
             return dxs + dy * dy
          }
          return dxs
       }
       val r = right
-      if( px >= r ) {
+      if( px > r ) {
          val dx   = (px - r).toLong
          val dxs  = dx * dx
          if( py < t ) {
@@ -217,8 +293,8 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
             return dxs + dy * dy
          }
          val b = bottom
-         if( py >= b ) {
-            val dy = (py - b - 1).toLong
+         if( py > b ) {
+            val dy = (py - b).toLong
             return dxs + dy * dy
          }
          return dxs
@@ -231,23 +307,23 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
             return dx * dx + dys
          }
          val r = right
-         if( px >= r ) {
-            val dx = (px - r - 1).toLong
+         if( px > r ) {
+            val dx = (px - r).toLong
             return dx * dx + dys
          }
          return dys
       }
       val b = bottom
-      if( py >= b ) {
-         val dy   = (py - b - 1).toLong
+      if( py > b ) {
+         val dy   = (py - b).toLong
          val dys  = dy * dy
          if( px < l ) {
             val dx = (l - px).toLong
             return dx * dx + dys
          }
          val r = right
-         if( px >= r ) {
-            val dx = (px - r - 1).toLong
+         if( px > r ) {
+            val dx = (px - r).toLong
             return dx * dx + dys
          }
          return dys
