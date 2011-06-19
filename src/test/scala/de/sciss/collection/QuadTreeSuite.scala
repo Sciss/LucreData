@@ -30,16 +30,18 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 
       // seed = 2
 //      val n     = 0x4000 // 0x10000 // 0x467 // 0x467 // 0x2F80
+println( "::::::::::::::::: Putting" )
       for( i <- 0 until n ) {
 //         val k = Point( rnd.nextInt( 0x40000000 ),
 //                        rnd.nextInt( 0x40000000 ))
          val k = Point( rnd.nextInt() & 0x7FFFFFFF,
                         rnd.nextInt() & 0x7FFFFFFF )
          val v = rnd.nextInt()
-//println( "Putting " + k )
+println( k )
          t.put( k, v )
          m.put( k, v )
       }
+println( ":::::::::::::::::" )
    }
 
    def verifyConsistency( t: SkipQuadTree[ Int ]) {
@@ -182,8 +184,9 @@ val ps = ps0.filter( t.quad.contains( _ ))
             val t  = tf // ( None )
             val m  = MMap.empty[ Point, Int ]
             randFill( t, m )
-println( "POINTS:" )
-println( m.keys.toList )
+//println( ":::::::::::::::::: POINTS ::::::::::::::::::" )
+//m.foreach( tup => println( tup._1 ))
+//println( "::::::::::::::::::        ::::::::::::::::::" )
             verifyConsistency( t )
 //            verifyOrder( t )
             verifyElems( t, m )
