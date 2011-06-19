@@ -14,12 +14,12 @@ import sys.error
 class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = false     // currently doesn't pass tests
-   val n             = 0x1000    // 0x4000 is the maximum acceptable speed
+   val n             = 0xE0    // 0x4000 is the maximum acceptable speed
 
-   val rnd   = new util.Random( 2L )
+   val rnd   = new util.Random( 12L )
 
-   val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
-//   val quad = Quad( 0x40000000, 0x40000000, 0x40000000 )
+//   val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
+   val quad = Quad( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED ) withTree( "randomized", RandomizedSkipQuadTree.empty[ Int ]( quad ))
    if( DETERMINISTIC ) withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
 
@@ -31,10 +31,10 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       // seed = 2
 //      val n     = 0x4000 // 0x10000 // 0x467 // 0x467 // 0x2F80
       for( i <- 0 until n ) {
-         val k = Point( rnd.nextInt( 0x40000000 ),
-                        rnd.nextInt( 0x40000000 ))
-//         val k = Point( rnd.nextInt() & 0x7FFFFFFF,
-//                        rnd.nextInt() & 0x7FFFFFFF )
+//         val k = Point( rnd.nextInt( 0x40000000 ),
+//                        rnd.nextInt( 0x40000000 ))
+         val k = Point( rnd.nextInt() & 0x7FFFFFFF,
+                        rnd.nextInt() & 0x7FFFFFFF )
          val v = rnd.nextInt()
 //println( "Putting " + k )
          t.put( k, v )
