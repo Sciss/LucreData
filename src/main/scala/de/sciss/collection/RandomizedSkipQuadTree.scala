@@ -179,6 +179,21 @@ object RandomizedSkipQuadTree {
          def compare( that: VisitedNode ) = -(minDist.compareTo( that.minDist ))
       }
 
+      private def identify( n: Node ) : String = {
+         val nq      = n.quad
+         val names   = Array( "NE", "NW", "SW", "SE" )
+         val lb      = IndexedSeq.newBuilder[ String ]
+         @tailrec def add( quad: Quad ) {
+            val idx = quad.indexOf( nq )
+            if( idx >= 0 ) {
+               lb += names( idx )
+               add( quad.quadrant( idx ))
+            }
+         }
+         add( quad )
+         lb.result().mkString( " -> " )
+      }
+
       def nearestNeighbor( point: Point, abort: Int = 0 ) : Option[ (Point, V) ] = {
          var bestLeaf: Leaf      = null
          var bestDist            = Long.MaxValue   // all distances here are squared!
@@ -205,6 +220,10 @@ object RandomizedSkipQuadTree {
          }
 
          def findNNTail( _n: Node ) {
+            if( n0.quad == Quad(1879048192,1342177280,268435456) ) {
+               println( " HERE " ) // XXX
+            }
+
             numAcceptedChildren = 0
             val oldRMax1 = rmax
             var i = 0; while( i < 4 ) {
@@ -214,7 +233,10 @@ object RandomizedSkipQuadTree {
                      if( ldist < bestDist ) {
                         bestDist = ldist
                         bestLeaf = l
-                        if( bestDist < rmax ) rmax = bestDist
+                        if( bestDist < rmax ) {
+println( "      : leaf " + l.point + " - " + bestDist )
+                           rmax = bestDist
+                        }
                      }
 
                   case c: Node =>
@@ -222,7 +244,10 @@ object RandomizedSkipQuadTree {
                      val cMinDist      = cq.closestDistanceSq( point )
                      if( cMinDist <= rmax ) {   // otherwise we're out already
                         val cMaxDist   = cq.furthestDistanceSq( point )
-                        if( cMaxDist < rmax ) rmax = cMaxDist
+                        if( cMaxDist < rmax ) {
+println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
+                           rmax = cMaxDist
+                        }
                         acceptedChildren( numAcceptedChildren ) = new VisitedNode( c, cMinDist /*, cMaxDist */)
                         numAcceptedChildren += 1
                      }
@@ -276,9 +301,11 @@ object RandomizedSkipQuadTree {
 
          while( true ) {
 //            rmax = bestDist
+println( "ROUND : " + identify( n0 ))
             findNNTail( n0 )
             if( bestDist <= abortSq ) return Some( bestLeaf.point -> bestLeaf.value )
             var i = 0; while( i < numAcceptedChildren ) {
+println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
                pri += acceptedChildren( i )
             i += 1 }
             var vis: VisitedNode = null

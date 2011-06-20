@@ -36,18 +36,20 @@ object QuadView {
    private val colrGreen = new Color( 0x00, 0xC0, 0x00 )
 
    case class PaintHelper( g2: Graphics2D ) {
-      def drawFrame( quad: Quad ) {
-         g2.setColor( Color.black )
+      var scale: Double = 1.0
+
+      def drawFrame( quad: Quad, color: Color = Color.black ) {
+         g2.setColor( color )
          val e = quad.extent
-         val w = e * 2
-         g2.drawRect( quad.cx - e, quad.cy - e, w, w )
+         val w = ((e.toLong << 1) * scale + 0.5).toInt
+         g2.drawRect( ((quad.cx - e) * scale + 0.5).toInt, ((quad.cy - e) * scale + 0.5).toInt, w, w )
       }
 
       def translate( x: Int, y: Int ) { g2.translate( x, y )}
 
       def drawPoint( point: Point, highlight: Boolean = false ) {
          g2.setColor( if( highlight ) colrGreen else Color.red )
-         g2.fillOval( point.x - 2, point.y - 2, 5, 5 )
+         g2.fillOval( (point.x * scale + 0.5).toInt - 2, (point.y * scale + 0.5).toInt - 2, 5, 5 )
       }
    }
 }
@@ -63,7 +65,7 @@ abstract class QuadView extends JComponent {
       val g2 = g.asInstanceOf[ Graphics2D ]
       g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON )
       val atOrig = g2.getTransform
-      val in   = getInsets()
+      val in = getInsets()
       g2.setColor( getBackground )
       g2.fillRect( 0, 0, getWidth, getHeight )
       g2.setColor( getForeground )

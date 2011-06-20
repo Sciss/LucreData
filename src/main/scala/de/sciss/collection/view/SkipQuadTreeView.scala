@@ -29,16 +29,23 @@
 package de.sciss.collection
 package view
 
-import java.awt.Dimension
+import java.awt.{Color, Dimension}
 
 class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
    setPrefSz( 3 )
 
-   var highlight = Set.empty[ Point ]
+   var highlight  = Set.empty[ Point ]
+   var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 ) // Color.black
+
+   private var scaleVar = 1.0
+   def scale : Double = scaleVar
+   def scale_=( factor: Double ) {
+      scaleVar = factor
+   }
 
    private def setPrefSz( lvl: Int ) {
-      val w1         = (t.quad.extent << 1) + 1
-      val in         = getInsets()
+      val w1   = ((t.quad.extent.toLong << 1) * scale + 0.5).toInt + 1
+      val in   = getInsets()
       setPreferredSize( new Dimension( ((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom) ))
    }
 
@@ -49,8 +56,8 @@ class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
    protected def draw( h: QuadView.PaintHelper ) {
       var n = t.headTree
       val q = t.quad
-//      h.translate( q.cx, q.cy )
-      val dx = (q.extent << 1) + 16
+      val dx = ((q.extent.toLong << 1) * scale + 0.5).toInt + 16
+      h.scale= scale
       while( n != null ) {
          draw( h, n )
          h.translate( dx, 0 )
@@ -62,7 +69,7 @@ class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
       quad match {
          case t: SkipQuadTree[ _ ]#QNode =>
             for( idx <- 0 until 4 ) {
-               h.drawFrame( t.quad.quadrant( idx ))
+               h.drawFrame( t.quad.quadrant( idx ), gridColor )
                draw( h, t.child( idx ))
             }
          case _: SkipQuadTree[ _ ]#QEmpty =>
