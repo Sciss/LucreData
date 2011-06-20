@@ -30,9 +30,8 @@ package de.sciss.collection
 
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
 import view.{SkipQuadTreeView, CompressedQuadTreeView, UncompressedQuadTreeView}
-import annotation.tailrec
-import scala.collection.mutable.{Map => MMap}
-import java.awt.{Color, EventQueue}
+import scala.collection.breakOut
+import java.awt.EventQueue
 
 object QuadTreeTest extends App {
    args.headOption match {
@@ -59,19 +58,19 @@ Options:
    abstract class Figure extends Runnable {
       lazy val center  = Point( 256, 256 )
       lazy val extent  = 256
-      lazy val points1 = Map(
-         Point(  80, 410 ) -> (),
-         Point( 488,   8 ) -> (),
-         Point( 504,  24 ) -> ()
+      lazy val points1 = Set(
+         Point(  80, 410 ),
+         Point( 488,   8 ),
+         Point( 504,  24 )
       )
-      lazy val points2 = points1 ++ Map(
-         Point( 400, 332 ) -> (),
-         Point( 424, 368 ) -> (),
-         Point( 200, 312 ) -> (),
-         Point( 216, 296 ) -> (),
-         Point( 240, 304 ) -> (),
-         Point( 272, 496 ) -> (),
-         Point( 300, 460 ) -> ()
+      lazy val points2 = points1 ++ Set(
+         Point( 400, 332 ),
+         Point( 424, 368 ),
+         Point( 200, 312 ),
+         Point( 216, 296 ),
+         Point( 240, 304 ),
+         Point( 272, 496 ),
+         Point( 300, 460 )
       )
       lazy val quad0 = Quad( center.x, center.y, extent )
 
@@ -96,7 +95,7 @@ Options:
 
    class Figure1 extends Figure {
       def views = {
-         val map  = points1
+         val map: Map[ Point, Unit ]  = points1.map( p => p -> () )( breakOut )
          val t    = QuadTree.fromMap( center, extent, map )
          val v    = new UncompressedQuadTreeView( t )
 
@@ -121,7 +120,7 @@ Options:
 //         val cv   = new CompressedQuadTreeView( ct )
 //         Seq( cv )
 
-         val rt   = RandomizedSkipQuadTree( quad0 )( map.toSeq: _* )
+         val rt   = RandomizedSkipQuadTree[ PointLike ]( quad0 )( map.toSeq: _* )
 //         @tailrec def add( no: Option[ rt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
 //            no match {
 //               case None => vs
@@ -137,7 +136,7 @@ Options:
       val map  = points2
       val t    = DeterministicSkipQuadTree( quad0 )( map.toSeq: _* )
       println( "Points ordered by in-ordered traversal:" )
-      val ord  = t.toList.map( _._1 )
+      val ord  = t.toList
       println( ord )
       assert( ord == List(Point(488,  8), Point(504, 24), Point(216,296), Point(200,312), Point(240,304),
                           Point( 80,410), Point(400,332), Point(424,368), Point(300,460), Point(272,496)) )
@@ -220,10 +219,10 @@ Options:
 //            Point(418,6)
          )
 
-         val seq3    = keys3.map( _ -> () )
+         val seq3    = keys3 // .map( _ -> () )
 //println( keys3 )
 
-         val dt   = DeterministicSkipQuadTree( quad0 )( seq3: _* )
+         val dt   = DeterministicSkipQuadTree[ PointLike ]( quad0 )( seq3: _* )
 //         dt += Point(397,500) -> ()
 //         dt += Point(418,6) -> ()
 //         @tailrec def add( no: Option[ dt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
@@ -243,24 +242,24 @@ Options:
       RandomizedSkipQuadTree.random.setSeed( 0L )
 
       val rnd   = new util.Random( 2L )
-      def randFill( t: SkipQuadTree[ Int ]) {
+      def randFill( t: SkipQuadTree[ Point ]) {
          // seed = 2
          val n     = 0x467 // 0x2F80
          for( i <- 0 until n ) {
             val k = Point( rnd.nextInt( 0x40000000 ),
                            rnd.nextInt( 0x40000000 ))
-            val v = rnd.nextInt()
+//            val v = rnd.nextInt()
 //println( "Putting " + k )
             if( i == 0x466 ) {
                println( "ahora" )
             }
-            t.put( k, v )
+            t += k // .put( k, v )
 //            m.put( k, v )
          }
       }
 
       val q = Quad( 0x20000000, 0x20000000, 0x20000000 )
-      val t = RandomizedSkipQuadTree.empty[ Int ]( q )
+      val t = RandomizedSkipQuadTree.empty[ Point ]( q )
       randFill( t )
       t.contains( Point(1019607265,594590615))
    }
@@ -327,7 +326,7 @@ Options:
          )
          val q = Quad( 0x40000000, 0x40000000, 0x40000000 )
          RandomizedSkipQuadTree.random.setSeed( 0L )
-         val t = RandomizedSkipQuadTree[ Int ]( q )( pts.map( p => p -> 0 ): _* )
+         val t = RandomizedSkipQuadTree[ PointLike ]( q )( pts: _* )
          // query Point(1609162490,1507881173), wrong result Point(1598649701,1592263107), correct result Point(1657161143,1524021651)
          // query Point( 310852551,1213007527), wrong result Point( 257112136,1084105610), correct result Point( 226535009,1195010500)
          val q1   = Point(1609162490,1507881173)
@@ -361,8 +360,8 @@ Options:
       )
       val query   = Point(1599145891,-1341955486)
       val quad    = Quad( 0x40000000, 0x40000000, 0x40000000 )
-      val t       = RandomizedSkipQuadTree[ Int ]( quad )( pts.map( p => p -> 0 ): _* )
-      val res     = t.nearestNeighbor( query )._1
+      val t       = RandomizedSkipQuadTree[ Point ]( quad )( pts: _* )
+      val res     = t.nearestNeighbor( query )
       println( res + " - " + res.distanceSq( query ))
       val correct = pts.minBy( _.distanceSq( query ))
       println( correct + " - " + correct.distanceSq( query ))

@@ -28,7 +28,7 @@
 
 package de.sciss.collection
 
-import collection.mutable.{Map => MMap}
+import collection.mutable.{Set => MSet}
 
 /**
  * A `SkipQuadTree` is a two-dimensional data structure that
@@ -36,9 +36,10 @@ import collection.mutable.{Map => MMap}
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipQuadTree[ V ] extends MMap[ PointLike, V ] {
+trait SkipQuadTree[ A ] extends MSet[ A ] {
    def headTree: QNode
    def lastTree: QNode
+   def pointView : A => PointLike // PointView[ A ]
 
    def quad : Quad = headTree.quad
 
@@ -63,7 +64,29 @@ trait SkipQuadTree[ V ] extends MMap[ PointLike, V ] {
       true
    }
 
-   def rangeQuery( qs: QueryShape ) : Iterator[ (PointLike, V) ]
+   def get( point: PointLike ) : Option[ A ]
+//   def apply( point: PointLike ) : A = get.getOrElse( throw new )
+   def isDefinedAt( point: PointLike ) : Boolean
+
+   def removeAt( point: PointLike ) : Option[ A ]
+
+   /**
+    * Adds an element to the tree
+    *
+    * @return  true if the element is new in the tree. If a previous entry with the
+    *          same point view is overwritten, this is true if the elements were
+    *          equal, false otherwise
+    */
+   def add( elem: A ) : Boolean
+
+   /**
+    * Adds an element to the tree
+    *
+    * @return  the old element stored for the same point view, if it existed
+    */
+   def update( elem: A ) : Option[ A ]
+
+   def rangeQuery( qs: QueryShape ) : Iterator[ A ]
 
    /**
     * Reports the nearest neighbor entry with respect to
@@ -83,20 +106,22 @@ trait SkipQuadTree[ V ] extends MMap[ PointLike, V ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: PointLike, abort: Int = 0 ) : (PointLike, V)
+   def nearestNeighbor( point: PointLike, abort: Int = 0 ) : A = nearestNeighborOption( point, abort ).getOrElse(
+      throw new NoSuchElementException( "nearestNeighbor of an empty tree" ))
+
+   def nearestNeighborOption( point: PointLike, abort: Int = 0 ) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored
     * in the quadtree, using an in-order traversal directed
     * by the quadrant indices of the nodes of the tree
     */
-   def iterator : Iterator[ (PointLike, V) ]
+   def iterator : Iterator[ A ]
 
    trait Q
    trait QEmpty extends Q
    trait QLeaf extends Q {
-      def point: PointLike
-      def value: V
+      def value: A
    }
    trait QNode extends Q {
       def quad: Quad

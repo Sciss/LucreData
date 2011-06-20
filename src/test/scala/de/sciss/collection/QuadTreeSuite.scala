@@ -2,7 +2,7 @@ package de.sciss.collection
 
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
-import collection.mutable.{Map => MMap}
+import collection.mutable.{Set => MSet}
 import sys.error
 
 /**
@@ -21,12 +21,12 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 
 //   val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
    val quad = Quad( 0x40000000, 0x40000000, 0x40000000 )
-   if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadTree.empty[    Int ]( quad ))
-   if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
+   if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadTree.empty[    PointLike ]( quad ))
+   if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadTree.empty[ PointLike ]( quad ))
 
    RandomizedSkipQuadTree.random.setSeed( 0L )
 
-   def randFill( t: SkipQuadTree[ Int ], m: MMap[ PointLike, Int ]) {
+   def randFill( t: SkipQuadTree[ PointLike ], m: MSet[ PointLike ]) {
       given( "a randomly filled structure" )
 
       // seed = 2
@@ -36,14 +36,14 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 //                        rnd.nextInt( 0x40000000 ))
          val k = Point( rnd.nextInt() & 0x7FFFFFFF,
                         rnd.nextInt() & 0x7FFFFFFF )
-         val v = rnd.nextInt()
+//         val v = rnd.nextInt()
 //println( i.toString + " - " + k )
-         t.put( k, v )
-         m.put( k, v )
+         t += k // .put( k, v )
+         m += k // .put( k, v )
       }
    }
 
-   def verifyConsistency( t: SkipQuadTree[ Int ]) {
+   def verifyConsistency( t: SkipQuadTree[ PointLike ]) {
       when( "the internals of the structure are checked" )
       then( "they should be consistent with the underlying algorithm" )
       val q = t.quad
@@ -57,12 +57,12 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          val nextPoints          = currPoints
          currUnlinkedQuads       = Set.empty
          currPoints              = Set.empty
-         def checkChildren( n: SkipQuadTree[ Int ]#QNode, depth: Int ) {
+         def checkChildren( n: t.QNode, depth: Int ) {
             def assertInfo = " in level n-" + prevs + " / depth " + depth
 
             var i = 0; while( i < 4 ) {
                n.child( i ) match {
-                  case c: SkipQuadTree[ _ ]#QNode =>
+                  case c: t.QNode =>
                      val nq = n.quad.quadrant( i )
                      val cq = c.quad
                      assert( nq.contains( cq ), "Child has invalid quad (" + cq + "), expected: " + nq + assertInfo )
@@ -80,9 +80,9 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
                         case None => currUnlinkedQuads += cq
                      }
                      checkChildren( c, depth + 1 )
-                  case l: SkipQuadTree[ _ ]#QLeaf =>
-                     currPoints += l.point
-                  case _: SkipQuadTree[ _ ]#QEmpty =>
+                  case l: t.QLeaf =>
+                     currPoints += l.value
+                  case _: t.QEmpty =>
                }
             i += 1 }
          }
@@ -94,13 +94,13 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       } while( h != null )
    }
 
-   def verifyElems( t: SkipQuadTree[ Int ], m: MMap[ PointLike, Int ]) {
+   def verifyElems( t: SkipQuadTree[ PointLike ], m: MSet[ PointLike ]) {
       when( "the structure t is compared to an independently maintained map m" )
       val onlyInM  = m.filterNot { e =>
 //         println( "Contains ? " + e._1 )
-         t.contains( e._1 )
+         t.contains( e )
       }
-      val onlyInT  = t.filterNot( e => m.contains( e._1 ))
+      val onlyInT  = t.filterNot( e => m.contains( e ))
       val szT      = t.size
       val szM      = m.size
       then( "all elements of m should be contained in t" )
@@ -111,7 +111,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szT == szM, "quadtree has size " + szT + " / map has size " + szM )
    }
 
-   def verifyContainsNot( t: SkipQuadTree[ Int ], m: MMap[ PointLike, Int ]) {
+   def verifyContainsNot( t: SkipQuadTree[ PointLike ], m: MSet[ PointLike ]) {
       when( "the structure t is queried for keys not in the independently maintained map m" )
       var testSet = Set.empty[ Point ]
       while( testSet.size < 100 ) {
@@ -126,10 +126,10 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       assert( inT.isEmpty, inT.take( 10 ).toString )
    }
 
-   def verifyAddRemoveAll( t: SkipQuadTree[ Int ], m: MMap[ PointLike, Int ]) {
+   def verifyAddRemoveAll( t: SkipQuadTree[ PointLike ], m: MSet[ PointLike ]) {
       when( "all elements of the independently maintained map are added again to t" )
       val szBefore = t.size
-      val newInT   = m.filter( tup => t.put( tup._1, tup._2 ).isEmpty )
+      val newInT   = m.filter( e => t.update( e ).isEmpty )
       val szAfter  = t.size
       then( "all of the put operations should return 'Some'" )
       assert( newInT.isEmpty, newInT.take( 10 ).toString )
@@ -137,7 +137,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szBefore == szAfter, "t had size " + szBefore + " before, but now reports " + szAfter )
 
       when( "all elements of the independently maintained map are removed from t" )
-      val keptInT  = m.filter( tup => t.remove( tup._1 ).isEmpty )
+      val keptInT  = m.filter( e => t.removeAt( e ).isEmpty )
       val szAfter2 = t.size
       then( "all of the remove operations should return 'Some'" )
       assert( keptInT.isEmpty, keptInT.take( 10 ).toString )
@@ -145,12 +145,12 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szAfter2 == 0, szAfter2.toString )
    }
 
-   def verifyRangeSearch( t: SkipQuadTree[ Int ], m: MMap[ PointLike, Int ]) {
+   def verifyRangeSearch( t: SkipQuadTree[ PointLike ], m: MSet[ PointLike ]) {
       when( "the quadtree is range searched" )
       val qs = Seq.fill( n2 )( Quad( rnd.nextInt( 0x7FFFFFFF ) - 0x40000000,
                                      rnd.nextInt( 0x7FFFFFFF ) - 0x40000000, rnd.nextInt( 0x40000000 )))
-      val rangesT = qs.map( q => t.rangeQuery( q ).map( _._1 ).toSet )
-      val ks      = m.keySet
+      val rangesT = qs.map( q => t.rangeQuery( q ).toSet )
+      val ks      = m // keySet
       val rangesM = qs.map( q => ks.filter( q.contains( _ )))
       then( "the results should match brute force with the corresponding set" )
       rangesT.zip(rangesM).foreach { case (s1, s2) =>
@@ -159,7 +159,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   def verifyNN( t: SkipQuadTree[ Int ], m: MMap[ PointLike, Int ]) {
+   def verifyNN( t: SkipQuadTree[ PointLike ], m: MSet[ PointLike ]) {
       when( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( Point( rnd.nextInt(), rnd.nextInt() ))
       // tricky: this guarantees that there are no 63 bit overflows,
@@ -169,8 +169,8 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          val dy = if( p.y < quad.cy ) quad.bottom.toLong - p.y else p.y - quad.top
          dx <= 0xB504F300L && dy <= 0xB504F300L && dx * dx + dy * dy > 0L
       })
-      val nnT: Map[ PointLike, PointLike ] = ps.map( p => p -> t.nearestNeighbor( p )._1 )( breakOut )
-      val ks   = m.keySet
+      val nnT: Map[ PointLike, PointLike ] = ps.map( p => p -> t.nearestNeighbor( p ))( breakOut )
+      val ks   = m // .keySet
       val nnM: Map[ PointLike, PointLike ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )
       then( "the results should match brute force with the corresponding set" )
       assert( nnT == nnM, {
@@ -179,14 +179,14 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   def withTree( name: String, tf: => SkipQuadTree[ Int ]) {
+   def withTree( name: String, tf: => SkipQuadTree[ PointLike ]) {
       feature( "The " + name + " quadtree structure should be consistent" ) {
          info( "Several mass operations on the structure" )
          info( "are tried and expected behaviour verified" )
 
          scenario( "Consistency is verified on a randomly filled structure" ) {
             val t  = tf // ( None )
-            val m  = MMap.empty[ PointLike, Int ]
+            val m  = MSet.empty[ PointLike ]
             randFill( t, m )
 //println( ":::::::::::::::::: POINTS ::::::::::::::::::" )
 //m.foreach( tup => println( tup._1 ))

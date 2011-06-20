@@ -48,7 +48,7 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
    }
 }
 class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
-   val t    = RandomizedSkipQuadTree.empty[ Unit ]( Quad( 256, 256, 256 ))
+   val t    = RandomizedSkipQuadTree.empty[ PointLike ]( Quad( 256, 256, 256 ))
    val slv  = new SkipQuadTreeView( t )
    private val in = slv.getInsets
 
@@ -115,7 +115,7 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    p.add( ggExt )
 
    private val ggAdd = but( "Add" ) { tryPoint { p =>
-      t += p -> ()
+      t += p
       slv.highlight = Set( p )
    }}
    private val ggRemove = but( "Remove" ) { tryPoint( t -= _ )}
@@ -131,7 +131,7 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
 
    def findNN { tryPoint { p =>
       val set = if( t.nonEmpty ) {
-         val (p2, _) = t.nearestNeighbor( p )
+         val p2 = t.nearestNeighbor( p )
          Set( p2 )
       } else Set.empty[ PointLike ]
       slv.highlight = set
@@ -141,19 +141,19 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    but( "NN" )( findNN )
 
    but( "Range" ) { tryQuad { q =>
-      val set = t.rangeQuery( q ).map( _._1 ).toSet
+      val set = t.rangeQuery( q ).toSet
       status( rangeString( set.take( 3 )))
       println( rangeString( set ))
    }}
 
    but( "Add 10x Random" ) {
       val ps = Seq.fill( 10 )( Point( util.Random.nextInt( 512 ), util.Random.nextInt( 512 )))
-      t ++= ps.map( _ -> () )
+      t ++= ps
       slv.highlight = ps.toSet
    }
 
    but( "Remove 10x" ) {
-      t --= t.keysIterator.take( 10 ).toList
+      t --= t.iterator.take( 10 ).toList
    }
 
    private val ma = new MouseAdapter {
@@ -189,7 +189,7 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
                              math.abs( m1.getPoint().y - m2.getPoint().y ))
          ggExt.setText( ext.toString )
          tryQuad { q =>
-            val set = t.rangeQuery( q ).map( _._1 ).toSet
+            val set = t.rangeQuery( q ).toSet
             slv.highlight = set
             slv.repaint()
             status( rangeString( set.take( 3 )))

@@ -31,10 +31,10 @@ package view
 
 import java.awt.{Color, Dimension}
 
-class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
+class SkipQuadTreeView[ A ]( t: SkipQuadTree[ A ]) extends QuadView {
    setPrefSz( 3 )
 
-   var highlight  = Set.empty[ PointLike ]
+   var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 ) // Color.black
 
    private var scaleVar = 1.0
@@ -65,16 +65,16 @@ class SkipQuadTreeView[ V ]( t: SkipQuadTree[ V ]) extends QuadView {
       }
    }
 
-   private def draw( h: QuadView.PaintHelper, quad: SkipQuadTree[ V ]#Q ) {
+   private def draw( h: QuadView.PaintHelper, quad: t.Q ) {
       quad match {
-         case t: SkipQuadTree[ _ ]#QNode =>
+         case n: t.QNode =>
             for( idx <- 0 until 4 ) {
-               h.drawFrame( t.quad.quadrant( idx ), gridColor )
-               draw( h, t.child( idx ))
+               h.drawFrame( n.quad.quadrant( idx ), gridColor )
+               draw( h, n.child( idx ))
             }
-         case _: SkipQuadTree[ _ ]#QEmpty =>
-         case l: SkipQuadTree[ _ ]#QLeaf =>
-            h.drawPoint( l.point, highlight.contains( l.point ))
+         case _: t.QEmpty =>
+         case l: t.QLeaf =>
+            h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
       }
    }
 }

@@ -310,6 +310,17 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
    }
 }
 
+//object PointView {
+//   implicit def direct[ A <: PointLike ] = new PointView[ A ] {
+//      def x( a: A ) = a.x
+//      def y( a: A ) = a.y
+//   }
+//}
+//trait PointView[ A ] {
+//   def x( a: A ) : Int
+//   def y( a: A ) : Int
+//}
+
 trait PointLike {
    def x: Int
    def y: Int

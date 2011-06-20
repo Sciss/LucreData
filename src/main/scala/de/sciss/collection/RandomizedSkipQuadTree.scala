@@ -33,20 +33,20 @@ import collection.mutable.{PriorityQueue, Queue => MQueue, Stack => MStack}
 import annotation.tailrec
 
 object RandomizedSkipQuadTree {
-   def empty[ V ]( quad: Quad ) : RandomizedSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
+   def empty[ A ]( quad: Quad )( implicit view: A => PointLike ) : RandomizedSkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )
 
-   def apply[ V ]( quad: Quad )( xs: (PointLike, V)* ) : RandomizedSkipQuadTree[ V ] = {
-      val t = new TreeImpl[ V ]( quad )
+   def apply[ A <% PointLike ]( quad: Quad )( xs: A* ) : RandomizedSkipQuadTree[ A ] = {
+      val t = empty[ A ]( quad )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private def unsupportedOp : Nothing       = error( "Operation not supported" )
+   private def unsupportedOp : Nothing = error( "Operation not supported" )
 
 //   private object TreeImpl {
 //      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
 //   }
-   private final class TreeImpl[ V ]( _quad: Quad  ) extends RandomizedSkipQuadTree[ V ] {
+   private final class TreeImpl[ A ]( _quad: Quad, val pointView: A => PointLike ) extends RandomizedSkipQuadTree[ A ] {
       val headTree         = Node( _quad, null, null )()
       private var tailVar  = headTree
 
@@ -54,29 +54,40 @@ object RandomizedSkipQuadTree {
 
       // ---- map support ----
 
-      def +=( kv: (PointLike, V) ) : this.type = {
-         insertLeaf( kv._1, kv._2 )
+      def +=( elem: A ) : this.type = {
+         insertLeaf( elem )
          this
       }
 
-      override def update( point: PointLike, value: V ) : Unit = insertLeaf( point, value )
+//      override def update( point: PointLike, value: A ) : Unit = insertLeaf( point, value )
 
-      override def put( point: PointLike, value: V ) : Option[ V ] = {
-         val oldLeaf = insertLeaf( point, value )
+      override def add( elem: A ) : Boolean = {
+         val oldLeaf = insertLeaf( elem )
+         if( oldLeaf == null ) true else !oldLeaf.value.equals( elem )
+      }
+
+      def update( elem: A ) : Option[ A ] = {
+         val oldLeaf = insertLeaf( elem )
          if( oldLeaf == null ) None else Some( oldLeaf.value )
       }
 
-      override def remove( point: PointLike ) : Option[ V ] = {
+      override def remove( elem: A ) : Boolean = {
+         val oldLeaf = removeLeaf( pointView( elem ))
+         oldLeaf != null
+      }
+
+      def removeAt( point: PointLike ) : Option[ A ] = {
          val oldLeaf = removeLeaf( point )
          if( oldLeaf == null ) None else Some( oldLeaf.value )
       }
 
-      def -=( point: PointLike ) : this.type = {
-         removeLeaf( point )
+      def -=( elem: A ) : this.type = {
+         removeLeaf( pointView( elem ))
          this
       }
 
-      protected def insertLeaf( point: PointLike, value: V ) : Leaf = {
+      protected def insertLeaf( value: A ) : Leaf = {
+         val point = pointView( value )
          require( _quad.contains( point ), point.toString + " lies out of root square " + _quad )
 
          val ns      = MStack.empty[ Node ]
@@ -107,17 +118,25 @@ object RandomizedSkipQuadTree {
          l
       }
 
-      override def contains( point: PointLike ) : Boolean = {
+      override def contains( elem: A ) : Boolean = {
+         val point = pointView( elem )
+         if( !_quad.contains( point )) return false
+         val l = tailVar.findLeaf( point )
+         if( l == null ) false else l.value.equals( elem )
+      }
+
+      override def isDefinedAt( point: PointLike ) : Boolean = {
          if( !_quad.contains( point )) return false
          tailVar.findLeaf( point ) != null
       }
 
-      override def apply( point: PointLike ) : V = {
-         val leaf = tailVar.findLeaf( point )
-         if( leaf == null ) throw new java.util.NoSuchElementException( "key not found: " + point )
-         leaf.value
-      }
-      def get( point: PointLike ) : Option[ V ] = {
+//      def apply( point: PointLike ) : A = {
+//         val leaf = tailVar.findLeaf( point )
+//         if( leaf == null ) throw new java.util.NoSuchElementException( "key not found: " + point )
+//         leaf.value
+//      }
+
+      def get( point: PointLike ) : Option[ A ] = {
          val leaf = tailVar.findLeaf( point )
          if( leaf == null ) None else Some( leaf.value )
       }
@@ -130,16 +149,16 @@ object RandomizedSkipQuadTree {
          tailVar.remove( point )
       }
 
-      def iterator = new Iterator[ (PointLike, V) ] {
+      def iterator = new Iterator[ A ] {
          val stack   = MStack.empty[ (Node, Int) ]
          var n       = headTree
          var leaf: Leaf = _
          var idx     = 0
          var hasNext = true
 
-         prepareNext
+         prepareNext()
 
-         def prepareNext {
+         def prepareNext() {
             while( true ) {
                while( idx > 3 ) {
                   if( stack.isEmpty ) {
@@ -165,15 +184,15 @@ object RandomizedSkipQuadTree {
             }
          }
 
-         def next : (PointLike, V) = {
+         def next() : A = {
             require( hasNext, "Iterator exhausted" )
-            val res = (leaf.point, leaf.value)
-            prepareNext
+            val res = leaf.value
+            prepareNext()
             res
          }
       }
 
-      def rangeQuery( qs: QueryShape ) : Iterator[ (PointLike, V) ] = new RangeQuery( qs )
+      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = new RangeQuery( qs )
 
       private final class VisitedNode( val n: Node, val minDist: Long /* , maxDist: Long */) extends Ordered[ VisitedNode ] {
          def compare( that: VisitedNode ) = -(minDist.compareTo( that.minDist ))
@@ -194,7 +213,17 @@ object RandomizedSkipQuadTree {
          lb.result().mkString( " -> " )
       }
 
-      def nearestNeighbor( point: PointLike, abort: Int = 0 ) : (PointLike, V) = {
+      override def nearestNeighbor( point: PointLike, abort: Int = 0 ) : A = {
+         val res = nn( point, abort )
+         if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
+      }
+
+      override def nearestNeighborOption( point: PointLike, abort: Int = 0 ) : Option[ A ] = {
+         val res = nn( point, abort )
+         if( res != null ) Some( res.value ) else None
+      }
+
+      private def nn( point: PointLike, abort: Int ) : Leaf = {
          var bestLeaf: Leaf      = null
          var bestDist            = Long.MaxValue   // all distances here are squared!
          val pri                 = PriorityQueue.empty[ VisitedNode ]
@@ -284,7 +313,7 @@ object RandomizedSkipQuadTree {
          while( true ) {
 //println( "ROUND : " + identify( n0 ))
             findNNTail( n0 )
-            if( bestDist <= abortSq ) return (bestLeaf.point, bestLeaf.value)
+            if( bestDist <= abortSq ) return bestLeaf
             var i = 0; while( i < numAcceptedChildren ) {
 //println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
                pri += acceptedChildren( i )
@@ -292,8 +321,7 @@ object RandomizedSkipQuadTree {
             var vis: VisitedNode = null
             do {
                if( pri.isEmpty ) {
-                  if( bestLeaf != null ) return (bestLeaf.point, bestLeaf.value)
-                  else throw new NoSuchElementException( "nearestNeighbor of an empty tree" )
+                  return bestLeaf
                } else {
                   vis = pri.dequeue()
                }
@@ -303,19 +331,19 @@ object RandomizedSkipQuadTree {
          error( "never here" )
       }
 
-      private class RangeQuery( qs: QueryShape ) extends Iterator[ (PointLike, V) ] {
+      private class RangeQuery( qs: QueryShape ) extends Iterator[ A ] {
          val stabbing      = MQueue.empty[ (Node, Long) ]
          val in            = MQueue.empty[ NonEmpty ]
-         var current : (PointLike, V) = _
+         var current : A   = _
          var hasNext       = true
 
          stabbing += headTree -> qs.overlapArea( headTree.quad )
-         findNextValue
+         findNextValue()
 
-         def next : (PointLike, V) = {
+         def next() : A = {
             if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
             val res = current
-            findNextValue
+            findNextValue()
             res
          }
 
@@ -349,7 +377,7 @@ object RandomizedSkipQuadTree {
 
             } else in.dequeue() match {
                case l: Leaf =>
-                  current = (l.point, l.value)
+                  current = l.value
                   return
                case n: Node =>
                   var i = 0; while( i < 4 ) {
@@ -367,7 +395,7 @@ object RandomizedSkipQuadTree {
 
       sealed trait NonEmpty extends Child
 
-      final case class Leaf( point: PointLike, value: V ) extends NonEmpty with QLeaf
+      final case class Leaf( point: PointLike, value: A ) extends NonEmpty with QLeaf
       final case class Node( quad: Quad, var parent: Node, prev: Node )( val quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends NonEmpty with QNode {
          var next: Node = null;
@@ -486,7 +514,7 @@ object RandomizedSkipQuadTree {
           * If a leaf with the given point exists in this node,
           * updates its value accordingly.
           */
-         def update( point: PointLike, value: V ) {
+         def update( point: PointLike, value: A ) {
             val qidx = quad.indexOf( point )
             quads( qidx ) match {
                case l: Leaf if( l.point == point ) => quads( qidx ) = Leaf( point, value )
@@ -494,7 +522,7 @@ object RandomizedSkipQuadTree {
             }
          }
 
-         def insert( point: PointLike, value: V, prevP: Node ) : Node = {
+         def insert( point: PointLike, value: A, prevP: Node ) : Node = {
             val qidx = quad.indexOf( point )
             val l    = Leaf( point, value )
             quads( qidx ) match {
