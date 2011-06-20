@@ -247,10 +247,6 @@ object RandomizedSkipQuadTree {
          }
 
          @tailrec def findNNTail( n0: Node ) {
-//            if( n0.quad == Quad(1879048192,1342177280,268435456) ) {
-//               println( " HERE " ) // XXX
-//            }
-
             numAcceptedChildren = 0
             var accept1Idx = 0
             val oldRMax1 = rmax

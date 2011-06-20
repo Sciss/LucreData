@@ -45,6 +45,83 @@ trait QueryShape {
    def contains( p: PointLike ) : Boolean
 }
 
+object DistanceMeasure {
+   val euclidean : EuclideanDistanceMeasure = new Euclidean( 0L )
+
+   private class Euclidean( threshSq: Long ) extends EuclideanDistanceMeasure {
+      def distance( a: PointLike, b: PointLike )   = {
+         val res = b.distanceSq( a )
+         if( res > threshSq ) res else 0L
+      }
+
+      def minDistance( a: PointLike, b: Quad )     = b.minDistanceSq( a )
+      def maxDistance( a: PointLike, b: Quad )     = b.maxDistanceSq( a )
+
+      def coarse( thresh: Int ) = {
+         val l = thresh.toLong
+         new Euclidean( l * l )
+      }
+   }
+
+   private def filter( underlying: DistanceMeasure, quad: Quad ) = new DistanceMeasure {
+      def distance( a: PointLike, b: PointLike )   = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
+      def minDistance( a: PointLike, b: Quad )     = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
+      def maxDistance( a: PointLike, b: Quad )     = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
+   }
+}
+/**
+ * A `DistanceMeasure` is used in nearest neighbour search,
+ * in order to allow different ways points and quads are
+ * favoured or filtered during the search.
+ *
+ * For simplicity and performance, the measures, although
+ * they could be generalized as `Ordered`, are given as
+ * `Long` values. Only comparisons are performed with
+ * the results, therefore some optimizations may be made,
+ * for example the `euclidean` measure omits taking
+ * the square root of the distances, while still preserving
+ * the ordering between the possible results.
+ */
+trait DistanceMeasure {
+   /**
+    * Calculates the distance between two points.
+    */
+   def distance( a: PointLike, b: PointLike ) : Long
+
+   /**
+    * Calculates the minimum distance between a point and
+    * any possible point of a given quad. In the euclidean
+    * case, this is the distance to the quad `b`'s corner that
+    * is closest to the point `a`, if `a` lies outside of `b`,
+    * or zero, if `a` lies within `b`.
+    */
+   def minDistance( a: PointLike, b: Quad ) : Long
+
+   /**
+    * Calculates the maximum distance between a point and
+    * any possible point of a given quad. In the euclidean
+    * case, this is the distance to the quad `b`'s corner that
+    * is furthest to the point `a`, no matter whether `a`
+    * is contained in `b` or not.
+    */
+   def maxDistance( a: PointLike, b: Quad ) : Long
+
+   /**
+    * Applies a filter to this measure by constraining distances
+    * to objects `b` which lie within the given `Quad`. That
+    * is, if for example `distance( a, b )` is called, first it
+    * is checked if `b` is within `quad`. If so, the underlying
+    * measure is calculated, otherwise, `Long.MaxValue` is returned.
+    * This behaviour extends to the `minDistance` and `maxDistance`
+    * methods.
+    */
+   final def filter( quad: Quad ) = DistanceMeasure.filter( this, quad )
+}
+
+trait EuclideanDistanceMeasure extends DistanceMeasure {
+   def coarse( thresh: Int ) : DistanceMeasure
+}
+
 //final case class Circle( cx: Int, cy: Int, radius: Int ) extends QueryShape {
 ////   import QueryShape._
 //
