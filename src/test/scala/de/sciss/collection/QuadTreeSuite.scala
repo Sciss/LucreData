@@ -14,8 +14,8 @@ import sys.error
 class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = false     // currently doesn't pass tests
-   val n             = 0x4000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
-   val n2            = n >> 3    // 0x1000    // range query and nn
+   val n             = 0x10 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n2            = 0x10 // n >> 3    // 0x1000    // range query and nn
 
    val rnd   = new util.Random() // ( 12L )
 
@@ -161,10 +161,10 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyNN( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
       when( "the quadtree is searched for nearest neighbours" )
-      val ps0  = Seq.fill( n2 )( Point( rnd.nextInt(), rnd.nextInt() ))
-println( "WARNING: restricting search to points inside the tree' quad for now" )
-val ps = ps0.filter( t.quad.contains( _ ))
-      val nnT: Map[ Point, Point ] = ps.map( p => p -> t.nearestNeighbor( p ).getOrElse( error( p.toString ))._1 )( breakOut )
+      val ps = Seq.fill( n2 )( Point( rnd.nextInt(), rnd.nextInt() ))
+//println( "WARNING: restricting search to points inside the tree' quad for now" )
+//val ps = ps0.filter( t.quad.contains( _ ))
+      val nnT: Map[ Point, Point ] = ps.map( p => p -> t.nearestNeighbor( p )._1 )( breakOut )
       val ks   = m.keySet
       val nnM: Map[ Point, Point ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )
       then( "the results should match brute force with the corresponding set" )

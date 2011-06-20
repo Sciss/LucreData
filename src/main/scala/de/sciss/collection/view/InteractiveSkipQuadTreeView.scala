@@ -102,10 +102,11 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    }
 
    def findNN { tryPoint { p =>
-      val set = t.nearestNeighbor( p ) match {
-         case Some( (p2, _) ) => Set( p2 )
-         case None => Set.empty[ Point ]
-      }
+      val x = t.nonEmpty
+      val set = if( x ) {
+         val (p2, _) = t.nearestNeighbor( p )
+         Set( p2 )
+      } else Set.empty[ Point ]
       slv.highlight = set
       status( rangeString( set ))
    }}

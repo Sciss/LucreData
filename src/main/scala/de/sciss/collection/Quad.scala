@@ -71,8 +71,8 @@ final case class Circle( cx: Int, cy: Int, radius: Int ) extends QueryShape {
 //   import QueryShape._
 
    def contains( p: Point ) : Boolean = {
-      val dx   = (cx - p.x).toLong
-      val dy   = (cy - p.y).toLong
+      val dx   = cx.toLong - p.x.toLong // (cx - p.x).toLong
+      val dy   = cy.toLong - p.y.toLong // (cy - p.y).toLong
       val rd   = radius.toLong
       dx * dx + dy * dy < rd * rd
    }
@@ -147,13 +147,13 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
    }
 
    def overlapArea( q: Quad ) : Long = {
-      val l = math.max( q.left, left )
-      val r = math.min( q.right, right )
-      val w = (r - l).toLong + 1
+      val l = math.max( q.left, left ).toLong
+      val r = math.min( q.right, right ).toLong
+      val w = r - l + 1 // (r - l).toLong + 1
       if( w <= 0L ) return 0L
-      val t = math.max( q.top, top )
-      val b = math.min( q.bottom, bottom )
-      val h = (b - t).toLong + 1
+      val t = math.max( q.top, top ).toLong
+      val b = math.min( q.bottom, bottom ).toLong
+      val h = b - t + 1 // (b - t).toLong + 1
       if( h <= 0L ) return 0L
       w * h
    }
@@ -184,23 +184,23 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
       val px   = point.x
       val py   = point.y
       if( px < cx ) {
-         val dx   = (right - px).toLong
+         val dx   = right.toLong - px.toLong // (right - px).toLong
          val dxs  = dx * dx
          if( py < cy ) {   // bottom right is furthest
-            val dy   = (bottom - py).toLong
+            val dy   = bottom.toLong - py.toLong // (bottom - py).toLong
             dxs + dy * dy
          } else {          // top right is furthest
-            val dy   = (py - top).toLong
+            val dy   = py.toLong - top.toLong // (py - top).toLong
             dxs + dy * dy
          }
       } else {
-         val dx   = (px - left).toLong
+         val dx   = px.toLong - left.toLong // (px - left).toLong
          val dxs  = dx * dx
          if( py < cy ) {   // bottom left is furthest
-            val dy   = (bottom - py).toLong
+            val dy   = bottom.toLong - py.toLong // (bottom - py).toLong
             dxs + dy * dy
          } else {          // top left is furthest
-            val dy   = (py - top).toLong
+            val dy   = py.toLong - top.toLong // (py - top).toLong
             dxs + dy * dy
          }
       }
@@ -271,59 +271,59 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
       val l    = left
       val t    = top
       if( px < l ) {
-         val dx   = (l - px).toLong
+         val dx   = l.toLong - px.toLong // (l - px).toLong
          val dxs  = dx * dx
          if( py < t ) {
-            val dy = (t - py).toLong
+            val dy = t.toLong - py.toLong // (t - py).toLong
             return dxs + dy * dy
          }
          val b = bottom
          if( py > b ) {
-            val dy = (py - b).toLong
+            val dy = py.toLong - b.toLong // (py - b).toLong
             return dxs + dy * dy
          }
          return dxs
       }
       val r = right
       if( px > r ) {
-         val dx   = (px - r).toLong
+         val dx   = px.toLong - r.toLong // (px - r).toLong
          val dxs  = dx * dx
          if( py < t ) {
-            val dy = (t - py).toLong
+            val dy = t.toLong - py.toLong // (t - py).toLong
             return dxs + dy * dy
          }
          val b = bottom
          if( py > b ) {
-            val dy = (py - b).toLong
+            val dy = py.toLong - b.toLong // (py - b).toLong
             return dxs + dy * dy
          }
          return dxs
       }
       if( py < t ) {
-         val dy   = (t - py).toLong
+         val dy   = t.toLong - py.toLong // (t - py).toLong
          val dys  = dy * dy
          if( px < l ) {
-            val dx = (l - px).toLong
+            val dx = l.toLong - px.toLong // (l - px).toLong
             return dx * dx + dys
          }
          val r = right
          if( px > r ) {
-            val dx = (px - r).toLong
+            val dx = px.toLong - r.toLong // (px - r).toLong
             return dx * dx + dys
          }
          return dys
       }
       val b = bottom
       if( py > b ) {
-         val dy   = (py - b).toLong
+         val dy   = py.toLong - b.toLong // (py - b).toLong
          val dys  = dy * dy
          if( px < l ) {
-            val dx = (l - px).toLong
+            val dx = l.toLong - px.toLong // (l - px).toLong
             return dx * dx + dys
          }
          val r = right
          if( px > r ) {
-            val dx = (px - r).toLong
+            val dx = px.toLong - r.toLong // (px - r).toLong
             return dx * dx + dys
          }
          return dys
@@ -338,8 +338,8 @@ final case class Point( x: Int, y: Int ) {
    def -( p: Point ) = Point( x - p.x, y - p.y )
 
    def distanceSq( that: Point ) : Long = {
-      val dx = (that.x - x).toLong
-      val dy = (that.y - y).toLong
+      val dx = that.x.toLong - x.toLong // (that.x - x).toLong
+      val dy = that.y.toLong - y.toLong // (that.y - y).toLong
       dx * dx + dy * dy
    }
 }

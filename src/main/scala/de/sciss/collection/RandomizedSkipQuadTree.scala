@@ -194,7 +194,7 @@ object RandomizedSkipQuadTree {
          lb.result().mkString( " -> " )
       }
 
-      def nearestNeighbor( point: Point, abort: Int = 0 ) : Option[ (Point, V) ] = {
+      def nearestNeighbor( point: Point, abort: Int = 0 ) : (Point, V) = {
          var bestLeaf: Leaf      = null
          var bestDist            = Long.MaxValue   // all distances here are squared!
          val pri                 = PriorityQueue.empty[ VisitedNode ]
@@ -284,7 +284,7 @@ object RandomizedSkipQuadTree {
          while( true ) {
 //println( "ROUND : " + identify( n0 ))
             findNNTail( n0 )
-            if( bestDist <= abortSq ) return Some( bestLeaf.point -> bestLeaf.value )
+            if( bestDist <= abortSq ) return (bestLeaf.point, bestLeaf.value)
             var i = 0; while( i < numAcceptedChildren ) {
 //println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
                pri += acceptedChildren( i )
@@ -292,9 +292,8 @@ object RandomizedSkipQuadTree {
             var vis: VisitedNode = null
             do {
                if( pri.isEmpty ) {
-                  return if( bestLeaf != null ) {
-                     Some( bestLeaf.point -> bestLeaf.value )
-                  } else None
+                  if( bestLeaf != null ) return (bestLeaf.point, bestLeaf.value)
+                  else throw new NoSuchElementException( "nearestNeighbor of an empty tree" )
                } else {
                   vis = pri.dequeue()
                }
