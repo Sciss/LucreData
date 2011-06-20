@@ -36,7 +36,7 @@ import collection.mutable.{Map => MMap}
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
+trait SkipQuadTree[ V ] extends MMap[ PointLike, V ] {
    def headTree: QNode
    def lastTree: QNode
 
@@ -63,7 +63,7 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
       true
    }
 
-   def rangeQuery( qs: QueryShape ) : Iterator[ (Point, V) ]
+   def rangeQuery( qs: QueryShape ) : Iterator[ (PointLike, V) ]
 
    /**
     * Reports the nearest neighbor entry with respect to
@@ -74,7 +74,7 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
     * furthest corner of the tree's root quad exceeds 63 bits.
     * For a root `Quad( 0x40000000, 0x40000000, 0x40000000 )`, this
     * happens for example for any point going more towards north-west
-    * than `Point( -1572067139, -1572067139 )`.
+    * than `PointLike( -1572067139, -1572067139 )`.
     *
     * @param   point the point of which the nearest neighbor is to be found
     * @param   a threshold which is an acceptable abortion criterion. I.e.,
@@ -83,19 +83,19 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: Point, abort: Int = 0 ) : (Point, V)
+   def nearestNeighbor( point: PointLike, abort: Int = 0 ) : (PointLike, V)
 
    /**
     * An `Iterator` which iterates over the points stored
     * in the quadtree, using an in-order traversal directed
     * by the quadrant indices of the nodes of the tree
     */
-   def iterator : Iterator[ (Point, V) ]
+   def iterator : Iterator[ (PointLike, V) ]
 
    trait Q
    trait QEmpty extends Q
    trait QLeaf extends Q {
-      def point: Point
+      def point: PointLike
       def value: V
    }
    trait QNode extends Q {

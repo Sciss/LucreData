@@ -47,7 +47,7 @@ object QuadView {
 
       def translate( x: Int, y: Int ) { g2.translate( x, y )}
 
-      def drawPoint( point: Point, highlight: Boolean = false ) {
+      def drawPoint( point: PointLike, highlight: Boolean = false ) {
          g2.setColor( if( highlight ) colrGreen else Color.red )
          g2.fillOval( (point.x * scale + 0.5).toInt - 2, (point.y * scale + 0.5).toInt - 2, 5, 5 )
       }
