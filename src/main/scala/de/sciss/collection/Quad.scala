@@ -46,27 +46,116 @@ trait QueryShape {
 }
 
 object DistanceMeasure {
-   val euclidean : EuclideanDistanceMeasure = new Euclidean( 0L )
+   /**
+    * A measure that uses the euclidean squared distance
+    * which is faster than the euclidean distance as the square root
+    * does not need to be taken.
+    */
+   val euclideanSq = new DistanceMeasure {
+      def distance( a: PointLike, b: PointLike ) = b.distanceSq( a )
+      def minDistance( a: PointLike, b: Quad ) = b.minDistanceSq( a )
+      def maxDistance( a: PointLike, b: Quad ) = b.maxDistanceSq( a )
+   }
 
-   private class Euclidean( threshSq: Long ) extends EuclideanDistanceMeasure {
-      def distance( a: PointLike, b: PointLike )   = {
-         val res = b.distanceSq( a )
-         if( res > threshSq ) res else 0L
-      }
+   /**
+    * A chebychev distance measure, based on the maximum of the absolute
+    * distances across all dimensions.
+    */
+   val chebyshev : DistanceMeasure = new ChebyshevLikeDistanceMeasure {
+      protected final def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
+   }
 
-      def minDistance( a: PointLike, b: Quad )     = b.minDistanceSq( a )
-      def maxDistance( a: PointLike, b: Quad )     = b.maxDistanceSq( a )
-
-      def coarse( thresh: Int ) = {
-         val l = thresh.toLong
-         new Euclidean( l * l )
-      }
+   /**
+    * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
+    * distances across all dimensions.
+    */
+   val vehsybehc : DistanceMeasure = new ChebyshevLikeDistanceMeasure {
+      protected final def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
    }
 
    private def filter( underlying: DistanceMeasure, quad: Quad ) = new DistanceMeasure {
       def distance( a: PointLike, b: PointLike )   = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
       def minDistance( a: PointLike, b: Quad )     = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
       def maxDistance( a: PointLike, b: Quad )     = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
+   }
+
+   private def approximate( underlying: DistanceMeasure, thresh: Long ) = new DistanceMeasure {
+      def minDistance( a: PointLike, b: Quad ) = underlying.minDistance( a, b )
+      def maxDistance( a: PointLike, b: Quad ) = underlying.maxDistance( a, b )
+      def distance( a: PointLike, b: PointLike ) = {
+         val res = b.distanceSq( a )
+         if( res > thresh ) res else 0L
+      }
+   }
+
+   private sealed trait ChebyshevLikeDistanceMeasure extends DistanceMeasure {
+      protected def apply( dx: Long, dy: Long ) : Long
+
+      def distance( a: PointLike, b: PointLike ) = {
+         val dx = math.abs( a.x.toLong - b.x.toLong )
+         val dy = math.abs( a.y.toLong - b.y.toLong )
+         apply( dx, dy )
+      }
+      def minDistance( a: PointLike, q: Quad ) : Long = {
+         val px   = a.x
+         val py   = a.y
+         val l    = q.left
+         val t    = q.top
+         var dx   = 0L
+         var dy   = 0L
+         if( px < l ) {
+            dx = l.toLong - px.toLong
+            if( py < t ) {
+               dy = t.toLong - py.toLong
+            } else {
+               val b = q.bottom
+               if( py > b ) {
+                  dy = py.toLong - b.toLong
+               }
+            }
+         } else {
+            val r = q.right
+            if( px > r ) {
+               dx   = px.toLong - r.toLong
+               if( py < t ) {
+                  dy = t.toLong - py.toLong
+               } else {
+                  val b = q.bottom
+                  if( py > b ) {
+                     dy = py.toLong - b.toLong
+                  }
+               }
+            } else if( py < t ) {
+               dy = t.toLong - py.toLong
+               if( px < l ) {
+                  dx = l.toLong - px.toLong
+               } else {
+                  val r = q.right
+                  if( px > r ) {
+                     dx = px.toLong - r.toLong
+                  }
+               }
+            } else {
+               val b = q.bottom
+               if( py > b ) {
+                  dy = py.toLong - b.toLong
+                  if( px < l ) {
+                     dx = l.toLong - px.toLong
+                  } else {
+                     val r = q.right
+                     if( px > r ) {
+                        dx = px.toLong - r.toLong
+                     }
+                  }
+               }
+            }
+         }
+         apply( dx, dy )
+      }
+
+      def maxDistance( a: PointLike, b: Quad ) = {
+         error( "TODO" )
+      }
    }
 }
 /**
@@ -116,10 +205,24 @@ trait DistanceMeasure {
     * methods.
     */
    final def filter( quad: Quad ) = DistanceMeasure.filter( this, quad )
-}
 
-trait EuclideanDistanceMeasure extends DistanceMeasure {
-   def coarse( thresh: Int ) : DistanceMeasure
+   /**
+    * Composes this distance so that a threshold is applied to
+    * point-point distances. If the point-point distance of the
+    * underlying measure returns a value less than or equal the given threshold,
+    * then instead the value `0L` is returned. This allows for
+    * quicker searches so that a nearest neighbour becomes an
+    * approximate nn within the given threshold (the first
+    * arbitrary point encountered with a distance smaller than
+    * the threshold will be returned).
+    *
+    * Note that the threshold is directly compared to the result
+    * of `distance`, thus if the underlying measure uses a skewed
+    * distance, this must be taken into account. For example, if
+    * `euclideanSq` is used, and points within a radius of 4 should
+    * be approximated, a threshold of `4 * 4 = 16` must be chosen!
+    */
+   final def approximate( thresh: Long ) = DistanceMeasure.approximate( this, thresh )
 }
 
 //final case class Circle( cx: Int, cy: Int, radius: Int ) extends QueryShape {
