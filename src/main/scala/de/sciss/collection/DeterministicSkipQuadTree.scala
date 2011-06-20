@@ -126,7 +126,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       }
 
       def rangeQuery( qs: QueryShape ) : Iterator[ A ]   = notYetImplemented
-      def nearestNeighborOption( point: PointLike, abort: Int = 0 ) : Option[ A ] = notYetImplemented
+      def nearestNeighborOption( point: PointLike, metric: DistanceMeasure ) : Option[ A ] = notYetImplemented
 
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {

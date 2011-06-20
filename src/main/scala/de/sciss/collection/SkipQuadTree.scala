@@ -106,10 +106,11 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: PointLike, abort: Int = 0 ) : A = nearestNeighborOption( point, abort ).getOrElse(
-      throw new NoSuchElementException( "nearestNeighbor of an empty tree" ))
+   def nearestNeighbor( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A =
+      nearestNeighborOption( point, metric ).getOrElse(
+         throw new NoSuchElementException( "nearestNeighbor of an empty tree" ))
 
-   def nearestNeighborOption( point: PointLike, abort: Int = 0 ) : Option[ A ]
+   def nearestNeighborOption( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored

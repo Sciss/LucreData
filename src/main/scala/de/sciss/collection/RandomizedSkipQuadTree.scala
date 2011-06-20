@@ -213,27 +213,27 @@ object RandomizedSkipQuadTree {
          lb.result().mkString( " -> " )
       }
 
-      override def nearestNeighbor( point: PointLike, abort: Int = 0 ) : A = {
-         val res = nn( point, abort )
+      override def nearestNeighbor( point: PointLike, metric: DistanceMeasure ) : A = {
+         val res = nn( point, metric )
          if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
       }
 
-      override def nearestNeighborOption( point: PointLike, abort: Int = 0 ) : Option[ A ] = {
-         val res = nn( point, abort )
+      override def nearestNeighborOption( point: PointLike, metric: DistanceMeasure ) : Option[ A ] = {
+         val res = nn( point, metric )
          if( res != null ) Some( res.value ) else None
       }
 
-      private def nn( point: PointLike, abort: Int ) : Leaf = {
+      private def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
          var bestLeaf: Leaf      = null
          var bestDist            = Long.MaxValue   // all distances here are squared!
          val pri                 = PriorityQueue.empty[ VisitedNode ]
          val acceptedChildren    = new Array[ VisitedNode ]( 4 )
          var numAcceptedChildren = 0
          var rmax                = Long.MaxValue
-         val abortSq    = {
-            val al = abort.toLong
-            al * al
-         }
+//         val abortSq    = {
+//            val al = abort.toLong
+//            al * al
+//         }
 
          def recheckRMax {
             var j = 0; while( j < numAcceptedChildren ) {
@@ -253,7 +253,7 @@ object RandomizedSkipQuadTree {
             var i = 0; while( i < 4 ) {
                n0.child( i ) match {
                   case l: Leaf =>
-                     val ldist = l.point.distanceSq( point )
+                     val ldist = metric.distance( point, pointView( l.value ))
                      if( ldist < bestDist ) {
                         bestDist = ldist
                         bestLeaf = l
@@ -265,9 +265,9 @@ object RandomizedSkipQuadTree {
 
                   case c: Node =>
                      val cq            = c.quad
-                     val cMinDist      = cq.minDistanceSq( point )
+                     val cMinDist      = metric.minDistance( point, cq )
                      if( cMinDist <= rmax ) {   // otherwise we're out already
-                        val cMaxDist   = cq.maxDistanceSq( point )
+                        val cMaxDist   = metric.maxDistance( point, cq )
                         if( cMaxDist < rmax ) {
 //println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
                            rmax = cMaxDist
@@ -309,7 +309,7 @@ object RandomizedSkipQuadTree {
          while( true ) {
 //println( "ROUND : " + identify( n0 ))
             findNNTail( n0 )
-            if( bestDist <= abortSq ) return bestLeaf
+            if( bestDist <= 0L ) return bestLeaf
             var i = 0; while( i < numAcceptedChildren ) {
 //println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
                pri += acceptedChildren( i )
@@ -356,7 +356,7 @@ object RandomizedSkipQuadTree {
                var i = 0; while( i < 4 ) {
                   nc.child( i ) match {
                      case cl: Leaf =>
-                        if( qs.contains( cl.point )) in += cl
+                        if( qs.contains( pointView( cl.value ))) in += cl
                      case cn: Node =>
                         val q    = cn.quad
                         val ao   = qs.overlapArea( q )
@@ -391,7 +391,7 @@ object RandomizedSkipQuadTree {
 
       sealed trait NonEmpty extends Child
 
-      final case class Leaf( point: PointLike, value: A ) extends NonEmpty with QLeaf
+      final case class Leaf( value: A ) extends NonEmpty with QLeaf
       final case class Node( quad: Quad, var parent: Node, prev: Node )( val quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends NonEmpty with QNode {
          var next: Node = null;
@@ -464,7 +464,7 @@ object RandomizedSkipQuadTree {
             val qidx = quad.indexOf( point )
             quads( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
-               case l: Leaf if( l.point == point ) => l
+               case l: Leaf if( pointView( l.value ) == point ) => l
                case _ => if( prev == null ) null else prev.findLeaf( point )
             }
          }
@@ -475,7 +475,7 @@ object RandomizedSkipQuadTree {
             val qidx = quad.indexOf( point )
             quads( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.remove( point )
-               case l: Leaf if( l.point == point ) =>
+               case l: Leaf if( pointView( l.value ) == point ) =>
                   quads( qidx ) = Empty
                   var lonely: NonEmpty = null
                   var numNonEmpty = 0
@@ -513,14 +513,14 @@ object RandomizedSkipQuadTree {
          def update( point: PointLike, value: A ) {
             val qidx = quad.indexOf( point )
             quads( qidx ) match {
-               case l: Leaf if( l.point == point ) => quads( qidx ) = Leaf( point, value )
+               case l: Leaf if( pointView( l.value ) == point ) => quads( qidx ) = Leaf( value )
                case _ =>
             }
          }
 
          def insert( point: PointLike, value: A, prevP: Node ) : Node = {
             val qidx = quad.indexOf( point )
-            val l    = Leaf( point, value )
+            val l    = Leaf( value )
             quads( qidx ) match {
                case Empty =>
                   quads( qidx ) = l
@@ -528,7 +528,7 @@ object RandomizedSkipQuadTree {
 
                case t: Node =>
                   val tq      = t.quad
-                  assert( !tq.contains( point ))
+//                  assert( !tq.contains( point ))
                   val te      = tq.extent
                   val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
                   val iquads  = new Array[ Child ]( 4 )
@@ -542,8 +542,9 @@ object RandomizedSkipQuadTree {
                   quads( qidx ) = q
                   q
 
-               case l2 @ Leaf( point2, _ ) =>
-                  assert( point != point2 )
+               case l2: Leaf =>
+//                  assert( point != point2 )
+                  val point2  = pointView( l2.value )
                   val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
                   val iquads  = new Array[ Child ]( 4 )
                   val lidx    = iq.indexOf( point2 )
