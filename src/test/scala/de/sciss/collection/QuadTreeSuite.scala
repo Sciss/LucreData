@@ -14,17 +14,17 @@ import sys.error
 class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = false     // currently doesn't pass tests
-   val n             = 0x10 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
-   val n2            = 0x10 // n >> 3    // 0x1000    // range query and nn
+   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n2            = n >> 3    // 0x1000    // range query and nn
 
-   val rnd   = new util.Random() // ( 12L )
+   val rnd   = new util.Random( 0L ) // ( 12L )
 
 //   val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
    val quad = Quad( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadTree.empty[    Int ]( quad ))
    if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadTree.empty[ Int ]( quad ))
 
-//   RandomizedSkipQuadTree.random.setSeed( 0L )
+   RandomizedSkipQuadTree.random.setSeed( 0L )
 
    def randFill( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
       given( "a randomly filled structure" )
@@ -37,7 +37,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          val k = Point( rnd.nextInt() & 0x7FFFFFFF,
                         rnd.nextInt() & 0x7FFFFFFF )
          val v = rnd.nextInt()
-//println( k )
+//println( i.toString + " - " + k )
          t.put( k, v )
          m.put( k, v )
       }
@@ -161,9 +161,14 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyNN( t: SkipQuadTree[ Int ], m: MMap[ Point, Int ]) {
       when( "the quadtree is searched for nearest neighbours" )
-      val ps = Seq.fill( n2 )( Point( rnd.nextInt(), rnd.nextInt() ))
-//println( "WARNING: restricting search to points inside the tree' quad for now" )
-//val ps = ps0.filter( t.quad.contains( _ ))
+      val ps0 = Seq.fill( n2 )( Point( rnd.nextInt(), rnd.nextInt() ))
+      // tricky: this guarantees that there are no 63 bit overflows,
+      // while still allowing points outside the root quad to enter the test
+      val ps = ps0.filter( p => {
+         val dx = if( p.x < quad.cx ) quad.right.toLong - p.x else p.x - quad.left
+         val dy = if( p.y < quad.cy ) quad.bottom.toLong - p.y else p.y - quad.top
+         dx <= 0xB504F300L && dy <= 0xB504F300L && dx * dx + dy * dy > 0L
+      })
       val nnT: Map[ Point, Point ] = ps.map( p => p -> t.nearestNeighbor( p )._1 )( breakOut )
       val ks   = m.keySet
       val nnM: Map[ Point, Point ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )

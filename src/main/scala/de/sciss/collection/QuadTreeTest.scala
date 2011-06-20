@@ -42,6 +42,7 @@ object QuadTreeTest extends App {
       case Some( "-test2" ) => new Test2
       case Some( "-test3" ) => new Test3
       case Some( "-test4" ) => new Test4
+      case Some( "-test5" ) => new Test5
       case _ => println( """
 Options:
 -fig1
@@ -50,6 +51,7 @@ Options:
 -test2 (somehow a variant of fig. 5 -- only with high n and skewed dist)
 -test3
 -test4
+-test5
 """)
          sys.exit( 1 )
    }
@@ -342,5 +344,27 @@ Options:
          v.adjustPreferredSize
          v :: Nil
       }
+   }
+
+   class Test5 {
+      val pts = IndexedSeq(
+         Point( 991999072,1423528248),
+         Point( 456749246, 590203382),
+         Point( 216625335, 502539523),
+         Point(1209182061,1431162155),
+         Point(1654374947, 485484877),
+         Point(2073694040,1628576520),
+         Point(1895150834, 755814641),
+         Point(1344049776, 553609048),
+         Point( 629649304, 881218872),
+         Point(  5955764,  200745736)
+      )
+      val query   = Point(1599145891,-1341955486)
+      val quad    = Quad( 0x40000000, 0x40000000, 0x40000000 )
+      val t       = RandomizedSkipQuadTree[ Int ]( quad )( pts.map( p => p -> 0 ): _* )
+      val res     = t.nearestNeighbor( query )._1
+      println( res + " - " + res.distanceSq( query ))
+      val correct = pts.minBy( _.distanceSq( query ))
+      println( correct + " - " + correct.distanceSq( query ))
    }
 }

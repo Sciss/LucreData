@@ -158,7 +158,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
       w * h
    }
 
-   def closestDistance( point: Point ) : Double = math.sqrt( closestDistanceSq( point ))
+   def minDistance( point: Point ) : Double = math.sqrt( minDistanceSq( point ))
 
 //   /**
 //    * Returns the orientation of the point wrt the quad, according
@@ -180,7 +180,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
 //
 //   }
 
-   def furthestDistanceSq( point: Point ) : Long = {
+   def maxDistanceSq( point: Point ) : Long = {
       val px   = point.x
       val py   = point.y
       if( px < cx ) {
@@ -265,7 +265,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
     * to the point, if the point is outside the quad,
     * or `0L`, if the point is contained
     */
-   def closestDistanceSq( point: Point ) /* ( orient: Int = orient( point )) */ : Long = {
+   def minDistanceSq( point: Point ) /* ( orient: Int = orient( point )) */ : Long = {
       val px   = point.x
       val py   = point.y
       val l    = left

@@ -69,6 +69,13 @@ trait SkipQuadTree[ V ] extends MMap[ Point, V ] {
     * Reports the nearest neighbor entry with respect to
     * a given point.
     *
+    * Note: There is a potential numeric overflow if the
+    * squared distance of the query point towards the
+    * furthest corner of the tree's root quad exceeds 63 bits.
+    * For a root `Quad( 0x40000000, 0x40000000, 0x40000000 )`, this
+    * happens for example for any point going more towards north-west
+    * than `Point( -1572067139, -1572067139 )`.
+    *
     * @param   point the point of which the nearest neighbor is to be found
     * @param   a threshold which is an acceptable abortion criterion. I.e.,
     *    if a point is found whose distance is smaller or equal to this

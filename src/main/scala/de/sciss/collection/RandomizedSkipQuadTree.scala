@@ -240,9 +240,9 @@ object RandomizedSkipQuadTree {
 
                   case c: Node =>
                      val cq            = c.quad
-                     val cMinDist      = cq.closestDistanceSq( point )
+                     val cMinDist      = cq.minDistanceSq( point )
                      if( cMinDist <= rmax ) {   // otherwise we're out already
-                        val cMaxDist   = cq.furthestDistanceSq( point )
+                        val cMaxDist   = cq.maxDistanceSq( point )
                         if( cMaxDist < rmax ) {
 //println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
                            rmax = cMaxDist
