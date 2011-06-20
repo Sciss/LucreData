@@ -32,12 +32,12 @@ package view
 import java.awt.{Color, Dimension}
 
 class SkipQuadTreeView[ A ]( t: SkipQuadTree[ A ]) extends QuadView {
+   var highlight  = Set.empty[ A ]
+   var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
+   private var scaleVar = 1.0
+
    setPrefSz( 3 )
 
-   var highlight  = Set.empty[ A ]
-   var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 ) // Color.black
-
-   private var scaleVar = 1.0
    def scale : Double = scaleVar
    def scale_=( factor: Double ) {
       scaleVar = factor
