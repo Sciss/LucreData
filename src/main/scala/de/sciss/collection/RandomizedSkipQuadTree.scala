@@ -198,8 +198,6 @@ object RandomizedSkipQuadTree {
          var bestLeaf: Leaf      = null
          var bestDist            = Long.MaxValue   // all distances here are squared!
          val pri                 = PriorityQueue.empty[ VisitedNode ]
-         var n0                  = headTree
-         var pdist               = headTree.quad.closestDistanceSq( point )
          val acceptedChildren    = new Array[ VisitedNode ]( 4 )
          var numAcceptedChildren = 0
          var rmax                = Long.MaxValue
@@ -219,12 +217,13 @@ object RandomizedSkipQuadTree {
             j += 1 }
          }
 
-         def findNNTail( _n: Node ) {
-            if( n0.quad == Quad(1879048192,1342177280,268435456) ) {
-               println( " HERE " ) // XXX
-            }
+         @tailrec def findNNTail( n0: Node ) {
+//            if( n0.quad == Quad(1879048192,1342177280,268435456) ) {
+//               println( " HERE " ) // XXX
+//            }
 
             numAcceptedChildren = 0
+            var accept1Idx = 0
             val oldRMax1 = rmax
             var i = 0; while( i < 4 ) {
                n0.child( i ) match {
@@ -234,7 +233,7 @@ object RandomizedSkipQuadTree {
                         bestDist = ldist
                         bestLeaf = l
                         if( bestDist < rmax ) {
-println( "      : leaf " + l.point + " - " + bestDist )
+//println( "      : leaf " + l.point + " - " + bestDist )
                            rmax = bestDist
                         }
                      }
@@ -245,10 +244,11 @@ println( "      : leaf " + l.point + " - " + bestDist )
                      if( cMinDist <= rmax ) {   // otherwise we're out already
                         val cMaxDist   = cq.furthestDistanceSq( point )
                         if( cMaxDist < rmax ) {
-println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
+//println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
                            rmax = cMaxDist
                         }
                         acceptedChildren( numAcceptedChildren ) = new VisitedNode( c, cMinDist /*, cMaxDist */)
+                        accept1Idx = i
                         numAcceptedChildren += 1
                      }
 
@@ -258,54 +258,35 @@ println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
 
             if( rmax != oldRMax1 ) recheckRMax
 
-            // If at least two children were accepted, round is over
-            if( numAcceptedChildren >= 2 ) return
+            // Unless exactly one child is accepted, round is over
+            if( numAcceptedChildren != 1 ) return
 
-            // Otherwise find corresponding node in highest level
-            var n = _n; while( n.next != null ) n = n.next
-            val oldRMax2 = rmax
-            // Check its accepted children there. If there is such
-            // a child, descent, otherwise go back leftwards to Qi-1.
-            while( !(n0 eq n) ) {
-               var i = 0; while( i < 4 ) {
-                  n.child( i ) match {
-                     case l: Leaf =>
-                        val ldist = l.point.distanceSq( point )
-                        if( ldist < bestDist ) {   // XXX could short cut: < rmax should be sufficient!
-                           bestDist = ldist
-                           bestLeaf = l
-                           if( bestDist < rmax ) rmax = bestDist
-                        }
-                     case c: Node =>
-                        val cq            = c.quad
-                        val cMinDist      = cq.closestDistanceSq( point )
-                        if( cMinDist <= rmax ) {   // otherwise we're out already
-                           val cMaxDist   = cq.furthestDistanceSq( point )
-                           if( cMaxDist < rmax ) rmax = cMaxDist
-                           n0 = c; while( n0.prev != null ) n0 = n0.prev
-                           findNNTail( c )
-                           return
-                        }
-                     case _ =>
-                  }
-               i += 1 }
-               n = n.prev
+            // Otherwise find corresponding node in highest level, and descend
+            var dn   = acceptedChildren( 0 ).n
+            val qdn  = dn.quad
+            var succ = n0.next
+            while( succ != null ) {
+               succ.child( accept1Idx ) match {
+                  case dn2: Node if( dn2.quad == qdn ) =>
+                     dn    = dn2
+                     succ  = succ.next
+                  case _ =>
+                     succ  = null
+               }
             }
 
-            if( rmax != oldRMax2 ) recheckRMax
-            if( numAcceptedChildren == 1 ) {
-               n0 = acceptedChildren( 0 ).n
-               findNNTail( n0 )
-            }
+            // now go left
+            while( dn.prev != null ) dn = dn.prev
+            findNNTail( dn )
          }
 
+         var n0 = headTree
          while( true ) {
-//            rmax = bestDist
-println( "ROUND : " + identify( n0 ))
+//println( "ROUND : " + identify( n0 ))
             findNNTail( n0 )
             if( bestDist <= abortSq ) return Some( bestLeaf.point -> bestLeaf.value )
             var i = 0; while( i < numAcceptedChildren ) {
-println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
+//println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
                pri += acceptedChildren( i )
             i += 1 }
             var vis: VisitedNode = null
@@ -339,7 +320,7 @@ println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren(
             res
          }
 
-         def findNextValue : Unit = while( true ) {
+         def findNextValue() : Unit = while( true ) {
             if( in.isEmpty ) {
                if( stabbing.isEmpty ) {
                   hasNext = false
