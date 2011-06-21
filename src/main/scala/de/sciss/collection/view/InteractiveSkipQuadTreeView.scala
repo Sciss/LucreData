@@ -30,8 +30,8 @@ package de.sciss.collection
 package view
 
 import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
-import java.awt.event.{MouseEvent, MouseAdapter, ActionEvent, ActionListener}
-import javax.swing.{AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, WindowConstants, JPanel}
+import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
+import javax.swing.{WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
 
 object InteractiveSkipQuadTreeView extends App with Runnable {
    EventQueue.invokeLater( this )
@@ -52,6 +52,12 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    val slv  = new SkipQuadTreeView( t )
    private val in = slv.getInsets
 
+   private var baseDist : DistanceMeasure = DistanceMeasure.euclideanSq
+   private var distFilter : DistanceMeasure => DistanceMeasure = identity
+   private var distMeasure : DistanceMeasure = baseDist
+
+   def recalcDistMeasure { distMeasure = distFilter( baseDist )}
+
    val tools   = new JToolBar()
    val toolGrp = new ButtonGroup()
    add( tools, BorderLayout.NORTH )
@@ -67,7 +73,7 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
 
    private def tryPoint( fun: Point => Unit ) {
       try {
-         val p = Point( ggX.getText().toInt, ggY.getText().toInt )
+         val p = Point( ggX.getText.toInt, ggY.getText.toInt )
          fun( p )
       } catch {
          case n: NumberFormatException =>
@@ -76,9 +82,9 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
 
    private def tryQuad( fun: Quad => Unit ) {
       try {
-         val ext = ggExt.getText().toInt
+         val ext = ggExt.getText.toInt
          require( ext > 0 )
-         val q = Quad( ggX.getText().toInt, ggY.getText().toInt, ext )
+         val q = Quad( ggX.getText.toInt, ggY.getText.toInt, ext )
          fun( q )
       } catch {
          case n: NumberFormatException =>
@@ -98,15 +104,26 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
       p.add( b )
       b
    }
+   private def combo( items: String* )( action: Int => Unit ) : JComboBox = {
+      val b = new JComboBox( items.toArray[ AnyRef ])
+      b.setFocusable( false )
+      b.addActionListener( new ActionListener {
+         def actionPerformed( e: ActionEvent ) {
+            action( b.getSelectedIndex )
+         }
+      })
+      p.add( b )
+      b
+   }
 
    but( "Help" ) {
       println( """
 - Number fields are cx, cy, and extent (for range queries)
 - Mouse:
      Double-click to insert point
-     Alt-click to remove point (-NOT YET WORKING-)
+     Alt-click to remove point
      Shift-drag for range query
-     Ctrl-click for NN (-NOT FULLY WORKING-)
+     Ctrl-click for NN
 """ )
    }
 
@@ -130,13 +147,26 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    }
 
    def findNN { tryPoint { p =>
-      val set = if( t.nonEmpty ) {
-         val p2 = t.nearestNeighbor( p )
-         Set( p2 )
-      } else Set.empty[ PointLike ]
+      val set = t.nearestNeighborOption( p, metric = distMeasure ).map( Set( _ )).getOrElse( Set.empty )
       slv.highlight = set
       status( rangeString( set ))
    }}
+
+   combo( "Euclidean", "Maximum", "Minimum" ) { i => baseDist = i match {
+         case 0 => DistanceMeasure.euclideanSq
+         case 1 => DistanceMeasure.chebyshev
+         case 2 => DistanceMeasure.vehsybehc
+      }
+      recalcDistMeasure
+   }
+   combo( "All Quadrants", "North East", "North West", "South West", "South East" ) { i =>
+      if( i > 0 ) {
+         distFilter = _.quadrant( i - 1 )
+      } else {
+         distFilter = identity
+      }
+      recalcDistMeasure
+   }
 
    but( "NN" )( findNN )
 
