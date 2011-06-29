@@ -35,7 +35,7 @@ import javax.swing.{WindowConstants, JComboBox, AbstractButton, ButtonGroup, JTo
 
 object InteractiveSkipQuadTreeView extends App with Runnable {
    EventQueue.invokeLater( this )
-   def run {
+   def run() {
       val f    = new JFrame( "Skip Quadtree" )
 //      f.setResizable( false )
       val cp   = f.getContentPane
@@ -44,7 +44,7 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      QuadTreeTest.addPDFExport( f, iv.slv :: Nil )
+      QuadTreeTest.addPDFExport[ SkipQuadTreeView[ PointLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
       f.setVisible( true )
    }
 }

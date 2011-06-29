@@ -1,0 +1,33 @@
+algorithm "minimum empty rectangle search"
+- given a point 'q' whose location is unknown, but for which
+  a function 'compare( p, q, i_d)' exists which compares
+  the coordinates of p and q in dimension axis 1 <= i_d <= d,
+  yielding -1 for q < p, 0 for q == p, and 1 for q > p,
+  find the smallest rectangle r_res in the quadtree which
+  contains q
+
+- r_res = root square
+- beginne im root quadrat in Ql
+- for each quadrant, test whether q_res overlaps _the quadrant bounds_
+  (i.e. no matter whether it contains a node, a point, or is empty)
+  --> = def. of interesting square
+- wenn #interesting squares is != 1, return and push the interesting squares onto the prio
+- wenn #interesting squares is == 1
+      step $
+	- if quadrant contains a node -> descend into the node
+        - if quadrant is empty -> if it exists, go to Qi-1 and repeat from $
+        - if quadrant contains leaf ->
+              narrow r_res with respect to the point in that leaf, then:
+              if it exists, go to Qi-1 and repeat from $
+
+regarding nn:
+- for the special case of a follow-up nn for e.g. north-west chebychev distance based
+  metric, we directly have the result from the points delimiting r_res!
+- it thus remains to establish the time bounds for the above algorithm
+
+-----
+( a remotely related problem:
+H. Kaplan and M. Sharir, Finding the Maximal Empty Rectangle Containing a Query Point (arXiv:1106.3628)
+- however they are looking for the largest rectangle which seems much harder
+  (they require O(log^4 n) for query)
+)

@@ -99,14 +99,14 @@ Options:
       }
    }
 
-   def addPDFExport( f: JFrame, views: Seq[ JComponent ]) {
+   def addPDFExport[ A <: JComponent ]( f: JFrame, views: Seq[ A ], prepare: A => Unit = (_: A) => () ) {
       val mb            = new JMenuBar()
       val mFile         = new JMenu( "File" )
       val miExportPDF   = new JMenuItem( new AbstractAction( "Export as PDF..." ) {
          action =>
          def name = getValue( Action.NAME ).toString
          def actionPerformed( e: ActionEvent ) {
-            val viewO: Option[ JComponent ] = views.toList match {
+            val viewO: Option[ A ] = views.toList match {
                case Nil => None
                case v :: Nil => Some( v )
                case _ =>
@@ -157,6 +157,7 @@ Options:
                val file = fDlg.getFile
                val dir  = fDlg.getDirectory
                if( file == null || dir == null ) return
+               prepare( view )
                createPDF( new File( dir, file ), view )
             }
          }
