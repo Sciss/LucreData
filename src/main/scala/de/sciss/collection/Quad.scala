@@ -65,7 +65,11 @@ trait QueryShape {
 //   }
 //}
 
-final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
+/**
+ * XXX TODO: not possible to have a side length of 1, which might
+ * be(come) a problem.
+ */
+final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape with */ RectangleLike {
    def quadrant( idx: Int ) : Quad = {
       val e = extent >> 1
       idx match {
@@ -80,6 +84,9 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
    def top : Int     = cy - extent
    def left : Int    = cx - extent
 
+   def width : Int   = extent << 1
+   def height : Int  = extent << 1
+
    /**
     * The bottom is defined as the center y coordinate plus
     * the extent minus one, it thus designed the 'last pixel'
@@ -88,7 +95,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
     * 31 bit signed int space for a quad without resorting
     * to long conversion.
     */
-   def bottom : Int  = cy + (extent - 1)
+   override def bottom : Int  = cy + (extent - 1)
    /**
     * The right is defined as the center x coordinate plus
     * the extent minus one, it thus designed the 'last pixel'
@@ -97,7 +104,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
     * 31 bit signed int space for a quad without resorting
     * to long conversion.
     */
-   def right : Int   = cx + (extent - 1)
+   override def right : Int   = cx + (extent - 1)
 
    /**
     * The side length is two times the extent.
@@ -323,15 +330,36 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends QueryShape {
    }
 }
 
-trait PointLike {
+trait PointLike extends RectangleLike {
    def x: Int
    def y: Int
+
+   final def left             = x
+   final def top              = y
+   final override def right   = x
+   final override def bottom  = y
+   final def width            = 1
+   final def height           = 1
 
    def distanceSq( that: PointLike ) : Long = {
       val dx = that.x.toLong - x.toLong
       val dy = that.y.toLong - y.toLong
       dx * dx + dy * dy
    }
+
+   // ---- QueryShape ----
+   final def overlapArea( q: Quad ) : Long = if( q.contains( this )) 1L else 0L
+   final def area : Long = 1L
+
+   /**
+    * Queries the overlap of this shape with a given
+    * `Point p`. The point is considered to have
+    * a side length of 1!
+    *
+    * @return  `true` if this shape contains or partly overlaps
+    *          the given point
+    */
+   final def contains( p: PointLike ) : Boolean = p.x == this.x && p.y == this.y
 }
 
 final case class Point( x: Int, y: Int ) extends PointLike {
