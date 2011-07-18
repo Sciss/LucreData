@@ -28,10 +28,6 @@
 
 package de.sciss.collection
 
-import collection.mutable.{ Builder, DoubleLinkedListLike, LinearSeq => MLinearSeq, Seq => MSeq }
-import collection.generic.{SeqFactory, GenericCompanion, GenericTraversableTemplate}
-import sys.error // suckers
-
 /**
  * A data structure to maintain an ordered sequence of elements such
  * that two random elements can be compared in O(1).
@@ -61,231 +57,144 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 //      def compare( x: TotalOrder[ V ], y: TotalOrder[ V ]) = x.compare( y )
 //   }
 
-   def apply() : TotalOrder = {
-      val sz      = new Size
-      val empty   = new Impl( sz )
-      val head    = new Impl( sz )
-      sz.inc
+   def apply( relabelObserver: RelabelObserver = NoRelabelObserver ) : TotalOrder = new Impl( relabelObserver )
+
+//   /**
+//    * Returns a single element order corresponding to the tag ceiling. This
+//    * can be used for comparison (using its `Ordered` trait).
+//    *
+//    * Note: you can not add elements before or after this one.
+//    */
+//   val max : TotalOrder = new Impl( new Size( NoRelabelObserver )) {
+//      tag = Int.MaxValue
+//      override def append() : TotalOrder = unsupportedOp
+//      override def prepend() : TotalOrder = unsupportedOp
+//      def unsupportedOp = error( "Operation not permitted" )
+//   }
+
+   sealed trait EntryLike extends Ordered[ EntryLike ] {
+      def prev : EntryLike
+      def next : EntryLike
+      def tag : Int
+
+      def isHead : Boolean = prev == null
+      def isLast : Boolean = next.isEnd
+      def isEnd : Boolean = next eq this
+
+      /**
+       * Compares the positions of x and y in the sequence
+      */
+      def compare( that: EntryLike ) : Int = {
+         val thatTag = that.tag
+         if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
+//         tag compare that.tag
+      }
+   }
+
+   trait RelabelObserver {
+      def beforeRelabeling( first: EntryLike, num: Int ) : Unit
+      def afterRelabeling( first: EntryLike, num: Int ) : Unit
+   }
+
+   object NoRelabelObserver extends RelabelObserver {
+      def beforeRelabeling( first: EntryLike, num: Int ) {}
+      def afterRelabeling( first: EntryLike, num: Int ) {}
+   }
+
+   private class Impl( val observer: RelabelObserver ) // (_t: Int)
+   extends TotalOrder
+}
+sealed trait TotalOrder
+extends Ordering[ TotalOrder.EntryLike ] {
+   import TotalOrder._
+
+   private var sizeVar : Int = 1 // root!
+
+   protected def observer: RelabelObserver
+
+   val root : Entry = {
+      val empty   = new Entry()
+      val head    = new Entry()
+//      sz.inc
       head.next   = empty
       empty.prev  = head
       head
    }
 
+   def max : Entry = {
+      val e = new Entry()
+      e.tag = Int.MaxValue
+      e
+   }
+
    /**
-    * Returns a single element order corresponding to the tag ceiling. This
-    * can be used for comparison (using its `Ordered` trait).
-    *
-    * Note: you can not add elements before or after this one.
+    * Returns the head element of the structure. Note that this
+    * is O(n) worst case.
     */
-   val max : TotalOrder = new Impl( new Size ) {
-      tag = Int.MaxValue
-      override def append() : TotalOrder = unsupportedOp
-      override def prepend() : TotalOrder = unsupportedOp
-      def unsupportedOp = error( "Operation not permitted" )
+   def head : Entry = {
+      var e = root
+      while( !e.isHead ) e = e.prev
+      e
    }
 
-//   // ---- GenericCompanion ----
-//  def newBuilder[ A ] = new Builder[ A, TotalOrder[ A ]] {
-//      def emptyList() : TotalOrder[ A ] = new Impl[ A ]( new Size )
-//      var head = emptyList()
-//      var tail = head
-//
-//      def +=( elem: A ) : this.type = {
-//         tail = tail.append( elem )
-////
-////         if( head.isEmpty ) {
-////            head  = new TotalOrder( elem, 0x3FFFFFFF, head /* emptyList() */ )
-////            tail  = head
-////         } else {
-////            tail  = tail.append( elem )
-//////            val tag: Int = error( "TODO" )
-//////            current.append( new TotalOrder( elem, tag, emptyList() ))
-////         }
-//         this
-//      }
-//
-//      def clear() {
-//         head = emptyList()
-//         tail = head
-//      }
-//
-//      def result() = head
-//   }
+   def compare( a: EntryLike, b: EntryLike ) : Int = a.compare( b )
 
-   class Size {
-      private var v: Int = 0
-      def value : Int = v
-      def inc { v += 1 }
-   }
+   final class Entry private[ TotalOrder ] () extends EntryLike {
+      private var tagVar : Int = 0
+      private var prevVar : Entry = _
+      private var nextVar : Entry = this
 
-   private class Impl( protected val totalSize: TotalOrder.Size ) // (_t: Int)
-   extends TotalOrder {
-//      private type T = TotalOrder[ A ]
-
-      var prev: TotalOrder = _
-      var next: TotalOrder = this
-      var tag: Int = 0 // _t
-
-      def this( sz: TotalOrder.Size, prev: TotalOrder, next: TotalOrder ) {
-         this( sz )
-         sz.inc
+      private def this( prev: Entry, next: Entry ) {
+         this()
+         sizeVar += 1 // sz.inc
 //         this.elem      = elem
-         this.prev      = prev
+         prevVar = prev
          if( prev != null ) {
             require( !prev.isEnd && (prev.next eq next) )
             prev.next = this
          } else {
             require( next.isHead )
          }
-         this.next      = next
-         next.prev      = this
+         nextVar     = next
+         next.prev   = this
       }
 
-   //   type Rec = Record[ T ]
-   //
-   //   private var base : Rec = null
+      private[ TotalOrder ] def tag_=( value: Int ) { tagVar = value }
+      private[ TotalOrder ] def next_=( entry: Entry ) { nextVar = entry }
+      private[ TotalOrder ] def prev_=( entry: Entry ) { prevVar = entry }
 
-      def isHead : Boolean = prev == null
-      def isLast : Boolean = next.isEnd
-      def isEnd : Boolean = next eq this
-//      def isEmpty : Boolean = next eq this
-//      def nonEmpty : Boolean = !isEmpty
-
-      def size : Int = totalSize.value
+      def prev : Entry = prevVar
+      def next : Entry = nextVar
+      def tag : Int = tagVar
 
       /**
-       * Compares the positions of x and y in the sequence
-      */
-      def compare( that: TotalOrder ) : Int = {
-         val thatTag = that.tag
-         if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
-//         tag compare that.tag
-      }
-
-      /**
-       * Appends an element to the end of the sequence, and returns
-       * that new sequence tail. Note that this operation takes O(n).
-       *
-       * @param   elem  the element to append
-       * @return  the total order entry corresponding to the newly appended element
+       * Inserts a new element after this node
        */
-//      def append( elem: A ) : T = {
-//         if( isEmpty ) {
-//            this.elem   = elem
-//            tag         = Int.MaxValue >> 1
-//            val empty : T = new Impl( totalSize )
-//            totalSize.inc
-//            next        = empty
-//            empty.prev  = this
-//            this
-//         } else {
-//            lastNode.insertAfter( elem )
-//         }
-//      }
-//
-//      private def lastNode : T = {
-//         var res = next
-//         while( !res.isEmpty ) res = res.next
-//         res.prev
-//      }
-
-      def append() : TotalOrder = {
-         val rec     = new Impl( totalSize, this, next )
+      def append() : Entry = {
+         val rec     = new Entry( this, next )
          val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
          rec.tag     = tag + ((nextTag - tag + 1) >> 1)
-         if( rec.tag == nextTag ) rec.relabel
+         if( rec.tag == nextTag ) relabel( rec )
          rec
       }
 
-      def prepend() : TotalOrder = {
-//         if( isHead ) {
-// THIS WAS A CRAPPY IDEA -- IT MEANS PREVIOUSLY RETRIEVED ENTRIES ARE UNSTABLE
-//            // to maintain references to the 'head' of the list,
-//            // in the case when an element is inserted at the
-//            // head of the list, we instead change this entry's
-//            // elem and tag, and a new successor is inserted
-//            // after this head
-//            val rec     = new Impl( totalSize, this.elem, this, next )
-//            this.elem   = elem
-//            rec.tag     = tag
-//            tag         = (tag + 1) >> 1
-//            if( tag == rec.tag ) this.relabel
-//            this
-//         } else {
-            val rec     = new Impl( totalSize, prev, this )
-//         val prevTag = rec.prev.tag
-            val prevTag = if( rec.isHead ) 0 else rec.prev.tag
-            rec.tag     = prevTag + ((tag - prevTag + 1) >> 1)
-            if( rec.tag == tag ) rec.relabel
-            rec
-//         }
+      /**
+       * Inserts a new element before this node
+       */
+      def prepend() : Entry = {
+         val rec     = new Entry( prev, this )
+         val prevTag = if( rec.isHead ) 0 else rec.prev.tag
+         rec.tag     = prevTag + ((tag - prevTag + 1) >> 1)
+         if( rec.tag == tag ) relabel( rec )
+         rec
       }
 
-//      /**
-//       * Relabels from a this entry to clean up collisions with
-//       * its successors' tags.
-//       *
-//       * Naive implementation.
-//       */
-//      protected def relabelSIMPLE {
-//         var base = this.tag // 0
-//         val inc  = (Int.MaxValue - base) / size
-//         require( inc > 0, "label overflow" )
-//   //println( "relabel (" + inc + ")" )
-//         var entry = this
-//         while( entry.nonEmpty ) {
-//            entry.tag = base
-//            base += inc
-//            entry = entry.next
-//         }
-//      }
-
-      protected def relabel {
-         var base       = tag
-         var mask       = -1
-         var thresh     = 1.0
-         var first : TotalOrder = this
-         var last : TotalOrder = this
-         var num        = 1
-   //      val mul     = 2/((2*len(self))**(1/30.))
-         val mul        = 2 / math.pow( totalSize.value << 1, 1/30.0 )
-   //println( "relabel" )
-         do {
-   //println( "   -mask " + -mask )
-            while( !first.isHead && ((first.prev.tag & mask) == base) ) {
-               first = first.prev
-               num  += 1
-            }
-            while( !last.isLast && ((last.next.tag & mask) == base) ) {
-               last = last.next
-               num += 1
-            }
-   //         val inc = (mask + 1) / num
-            val inc = -mask / num
-            if( inc >= thresh ) {   // found rebalanceable range
-               var item = first
-   //            while( !(item eq last) ) {
-               // Note: this was probably a bug in Eppstein's code
-               // -- it ran for one iteration less which made
-               // the test suite fail for very dense tags. it
-               // seems now it is correct with the inclusion
-               // of last in the tag updating.
-               var cnt = 0; while( cnt < num ) {
-                  item.tag   = base
-                  item       = item.next
-                  base      += inc
-                  cnt += 1
-               }
-               return
-            }
-   //         mask     = (mask << 1) + 1    // expand to next power of two
-            mask   <<= 1      // next coarse step
-            base    &= mask
-            thresh  *= mul
-         } while( mask != 0 )
-         throw new RuntimeException( "label overflow" )
-      }
-
+      /**
+       * Debugging method: Validates that the list from this entry
+       * to the end has monotonically increasing
+       * tags. Throws an assertion error if the
+       * validation fails.
+       */
       def validateToEnd {
          var prevTag = tag
          var entry   = next
@@ -296,9 +205,13 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
          }
       }
 
+      /**
+       * Debugging method: Returns a list of the tags
+       * from this entry to the end of the list
+       */
       def tagList : List[ Int ] = {
          val b       = List.newBuilder[ Int ]
-         var entry : TotalOrder = this
+         var entry : Entry = this
          while( !entry.isEnd ) {
             b += entry.tag
             entry    = entry.next
@@ -306,47 +219,11 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
          b.result()
       }
    }
-}
 
-sealed trait TotalOrder
-extends /* MLinearSeq[ A ]
-with GenericTraversableTemplate[ A, TotalOrder ]
-with DoubleLinkedListLike[ A, TotalOrder[ A ]] with
-*/
-Ordered[ TotalOrder ]
-{
-//   import TotalOrder._
-
-   def isHead : Boolean
-   def isLast : Boolean
-   def isEnd : Boolean
-
-   var prev : TotalOrder
-   var next : TotalOrder
-//   protected def nonEmpty : Boolean
-
-//   trait Entry extends Ordered[ Entry ] {
-//      def tag : Int
-//      def pred: Entry
-//      def succ: Entry
-//
-//      final def compare( that: Entry ) : Int = {
-//         val aTag = tag
-//         val bTag = that.tag
-//         if( aTag < bTag ) -1 else if( aTag > bTag ) 1 else 0
-//      }
-//   }
-
-//   private type T = TotalOrder[ A ]
-
-//   // ---- GenericTraversableTemplate ----
-//   override def companion: GenericCompanion[ TotalOrder ] = TotalOrder
-
-
-   /**
-    * Compares the positions of x and y in the sequence
-   */
-   def compare( that: TotalOrder ) : Int
+//   /**
+//    * Compares the positions of x and y in the sequence
+//   */
+//   def compare( that: TotalOrder ) : Int
 
    /**
     * Appends an element to the end of the sequence, and returns
@@ -359,32 +236,7 @@ Ordered[ TotalOrder ]
 
 //   def max : TotalOrder
 
-   /**
-    * Inserts a new element after this node
-    */
-   def append() : TotalOrder
-
-   /**
-    * Inserts a new element before this node
-    */
-   def prepend() : TotalOrder
-
-   /**
-    * Debugging method: Validates that the list from this entry
-    * to the end has monotonically increasing
-    * tags. Throws an assertion error if the
-    * validation fails.
-    */
-   def validateToEnd : Unit
-
-   /**
-    * Debugging method: Returns a list of the tags
-    * from this entry to the end of the list
-    */
-   def tagList : List[ Int ]
-
-   protected def totalSize : TotalOrder.Size
-   def size : Int // = totalSize.value
+   def size : Int = sizeVar
 
    /**
     * Relabels from a this entry to clean up collisions with
@@ -405,29 +257,51 @@ Ordered[ TotalOrder ]
     * multiplier dynamically to allow it to be as large as possible
     * without producing integer overflows."
     */
-   protected def relabel : Unit
-
-//   protected def tag: Int
-   def tag: Int
-   protected def tag_=( i: Int ) : Unit
+   protected def relabel( _first: Entry ) {
+      var base       = _first.tag
+      var mask       = -1
+      var thresh     = 1.0
+      var first : Entry = _first
+      var last : Entry = _first
+      var num        = 1
+//      val mul     = 2/((2*len(self))**(1/30.))
+      val mul        = 2 / math.pow( size << 1, 1/30.0 )
+//println( "relabel" )
+      do {
+//println( "   -mask " + -mask )
+         while( !first.isHead && ((first.prev.tag & mask) == base) ) {
+            first = first.prev
+            num  += 1
+         }
+         while( !last.isLast && ((last.next.tag & mask) == base) ) {
+            last = last.next
+            num += 1
+         }
+//         val inc = (mask + 1) / num
+         val inc = -mask / num
+         if( inc >= thresh ) {   // found rebalanceable range
+            observer.beforeRelabeling( first, num )
+            var item = first
+//            while( !(item eq last) ) {
+            // Note: this was probably a bug in Eppstein's code
+            // -- it ran for one iteration less which made
+            // the test suite fail for very dense tags. it
+            // seems now it is correct with the inclusion
+            // of last in the tag updating.
+            var cnt = 0; while( cnt < num ) {
+               item.tag   = base
+               item       = item.next
+               base      += inc
+               cnt += 1
+            }
+            observer.afterRelabeling( first, num )
+            return
+         }
+//         mask     = (mask << 1) + 1    // expand to next power of two
+         mask   <<= 1      // next coarse step
+         base    &= mask
+         thresh  *= mul
+      } while( mask != 0 )
+      throw new RuntimeException( "label overflow" )
+   }
 }
-
-//object TotalOrderTest extends App {
-//   val to    = TotalOrder[ Int ]()
-//   val rnd   = new util.Random( 0 )
-//   val n     = 3042 // 3041
-//   var pred  = to.append( 0 )
-//   for( i <- 1 until n ) {
-//      if( i == n - 1 ) {
-//         println( "last" )
-////         TotalOrder.flonky = true
-//      }
-//      pred   = if( rnd.nextBoolean() ) {
-//         pred.insertAfter( i )
-//      } else {
-//         pred.insertBefore( i )
-//      }
-//   }
-//   to.validateToEnd
-//   println( "OK." )
-//}

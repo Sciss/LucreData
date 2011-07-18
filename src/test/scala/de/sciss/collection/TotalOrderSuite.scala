@@ -2,6 +2,12 @@ package de.sciss.collection
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
+/**
+ * To run this test copy + paste the following into sbt:
+ * {{
+ * test-only de.sciss.collection.TotalOrderSuite
+ * }}
+ */
 class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
   feature( "The ordering of the structure should be consistent" ) {
      info( "Each two successive elements of the structure" )
@@ -9,17 +15,18 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
      scenario( "Ordering is verified on a randomly filled structure" ) {
         given( "a randomly filled structure" )
-        var to    = TotalOrder() // [ Int ]()
+        val to    = TotalOrder() // [ Int ]()
         val rnd   = new util.Random() // ( 0 )
         // would be nice to test maximum possible number of labels
         // but we're running out of heap space ...
         val n     = 0x200000 // 113042 // 3041
 //        to        = to.append() // ( 0 )
+        var e = to.root
         for( i <- 1 until n ) {
            if( rnd.nextBoolean() ) {
-              to = to.append() // to.insertAfter( i )
+              e = e.append() // to.insertAfter( i )
            } else {
-              to = to.prepend() // to.insertBefore( i )
+              e = e.prepend() // to.insertBefore( i )
            }
         }
 
@@ -35,8 +42,8 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
         when( "the structure is mapped to its pairwise comparisons" )
         var result= Set.empty[ Int ]
-        var prev  = to
-        var next  = to.next
+        var prev  = to.head
+        var next  = prev.next
         while( !next.isEnd ) {
            result += prev compare next
            prev    = next
@@ -44,7 +51,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
         }
 
         then( "the resulting set should only contain -1" )
-        assert( result == Set( -1 ), result.toString + " -- " + to.tagList  )
+        assert( result == Set( -1 ), result.toString + " -- " + to.head.tagList  )
      }
   }
 }

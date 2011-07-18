@@ -53,7 +53,7 @@ object DeterministicSkipQuadTree {
    }
 
    private class TreeImpl[ A ]( _quad: Quad, _skipGap: Int, val pointView: A => PointLike ) extends DeterministicSkipQuadTree[ A ] {
-//      val totalOrder = TotalOrder()
+      val totalOrder = TotalOrder()
       var tl: TopNode = TopLeftNode
       val list: SkipList[ Leaf ] = {
          implicit def maxKey = MaxKey( MaxLeaf )
@@ -71,6 +71,8 @@ object DeterministicSkipQuadTree {
 
       def headTree : QNode = TopLeftNode
       def lastTree : QNode = tl
+
+      type InOrder = totalOrder.Entry
 
       // ---- map support ----
 
@@ -213,7 +215,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * the `startOrder` and `stopOrder` form the interval
           * borders of the sub-tree.
           */
-         def startOrder: TotalOrder
+         def startOrder: InOrder
          /**
           * A marker in the in-order list corresponding to
           * the ending of the objects 'interval'. That is
@@ -224,7 +226,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * the `startOrder` and `stopOrder` form the interval
           * borders of the sub-tree.
           */
-         def stopOrder: TotalOrder
+         def stopOrder: InOrder
       }
 
 //      type TotalOrder = totalOrder.Entry // [ LeftNonEmpty ]
@@ -250,7 +252,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
          /**
           * The position of this leaf in the in-order list.
           */
-         def order : TotalOrder
+         def order : InOrder // TotalOrder
 
          /**
           * Leafs are ordered by the tree's in-order traversal,
@@ -272,13 +274,13 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * For a leaf (which does not have a subtree),
           * the `startOrder` is identical to its `order`.
           */
-         def startOrder : TotalOrder   = order
+         def startOrder : InOrder = order
 
          /**
           * For a leaf (which does not have a subtree),
           * the `stopOrder` is identical to its `order`.
           */
-         def stopOrder : TotalOrder    = order
+         def stopOrder : InOrder = order
       }
 
       sealed trait Node extends NonEmpty with QNode {
@@ -523,7 +525,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
                   case _ => stopOrder.prepend() // stopOrder.insertBefore( lne )
                }
                case 3 => stopOrder.prepend() // stopOrder.insertBefore( lne )
-            }) : TotalOrder // to satisfy idea's presentation compiler
+            }) : InOrder // to satisfy idea's presentation compiler
          }
 
 //         def newValue( old: Leaf, value: A ) : Leaf = LeafImpl( this, leaf.point, value ) { l =>
@@ -532,7 +534,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 //            ord
 //         }
 
-         @tailrec final def insetStart( n: LeftNonEmpty, idx: Int ) : TotalOrder = {
+         @tailrec final def insetStart( n: LeftNonEmpty, idx: Int ) : InOrder = {
             if( idx == -1 ) {
                startOrder.append() // startOrder.insertAfter( n )
             } else children( idx ) match {
@@ -540,7 +542,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
                case _ => insetStart( n, idx  - 1 )
             }
          }
-         @tailrec final def insetStop( n: LeftNonEmpty, idx: Int ) : TotalOrder = {
+         @tailrec final def insetStop( n: LeftNonEmpty, idx: Int ) : InOrder = {
             if( idx == 4 ) {
                stopOrder.prepend() // stopOrder.insertBefore( n )
             } else children( idx ) match {
@@ -549,7 +551,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
             }
          }
 
-         def insets( n: LeftNode, nidx: Int ) : (TotalOrder, TotalOrder) = {
+         def insets( n: LeftNode, nidx: Int ) : (InOrder, InOrder) = {
             (insetStart( n, nidx ), insetStop( n, nidx ))
          }
 
@@ -572,11 +574,11 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       }
 
       object TopLeftNode extends LeftNodeImpl with TopNode {
-         val startOrder                   = TotalOrder() // TotalOrder[ LeftNonEmpty ]( this )
+         val startOrder                   = totalOrder.root // TotalOrder() // TotalOrder[ LeftNonEmpty ]( this )
          val stopOrder                    = startOrder.append() // startOrder.insertAfter( this )
       }
 
-      final case class InnerLeftNode( var parent: Node, quad: Quad )( _ins: LeftNode => (TotalOrder, TotalOrder) ) extends LeftNodeImpl {
+      final case class InnerLeftNode( var parent: Node, quad: Quad )( _ins: LeftNode => (InOrder, InOrder) ) extends LeftNodeImpl {
          val (startOrder, stopOrder) = _ins( this )
       }
 
@@ -598,7 +600,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 
       object MaxLeaf extends Leaf {
          val point                        = Point( Int.MaxValue, Int.MaxValue )
-         val order                        = TotalOrder.max // TotalOrder.max[ LeftNonEmpty ]
+         val order                        = totalOrder.max // TotalOrder.max // TotalOrder.max[ LeftNonEmpty ]
 
          def value : A                    = unsupportedOp
 //         def value_=( v: A ) : Unit       = unsupportedOp
@@ -610,7 +612,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       // the problem is there can be several pointers to a leaf, so at least for now,
       // let's not make life more complicated than necessary. also skip list would
       // need to be made 'replace-aware'.
-      final case class LeafImpl( var parent: Node, point: PointLike, /* var */ value: A )( _ins: Leaf => TotalOrder ) extends Leaf {
+      final case class LeafImpl( var parent: Node, point: PointLike, /* var */ value: A )( _ins: Leaf => InOrder ) extends Leaf {
          val order = _ins( this )
       }
    }
