@@ -9,22 +9,27 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
      scenario( "Ordering is verified on a randomly filled structure" ) {
         given( "a randomly filled structure" )
-        var to    = TotalOrder[ Int ]()
+        var to    = TotalOrder() // [ Int ]()
         val rnd   = new util.Random() // ( 0 )
         // would be nice to test maximum possible number of labels
         // but we're running out of heap space ...
         val n     = 0x200000 // 113042 // 3041
-        to        = to.append( 0 )
+//        to        = to.append() // ( 0 )
         for( i <- 1 until n ) {
            if( rnd.nextBoolean() ) {
-              to.insertAfter( i )
+              to = to.append() // to.insertAfter( i )
            } else {
-              to = to.insertBefore( i )
+              to = to.prepend() // to.insertBefore( i )
            }
         }
 
         when( "the structure size is determined" )
         val sz = to.size
+//        val sz = {
+//           var i = 1; var x = to; while( !x.isHead ) { x = x.prev; i +=1 }
+//           x = to; while( !x.isLast ) { x = x.next; i += 1 }
+//           i
+//        }
         then( "it should be equal to the number of elements inserted" )
         assert( sz == n, sz.toString + " != " + n )
 
@@ -32,7 +37,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
         var result= Set.empty[ Int ]
         var prev  = to
         var next  = to.next
-        while( next.nonEmpty ) {
+        while( !next.isEnd ) {
            result += prev compare next
            prev    = next
            next    = next.next

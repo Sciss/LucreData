@@ -61,7 +61,15 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 //      def compare( x: TotalOrder[ V ], y: TotalOrder[ V ]) = x.compare( y )
 //   }
 
-   def apply() : TotalOrder = new Impl( new Size )
+   def apply() : TotalOrder = {
+      val sz      = new Size
+      val empty   = new Impl( sz )
+      val head    = new Impl( sz )
+      sz.inc
+      head.next   = empty
+      empty.prev  = head
+      head
+   }
 
    /**
     * Returns a single element order corresponding to the tag ceiling. This
@@ -124,7 +132,7 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 //         this.elem      = elem
          this.prev      = prev
          if( prev != null ) {
-            require( prev.nonEmpty && (prev.next eq next) )
+            require( !prev.isEnd && (prev.next eq next) )
             prev.next = this
          } else {
             require( next.isHead )
@@ -138,9 +146,12 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
    //   private var base : Rec = null
 
       def isHead : Boolean = prev == null
-      def isLast : Boolean = next.isEmpty
-      def isEmpty : Boolean = next eq this
-      def nonEmpty : Boolean = !isEmpty
+      def isLast : Boolean = next.isEnd
+      def isEnd : Boolean = next eq this
+//      def isEmpty : Boolean = next eq this
+//      def nonEmpty : Boolean = !isEmpty
+
+      def size : Int = totalSize.value
 
       /**
        * Compares the positions of x and y in the sequence
@@ -278,7 +289,7 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
       def validateToEnd {
          var prevTag = tag
          var entry   = next
-         while( entry.nonEmpty ) {
+         while( !entry.isEnd ) {
             assert( entry.tag > prevTag, "has tag " + entry.tag + ", while previous elem has tag " + prevTag )
             prevTag  = entry.tag
             entry    = entry.next
@@ -288,7 +299,7 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
       def tagList : List[ Int ] = {
          val b       = List.newBuilder[ Int ]
          var entry : TotalOrder = this
-         while( entry.nonEmpty ) {
+         while( !entry.isEnd ) {
             b += entry.tag
             entry    = entry.next
          }
@@ -308,11 +319,11 @@ Ordered[ TotalOrder ]
 
    def isHead : Boolean
    def isLast : Boolean
+   def isEnd : Boolean
 
-   protected var prev : TotalOrder
-   protected var next : TotalOrder
-   protected def isEmpty : Boolean
-   protected def nonEmpty : Boolean
+   var prev : TotalOrder
+   var next : TotalOrder
+//   protected def nonEmpty : Boolean
 
 //   trait Entry extends Ordered[ Entry ] {
 //      def tag : Int
@@ -373,6 +384,7 @@ Ordered[ TotalOrder ]
    def tagList : List[ Int ]
 
    protected def totalSize : TotalOrder.Size
+   def size : Int // = totalSize.value
 
    /**
     * Relabels from a this entry to clean up collisions with
