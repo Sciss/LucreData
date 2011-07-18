@@ -114,7 +114,7 @@ object TotalOrder extends SeqFactory[ TotalOrder ] {
 //      private type T = TotalOrder[ A ]
 
       next = this
-      protected var tag: Int = 0 // _t
+      var tag: Int = 0 // _t
 
       def this( sz: TotalOrder.Size, elem: A, prev: TotalOrder[ A ], next: TotalOrder[ A ]) {
          this( sz )
@@ -364,7 +364,8 @@ with DoubleLinkedListLike[ A, TotalOrder[ A ]] with Ordered[ TotalOrder[ A ]] {
     */
    protected def relabel : Unit
 
-   protected def tag: Int
+//   protected def tag: Int
+   def tag: Int
    protected def tag_=( i: Int ) : Unit
 }
 

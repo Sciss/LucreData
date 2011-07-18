@@ -1,0 +1,74 @@
+==== pre-order ====
+   insertChild
+      insertAfter parent.tail.pred = insertBeofre parent.tail
+
+   insertRetroParent
+      insertAfter child.pred = insertBefore child
+
+   insertRetroChild
+      insertAfter parent
+
+==== post-order ====
+   insertChild
+      insertAfter parent.pred = insertBefore parent
+   
+   insertRetroParent
+      insertAfter child
+
+   insertRetroChild
+      = insertChild
+
+------------------
+observation regarding the tailmark of the pre-order
+(F -> B -> A -> G -> D)
+
+using the successor as tailmark:
+
+F - *
+
+F --- *
+  B - *
+
+F ----- *
+  B --- *
+    A - *
+
+F ------- *
+  B ----- *
+    A --- *
+      G - *
+
+F --------- *
+  B ------- *
+    A ----- *
+      G --- *
+        D - *
+--> FAIL
+
+with explicit tailmark
+
+F          ]
+        G ]
+ B     ]
+  A   ]
+
+F                      ]
+                G     ]
+                 I   ]
+                  H ]
+ B             ]
+       D      ]
+           E ]
+        C ]
+  A   ]
+
+--> OK
+
+---------------------
+with regard to persistence
+
+key -- value:
+       pred
+       succ
+       tail
+       tag

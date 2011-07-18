@@ -1,30 +1,30 @@
 ///*
-// *  SkipQuadTreeView.scala
-// *  (TreeTests)
-// *
-// *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
-// *
-// *  This software is free software; you can redistribute it and/or
-// *  modify it under the terms of the GNU General Public License
-// *  as published by the Free Software Foundation; either
-// *  version 2, june 1991 of the License, or (at your option) any later version.
-// *
-// *  This software is distributed in the hope that it will be useful,
-// *  but WITHOUT ANY WARRANTY; without even the implied warranty of
-// *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-// *  General Public License for more details.
-// *
-// *  You should have received a copy of the GNU General Public
-// *  License (gpl.txt) along with this software; if not, write to the Free Software
-// *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-// *
-// *
-// *  For further information, please contact Hanns Holger Rutz at
-// *  contact@sciss.de
-// *
-// *
-// *  Changelog:
-// */
+//*  SkipQuadTreeView.scala
+//*  (TreeTests)
+//*
+//*  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+//*
+//*  This software is free software; you can redistribute it and/or
+//*  modify it under the terms of the GNU General Public License
+//*  as published by the Free Software Foundation; either
+//*  version 2, june 1991 of the License, or (at your option) any later version.
+//*
+//*  This software is distributed in the hope that it will be useful,
+//*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+//*  General Public License for more details.
+//*
+//*  You should have received a copy of the GNU General Public
+//*  License (gpl.txt) along with this software; if not, write to the Free Software
+//*  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+//*
+//*
+//*  For further information, please contact Hanns Holger Rutz at
+//*  contact@sciss.de
+//*
+//*
+//*  Changelog:
+//*/
 //
 //package de.sciss.collection
 //package view
@@ -49,10 +49,19 @@
 //import java.awt.{BasicStroke, Color}
 //import prefuse.data.expression.{AbstractPredicate}
 //import sys.error
+//import javax.swing.event.{AncestorEvent, AncestorListener}
 //
 //object VersionTreeView {
 //   class Vertex( val id: Int, val parent: Vertex, var children: IIdxSeq[ Vertex ]) {
 //      override def toString = "v" + id
+//   }
+//
+//   private def ancestorAction( c: JComponent )( addThunk: => Unit )( removeThunk: => Unit ) {
+//      c.addAncestorListener( new AncestorListener {
+//         def ancestorAdded( e: AncestorEvent ) { addThunk }
+//         def ancestorRemoved( e: AncestorEvent ) { removeThunk }
+//         def ancestorMoved( e: AncestorEvent ) {}
+//      })
 //   }
 //}
 //
@@ -64,41 +73,41 @@
 //   private val grpEdges    = "graph.edges"
 //   private val actColor    = "color"
 //   private val actLayout   = "layout"
-//   private val colPath     = "path"
+//   private val colVertex     = "path"
 //   private val colCursor   = "cursor"
 //   private val vis         = new Visualization()
 //   private val g           = new Graph()
 //
 //   private var nodeMap     = IntMap.empty[ Node ]
 //
-//   type Selection = (VersionPath, List[ Csr ])
-//
-//   private var mapCsr   = Map.empty[ Csr, CursorListener ]
+////   type Selection = (VersionPath, List[ Csr ])
+////
+////   private var mapCsr   = Map.empty[ Csr, CursorListener ]
 //
 //   private val selListeners   = new JComponent {
-//      var oldSel: List[ Selection ] = Nil
+//      var oldSel: List[ Vertex ] = Nil
 //      val propSel = "selection"
 //
-//      def newSelection( sel: List[ Selection ]) {
+//      def newSelection( sel: List[ Vertex ]) {
 //         val o    = oldSel
 //         oldSel   = sel
 //         firePropertyChange( propSel, o, sel )
 //      }
 //
-//      def addL( fun: List[ Selection ] => Unit ) {
+//      def addL( fun: List[ Vertex ] => Unit ) {
 //         val l = new SelectionActionListener( fun )
 //         addPropertyChangeListener( propSel, l )
 //      }
 //
-//      def removeL( fun: List[ Selection ] => Unit ) {
+//      def removeL( fun: List[ Vertex ] => Unit ) {
 //         val l = new SelectionActionListener( fun )
 //         removePropertyChangeListener( propSel, l )
 //      }
 //
-//      private case class SelectionActionListener( fun: List[ Selection ] => Unit )
+//      private case class SelectionActionListener( fun: List[ Vertex ] => Unit )
 //      extends PropertyChangeListener {
 //         def propertyChange( e: PropertyChangeEvent ) {
-//            fun( e.getNewValue().asInstanceOf[ List[ Selection ]])
+//            fun( e.getNewValue().asInstanceOf[ List[ Vertex ]])
 //         }
 //      }
 //   }
@@ -108,8 +117,8 @@
 //      val vg            = vis.addGraph( grpGraph, g )
 //      val nodes         = g.getNodeTable()
 //      g.addColumn( VisualItem.LABEL, classOf[ String ])
-//      g.addColumn( colPath, classOf[ Vector[ Version ]])
-//      g.addColumn( colCursor, classOf[ List[ Csr ]]) // XXX maybe not the smartest way to occupy space in each vertex?
+//      g.addColumn( colVertex, classOf[ Vector[ Vertex ]])
+////      g.addColumn( colCursor, classOf[ List[ Csr ]]) // XXX maybe not the smartest way to occupy space in each vertex?
 //
 //      // colors
 //      val colrGray   = ColorLib.rgb( 0xC0, 0xC0, 0xC0 )
@@ -179,45 +188,41 @@
 //      display.setBackground( Color.BLACK )
 //
 //      ancestorAction( display ) {
-//         stopAnimation
-//         try {
-//            sys.t { implicit c =>
-//               addFullVertices( sys.dag )
-//               addFullCursors( sys.kProjector.cursors )
-//               sys.addListener( lSys )
-//               sys.kProjector.addListener( lCsr)
-//            }
-//         } finally {
+////         stopAnimation
+////         try {
+////            sys.t { implicit c =>
+////               addFullVertices( sys.dag )
+////               addFullCursors( sys.kProjector.cursors )
+////               sys.addListener( lSys )
+////               sys.kProjector.addListener( lCsr)
+////            }
+////         } finally {
 //            startAnimation
-//         }
+////         }
 //      } {
 //         stopAnimation
-//         sys.t { implicit c =>
-//            sys.removeListener( lSys )
-//            sys.kProjector.removeListener( lCsr )
-//         }
+////         sys.t { implicit c =>
+////            sys.removeListener( lSys )
+////            sys.kProjector.removeListener( lCsr )
+////         }
 //      }
 //
 //      display.setSize( 300, 300 )
 //      display
 //   }
 //
-//   def addSelectionListener( fun: List[ Selection ] => Unit ) {
+//   def addSelectionListener( fun: List[ Vertex ] => Unit ) {
 //      selListeners.addL( fun )
 //   }
 //
-//   def removeSelectionListener( fun: List[ Selection ] => Unit ) {
+//   def removeSelectionListener( fun: List[ Vertex ] => Unit ) {
 //      selListeners.removeL( fun )
 //   }
 //
-//   def selection : List[ Selection ] = {
+//   def selection : List[ Vertex ] = {
 //      val tupT = vis.getGroup( Visualization.FOCUS_ITEMS ).tuples.asInstanceOf[ java.util.Iterator[ Tuple ]]
 //      val iter = collection.JavaConversions.asScalaIterator( tupT )
-//      iter.map( t => {
-//         val vp   = VersionPath.wrap( t.get( colPath ).asInstanceOf[ Vector[ Version ]])
-//         val csr  = t.get( colCursor ).asInstanceOf[ List[ Csr ]]
-//         (vp, csr)
-//      }).toList
+//      iter.map( _.get( colVertex ).asInstanceOf[ Vertex ]).toList
 //   }
 //
 //   private def stopAnimation {
@@ -229,25 +234,25 @@
 //      vis.run( actColor )
 //   }
 //
-//   private def checkKarlheinz( pNode: Node ) {
-//      val lulu = vis.getVisualItem( grpGraph, pNode )
-//      if( vis.getGroup( Visualization.FOCUS_ITEMS ).containsTuple( lulu )) {
-//         selListeners.newSelection( selection )
-//      }
-//   }
+////   private def checkKarlheinz( pNode: Node ) {
+////      val lulu = vis.getVisualItem( grpGraph, pNode )
+////      if( vis.getGroup( Visualization.FOCUS_ITEMS ).containsTuple( lulu )) {
+////         selListeners.newSelection( selection )
+////      }
+////   }
 //
-//   private def addVertex( parent: Version, child: VersionPath ) {
-//      stopAnimation
-//      try {
-//         val pNode   = g.addNode()
-//         val childV  = child.version
-//         pNode.setString( VisualItem.LABEL, childV.toString )
-//         pNode.set( colPath, child.path )
-//         pNode.set( colCursor, Nil )
-//         nodeMap += childV.id -> pNode
-//         nodeMap.get( parent.id ).foreach( g.addEdge( _, pNode ))
-//      } finally {
-//         startAnimation
-//      }
-//   }
+////   private def addVertex( parent: Vertex, child: VersionPath ) {
+////      stopAnimation
+////      try {
+////         val pNode   = g.addNode()
+////         val childV  = child.version
+////         pNode.setString( VisualItem.LABEL, childV.toString )
+////         pNode.set( colVertex, child.path )
+////         pNode.set( colCursor, Nil )
+////         nodeMap += childV.id -> pNode
+////         nodeMap.get( parent.id ).foreach( g.addEdge( _, pNode ))
+////      } finally {
+////         startAnimation
+////      }
+////   }
 //}
