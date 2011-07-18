@@ -5,9 +5,9 @@ import sys.error
 object IsomorphicTests {
    def main( args: Array[ String ]) { run }
 
-   class Vertex[ A ]( val value: A, pre: TotalOrder[ Unit ], post: TotalOrder[ Unit ])
+   class Vertex[ A ]( val value: A, val pre: TotalOrder, val post: TotalOrder )
    extends PointLike {
-      private val preTail = pre.insertAfter( () )
+      val preTail = pre.append() // insertAfter( () )
 
       def x: Int = pre.tag
       def y: Int = post.tag
@@ -32,12 +32,12 @@ object IsomorphicTests {
    }
 
    class Tree[ A ]( _init: A ) {
-      val root    = new Vertex( _init, TotalOrder( () ), TotalOrder( () ))
+      val root    = new Vertex( _init, TotalOrder(), TotalOrder() )
       val quad    = RandomizedSkipQuadTree[ Vertex[ A ]]( Quad( 0x40000000, 0x40000000, 0x40000000 ))( root )
 
       def insertChild( parent: Vertex[ A ], value : A ) : Vertex[ A ] = {
-         val cPre    = parent.preTail.insertBefore( () )
-         val cPost   = parent.post.insertBefore( () )
+         val cPre    = parent.preTail.prepend() // insertBefore( () )
+         val cPost   = parent.post.prepend() // insertBefore( () )
          val v       = new Vertex( value, cPre, cPost )
          quad       += v
          v

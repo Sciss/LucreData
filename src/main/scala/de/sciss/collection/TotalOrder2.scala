@@ -1,5 +1,5 @@
 /*
- *  TotalOrder.scala
+ *  TotalOrder2.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -47,21 +47,19 @@ import sys.error // suckers
  * Original note: "Due to rebalancing on the integer tags used to maintain order,
  * the amortized time per insertion in an n-item list is O(log n)."
  */
-object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
+object TotalOrder2 extends SeqFactory[ TotalOrder2 ] {
 //   type Tag = Int // Long
 
-//   class Record[ T ]( private[ TotalOrder ] var v: Tag ) {
-//      private[ TotalOrder ] var succ: Record[ T ] = null
-//      private[ TotalOrder ] var pred: Record[ T ] = null
+//   class Record[ T ]( private[ TotalOrder2 ] var v: Tag ) {
+//      private[ TotalOrder2 ] var succ: Record[ T ] = null
+//      private[ TotalOrder2 ] var pred: Record[ T ] = null
 //   }
 
 // We don't need to define an ordering -- this will already be implicitly
-// derived from any TotalOrder
-//   implicit def ordering[ V ] = new Ordering[ TotalOrder[ V ]] {
-//      def compare( x: TotalOrder[ V ], y: TotalOrder[ V ]) = x.compare( y )
+// derived from any TotalOrder2
+//   implicit def ordering[ V ] = new Ordering[ TotalOrder2[ V ]] {
+//      def compare( x: TotalOrder2[ V ], y: TotalOrder2[ V ]) = x.compare( y )
 //   }
-
-   def apply() : TotalOrder = new Impl( new Size )
 
    /**
     * Returns a single element order corresponding to the tag ceiling. This
@@ -69,40 +67,41 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
     *
     * Note: you can not add elements before or after this one.
     */
-   val max : TotalOrder = new Impl( new Size ) {
+   def max[ A ] : TotalOrder2[ A ] = new Impl[ A ]( new Size ) {
       tag = Int.MaxValue
-      override def append() : TotalOrder = unsupportedOp
-      override def prepend() : TotalOrder = unsupportedOp
+      override def append( elem: A ) : T = unsupportedOp
+      override def insertAfter( elem: A ) : T = unsupportedOp
+      override def insertBefore( elem: A ) : T = unsupportedOp
       def unsupportedOp = error( "Operation not permitted" )
    }
 
-//   // ---- GenericCompanion ----
-//  def newBuilder[ A ] = new Builder[ A, TotalOrder[ A ]] {
-//      def emptyList() : TotalOrder[ A ] = new Impl[ A ]( new Size )
-//      var head = emptyList()
-//      var tail = head
+   // ---- GenericCompanion ----
+  def newBuilder[ A ] = new Builder[ A, TotalOrder2[ A ]] {
+      def emptyList() : TotalOrder2[ A ] = new Impl[ A ]( new Size )
+      var head = emptyList()
+      var tail = head
+
+      def +=( elem: A ) : this.type = {
+         tail = tail.append( elem )
 //
-//      def +=( elem: A ) : this.type = {
-//         tail = tail.append( elem )
-////
-////         if( head.isEmpty ) {
-////            head  = new TotalOrder( elem, 0x3FFFFFFF, head /* emptyList() */ )
-////            tail  = head
-////         } else {
-////            tail  = tail.append( elem )
-//////            val tag: Int = error( "TODO" )
-//////            current.append( new TotalOrder( elem, tag, emptyList() ))
-////         }
-//         this
-//      }
-//
-//      def clear() {
-//         head = emptyList()
-//         tail = head
-//      }
-//
-//      def result() = head
-//   }
+//         if( head.isEmpty ) {
+//            head  = new TotalOrder2( elem, 0x3FFFFFFF, head /* emptyList() */ )
+//            tail  = head
+//         } else {
+//            tail  = tail.append( elem )
+////            val tag: Int = error( "TODO" )
+////            current.append( new TotalOrder2( elem, tag, emptyList() ))
+//         }
+         this
+      }
+
+      def clear() {
+         head = emptyList()
+         tail = head
+      }
+
+      def result() = head
+   }
 
    class Size {
       private var v: Int = 0
@@ -110,18 +109,17 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
       def inc { v += 1 }
    }
 
-   private class Impl( protected val totalSize: TotalOrder.Size ) // (_t: Int)
-   extends TotalOrder {
-//      private type T = TotalOrder[ A ]
+   private class Impl[ A ]( protected val totalSize: TotalOrder2.Size ) // (_t: Int)
+   extends TotalOrder2[ A ] {
+//      private type T = TotalOrder2[ A ]
 
-      var prev: TotalOrder = _
-      var next: TotalOrder = this
+      next = this
       var tag: Int = 0 // _t
 
-      def this( sz: TotalOrder.Size, prev: TotalOrder, next: TotalOrder ) {
+      def this( sz: TotalOrder2.Size, elem: A, prev: TotalOrder2[ A ], next: TotalOrder2[ A ]) {
          this( sz )
          sz.inc
-//         this.elem      = elem
+         this.elem      = elem
          this.prev      = prev
          if( prev != null ) {
             require( prev.nonEmpty && (prev.next eq next) )
@@ -139,17 +137,11 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 
       def isHead : Boolean = prev == null
       def isLast : Boolean = next.isEmpty
-      def isEmpty : Boolean = next eq this
-      def nonEmpty : Boolean = !isEmpty
 
       /**
        * Compares the positions of x and y in the sequence
       */
-      def compare( that: TotalOrder ) : Int = {
-         val thatTag = that.tag
-         if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
-//         tag compare that.tag
-      }
+      def compare( that: T ) : Int = tag compare that.tag
 
       /**
        * Appends an element to the end of the sequence, and returns
@@ -158,35 +150,35 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
        * @param   elem  the element to append
        * @return  the total order entry corresponding to the newly appended element
        */
-//      def append( elem: A ) : T = {
-//         if( isEmpty ) {
-//            this.elem   = elem
-//            tag         = Int.MaxValue >> 1
-//            val empty : T = new Impl( totalSize )
-//            totalSize.inc
-//            next        = empty
-//            empty.prev  = this
-//            this
-//         } else {
-//            lastNode.insertAfter( elem )
-//         }
-//      }
-//
-//      private def lastNode : T = {
-//         var res = next
-//         while( !res.isEmpty ) res = res.next
-//         res.prev
-//      }
+      def append( elem: A ) : T = {
+         if( isEmpty ) {
+            this.elem   = elem
+            tag         = Int.MaxValue >> 1
+            val empty : T = new Impl( totalSize )
+            totalSize.inc
+            next        = empty
+            empty.prev  = this
+            this
+         } else {
+            lastNode.insertAfter( elem )
+         }
+      }
 
-      def append() : TotalOrder = {
-         val rec     = new Impl( totalSize, this, next )
+      private def lastNode : T = {
+         var res = next
+         while( !res.isEmpty ) res = res.next
+         res.prev
+      }
+
+      def insertAfter( elem: A ) : T = {
+         val rec     = new Impl( totalSize, elem, this, next )
          val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
          rec.tag     = tag + ((nextTag - tag + 1) >> 1)
          if( rec.tag == nextTag ) rec.relabel
          rec
       }
 
-      def prepend() : TotalOrder = {
+      def insertBefore( elem: A ) : T = {
 //         if( isHead ) {
 // THIS WAS A CRAPPY IDEA -- IT MEANS PREVIOUSLY RETRIEVED ENTRIES ARE UNSTABLE
 //            // to maintain references to the 'head' of the list,
@@ -201,7 +193,7 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 //            if( tag == rec.tag ) this.relabel
 //            this
 //         } else {
-            val rec     = new Impl( totalSize, prev, this )
+            val rec     = new Impl( totalSize, elem, prev, this )
 //         val prevTag = rec.prev.tag
             val prevTag = if( rec.isHead ) 0 else rec.prev.tag
             rec.tag     = prevTag + ((tag - prevTag + 1) >> 1)
@@ -233,8 +225,8 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
          var base       = tag
          var mask       = -1
          var thresh     = 1.0
-         var first : TotalOrder = this
-         var last : TotalOrder = this
+         var first : T  = this
+         var last : T   = this
          var num        = 1
    //      val mul     = 2/((2*len(self))**(1/30.))
          val mul        = 2 / math.pow( totalSize.value << 1, 1/30.0 )
@@ -279,7 +271,8 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
          var prevTag = tag
          var entry   = next
          while( entry.nonEmpty ) {
-            assert( entry.tag > prevTag, "has tag " + entry.tag + ", while previous elem has tag " + prevTag )
+            assert( entry.tag > prevTag, "elem " + entry.elem + " at index " + indexOf( entry.elem ) + " has tag " + entry.tag +
+               ", while previous elem has tag " + prevTag )
             prevTag  = entry.tag
             entry    = entry.next
          }
@@ -287,7 +280,7 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 
       def tagList : List[ Int ] = {
          val b       = List.newBuilder[ Int ]
-         var entry : TotalOrder = this
+         var entry : T = this
          while( entry.nonEmpty ) {
             b += entry.tag
             entry    = entry.next
@@ -297,45 +290,23 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
    }
 }
 
-sealed trait TotalOrder
-extends /* MLinearSeq[ A ]
-with GenericTraversableTemplate[ A, TotalOrder ]
-with DoubleLinkedListLike[ A, TotalOrder[ A ]] with
-*/
-Ordered[ TotalOrder ]
-{
-//   import TotalOrder._
-
+sealed trait TotalOrder2[ A ]
+extends MLinearSeq[ A ]
+with GenericTraversableTemplate[ A, TotalOrder2 ]
+with DoubleLinkedListLike[ A, TotalOrder2[ A ]] with Ordered[ TotalOrder2[ A ]] {
    def isHead : Boolean
    def isLast : Boolean
 
-   protected var prev : TotalOrder
-   protected var next : TotalOrder
-   protected def isEmpty : Boolean
-   protected def nonEmpty : Boolean
+   private type T = TotalOrder2[ A ]
 
-//   trait Entry extends Ordered[ Entry ] {
-//      def tag : Int
-//      def pred: Entry
-//      def succ: Entry
-//
-//      final def compare( that: Entry ) : Int = {
-//         val aTag = tag
-//         val bTag = that.tag
-//         if( aTag < bTag ) -1 else if( aTag > bTag ) 1 else 0
-//      }
-//   }
-
-//   private type T = TotalOrder[ A ]
-
-//   // ---- GenericTraversableTemplate ----
-//   override def companion: GenericCompanion[ TotalOrder ] = TotalOrder
+   // ---- GenericTraversableTemplate ----
+   override def companion: GenericCompanion[ TotalOrder2 ] = TotalOrder2
 
 
    /**
     * Compares the positions of x and y in the sequence
    */
-   def compare( that: TotalOrder ) : Int
+   def compare( that: T ) : Int
 
    /**
     * Appends an element to the end of the sequence, and returns
@@ -344,19 +315,17 @@ Ordered[ TotalOrder ]
     * @param   elem  the element to append
     * @return  the total order entry corresponding to the newly appended element
     */
-//   def append() : TotalOrder
-
-//   def max : TotalOrder
+   def append( elem: A ) : T
 
    /**
     * Inserts a new element after this node
     */
-   def append() : TotalOrder
+   def insertAfter( elem: A ) : T
 
    /**
     * Inserts a new element before this node
     */
-   def prepend() : TotalOrder
+   def insertBefore( elem: A ) : T
 
    /**
     * Debugging method: Validates that the list from this entry
@@ -372,7 +341,7 @@ Ordered[ TotalOrder ]
     */
    def tagList : List[ Int ]
 
-   protected def totalSize : TotalOrder.Size
+   protected def totalSize : TotalOrder2.Size
 
    /**
     * Relabels from a this entry to clean up collisions with
@@ -400,22 +369,22 @@ Ordered[ TotalOrder ]
    protected def tag_=( i: Int ) : Unit
 }
 
-//object TotalOrderTest extends App {
-//   val to    = TotalOrder[ Int ]()
-//   val rnd   = new util.Random( 0 )
-//   val n     = 3042 // 3041
-//   var pred  = to.append( 0 )
-//   for( i <- 1 until n ) {
-//      if( i == n - 1 ) {
-//         println( "last" )
-////         TotalOrder.flonky = true
-//      }
-//      pred   = if( rnd.nextBoolean() ) {
-//         pred.insertAfter( i )
-//      } else {
-//         pred.insertBefore( i )
-//      }
-//   }
-//   to.validateToEnd
-//   println( "OK." )
-//}
+object TotalOrder2Test extends App {
+   val to    = TotalOrder2[ Int ]()
+   val rnd   = new util.Random( 0 )
+   val n     = 3042 // 3041
+   var pred  = to.append( 0 )
+   for( i <- 1 until n ) {
+      if( i == n - 1 ) {
+         println( "last" )
+//         TotalOrder2.flonky = true
+      }
+      pred   = if( rnd.nextBoolean() ) {
+         pred.insertAfter( i )
+      } else {
+         pred.insertBefore( i )
+      }
+   }
+   to.validateToEnd
+   println( "OK." )
+}
