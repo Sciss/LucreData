@@ -153,26 +153,6 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
     */
    def maxDistance( point: PointLike ) : Double = math.sqrt( maxDistanceSq( point ))
 
-//   /**
-//    * Returns the orientation of the point wrt the quad, according
-//    * to the following scheme:
-//    *
-//    *   5   4    7
-//    *     +---+
-//    *   1 | 0 |  3
-//    *     +---+
-//    *  13  12   15
-//    *
-//    *  Therefore the horizontal orientation can be extracted
-//    *  with `_ & 3`, and the vertical orientation with `_ >> 2`,
-//    *  where orientation is 0 for 'parallel', 1 for 'before' and
-//    *  '3' for 'after', so that if the orient is before or
-//    *  after, the sign can be retrieved via `_ - 2`
-//    */
-//   def orient( point: Point ) : Int = {
-//
-//   }
-
    /**
     * The squared (euclidean) distance of the closest of the quad's corners
     * to the point, if the point is outside the quad,
@@ -360,6 +340,36 @@ trait PointLike extends RectangleLike {
     *          the given point
     */
    final def contains( p: PointLike ) : Boolean = p.x == this.x && p.y == this.y
+
+   /**
+    * Returns the orientation of the given point wrt this point, according
+    * to the following scheme:
+    *
+    *   5   4    7
+    *     +---+
+    *   1 | 0 |  3
+    *     +---+
+    *  13  12   15
+    *
+    *  Therefore the horizontal orientation can be extracted
+    *  with `_ & 3`, and the vertical orientation with `_ >> 2`,
+    *  where orientation is 0 for 'parallel', 1 for 'before' and
+    *  '3' for 'after', so that if the orient is before or
+    *  after, the sign can be retrieved via `_ - 2`
+    *
+    *  For example, if this is `Point(4, 4)` and the query
+    *  point is `Point(4, 5)`, the result is `12`. If the
+    *  query is `Point(0, 0)`, the result is `5`, etc.
+    */
+   final def orient( b: PointLike ) : Int = {
+      val ax = x
+      val ay = y
+      val bx = b.x
+      val by = b.y
+      val dx = if( bx < ax ) 1 else if( bx > ax ) 3 else 0
+      val dy = if( by < ay ) 4 else if( by > ay ) 12 else 0
+      dx | dy
+   }
 }
 
 final case class Point( x: Int, y: Int ) extends PointLike {

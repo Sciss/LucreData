@@ -1,6 +1,7 @@
 package de.sciss.collection
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
+import collection.immutable.IntMap
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -9,7 +10,9 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
  * }}
  */
 class AncestorSuite extends FeatureSpec with GivenWhenThen {
-   def seed : Long = System.currentTimeMillis()
+   def seed : Long         = System.currentTimeMillis()
+   val TREE_SIZE           = 100000
+   val MARKER_PERCENTAGE   = 0.2
 
    class Vertex[ A ]( val value: A, val pre: TotalOrder#Entry, val post: TotalOrder#Entry )
    extends PointLike {
@@ -77,6 +80,30 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
+   type V = Vertex[ Unit ]
+
+   private def randomlyFilledTree( n: Int = TREE_SIZE ) : (Tree[ Unit ], IndexedSeq[ V ], Map[ V, V ]) = {
+      given( "a randomly filled tree, corresponding node orders and their quadtree" )
+      val t       = new Tree( () )
+      val rnd     = new util.Random( seed )
+      var treeSeq = IndexedSeq( t.root )
+      var parents = Map.empty[ V, V ]
+
+      for( i <- 1 to n ) {
+         try {
+            val parent  = treeSeq( rnd.nextInt( i ))
+            val child   = t.insertChild( parent, () )
+            treeSeq :+= child
+            parents += child -> parent
+         } catch {
+            case e =>
+               println( "(for i = " + i + ")" )
+               throw e
+         }
+      }
+      (t, treeSeq, parents)
+   }
+
    feature( "Tree parent node lookup should be possible in a quadtree representing pre- and post-order positions" ) {
       info( "The vertices of a tree are represented by their positions" )
       info( "in the tree's pre- and post-order traversals (as total orders)." )
@@ -84,27 +111,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       info( "the x and y coordinates of a quadtree." )
 
       scenario( "Verifying parent node lookup" ) {
-         given( "a randomly filled tree, corresponding node orders and their quadtree" )
-         type V      = Vertex[ Unit ]
-         val t       = new Tree( () )
-         val rnd     = new util.Random( seed )
-         val n       = 10000
-         var treeSeq = IndexedSeq( t.root )
-         var parents = Map.empty[ V, V ]
-
-         for( i <- 1 to n ) {
-            try {
-               val parent  = treeSeq( rnd.nextInt( i ))
-               val child   = t.insertChild( parent, () )
-               treeSeq :+= child
-               parents += child -> parent
-            } catch {
-               case e =>
-                  println( "(for i = " + i + ")" )
-                  throw e
-            }
-         }
-
+         val (t, treeSeq, parents) = randomlyFilledTree()
          t.validate()
 
          // ancestor: left in pre-order, right in post-order
@@ -119,6 +126,64 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
             val found = t.quad.nearestNeighborOption( point, metric )
             assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
          }}
+      }
+   }
+
+   feature( "Marked ancestor lookup should be possible through isomorphic mapping between two quadtrees" ) {
+      info( "Two trees are now maintained (as quadtrees with pre/post order coordinates)." )
+      info( "One tree represents the full version tree, the other a subtree representing markers." )
+      info( "Marked ancestor lookup is performed by translating a coordinate from the" )
+      info( "full tree into the marker tree, followed by NN search." )
+
+      scenario( "Verifying marked ancestor lookup" ) {
+         given( "a randomly filled tree, corresponding node orders and their quadtree" )
+         given( "a random marking of a subset of the vertices" )
+         type V      = Vertex[ Int ]
+         val t       = new Tree( 0 )
+         val tm      = new Tree( 0 )
+         val rnd     = new util.Random( seed )
+         var treeSeq = IndexedSeq( t.root )
+//         var markMap = IntMap( 0 -> t.root )  // root is 'fallback' always (as in the compressed path method)
+         var parents    = Map.empty[ V, V ]
+         var markMap  = Map( t.root -> tm.root )
+         var markMap2 = Map( tm.root -> t.root )
+
+         for( i <- 1 to TREE_SIZE ) {
+            try {
+               val parent  = treeSeq( rnd.nextInt( i ))
+               val child   = t.insertChild( parent, i )
+               treeSeq :+= child
+               parents += child -> parent
+               if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
+                  var p    = parent; while( !markMap.contains( p )) { p = parents( p )}
+                  val pm   = markMap( p )
+                  val cm   = tm.insertChild( pm, i )
+                  markMap += child -> cm
+                  markMap2 += cm -> child
+               }
+            } catch {
+               case e =>
+                  println( "(for i = " + i + ")" )
+                  throw e
+            }
+         }
+
+         when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
+         then( "the results should be identical to those obtained from independent brute force" )
+         val metric = DistanceMeasure.chebyshev.quadrant( 2 )
+         treeSeq.foreach { child =>
+            val iso = tm.quad.isomorphicQuery { vm =>
+               val v = markMap2( vm )
+               v.orient( child )
+            }
+            val point = iso.topRight
+            val found = t.quad.nearestNeighborOption( point, metric )
+            val parent = {
+               var p = child; while( !markMap.contains( p )) { p = parents( p )}
+               p
+            }
+            assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
+         }
       }
    }
 }
