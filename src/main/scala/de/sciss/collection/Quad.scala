@@ -84,8 +84,8 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
    def top : Int     = cy - extent
    def left : Int    = cx - extent
 
-   def width : Int   = extent << 1
-   def height : Int  = extent << 1
+//   def width : Int   = extent << 1
+//   def height : Int  = extent << 1
 
    /**
     * The bottom is defined as the center y coordinate plus
@@ -318,8 +318,8 @@ trait PointLike extends RectangleLike {
    final def top              = y
    final override def right   = x
    final override def bottom  = y
-   final def width            = 1
-   final def height           = 1
+//   final def width            = 1
+//   final def height           = 1
 
    def distanceSq( that: PointLike ) : Long = {
       val dx = that.x.toLong - x.toLong
@@ -345,11 +345,11 @@ trait PointLike extends RectangleLike {
     * Returns the orientation of the given point wrt this point, according
     * to the following scheme:
     *
-    *   5   4    7
+    *   5   4    6
     *     +---+
-    *   1 | 0 |  3
+    *   1 | 0 |  2
     *     +---+
-    *  13  12   15
+    *   9   8   10
     *
     *  Therefore the horizontal orientation can be extracted
     *  with `_ & 3`, and the vertical orientation with `_ >> 2`,
@@ -366,8 +366,8 @@ trait PointLike extends RectangleLike {
       val ay = y
       val bx = b.x
       val by = b.y
-      val dx = if( bx < ax ) 1 else if( bx > ax ) 3 else 0
-      val dy = if( by < ay ) 4 else if( by > ay ) 12 else 0
+      val dx = if( bx < ax ) 1 else if( bx > ax ) 2 else 0
+      val dy = if( by < ay ) 4 else if( by > ay ) 8 else 0
       dx | dy
    }
 }

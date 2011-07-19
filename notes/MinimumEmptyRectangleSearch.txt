@@ -14,7 +14,7 @@ algorithm "minimum empty rectangle search"
 - wenn #interesting squares is != 1, return and push the interesting squares onto the prio
 - wenn #interesting squares is == 1
       step $
-	- if quadrant contains a node -> descend into the node
+        - if quadrant contains a node -> descend into the node
         - if quadrant is empty -> if it exists, go to Qi-1 and repeat from $
         - if quadrant contains leaf ->
               narrow r_res with respect to the point in that leaf, then:

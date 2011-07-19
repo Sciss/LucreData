@@ -136,7 +136,8 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
     * @param   orient   a function which must return the orientation of the given point
     *                   wrt the query point, according to the described schema
     * @return  the search result which is either a `PointLike` object if the query
-    *    revealed its identity, or the minimum empty rectangle covering possible
+    *    revealed its identity (the point view of the element!),
+    *    or the minimum empty rectangle covering possible
     *    area of the transformed query point.
     */
    def isomorphicQuery( orient: A => Int ) : RectangleLike

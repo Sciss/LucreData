@@ -172,12 +172,16 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          then( "the results should be identical to those obtained from independent brute force" )
          val metric = DistanceMeasure.chebyshev.quadrant( 2 )
          treeSeq.foreach { child =>
+println( "testing... #" + child )
             val iso = tm.quad.isomorphicQuery { vm =>
                val v = markMap2( vm )
-               v.orient( child )
+               val res = child.orient( v )
+println( "...query (" + vm.x + ", " + vm.y + ") -> (" + v.x + ", " + v.y + ") -> " + res )
+               res
             }
+println( "iso-query yielded " + iso )
             val point = iso.topRight
-            val found = t.quad.nearestNeighborOption( point, metric )
+            val found = tm.quad.nearestNeighborOption( point, metric )
             val parent = {
                var p = child; while( !markMap.contains( p )) { p = parents( p )}
                p
