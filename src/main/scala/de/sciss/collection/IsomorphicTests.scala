@@ -91,14 +91,19 @@ object IsomorphicTests {
    }
 
    def run() {
+      type V      = Vertex[ Unit ]
       val t       = new Tree( () )
       val rnd     = new util.Random()
       val n       = 10000
       var treeSeq = IndexedSeq( t.root )
+      var parents = Map.empty[ V, V ]
 
       for( i <- 1 to n ) {
          try {
-            treeSeq :+= t.insertChild( treeSeq( rnd.nextInt( i )), () )
+            val parent  = treeSeq( rnd.nextInt( i ))
+            val child   = t.insertChild( parent, () )
+            treeSeq :+= child
+            parents += child -> parent
          } catch {
             case e =>
                println( "(for i = " + i + ")" )
@@ -107,5 +112,18 @@ object IsomorphicTests {
       }
 
       t.validate()
+
+      println( "Verifying parent-child consistency..." )
+      // ancestor: left in pre-order, right in post-order
+      // (thus, when pre-order is horizontally stored,
+      // and post-order vertically, the quadrant is
+      // is south west (2))
+      val metric = DistanceMeasure.chebyshev.quadrant( 2 )
+      treeSeq.foreach { child => parents.get( child ).foreach { parent =>
+         val point = Point( child.x - 1, child.y + 1 ) // make sure we skip the child itself
+         val found = t.quad.nearestNeighborOption( point, metric )
+         assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
+      }}
+      println( "...passed all tests" )
    }
 }
