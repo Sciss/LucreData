@@ -31,3 +31,36 @@ H. Kaplan and M. Sharir, Finding the Maximal Empty Rectangle Containing a Query 
 - however they are looking for the largest rectangle which seems much harder
   (they require O(log^4 n) for query)
 )
+
+-----------------------------
+19-Jul-11
+
+- das funktioniert nicht. wir koennen nicht einfach von Ql nach Q0 laufen
+- auf der anderen seite koennen wir keine vernuenftige priority queue anlegen,
+  weil sich q-res staendig aendern kann, und als folge dessen keine statische
+  minimum oder maximum distanz ordnung moeglich ist
+- es gibt aber auch keine technik, von Q0 nach Ql zu laufen
+- d.h. ohne weiteres waere die worst case performance O(n)?  :(
+- wir muessen also irgendwie die skip struktur ausnutzen
+- eine moeglichkeit waere, dass wenn ein interessante node N quadrant
+  gefunden wurde, nach Ql zu laufen, das maximale Q, wo die node N
+  noch definiert ist. und von dort?
+  ; wir muessen vielleicht nur "irgendeinen punkt" in N finden?
+  ; d.h. finde die leaves in N in Ql.
+  - wenn die zahl 0 ist, waehle einen willkuerlichen quadranten mit
+  einer node N' und wiederhole (finde N' in Ql', suche darin nach leaves ec.)
+  - wenn die zahl > 0 ist, reduziere das query-rect fuer alle leaves
+
+also nochmal:
+
+(beginne mit root quad in Q0!)
+
+in Q0 : finde die interessanten quadrate in n
+- wenn n.child ein leaf ist : reduziere query-rect + refresh found interesting squares (array of size 4)
+- wenn n.child node ist : pruefe, ob interessant (n.child.quad.isInteresting (_not_ n.quad.quadrant( i )!))
+- dann:
+     fuer jede interessante sub-node n':
+        - ** finde n' in Qmax.
+        - finde die leaves von n' dort
+              - zahl der leaves >= 1 : reduziere query-rect + refresh found interesting squares
+              - zahl der leaves == 0 : waehle willkuerliche sub-node n'' von n' und wiederhole **

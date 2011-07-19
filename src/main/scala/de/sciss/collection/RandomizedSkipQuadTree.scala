@@ -247,6 +247,9 @@ algorithm "minimum empty rectangle search"
               if it exists, go to Qi-1 and repeat from $
        */
       def isomorphicQuery( orient: A => Int ) : RectangleLike = {
+
+error( "WRONG. See new algorithm 19-Jul-11" )
+
          var qLeft   = _quad.left
          var qTop    = _quad.top
          var qRight  = _quad.right
