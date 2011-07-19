@@ -1,6 +1,7 @@
 package de.sciss.collection
 
 import sys.error
+import collection.immutable.IntMap
 
 object IsomorphicTests {
    def main( args: Array[ String ]) { run }
@@ -32,15 +33,46 @@ object IsomorphicTests {
    }
 
    class Tree[ A ]( _init: A ) {
-      val root    = new Vertex( _init, TotalOrder().root, TotalOrder().root )
-      val quad    = RandomizedSkipQuadTree[ Vertex[ A ]]( Quad( 0x40000000, 0x40000000, 0x40000000 ))( root )
+      type V = Vertex[ A ]
+
+      private val preObserver    = new OrderObserver
+      private val postObserver   = new OrderObserver
+      val root = new Vertex( _init, TotalOrder( preObserver ).root, TotalOrder( postObserver ).root )
+      val quad = RandomizedSkipQuadTree.empty[ V ]( Quad( 0x40000000, 0x40000000, 0x40000000 ))
+
+      add( root )
+
+      private class OrderObserver extends TotalOrder.RelabelObserver {
+         var map = Map.empty[ TotalOrder.EntryLike, V ]
+         def beforeRelabeling( first: TotalOrder.EntryLike, num: Int ) {
+            var e = first
+            var i = 0; while( i < num ) {
+               map.get( e ).foreach( quad.remove( _ ))
+               e = e.next
+               i += 1
+            }
+         }
+         def afterRelabeling( first: TotalOrder.EntryLike, num: Int ) {
+            var e = first
+            var i = 0; while( i < num ) {
+               map.get( e ).foreach( quad.add( _ ))
+               e = e.next
+               i += 1
+            }
+         }
+      }
+
+      private def add( v: V ) : V = {
+         preObserver.map  += v.pre -> v
+         postObserver.map += v.post -> v
+         quad += v
+         v
+      }
 
       def insertChild( parent: Vertex[ A ], value : A ) : Vertex[ A ] = {
          val cPre    = parent.preTail.prepend() // insertBefore( () )
          val cPost   = parent.post.prepend() // insertBefore( () )
-         val v       = new Vertex( value, cPre, cPost )
-         quad       += v
-         v
+         add( new Vertex( value, cPre, cPost ))
       }
    }
 
