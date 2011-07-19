@@ -13,6 +13,8 @@ object IsomorphicTests {
       def x: Int = pre.tag
       def y: Int = post.tag
 
+      override def toString = "Vertex(" + value + ", " + x + ", " + y + ")"
+
 //      def insertChild( value: A ) = {
 //         val cPre    = preTail.insertBefore( () )
 //         val cPost   = post.insertBefore( () )
@@ -43,6 +45,8 @@ object IsomorphicTests {
       add( root )
 
       private class OrderObserver extends TotalOrder.RelabelObserver {
+         // XXX could eventually add again elem to total order
+         // (would be Option[ V ] for pre order and V for post order)
          var map = Map.empty[ TotalOrder.EntryLike, V ]
          def beforeRelabeling( first: TotalOrder.EntryLike, num: Int ) {
             var e = first
@@ -69,10 +73,20 @@ object IsomorphicTests {
          v
       }
 
-      def insertChild( parent: Vertex[ A ], value : A ) : Vertex[ A ] = {
+      def insertChild( parent: V, value : A ) : V = {
          val cPre    = parent.preTail.prepend() // insertBefore( () )
          val cPost   = parent.post.prepend() // insertBefore( () )
          add( new Vertex( value, cPre, cPost ))
+      }
+
+      def validate() {
+         println( "Validating tree..." )
+         val qsz = quad.size
+         assert( qsz == preObserver.map.size,
+            "pre-observer size (" + preObserver.map.size + ") is different from quad size (" + qsz + ")" )
+         assert( qsz == postObserver.map.size,
+            "post-observer size (" + postObserver.map.size + ") is different from quad size (" + qsz + ")" )
+         println( "...passed all tests" )
       }
    }
 
@@ -83,7 +97,15 @@ object IsomorphicTests {
       var treeSeq = IndexedSeq( t.root )
 
       for( i <- 1 to n ) {
-         treeSeq :+= t.insertChild( treeSeq( rnd.nextInt( n )), () )
+         try {
+            treeSeq :+= t.insertChild( treeSeq( rnd.nextInt( i )), () )
+         } catch {
+            case e =>
+               println( "(for i = " + i + ")" )
+               throw e
+         }
       }
+
+      t.validate()
    }
 }

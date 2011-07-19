@@ -173,7 +173,7 @@ extends Ordering[ TotalOrder.EntryLike ] {
       def append() : Entry = {
          val rec     = new Entry( this, next )
          val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
-         rec.tag     = tag + ((nextTag - tag + 1) >> 1)
+         rec.tag     = tag + ((nextTag - tag + 1) >>> 1)
          if( rec.tag == nextTag ) relabel( rec )
          rec
       }
@@ -184,7 +184,7 @@ extends Ordering[ TotalOrder.EntryLike ] {
       def prepend() : Entry = {
          val rec     = new Entry( prev, this )
          val prevTag = if( rec.isHead ) 0 else rec.prev.tag
-         rec.tag     = prevTag + ((tag - prevTag + 1) >> 1)
+         rec.tag     = prevTag + ((tag - prevTag + 1) >>> 1)
          if( rec.tag == tag ) relabel( rec )
          rec
       }

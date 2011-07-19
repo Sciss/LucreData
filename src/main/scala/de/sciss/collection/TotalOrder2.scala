@@ -173,7 +173,7 @@ object TotalOrder2 extends SeqFactory[ TotalOrder2 ] {
       def insertAfter( elem: A ) : T = {
          val rec     = new Impl( totalSize, elem, this, next )
          val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
-         rec.tag     = tag + ((nextTag - tag + 1) >> 1)
+         rec.tag     = tag + ((nextTag - tag + 1) >>> 1)
          if( rec.tag == nextTag ) rec.relabel
          rec
       }
@@ -196,7 +196,7 @@ object TotalOrder2 extends SeqFactory[ TotalOrder2 ] {
             val rec     = new Impl( totalSize, elem, prev, this )
 //         val prevTag = rec.prev.tag
             val prevTag = if( rec.isHead ) 0 else rec.prev.tag
-            rec.tag     = prevTag + ((tag - prevTag + 1) >> 1)
+            rec.tag     = prevTag + ((tag - prevTag + 1) >>> 1)
             if( rec.tag == tag ) rec.relabel
             rec
 //         }
