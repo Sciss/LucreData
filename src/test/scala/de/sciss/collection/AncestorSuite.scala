@@ -12,7 +12,7 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
  */
 class AncestorSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long         = 0L // System.currentTimeMillis()
-   val TREE_SIZE           = 23 // 24 // 100000
+   val TREE_SIZE           = 24 // 100000
    val MARKER_PERCENTAGE   = 0.2
    val PRINT_DOT           = false // true
    val PRINT_ORDERS        = true
@@ -29,6 +29,8 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 
    class Tree[ A ]( _init: A ) {
       type V = Vertex[ A ]
+
+      var verbose = false
 
       private val preObserver    = new OrderObserver
       private val postObserver   = new OrderObserver
@@ -71,6 +73,10 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       def insertChild( parent: V, value : A ) : V = {
          val cPre    = parent.preTail.prepend() // insertBefore( () )
          val cPost   = parent.post.prepend() // insertBefore( () )
+
+if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + value + " ; pre compare = " +
+   parent.pre.compare( cPre ) + "; post compare = " + parent.post.compare( cPost ))
+
          add( new Vertex( value, cPre, cPost ))
       }
 
@@ -146,9 +152,10 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          type V      = Vertex[ Int ]
          val t       = new Tree( 0 )
          val tm      = new Tree( 0 )
+tm.verbose = true
          val rnd     = new util.Random( seed )
-         var treeSeq = IndexedSeq( t.root )
-         var markSeq = IndexedSeq( tm.root )
+         var treeSeq = IndexedSeq[ V ]( t.root )
+         var markSeq = IndexedSeq[ V ]( tm.root )
 //         var markMap = IntMap( 0 -> t.root )  // root is 'fallback' always (as in the compressed path method)
          var parents    = Map.empty[ V, V ]
          var markMap  = Map( t.root -> tm.root )
@@ -158,6 +165,9 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 //println( "----1" )
 
          for( i <- 1 to TREE_SIZE ) {
+if( i == TREE_SIZE ) {
+   println( "aqui" )
+}
             try {
                val parent  = treeSeq( rnd.nextInt( i ))
                val child   = t.insertChild( parent, i )
@@ -180,6 +190,8 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
             }
          }
 
+//println( "MARK MAP 2 SIZE " + markMap2.size )
+
          val preList    = {
             implicit val m    = MaxKey( tm.preOrder.max )
             implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
@@ -195,19 +207,15 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
             res
          }
 
-         println( "toList " + preList.toList )
-
-         preList.map { e =>
-            val res = e.tag
-            println( "now " + res )
-            res
-         }
-
          if( PRINT_ORDERS ) {
-            println( preList.map( _.tag ).mkString( " pre tags : ", ", ", "" ))
-            println( preList.map(  markMap2( _ ).value ).mkString( " pre order: ", ", ", "" ))
-            println( postList.map( _.tag ).mkString( "post tags : ", ", ", "" ))
-            println( postList.map( markMap2( _ ).value ).mkString( "post order: ", ", ", "" ))
+            val s1 = treeSeq.sortBy( _.pre : TotalOrder.EntryLike )
+            val s2 = treeSeq.sortBy( _.post : TotalOrder.EntryLike )
+            println( s1.map( _.value ).mkString( " pre full: ", ", ", "" ))
+            println( s2.map( _.value ).mkString( "post full: ", ", ", "" ))
+            println( preList.toList.map( _.tag ).mkString( " pre tags : ", ", ", "" ))
+            println( preList.toList.map(  markMap2( _ ).value ).mkString( " pre order: ", ", ", "" ))
+            println( postList.toList.map( _.tag ).mkString( "post tags : ", ", ", "" ))
+            println( postList.toList.map( markMap2( _ ).value ).mkString( "post order: ", ", ", "" ))
          }
 
          if( PRINT_DOT ) {

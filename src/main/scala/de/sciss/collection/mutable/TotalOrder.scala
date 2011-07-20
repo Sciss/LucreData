@@ -160,6 +160,8 @@ extends Ordering[ TotalOrder.EntryLike ] {
          next.prev   = this
       }
 
+      override def toString = "Tag(" + tagVar + ")"
+
       private[ TotalOrder ] def tag_=( value: Int ) { tagVar = value }
       private[ TotalOrder ] def next_=( entry: Entry ) { nextVar = entry }
       private[ TotalOrder ] def prev_=( entry: Entry ) { prevVar = entry }
