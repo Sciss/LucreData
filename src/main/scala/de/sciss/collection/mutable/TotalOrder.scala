@@ -1,3 +1,5 @@
+package de.sciss.collection.mutable
+
 /*
  *  TotalOrder.scala
  *  (TreeTests)
@@ -25,8 +27,6 @@
  *
  *  Changelog:
  */
-
-package de.sciss.collection
 
 /**
  * A data structure to maintain an ordered sequence of elements such

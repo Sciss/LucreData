@@ -28,6 +28,7 @@
 
 package de.sciss.collection
 
+import mutable.{HASkipList, LLSkipList, SkipList}
 import view.{HASkipListView, LLSkipListView}
 import javax.swing.{JComponent, JLabel, BoxLayout, Box, WindowConstants, JFrame}
 import java.awt.EventQueue
@@ -55,7 +56,7 @@ object SkipListTest extends App with Runnable {
 
    def obs() = new Observer
 
-   def run {
+   def run() {
       val f    = new JFrame( "Skip Lists" )
       f.setResizable( false )
       val cp   = f.getContentPane

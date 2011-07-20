@@ -32,6 +32,8 @@ package view
 import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import javax.swing.{WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
+import geom.{DistanceMeasure, Point, PointLike, Quad}
+import mutable.RandomizedSkipQuadTree
 
 object InteractiveSkipQuadTreeView extends App with Runnable {
    EventQueue.invokeLater( this )

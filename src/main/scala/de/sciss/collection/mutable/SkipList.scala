@@ -27,9 +27,9 @@
  */
 
 package de.sciss.collection
+package mutable
 
-import collection.{SortedSet => CSortedSet, SortedSetLike => CSortedSetLike}
-import collection.generic.{SortedSetFactory, CanBuildFrom, MutableSetFactory, GenericCompanion}
+import collection.generic.CanBuildFrom
 import collection.mutable.{Builder => MBuilder, Set => MSet, SetBuilder => MSetBuilder, SetLike => MSetLike}
 
 object SkipList {

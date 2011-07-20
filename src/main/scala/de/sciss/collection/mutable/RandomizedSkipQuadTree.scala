@@ -27,10 +27,12 @@
  */
 
 package de.sciss.collection
+package mutable
 
 import sys.error
 import collection.mutable.{PriorityQueue, Queue => MQueue, Stack => MStack}
-import annotation.{switch, tailrec}
+import annotation.tailrec
+import geom.{QueryShape, DistanceMeasure, Quad, PointLike}
 
 object RandomizedSkipQuadTree {
    def empty[ A ]( quad: Quad )( implicit view: A => PointLike ) : RandomizedSkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )

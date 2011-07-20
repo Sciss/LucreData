@@ -1,3 +1,5 @@
+package de.sciss.collection.mutable
+
 /*
  *  TotalOrder2.scala
  *  (TreeTests)
@@ -25,8 +27,6 @@
  *
  *  Changelog:
  */
-
-package de.sciss.collection
 
 import collection.mutable.{ Builder, DoubleLinkedListLike, LinearSeq => MLinearSeq, Seq => MSeq }
 import collection.generic.{SeqFactory, GenericCompanion, GenericTraversableTemplate}

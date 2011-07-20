@@ -29,6 +29,8 @@
 package de.sciss.collection
 package view
 
+import mutable.QuadTree
+
 class UncompressedQuadTreeView( t: QuadTree.Q[ _ ]) extends QuadTreeView {
    protected def drawTree( h: QuadView.PaintHelper ) {
       draw( h, t )

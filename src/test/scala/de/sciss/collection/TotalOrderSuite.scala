@@ -1,7 +1,8 @@
 package de.sciss.collection
 
+import mutable.TotalOrder
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import de.sciss.collection.TotalOrder.{EntryLike, RelabelObserver}
+import TotalOrder.{EntryLike, RelabelObserver}
 
 /**
  * To run this test copy + paste the following into sbt:

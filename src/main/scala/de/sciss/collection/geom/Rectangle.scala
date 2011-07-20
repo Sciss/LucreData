@@ -1,4 +1,4 @@
-package de.sciss.collection
+package de.sciss.collection.geom
 
 import sys.error
 

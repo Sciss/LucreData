@@ -26,13 +26,14 @@
  *  Changelog:
  */
 
-package de.sciss.collection.view
+package de.sciss.collection
+package view
 
 import java.awt.event.{ActionListener, ActionEvent}
 import javax.swing.{WindowConstants, JFrame, JTextField, JButton, JPanel}
-import de.sciss.collection.{SkipList, LLSkipList}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
-import scala.collection.breakOut
+import collection.breakOut
+import mutable.{LLSkipList, SkipList}
 
 /**
  * Simple GUI app to probe the LLSkipList interactively.

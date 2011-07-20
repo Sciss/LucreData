@@ -27,9 +27,11 @@
  */
 
 package de.sciss.collection
+package mutable
 
 import sys.error
 import annotation.{switch, tailrec}
+import geom.{Point, DistanceMeasure, PointLike, Quad, QueryShape}
 
 /**
  * XXX TODO:

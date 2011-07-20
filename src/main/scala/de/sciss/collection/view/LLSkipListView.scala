@@ -26,11 +26,12 @@
  *  Changelog:
  */
 
-package de.sciss.collection.view
+package de.sciss.collection
+package view
 
-import de.sciss.collection.LLSkipList
 import java.awt.geom.GeneralPath
 import java.awt.{Color, Dimension, Graphics2D}
+import mutable.LLSkipList
 
 class LLSkipListView[ A ]( l: LLSkipList[ A ]) extends SkipListView {
    private val ord = l.ordering

@@ -1,5 +1,7 @@
 package de.sciss.collection
 
+import geom.{Point, DistanceMeasure, Quad, PointLike}
+import mutable.{LLSkipList, RandomizedSkipQuadTree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 /**

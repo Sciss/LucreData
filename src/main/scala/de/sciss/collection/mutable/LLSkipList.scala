@@ -27,6 +27,7 @@
  */
 
 package de.sciss.collection
+package mutable
 
 import sys.error
 

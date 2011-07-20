@@ -27,8 +27,10 @@
  */
 
 package de.sciss.collection
+package mutable
 
 import collection.mutable.{Set => MSet}
+import geom.{Quad, QueryShape, DistanceMeasure, PointLike}
 
 /**
  * A `SkipQuadTree` is a two-dimensional data structure that

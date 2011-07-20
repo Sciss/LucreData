@@ -26,11 +26,11 @@
  *  Changelog:
  */
 
-package de.sciss.collection.view
+package de.sciss.collection
+package view
 
-import de.sciss.collection.HASkipList
-import java.awt.geom.GeneralPath
 import java.awt.{Point, Rectangle, Dimension, Graphics2D}
+import mutable.HASkipList
 
 class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView {
    private var boxMap = Map.empty[ HASkipList.Node[ A ], NodeBox ]

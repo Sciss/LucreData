@@ -1,5 +1,5 @@
 /*
- *  SkipList.scala
+ *  HASkipList.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -27,6 +27,7 @@
  */
 
 package de.sciss.collection
+package mutable
 
 import sys.error
 import annotation.tailrec

@@ -1,3 +1,5 @@
+package de.sciss.collection.obsolete
+
 /*
  *  MarkedAncestors.scala
  *  (TreeTests)
@@ -25,8 +27,6 @@
  *
  *  Changelog:
  */
-
-package de.sciss.collection
 
 import collection.breakOut
 import collection.immutable.{IndexedSeq => IIdxSeq}

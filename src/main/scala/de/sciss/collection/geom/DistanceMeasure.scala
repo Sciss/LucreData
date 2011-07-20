@@ -1,3 +1,5 @@
+package de.sciss.collection.geom
+
 /*
  *  DistanceMeasure.scala
  *  (TreeTests)
@@ -25,8 +27,6 @@
  *
  *  Changelog:
  */
-
-package de.sciss.collection
 
 import annotation.switch
 import sys.error

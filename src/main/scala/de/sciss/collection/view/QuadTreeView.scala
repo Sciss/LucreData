@@ -1,7 +1,7 @@
 package de.sciss.collection.view
 
 import java.awt.Dimension
-import de.sciss.collection.Quad
+import de.sciss.collection.geom.Quad
 
 abstract class QuadTreeView extends QuadView {
    def rootQuad : Quad

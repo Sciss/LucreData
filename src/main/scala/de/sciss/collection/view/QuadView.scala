@@ -31,6 +31,7 @@ package view
 
 import java.awt.{Color, RenderingHints, Graphics2D, Graphics}
 import javax.swing.{BorderFactory, JComponent}
+import geom.{PointLike, Quad}
 
 object QuadView {
    private val colrGreen = new Color( 0x00, 0xC0, 0x00 )

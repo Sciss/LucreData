@@ -1,5 +1,6 @@
 package de.sciss.collection
 
+import mutable.{HASkipList, LLSkipList, SkipList}
 import scala.collection.immutable.IntMap
 import scala.collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}

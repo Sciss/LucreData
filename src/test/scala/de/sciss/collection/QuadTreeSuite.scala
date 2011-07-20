@@ -1,5 +1,7 @@
 package de.sciss.collection
 
+import geom.{Point, PointLike, Quad}
+import mutable.{SkipQuadTree, RandomizedSkipQuadTree, DeterministicSkipQuadTree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}

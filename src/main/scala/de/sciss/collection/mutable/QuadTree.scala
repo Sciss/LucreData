@@ -27,10 +27,13 @@
  */
 
 package de.sciss.collection
+package mutable
+
+import geom.{Point, PointLike, Quad}
 
 object QuadTree {
    def apply[ V ]( center: Point, extent: Int ) : QNode[ V ] = new NodeImpl[ V ]( center, extent )
-   def fromMap[ V ]( center: Point, extent: Int, m: Map[ Point, V ]) : QNode[ V ] = {
+   def fromMap[ V ]( center: Point, extent: Int, m: Map[ PointLike, V ]) : QNode[ V ] = {
       val t = new NodeImpl[ V ]( center, extent )
       m.foreach { case (point, value) => t.insert( point, value )}
       t
@@ -42,7 +45,7 @@ object QuadTree {
       def quad = Quad( center.x, center.y, extent )
    }
    final case class QEmpty[ V ]( center: Point, extent: Int ) extends Q[ V ]
-   final case class QLeaf[ V ]( center: Point, extent: Int, point: Point, value: V ) extends Q[ V ]
+   final case class QLeaf[ V ]( center: Point, extent: Int, point: PointLike, value: V ) extends Q[ V ]
    sealed trait QNode[ V ] extends Q[ V ] {
       /**
        * North east quadrant (aka I)
@@ -61,7 +64,7 @@ object QuadTree {
        */
       def se: Q[ V ]
 
-      def insert( point: Point, value: V ) : Unit
+      def insert( point: PointLike, value: V ) : Unit
    }
 
    private class NodeImpl[ V ]( val center: Point, val extent: Int ) extends QNode[ V ] {
@@ -76,7 +79,7 @@ object QuadTree {
       def sw : Q[ V ] = swVar
       def se : Q[ V ] = seVar
 
-      def insert( point: Point, value: V ) {
+      def insert( point: PointLike, value: V ) {
          val isWest  = point.x < center.x
          val isNorth = point.y < center.y
          (isWest, isNorth) match {
@@ -87,8 +90,8 @@ object QuadTree {
          }
       }
 
-      private def insert( quad: Q[ V ], point: Point, value: V ) : Q[ V ] = {
-         val d = point - quad.center
+      private def insert( quad: Q[ V ], point: PointLike, value: V ) : Q[ V ] = {
+         val d = Point( point.x - quad.center.x, point.y - quad.center.y )
          val e = quad.extent
          require( d.x >= -e && d.x < e && d.y >= -e && d.y < e )
          quad match {

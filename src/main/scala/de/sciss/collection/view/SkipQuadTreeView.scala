@@ -30,6 +30,7 @@ package de.sciss.collection
 package view
 
 import java.awt.{Color, Dimension}
+import mutable.SkipQuadTree
 
 class SkipQuadTreeView[ A ]( t: SkipQuadTree[ A ]) extends QuadView {
    var highlight  = Set.empty[ A ]

@@ -29,6 +29,8 @@
 package de.sciss.collection
 package view
 
+import mutable.CompressedQuadTree
+
 class CompressedQuadTreeView( t: CompressedQuadTree.QNode[ _ ]) extends QuadView {
    import CompressedQuadTree._
 

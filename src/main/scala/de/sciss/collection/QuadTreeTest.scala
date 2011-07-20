@@ -28,6 +28,8 @@
 
 package de.sciss.collection
 
+import geom.{PointLike, Point, Quad}
+import mutable.{SkipQuadTree, CompressedQuadTree, DeterministicSkipQuadTree, QuadTree, RandomizedSkipQuadTree}
 import view.{SkipQuadTreeView, CompressedQuadTreeView, UncompressedQuadTreeView}
 import scala.collection.breakOut
 import java.awt.event.ActionEvent
@@ -36,7 +38,6 @@ import com.itextpdf.text.{Document => IDocument, Rectangle => IRectangle}
 import java.io.{FileOutputStream, File}
 import java.awt.{Graphics2D, Graphics, Component, FileDialog, EventQueue}
 import javax.swing.{DefaultListCellRenderer, JScrollPane, JList, SwingConstants, Action, JOptionPane, Icon, JLabel, AbstractAction, JMenu, JMenuBar, JMenuItem, BoxLayout, JComponent, WindowConstants, JFrame}
-
 object QuadTreeTest extends App {
    args.headOption match {
       case Some( "-fig1" ) => new Figure1
@@ -191,7 +192,7 @@ Options:
 
    class Figure1 extends Figure {
       def views = {
-         val map: Map[ Point, Unit ]  = points1.map( p => p -> () )( breakOut )
+         val map: Map[ PointLike, Unit ]  = points1.map( p => p -> () )( breakOut )
          val t    = QuadTree.fromMap( center, extent, map )
          val v    = new UncompressedQuadTreeView( t )
 

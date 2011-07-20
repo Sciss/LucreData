@@ -27,9 +27,11 @@
  */
 
 package de.sciss.collection
+package mutable
 
 import annotation.tailrec
-import sys.error  // suckers
+import sys.error
+import geom.{PointLike, Quad}
 
 object CompressedQuadTree {
    def apply[ V ]( quad: Quad ) : QNode[ V ] = {
@@ -38,7 +40,7 @@ object CompressedQuadTree {
       QNode[ V ]( quad )( quads )
    }
 
-   def fromMap[ V ]( quad: Quad, m: Map[ Point, V ]) : QNode[ V ] = {
+   def fromMap[ V ]( quad: Quad, m: Map[ PointLike, V ]) : QNode[ V ] = {
       val t = QNode[ V ]( quad )()
       m.foreach {
          case (point, value) =>
@@ -52,9 +54,9 @@ object CompressedQuadTree {
 //      def quad: Quad
    }
    case object QEmpty extends Q[ Nothing ] // [ V ]() /* ( quad: Quad ) */ extends Child[ V ]
-   final case class QLeaf[ V ]( /* quad: Quad, */ point: Point, value: V ) extends Q[ V ]
+   final case class QLeaf[ V ]( /* quad: Quad, */ point: PointLike, value: V ) extends Q[ V ]
 //   sealed trait Node[ V ] extends Child[ V ] {
-//      def insert( point: Point, value: V ) : Unit
+//      def insert( point: PointLike, value: V ) : Unit
 //      def quad: Quad
 //      def child( idx: Int ) : Child[ V ]
 //   }
@@ -76,7 +78,7 @@ object CompressedQuadTree {
 
       def child( idx: Int ) : Q[ V ] = quads( idx )
 
-      def insert( point: Point, value: V ) {
+      def insert( point: PointLike, value: V ) {
          val qidx = quadIdx( quad, point )
          require( qidx >= 0, point.toString + " lies outside of root square " + quad )
          quads( qidx ) match {
@@ -116,7 +118,7 @@ object CompressedQuadTree {
          }
       }
 
-   //   private def interesting( point: Point ) : Quad[ V ] = {
+   //   private def interesting( point: PointLike ) : Quad[ V ] = {
    //
    //   }
 
@@ -142,7 +144,7 @@ object CompressedQuadTree {
        * @return  a tuple consisting of `_1` the centre point, `_2` the extent of the greatest interesting square,
        *          `_3` the quadrant of `a`, and `_4` the quadrant of `b` in this interesting square.
        */
-//      private def gisqr( pq: Quad, a: Point, b: Point ) : Quad = {
+//      private def gisqr( pq: Quad, a: PointLike, b: PointLike ) : Quad = {
 //         val tlx        = pq.cx - pq.extent
 //         val tly        = pq.cy - pq.extent
 //         val akx        = a.x - tlx
@@ -161,7 +163,7 @@ object CompressedQuadTree {
 //         }
 //      }
 
-      private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
+      private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int,  b: PointLike ) : Quad = {
          val pq            = quad.quadrant( pqidx )
          val tlx           = pq.cx - pq.extent
          val tly           = pq.cy - pq.extent
@@ -193,7 +195,7 @@ object CompressedQuadTree {
        * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
        *          outside of `p`.
        */
-      private def quadIdx( pq: Quad, a: Point ) : Int = {
+      private def quadIdx( pq: Quad, a: PointLike ) : Int = {
          val cx   = pq.cx
          val cy   = pq.cy
          val e    = pq.extent
@@ -248,7 +250,7 @@ object CompressedQuadTree {
        *
        * @return  the index of the quadrant (beginning at 0)
        */
-      private def quadIdx( pc: Point, a: Point ) : Int = {
+      private def quadIdx( pc: PointLike, a: PointLike ) : Int = {
          if( a.y < pc.y ) {      // north
             if( a.x >= pc.x ) 0  // ne
             else 1               // nw
