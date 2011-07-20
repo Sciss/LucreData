@@ -1,15 +1,13 @@
 package de.sciss.collection.mutable
 
 import collection.{ SortedSet => CSortedSet, SortedSetLike => CSortedSetLike }
-import collection.generic.{ CanBuildFrom => GCanBuildFrom, GenericCompanion, SortedSetFactory => GSortedSetFactory,
-   MutableSetFactory }
+import collection.generic.{ GenericCompanion, MutableSetFactory }
 import collection.mutable.{ Set => MSet, SetLike => MSetLike }
 
-//abstract class MutableSortedSetFactory[CC[A] <: SortedSet[A] with CSortedSetLike[A, CC[A]]] extends GSortedSetFactory[CC]
-abstract class MutableSortedSetFactory[CC[A] <: SortedSet[A] with MSet[A] with MSetLike[A, CC[A]]] extends MutableSetFactory[CC]
+//abstract class MutableSortedSetFactory[CC[A] <: SortedSet[A] with MSet[A] with MSetLike[A, CC[A]]] extends MutableSetFactory[CC]
 
-object SortedSet extends MutableSortedSetFactory[ SortedSet ] {
-//  implicit def canBuildFrom[A](implicit ord: Ordering[A]): GCanBuildFrom[Coll, A, SortedSet[A]] = new SortedSetCanBuildFrom[A]
+//object SortedSet extends MutableSortedSetFactory[ SortedSet ]
+object SortedSet extends MutableSetFactory[ SortedSet ] {
   def empty[A](implicit ord: Ordering[A]): SortedSet[A] = sys.error( "TODO" )
 }
 
