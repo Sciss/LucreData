@@ -111,6 +111,8 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
       extends VertexLike
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : V = new Vertex( value, pre, post )
+
+      override def add( v: V ) : V = super.add( v )
    }
 
 //   type V = Tree[ Unit ]#Vertex // [ Unit ]
@@ -212,6 +214,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          var postTagIsoMap    = Map( tm.postOrder.root -> t.root.post )
          var preTagValueMap   = Map( tm.preOrder.root -> 0 )
          var postTagValueMap  = Map( tm.postOrder.root -> 0 )
+         var markSet          = Set( 0 )
 
          for( i <- 1 to TREE_SIZE ) {
             try {
@@ -239,7 +242,8 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                   postTagIsoMap += cmPost -> child.post
                   preTagValueMap += cmPre -> i
                   postTagValueMap += cmPost -> i
-                  tm.quad.add( new tm.Vertex( i, cmPre, cmPost ))
+                  tm.add( new tm.Vertex( i, cmPre, cmPost ))
+                  markSet += i
                }
             } catch {
                case e =>
@@ -316,17 +320,17 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 //
             val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare(  child.pre  )).getOrElse( 1 )}
             val postIso = mPostList.isomorphicQuery { e => postTagIsoMap.get( e ).map( _.compare( child.post )).getOrElse( 1 )}
-            val atPreIso = preTagIsoMap.get( preIso )
+            val atPreIso= preTagIsoMap.get( preIso )
             val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
             val y       = postIso.tag
             val point   = Point( x, y )
 
-            val found = tm.quad.nearestNeighborOption( point, metric )
-//            val parent = {
-//               var p = child; while( !markMap.contains( p )) { p = parents( p )}
-//               markMap( p )
-//            }
-//            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
+            val found = tm.quad.nearestNeighborOption( point, metric ).map( _.value )
+            val parent = {
+               var p = child; while( !markSet.contains( p.value )) { p = parents( p )}
+               p.value
+            }
+            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
          }
       }
    }
