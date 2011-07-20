@@ -55,14 +55,14 @@ object HASkipList {
       new Impl( maxKey.value, minGap, keyObserver )
    }
 
-   sealed trait Node[ @specialized( Int, Long ) A ] {
+   sealed trait Node[ /* @specialized( Int, Long ) */ A ] {
       def size : Int
       def key( i: Int ) : A // Int
       def down( i: Int ) : Node[ A ]
       def isBottom : Boolean // = this eq Bottom
    }
 
-   private class Impl[ @specialized( Int, Long ) A ]( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
+   private class Impl[ /* @specialized( Int, Long ) */ A ]( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
                                                     ( implicit mf: Manifest[ A ], val ordering: Ordering[ A ])
    extends HASkipList[ A ] {
       val arrSize = maxGap + 1

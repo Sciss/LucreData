@@ -40,7 +40,7 @@ object LLSkipList {
                  ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ]) : LLSkipList[ A ] =
       new Impl( maxKey.value, keyObserver )
 
-   sealed trait Node[ @specialized( Int, Long ) A ] {
+   sealed trait Node[ /* @specialized( Int, Long ) */ A ] {
       def key: A
       def right: Node[ A ]
       def down: Node[ A ]
@@ -48,25 +48,33 @@ object LLSkipList {
       def isTail: Boolean
    }
 
-   private class Impl[ @specialized( Int, Long ) A ]( val maxKey: A, keyObserver: SkipList.KeyObserver[ A ])( implicit val ordering: Ordering[ A ])
+   private class Impl[ /* @specialized( Int, Long ) */ A ]( val maxKey: A, keyObserver: SkipList.KeyObserver[ A ])( implicit val ordering: Ordering[ A ])
    extends LLSkipList[ A ] {
-      var hd            = new NodeImpl
       // XXX fucking shit : scala has a specialization bug; we needed to add lazy here when Node was an instance trait of
       // LLSkipList -- now that we have put Node back into the object, the access error is gone again.
-      /* lazy */ val bottom   = new NodeImpl
-      /* lazy */ val tl       = new NodeImpl
+
+      val bottom= {
+         val res     = new NodeImpl
+         res.right   = res // so that we can safely call r infinitely
+         res.down    = res // dito
+         res
+      }
+      val tl    = {
+         val res     = new NodeImpl
+         res.key     = maxKey
+         res.right   = res // so that we can safely call r infinitely
+         res
+      }
+      var hd         = {
+         val res     = new NodeImpl
+         res.key     = maxKey
+         res.down    = bottom
+         res.right   = tl
+         res
+      }
 
       def top : Node[ A ] = hd.down
       def minGap : Int = 1
-
-      // initialize them
-      hd.key      = maxKey
-      hd.down     = bottom
-      hd.right    = tl
-      bottom.right= bottom // so that we can safely call r infinitely
-      bottom.down = bottom // dito
-      tl.key      = maxKey
-      tl.right    = tl     // so that we can safely call r infinitely
 
       class NodeImpl extends Node[ A ] {
          var key: A = _
@@ -263,7 +271,7 @@ object LLSkipList {
 
       def iterator : Iterator[ A ] = new Iterator[ A ] {
          var x = {
-            var n = top
+            var n = hd // top
             while( !n.down.isBottom ) n = n.down
             n
          }
@@ -298,6 +306,6 @@ object LLSkipList {
       }
    }
 }
-trait LLSkipList[ @specialized( Int, Long ) A ] extends SkipList[ A ] {
+trait LLSkipList[ /* @specialized( Int, Long ) */ A ] extends SkipList[ A ] {
    def top : LLSkipList.Node[ A ]
 }

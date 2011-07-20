@@ -29,17 +29,29 @@
 package de.sciss.collection
 
 import collection.{SortedSet => CSortedSet, SortedSetLike => CSortedSetLike}
-import collection.mutable.{Set => MSet, SetLike => MSetLike}
-import collection.generic.{MutableSetFactory, GenericCompanion}
+import collection.generic.{SortedSetFactory, CanBuildFrom, MutableSetFactory, GenericCompanion}
+import collection.mutable.{Builder => MBuilder, Set => MSet, SetBuilder => MSetBuilder, SetLike => MSetLike}
 
-object SkipList /* extends MutableSetFactory[ SkipList ] */ {
-   def empty[ A ]( implicit ord: Ordering[ A ]): SkipList[ A ] = sys.error( "TODO" )
+object SkipList {
+   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ]): SkipList[ A ] = LLSkipList.empty[ A ]
+
+   private type CC[ A ] = SkipList[ A ]
+   private type Coll = CC[ _ ]
+
+   implicit def canBuildFrom[ A : Ordering : MaxKey ] : CanBuildFrom[ Coll, A, CC[ A ]] = new SkipListCanBuildFrom
+
+   private class SkipListCanBuildFrom[ A : Ordering : MaxKey ] extends CanBuildFrom[ Coll, A, CC[ A ]] {
+      def apply( from: Coll ) = newBuilder[ A ]
+      def apply() = newBuilder[ A ]
+   }
+
+   def newBuilder[ A : Ordering : MaxKey ]: MBuilder[ A, CC[ A ]] = new MSetBuilder( empty[ A ])
 
    /**
     * A trait for observing the promotion and demotion of a key
     * in the skip list's level hierarchy
     */
-   trait KeyObserver[ @specialized( Int, Long ) A ] {
+   trait KeyObserver[ /* @specialized( Int, Long ) */ A ] {
       /**
        * Notifies the observer that a given key
        * is promoted to a higher (more sparse) level
@@ -52,30 +64,20 @@ object SkipList /* extends MutableSetFactory[ SkipList ] */ {
       def keyDown( key : A ) : Unit
    }
 
-   final class NoKeyObserver[ @specialized( Int, Long ) A ] extends KeyObserver[ A ] {
+   final class NoKeyObserver[ /* @specialized( Int, Long ) */ A ] extends KeyObserver[ A ] {
       def keyUp( key : A ) {}
       def keyDown( key : A ) {}
    }
 }
-//trait SkipList[ @specialized( Int, Long ) A ] extends /* SortedSet[ A ] with */ MSet[ A ]
-
-//trait SkipList[ @specialized( Int, Long ) A ]
-//extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] with CSortedSet[ A ] with CSortedSetLike[ A, SkipList[ A ]]
-
-trait SkipList[ @specialized( Int, Long ) A ]
-extends de.sciss.collection.mutable.SortedSet[ A ] {
-
-//   override def companion: GenericCompanion[ SkipList ] = SkipList
-//
-//   /**
-//    * Needs to be overridden in subclasses.
-//    */
-//   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering )
+// XXX java.lang.NullPointerException at scala.tools.nsc.typechecker.Namers$Namer.enterSym(Namers.scala:404)
+// bra bra bra. fucking scala specialization -- completely failed project
+trait SkipList[ /* @specialized( Int, Long ) */ A ]
+extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] {
 
    /**
-    * This operation is not supported
+    * Needs to be overridden in subclasses.
     */
-   def rangeImpl( from: Option[ A ], until: Option[ A ]): SkipList[ A ] = sys.error( "Unsupported operation" )
+   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
 
    /**
     * Searches for the Branch of a given key.
@@ -127,10 +129,12 @@ extends de.sciss.collection.mutable.SortedSet[ A ] {
     */
    def maxKey : A
 
+   implicit def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
+
    /**
     * The ordering used for the keys of this list.
     */
-   def ordering : Ordering[ A ]
+   implicit def ordering : Ordering[ A ]
 
    /**
     * The minimum gap within elements of each skip level

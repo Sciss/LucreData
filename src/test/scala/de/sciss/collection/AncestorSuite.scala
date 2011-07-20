@@ -10,7 +10,7 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
  */
 class AncestorSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long         = 0L // System.currentTimeMillis()
-   val TREE_SIZE           = 24 // 100000
+   val TREE_SIZE           = 23 // 24 // 100000
    val MARKER_PERCENTAGE   = 0.2
    val PRINT_DOT           = false // true
    val PRINT_ORDERS        = true
@@ -153,6 +153,8 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 //         var markMap2 = Map( tm.root -> t.root )
          var markMap2 = Map[ TotalOrder.EntryLike, V ]( tm.root.pre -> t.root, tm.root.post -> t.root )
 
+//println( "----1" )
+
          for( i <- 1 to TREE_SIZE ) {
             try {
                val parent  = treeSeq( rnd.nextInt( i ))
@@ -188,6 +190,14 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
             implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
             val res = LLSkipList.empty[ TotalOrder.EntryLike ]( ord, m )
             markSeq.foreach( v => res.add( v.post ))
+            res
+         }
+
+         println( "toList " + preList.toList )
+
+         preList.map { e =>
+            val res = e.tag
+            println( "now " + res )
             res
          }
 
