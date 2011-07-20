@@ -223,146 +223,146 @@ object RandomizedSkipQuadTree {
          if( res != null ) Some( res.value ) else None
       }
 
-      /*
-algorithm "minimum empty rectangle search"
-- given a point 'q' whose location is unknown, but for which
-  a function 'compare( p, q, i_d)' exists which compares
-  the coordinates of p and q in dimension axis 1 <= i_d <= d,
-  yielding -1 for q < p, 0 for q == p, and 1 for q > p,
-  find the smallest rectangle r_res in the quadtree which
-  contains q
-
-- r_res = root square
-- beginne im root quadrat in Ql
-- for each quadrant, test whether q_res overlaps _the quadrant bounds_
-  (i.e. no matter whether it contains a node, a point, or is empty)
-  --> = def. of interesting square
-- wenn #interesting squares is != 1, return and push the interesting squares onto the prio
-- wenn #interesting squares is == 1
-      step $
-        - if quadrant contains a node -> descend into the node
-        - if quadrant is empty -> if it exists, go to Qi-1 and repeat from $
-        - if quadrant contains leaf ->
-              narrow r_res with respect to the point in that leaf, then:
-              if it exists, go to Qi-1 and repeat from $
-       */
-      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
-
-error( "WRONG. See new algorithm 19-Jul-11" )
-
-         var qLeft   = _quad.left
-         var qTop    = _quad.top
-         var qRight  = _quad.right
-         var qBottom = _quad.bottom
-         var qp : PointLike = null
-         val coll    = MStack.empty[ Node ]
-
-         def isInteresting( q: Quad ) = {
-            qLeft <= q.right  && qRight  >= q.left &&
-            qTop  <= q.bottom && qBottom >= q.top
-         }
-
-         def checkLeaf( n: Node, i: Int, l: Leaf ) {
-            val v    = l.value
-            val p    = pointView( v )
-            val px   = p.x
-            val py   = p.y
-
-            def descend() {
-               var prev = n.prev
-               while( prev != null ) {
-                  prev.child( i ) match {
-                     case n2: Node =>
-                        if( isInteresting( n2.quad )) coll.push( n2 )
-                        prev = null
-                     case _ => // skip as long as the same leaf appears
-                        prev = prev.prev
-                  }
-               }
-            }
-
-            // first see if this point is inside the result rect
-            if( px >= qLeft && px <= qRight && py >= qTop && py <= qBottom ) {
-               // then determine orientation to narrow result rect
-               //  5   4    6
-               //    +---+
-               //  1 | 0 |  2
-               //    +---+
-               //  9   8   10
-               val ori  = orient( v )
-               if( ori == 0 ) {          // hit!
-//                     return p
-                  qp    = p
-               }
-               val hOri = ori & 3
-               val vOri = ori >> 2
-               // now do the narrowing
-               if( hOri == 1 ) {             // v is left to query rect
-                  qLeft    = px + 1
-               } else if( hOri == 2 ) {      // v is right to query rect
-                  qRight   = px - 1
-               } else {                      // v.x == q.x
-                  qLeft    = px
-                  qRight   = px
-               }
-               if( vOri == 1 ) {             // v is below query rect
-                  qBottom  = py + 1
-               } else if( vOri == 2 ) {      // v is above query rect
-                  qTop     = py - 1
-               } else {                      // v.y == q.y
-                  qBottom  = py
-                  qTop     = py
-               }
-println( "__q-rect reduced to " + qLeft + ", " + qTop + ", " + qRight + ", " + qBottom )
-               descend()
-            } else {
-               if( isInteresting( n.quad.quadrant( i ))) descend()
-            }
-         }
-
-         def checkNode( n2: Node ) {
-            if( isInteresting( n2.quad )) coll.push( n2 )
-         }
-
-         def checkChildren( n: Node ) {
-            var i = 0; while( i < 4 ) {
-               n.child( i ) match {
-                  case l: Leaf   => checkLeaf( n, i, l )
-                  case n2: Node  => checkNode( n2 )
-                  case Empty =>
-                     if( isInteresting( n.quad.quadrant( i ))) {
-                        var prev = n.prev
-                        while( prev != null ) {
-                           prev.child( i ) match {
-                              case n2: Node =>
-                                 checkNode( n2 )
-                                 prev = null
-                              case l: Leaf =>
-                                 checkLeaf( prev, i, l )
-                                 prev = null
-                              case _ =>   // skip as long the same empty quad appears
-                                 prev = prev.prev
-                           }
-                        }
-                     }
-               }
-            i += 1 }
-         }
-
-         var n = tailVar
-         while( true ) {
-            checkChildren( n )
-            if( qp != null ) return qp  // hit
-            do {
-               if( coll.isEmpty ) {
-                  // WARNING: qRight - qLeft + 1 may well produce 0x80000000 !
-                  return Rectangle( qLeft, qTop, qRight - qLeft + 1, qBottom - qTop + 1 )
-               }
-               n = coll.pop()
-            } while( !isInteresting( n.quad ))
-         }
-         error( "never here" )
-      }
+//      /*
+//algorithm "minimum empty rectangle search"
+//- given a point 'q' whose location is unknown, but for which
+//  a function 'compare( p, q, i_d)' exists which compares
+//  the coordinates of p and q in dimension axis 1 <= i_d <= d,
+//  yielding -1 for q < p, 0 for q == p, and 1 for q > p,
+//  find the smallest rectangle r_res in the quadtree which
+//  contains q
+//
+//- r_res = root square
+//- beginne im root quadrat in Ql
+//- for each quadrant, test whether q_res overlaps _the quadrant bounds_
+//  (i.e. no matter whether it contains a node, a point, or is empty)
+//  --> = def. of interesting square
+//- wenn #interesting squares is != 1, return and push the interesting squares onto the prio
+//- wenn #interesting squares is == 1
+//      step $
+//        - if quadrant contains a node -> descend into the node
+//        - if quadrant is empty -> if it exists, go to Qi-1 and repeat from $
+//        - if quadrant contains leaf ->
+//              narrow r_res with respect to the point in that leaf, then:
+//              if it exists, go to Qi-1 and repeat from $
+//       */
+//      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
+//
+//error( "WRONG. See new algorithm 19-Jul-11" )
+//
+//         var qLeft   = _quad.left
+//         var qTop    = _quad.top
+//         var qRight  = _quad.right
+//         var qBottom = _quad.bottom
+//         var qp : PointLike = null
+//         val coll    = MStack.empty[ Node ]
+//
+//         def isInteresting( q: Quad ) = {
+//            qLeft <= q.right  && qRight  >= q.left &&
+//            qTop  <= q.bottom && qBottom >= q.top
+//         }
+//
+//         def checkLeaf( n: Node, i: Int, l: Leaf ) {
+//            val v    = l.value
+//            val p    = pointView( v )
+//            val px   = p.x
+//            val py   = p.y
+//
+//            def descend() {
+//               var prev = n.prev
+//               while( prev != null ) {
+//                  prev.child( i ) match {
+//                     case n2: Node =>
+//                        if( isInteresting( n2.quad )) coll.push( n2 )
+//                        prev = null
+//                     case _ => // skip as long as the same leaf appears
+//                        prev = prev.prev
+//                  }
+//               }
+//            }
+//
+//            // first see if this point is inside the result rect
+//            if( px >= qLeft && px <= qRight && py >= qTop && py <= qBottom ) {
+//               // then determine orientation to narrow result rect
+//               //  5   4    6
+//               //    +---+
+//               //  1 | 0 |  2
+//               //    +---+
+//               //  9   8   10
+//               val ori  = orient( v )
+//               if( ori == 0 ) {          // hit!
+////                     return p
+//                  qp    = p
+//               }
+//               val hOri = ori & 3
+//               val vOri = ori >> 2
+//               // now do the narrowing
+//               if( hOri == 1 ) {             // v is left to query rect
+//                  qLeft    = px + 1
+//               } else if( hOri == 2 ) {      // v is right to query rect
+//                  qRight   = px - 1
+//               } else {                      // v.x == q.x
+//                  qLeft    = px
+//                  qRight   = px
+//               }
+//               if( vOri == 1 ) {             // v is below query rect
+//                  qBottom  = py + 1
+//               } else if( vOri == 2 ) {      // v is above query rect
+//                  qTop     = py - 1
+//               } else {                      // v.y == q.y
+//                  qBottom  = py
+//                  qTop     = py
+//               }
+//println( "__q-rect reduced to " + qLeft + ", " + qTop + ", " + qRight + ", " + qBottom )
+//               descend()
+//            } else {
+//               if( isInteresting( n.quad.quadrant( i ))) descend()
+//            }
+//         }
+//
+//         def checkNode( n2: Node ) {
+//            if( isInteresting( n2.quad )) coll.push( n2 )
+//         }
+//
+//         def checkChildren( n: Node ) {
+//            var i = 0; while( i < 4 ) {
+//               n.child( i ) match {
+//                  case l: Leaf   => checkLeaf( n, i, l )
+//                  case n2: Node  => checkNode( n2 )
+//                  case Empty =>
+//                     if( isInteresting( n.quad.quadrant( i ))) {
+//                        var prev = n.prev
+//                        while( prev != null ) {
+//                           prev.child( i ) match {
+//                              case n2: Node =>
+//                                 checkNode( n2 )
+//                                 prev = null
+//                              case l: Leaf =>
+//                                 checkLeaf( prev, i, l )
+//                                 prev = null
+//                              case _ =>   // skip as long the same empty quad appears
+//                                 prev = prev.prev
+//                           }
+//                        }
+//                     }
+//               }
+//            i += 1 }
+//         }
+//
+//         var n = tailVar
+//         while( true ) {
+//            checkChildren( n )
+//            if( qp != null ) return qp  // hit
+//            do {
+//               if( coll.isEmpty ) {
+//                  // WARNING: qRight - qLeft + 1 may well produce 0x80000000 !
+//                  return Rectangle( qLeft, qTop, qRight - qLeft + 1, qBottom - qTop + 1 )
+//               }
+//               n = coll.pop()
+//            } while( !isInteresting( n.quad ))
+//         }
+//         error( "never here" )
+//      }
 
       private def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
          var bestLeaf: Leaf      = null

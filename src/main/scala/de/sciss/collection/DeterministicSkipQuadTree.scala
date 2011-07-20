@@ -131,9 +131,9 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       def rangeQuery( qs: QueryShape ) : Iterator[ A ]   = notYetImplemented
       def nearestNeighborOption( point: PointLike, metric: DistanceMeasure ) : Option[ A ] = notYetImplemented
 
-      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
-         error( "TODO" )
-      }
+//      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
+//         error( "TODO" )
+//      }
 
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {

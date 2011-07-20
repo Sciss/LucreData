@@ -64,3 +64,17 @@ in Q0 : finde die interessanten quadrate in n
         - finde die leaves von n' dort
               - zahl der leaves >= 1 : reduziere query-rect + refresh found interesting squares
               - zahl der leaves == 0 : waehle willkuerliche sub-node n'' von n' und wiederhole **
+
+(refinement: finde die leaves von n', die im query-rect liegen!)
+d.h. also nicht: finde n' in Qmax, sondern finde n' im hoechsten Qx wobei mindestens ein relevantes leaf
+oder relevante node enthalten sind; letzteres garantiert allerdings nicht, dass diese node tatsaechlich
+ein relevantes leaf irgendwo enthaelt
+
+vollkommen fraglich, um uns dieser algorithmus ein gutes performance bound liefert ...
+
+::::::::::::
+
+!!! eigentlich waere es vielleicht ausreichend und einfacher zwei binaere suchen in den total orders zu machen
+= O(log n) + O(log n) ?
+; nun ist total-order zunaechst eine linked-list, d.h. binaer suche funzt niet
+; koennte man also noch zusaetzlich eine skip-list anlegen

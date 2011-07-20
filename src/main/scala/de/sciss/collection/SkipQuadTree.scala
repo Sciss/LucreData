@@ -112,35 +112,35 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
 
    def nearestNeighborOption( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
 
-   /**
-    * Searches for the smallest rectangle containing a query point defined by an isomorphic
-    * function that establishes the orientation of any point in the tree with respect to
-    * the transformed query point. The two dimensional orientation is collapsed into a
-    * single `Int` according to the following scheme:
-    *
-    * {{{
-    *   5   4    7
-    *     +---+
-    *   1 | 0 |  3
-    *     +---+
-    *  13  12   15
-    *  }}}
-    *
-    *
-    *  Therefore the horizontal orientation can be extracted
-    *  with `_ & 3`, and the vertical orientation with `_ >> 2`,
-    *  where orientation is 0 for 'parallel', 1 for 'before' and
-    *  '3' for 'after', so that if the orient is before or
-    *  after, the sign can be retrieved via `_ - 2`
-
-    * @param   orient   a function which must return the orientation of the given point
-    *                   wrt the query point, according to the described schema
-    * @return  the search result which is either a `PointLike` object if the query
-    *    revealed its identity (the point view of the element!),
-    *    or the minimum empty rectangle covering possible
-    *    area of the transformed query point.
-    */
-   def isomorphicQuery( orient: A => Int ) : RectangleLike
+//   /**
+//    * Searches for the smallest rectangle containing a query point defined by an isomorphic
+//    * function that establishes the orientation of any point in the tree with respect to
+//    * the transformed query point. The two dimensional orientation is collapsed into a
+//    * single `Int` according to the following scheme:
+//    *
+//    * {{{
+//    *   5   4    7
+//    *     +---+
+//    *   1 | 0 |  3
+//    *     +---+
+//    *  13  12   15
+//    *  }}}
+//    *
+//    *
+//    *  Therefore the horizontal orientation can be extracted
+//    *  with `_ & 3`, and the vertical orientation with `_ >> 2`,
+//    *  where orientation is 0 for 'parallel', 1 for 'before' and
+//    *  '3' for 'after', so that if the orient is before or
+//    *  after, the sign can be retrieved via `_ - 2`
+//
+//    * @param   orient   a function which must return the orientation of the given point
+//    *                   wrt the query point, according to the described schema
+//    * @return  the search result which is either a `PointLike` object if the query
+//    *    revealed its identity (the point view of the element!),
+//    *    or the minimum empty rectangle covering possible
+//    *    area of the transformed query point.
+//    */
+//   def isomorphicQuery( orient: A => Int ) : RectangleLike
 
    /**
     * An `Iterator` which iterates over the points stored

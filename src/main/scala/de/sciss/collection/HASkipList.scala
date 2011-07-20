@@ -89,6 +89,8 @@ object HASkipList {
 
       def top : Node[ A ] = Head.downNode
 
+      def isomorphicQuery( compare: A => Int ) : A = error( "not yet implemented" )
+
       // a kind of finger to navigate through
       // the data structure
       final class Nav {

@@ -28,6 +28,8 @@
 
 package de.sciss.collection
 
+import sys.error
+
 /**
  * A deterministic 1-3 skip list implemented using a linked list with
  * 'drawn back keys', as described by T. Papadakis.
@@ -94,6 +96,17 @@ object LLSkipList {
             x = x.down
          }
          false
+      }
+
+      def isomorphicQuery( compare: A => Int ) : A = {
+         require( compare( maxKey ) >= 0, "Search key cannot be greater than maxKey" )
+         var x = hd
+         while( !x.isBottom ) {
+            while( compare( x.key ) < 0 ) x = x.right
+            if( x.down.isBottom ) return x.key
+            x = x.down
+         }
+         maxKey
       }
 
       /**

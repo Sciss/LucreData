@@ -10,8 +10,8 @@ import collection.immutable.IntMap
  * }}
  */
 class AncestorSuite extends FeatureSpec with GivenWhenThen {
-   def seed : Long         = System.currentTimeMillis()
-   val TREE_SIZE           = 100000
+   def seed : Long         = 0L // System.currentTimeMillis()
+   val TREE_SIZE           = 24 // 100000
    val MARKER_PERCENTAGE   = 0.2
 
    class Vertex[ A ]( val value: A, val pre: TotalOrder#Entry, val post: TotalOrder#Entry )
@@ -29,8 +29,10 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 
       private val preObserver    = new OrderObserver
       private val postObserver   = new OrderObserver
-      val root = new Vertex( _init, TotalOrder( preObserver ).root, TotalOrder( postObserver ).root )
-      val quad = RandomizedSkipQuadTree.empty[ V ]( Quad( 0x40000000, 0x40000000, 0x40000000 ))
+      val preOrder   = TotalOrder( preObserver )
+      val postOrder  = TotalOrder( postObserver )
+      val root       = new Vertex( _init, preOrder.root, postOrder.root )
+      val quad       = RandomizedSkipQuadTree.empty[ V ]( Quad( 0x40000000, 0x40000000, 0x40000000 ))
 
       add( root )
 
@@ -143,10 +145,12 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          val tm      = new Tree( 0 )
          val rnd     = new util.Random( seed )
          var treeSeq = IndexedSeq( t.root )
+         var markSeq = IndexedSeq( tm.root )
 //         var markMap = IntMap( 0 -> t.root )  // root is 'fallback' always (as in the compressed path method)
          var parents    = Map.empty[ V, V ]
          var markMap  = Map( t.root -> tm.root )
-         var markMap2 = Map( tm.root -> t.root )
+//         var markMap2 = Map( tm.root -> t.root )
+         var markMap2 = Map[ TotalOrder.EntryLike, V ]( tm.root.pre -> t.root, tm.root.post -> t.root )
 
          for( i <- 1 to TREE_SIZE ) {
             try {
@@ -159,7 +163,10 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
                   val pm   = markMap( p )
                   val cm   = tm.insertChild( pm, i )
                   markMap += child -> cm
-                  markMap2 += cm -> child
+//                  markMap2 += cm -> child
+                  markMap2 += cm.pre -> child
+                  markMap2 += cm.post -> child
+                  markSeq :+= cm
                }
             } catch {
                case e =>
@@ -168,25 +175,45 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
             }
          }
 
+         val preList    = {
+            implicit val m = MaxKey( tm.preOrder.max )
+            val res = LLSkipList.empty[ TotalOrder.EntryLike ]
+            markSeq.foreach( v => res.add( v.pre ))
+            res
+         }
+         val postList   = {
+            implicit def m = MaxKey( tm.postOrder.max )
+            val res = LLSkipList.empty[ TotalOrder.EntryLike ]
+            markSeq.foreach( v => res.add( v.post ))
+            res
+         }
+
          when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
          then( "the results should be identical to those obtained from independent brute force" )
          val metric = DistanceMeasure.chebyshev.quadrant( 2 )
          treeSeq.foreach { child =>
 println( "testing... #" + child )
-            val iso = tm.quad.isomorphicQuery { vm =>
-               val v = markMap2( vm )
-               val res = child.orient( v )
-println( "...query (" + vm.x + ", " + vm.y + ") -> (" + v.x + ", " + v.y + ") -> " + res )
-               res
-            }
-println( "iso-query yielded " + iso )
-            val point = iso.topRight
+
+//            val iso = tm.quad.isomorphicQuery { vm =>
+//               val v = markMap2( vm )
+//               val res = child.orient( v )
+//println( "...query (" + vm.x + ", " + vm.y + ") -> (" + v.x + ", " + v.y + ") -> " + res )
+//               res
+//            }
+//println( "iso-query yielded " + iso )
+//            val point = iso.topRight
+            val preIso  = preList.isomorphicQuery  { e => markMap2.get( e ).map( _.pre.compare(  child.pre  )).getOrElse( 1 )}
+            val postIso = postList.isomorphicQuery { e => markMap2.get( e ).map( _.post.compare( child.post )).getOrElse( 1 )}
+            val x       = if( markMap2.get( preIso ) == Some( child )) preIso.tag else preIso.tag - 1
+            val y       = postIso.tag
+            val point   = Point( x, y )
+
             val found = tm.quad.nearestNeighborOption( point, metric )
             val parent = {
                var p = child; while( !markMap.contains( p )) { p = parents( p )}
-               p
+               markMap( p )
             }
-            assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
+            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
          }
       }
    }
