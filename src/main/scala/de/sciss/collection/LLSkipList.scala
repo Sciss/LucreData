@@ -269,7 +269,7 @@ object LLSkipList {
          }
 
          def hasNext : Boolean = !x.right.isTail // ordering.equiv( x.key, maxKey )
-         def next : A = {
+         def next() : A = {
             val res = x.key
             x = x.right
             res

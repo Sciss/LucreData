@@ -1,7 +1,6 @@
 package de.sciss.collection
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import collection.immutable.IntMap
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -13,6 +12,8 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long         = 0L // System.currentTimeMillis()
    val TREE_SIZE           = 24 // 100000
    val MARKER_PERCENTAGE   = 0.2
+   val PRINT_DOT           = false // true
+   val PRINT_ORDERS        = true
 
    class Vertex[ A ]( val value: A, val pre: TotalOrder#Entry, val post: TotalOrder#Entry )
    extends PointLike {
@@ -176,23 +177,55 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          }
 
          val preList    = {
-            implicit val m = MaxKey( tm.preOrder.max )
-            val res = LLSkipList.empty[ TotalOrder.EntryLike ]
+            implicit val m    = MaxKey( tm.preOrder.max )
+            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
+            val res = LLSkipList.empty[ TotalOrder.EntryLike ]( ord, m )
             markSeq.foreach( v => res.add( v.pre ))
             res
          }
          val postList   = {
-            implicit def m = MaxKey( tm.postOrder.max )
-            val res = LLSkipList.empty[ TotalOrder.EntryLike ]
+            implicit def m    = MaxKey( tm.postOrder.max )
+            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
+            val res = LLSkipList.empty[ TotalOrder.EntryLike ]( ord, m )
             markSeq.foreach( v => res.add( v.post ))
             res
          }
 
+         if( PRINT_ORDERS ) {
+            println( preList.toList.map( _.tag ).mkString( " pre tags : ", ", ", "" ))
+            println( preList.toList.map(  markMap2( _ ).value ).mkString( " pre order: ", ", ", "" ))
+            println( postList.toList.map( _.tag ).mkString( "post tags : ", ", ", "" ))
+            println( postList.toList.map( markMap2( _ ).value ).mkString( "post order: ", ", ", "" ))
+         }
+
+         if( PRINT_DOT ) {
+            val sb = new StringBuilder()
+            sb.append( "digraph Tree {\n" )
+//               sb.append( "  root=0\n" )
+            treeSeq.foreach { v =>
+               val id = v.value
+               sb.append( "  " + id.toString )
+               if( markMap.contains( v )) {
+                  sb.append( " [fillcolor=red, style=filled]" )
+               }
+               sb.append( "\n" )
+            }
+            parents.foreach { case (child, parent) =>
+               sb.append( "  " + parent.value.toString + " -> " + child.value.toString + "\n" )
+            }
+            sb.append( "}\n" )
+            println( sb.toString )
+         }
+
          when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
          then( "the results should be identical to those obtained from independent brute force" )
+
          val metric = DistanceMeasure.chebyshev.quadrant( 2 )
          treeSeq.foreach { child =>
 println( "testing... #" + child )
+            if( child.value == 24 ) {
+               println( "aqui" )
+            }
 
 //            val iso = tm.quad.isomorphicQuery { vm =>
 //               val v = markMap2( vm )
@@ -202,9 +235,11 @@ println( "testing... #" + child )
 //            }
 //println( "iso-query yielded " + iso )
 //            val point = iso.topRight
+
             val preIso  = preList.isomorphicQuery  { e => markMap2.get( e ).map( _.pre.compare(  child.pre  )).getOrElse( 1 )}
             val postIso = postList.isomorphicQuery { e => markMap2.get( e ).map( _.post.compare( child.post )).getOrElse( 1 )}
-            val x       = if( markMap2.get( preIso ) == Some( child )) preIso.tag else preIso.tag - 1
+            val atPreIso = markMap2.get( preIso )
+            val x       = if( atPreIso == Some( child )) preIso.tag else preIso.tag - 1
             val y       = postIso.tag
             val point   = Point( x, y )
 

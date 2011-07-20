@@ -139,6 +139,7 @@ extends Ordering[ TotalOrder.EntryLike ] {
 
    def compare( a: EntryLike, b: EntryLike ) : Int = a.compare( b )
 
+   // important: maintain default equals (reference equality)
    final class Entry private[ TotalOrder ] () extends EntryLike {
       private var tagVar : Int = 0
       private var prevVar : Entry = _

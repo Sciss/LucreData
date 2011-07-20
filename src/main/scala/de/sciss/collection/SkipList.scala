@@ -29,6 +29,7 @@
 package de.sciss.collection
 
 import collection.mutable.{Set => MSet}
+import collection.SortedSet
 
 object SkipList {
    /**
@@ -53,7 +54,7 @@ object SkipList {
       def keyDown( key : A ) {}
    }
 }
-trait SkipList[ @specialized( Int, Long ) A ] extends MSet[ A ] {
+trait SkipList[ @specialized( Int, Long ) A ] extends /* SortedSet[ A ] with */ MSet[ A ] {
    /**
     * Searches for the Branch of a given key.
     *
