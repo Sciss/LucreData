@@ -72,7 +72,7 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 //      def unsupportedOp = error( "Operation not permitted" )
 //   }
 
-   sealed trait EntryLike extends Ordered[ EntryLike ] {
+   sealed trait EntryLike /* extends Ordered[ EntryLike ] */ {
       def prev : EntryLike
       def next : EntryLike
       def tag : Int
@@ -81,14 +81,14 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
       def isLast : Boolean = next.isEnd
       def isEnd : Boolean = next eq this
 
-      /**
-       * Compares the positions of x and y in the sequence
-      */
-      def compare( that: EntryLike ) : Int = {
-         val thatTag = that.tag
-         if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
-//         tag compare that.tag
-      }
+//      /**
+//       * Compares the positions of x and y in the sequence
+//      */
+//      def compare( that: EntryLike ) : Int = {
+//         val thatTag = that.tag
+//         if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
+////         tag compare that.tag
+//      }
    }
 
    trait RelabelObserver {
@@ -105,26 +105,27 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
    extends TotalOrder
 }
 sealed trait TotalOrder
-extends Ordering[ TotalOrder.EntryLike ] {
+/* extends Ordering[ TotalOrder.EntryLike ] */ {
    import TotalOrder._
 
    private var sizeVar : Int = 1 // root!
 
    protected def observer: RelabelObserver
 
-   val root : Entry = {
-      val empty   = new Entry()
-      val head    = new Entry()
-//      sz.inc
-      head.next   = empty
-      empty.prev  = head
-      head
-   }
-
-   def max : Entry = {
+   val max : Entry = {
       val e = new Entry()
       e.tag = Int.MaxValue
       e
+   }
+
+   val root : Entry = {
+      val head    = new Entry()
+//      val empty   = new Entry()
+//      head.next   = empty
+//      empty.prev  = head
+      head.next   = max
+      max.prev    = head
+      head
    }
 
    /**
@@ -137,10 +138,10 @@ extends Ordering[ TotalOrder.EntryLike ] {
       e
    }
 
-   def compare( a: EntryLike, b: EntryLike ) : Int = a.compare( b )
+//   def compare( a: EntryLike, b: EntryLike ) : Int = a.compare( b )
 
    // important: maintain default equals (reference equality)
-   final class Entry private[ TotalOrder ] () extends EntryLike {
+   final class Entry private[ TotalOrder ] () extends EntryLike with Ordered[ Entry ] {
       private var tagVar : Int = 0
       private var prevVar : Entry = _
       private var nextVar : Entry = this
@@ -160,6 +161,15 @@ extends Ordering[ TotalOrder.EntryLike ] {
          next.prev   = this
       }
 
+      /**
+       * Compares the positions of x and y in the sequence
+      */
+      def compare( that: Entry ) : Int = {
+         val thatTag = that.tag
+         if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
+//         tag compare that.tag
+      }
+
       override def toString = "Tag(" + tagVar + ")"
 
       private[ TotalOrder ] def tag_=( value: Int ) { tagVar = value }
@@ -174,8 +184,11 @@ extends Ordering[ TotalOrder.EntryLike ] {
        * Inserts a new element after this node
        */
       def append() : Entry = {
+         require( !isEnd )
          val rec     = new Entry( this, next )
-         val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
+         // this condition is now fulfilled by the list ending in `max` !
+//         val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
+         val nextTag = rec.next.tag
          rec.tag     = tag + ((nextTag - tag + 1) >>> 1)
          if( rec.tag == nextTag ) relabel( rec )
          rec

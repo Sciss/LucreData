@@ -17,18 +17,8 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
    val PRINT_DOT           = false  // true
    val PRINT_ORDERS        = true // false  // true
 
-   class Vertex[ A ]( val value: A, val pre: TotalOrder#Entry, val post: TotalOrder#Entry )
-   extends PointLike {
-      val preTail = pre.append() // insertAfter( () )
-
-      def x: Int = pre.tag
-      def y: Int = post.tag
-
-      override def toString = "Vertex(" + value + ", " + x + ", " + y + ")"
-   }
-
    class Tree[ A ]( _init: A ) {
-      type V = Vertex[ A ]
+//      type V = Vertex[ A ]
 
       var verbose = false
 
@@ -37,14 +27,24 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       val preOrder   = TotalOrder( preObserver )
       val postOrder  = TotalOrder( postObserver )
       val root       = new Vertex( _init, preOrder.root, postOrder.root )
-      val quad       = RandomizedSkipQuadTree.empty[ V ]( Quad( 0x40000000, 0x40000000, 0x40000000 ))
+      val quad       = RandomizedSkipQuadTree.empty[ Vertex ]( Quad( 0x40000000, 0x40000000, 0x40000000 ))
 
       add( root )
+
+      class Vertex( val value: A, val pre: preOrder.Entry, val post: postOrder.Entry )
+      extends PointLike {
+         val preTail = pre.append() // insertAfter( () )
+
+         def x: Int = pre.tag
+         def y: Int = post.tag
+
+         override def toString = "Vertex(" + value + ", " + x + ", " + y + ")"
+      }
 
       private class OrderObserver extends TotalOrder.RelabelObserver {
          // XXX could eventually add again elem to total order
          // (would be Option[ V ] for pre order and V for post order)
-         var map = Map.empty[ TotalOrder.EntryLike, V ]
+         var map = Map.empty[ TotalOrder.EntryLike, Vertex ]
          def beforeRelabeling( first: TotalOrder.EntryLike, num: Int ) {
             var e = first
             var i = 0; while( i < num ) {
@@ -63,14 +63,14 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          }
       }
 
-      private def add( v: V ) : V = {
+      private def add( v: Vertex ) : Vertex = {
          preObserver.map  += v.pre -> v
          postObserver.map += v.post -> v
          quad += v
          v
       }
 
-      def insertChild( parent: V, value : A ) : V = {
+      def insertChild( parent: Vertex, value : A ) : Vertex = {
          val cPre    = parent.preTail.prepend() // insertBefore( () )
          val cPost   = parent.post.prepend() // insertBefore( () )
 
@@ -91,28 +91,30 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
       }
    }
 
-   type V = Vertex[ Unit ]
+//   type V = Tree[ Unit ]#Vertex // [ Unit ]
 
-   private def randomlyFilledTree( n: Int = TREE_SIZE ) : (Tree[ Unit ], IndexedSeq[ V ], Map[ V, V ]) = {
+   private def randomlyFilledTree( n: Int = TREE_SIZE ) = new {
       given( "a randomly filled tree, corresponding node orders and their quadtree" )
       val t       = new Tree( () )
-      val rnd     = new util.Random( seed )
-      var treeSeq = IndexedSeq( t.root )
-      var parents = Map.empty[ V, V ]
+      val (treeSeq, parents) = {
+         val rnd     = new util.Random( seed )
+         var treeSeq = IndexedSeq( t.root )
+         var parents = Map.empty[ t.Vertex, t.Vertex ]
 
-      for( i <- 1 to n ) {
-         try {
-            val parent  = treeSeq( rnd.nextInt( i ))
-            val child   = t.insertChild( parent, () )
-            treeSeq :+= child
-            parents += child -> parent
-         } catch {
-            case e =>
-               println( "(for i = " + i + ")" )
-               throw e
+         for( i <- 1 to n ) {
+            try {
+               val parent  = treeSeq( rnd.nextInt( i ))
+               val child   = t.insertChild( parent, () )
+               treeSeq :+= child
+               parents += child -> parent
+            } catch {
+               case e =>
+                  println( "(for i = " + i + ")" )
+                  throw e
+            }
          }
+         (treeSeq, parents)
       }
-      (t, treeSeq, parents)
    }
 
    feature( "Tree parent node lookup should be possible in a quadtree representing pre- and post-order positions" ) {
@@ -122,7 +124,9 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
       info( "the x and y coordinates of a quadtree." )
 
       scenario( "Verifying parent node lookup" ) {
-         val (t, treeSeq, parents) = randomlyFilledTree()
+         val gagaism = randomlyFilledTree()
+         import gagaism._
+//         val (t, treeSeq, parents) = randomlyFilledTree()
          t.validate()
 
          // ancestor: left in pre-order, right in post-order
@@ -149,20 +153,41 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
       scenario( "Verifying marked ancestor lookup" ) {
          given( "a randomly filled tree, corresponding node orders and their quadtree" )
          given( "a random marking of a subset of the vertices" )
-         type V      = Vertex[ Int ]
+//         type V      = Vertex[ Int ]
          val t       = new Tree( 0 )
-         val tm      = new Tree( 0 )
+         type V = t.Vertex
+//         val tm      = new Tree( 0 )
 //tm.verbose = true
          val rnd     = new util.Random( seed )
          var treeSeq = IndexedSeq[ V ]( t.root )
-         var markSeq = IndexedSeq[ V ]( tm.root )
+//         var markSeq = IndexedSeq[ V ]( tm.root )
 //         var markMap = IntMap( 0 -> t.root )  // root is 'fallback' always (as in the compressed path method)
          var parents    = Map.empty[ V, V ]
-         var markMap  = Map( t.root -> tm.root )
+//         var markMap  = Map( t.root -> tm.root )
 //         var markMap2 = Map( tm.root -> t.root )
-         var markMap2 = Map[ TotalOrder.EntryLike, V ]( tm.root.pre -> t.root, tm.root.post -> t.root )
+//         var markMap2 = Map[ TotalOrder.EntryLike, V ]( tm.root.pre -> t.root, tm.root.post -> t.root )
 
 //println( "----1" )
+
+         val mPreOrder  = TotalOrder()
+         val mPostOrder = TotalOrder()
+         val mPreList   = {
+            implicit val m    = MaxKey( mPreOrder.max )
+//            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
+            val res = LLSkipList.empty[ mPreOrder.Entry ] // ( ord, m )
+            res.add( mPreOrder.root )
+            res
+         }
+         val mPostList = {
+            implicit def m    = MaxKey( mPostOrder.max )
+//            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
+            val res = LLSkipList.empty[ mPostOrder.Entry ] // ( ord, m )
+            res.add( mPostOrder.root )
+            res
+         }
+
+         var preTagMap     = Map( mPreOrder.root -> t.root.pre )
+         var postTagMap    = Map( mPostOrder.root -> t.root.post )
 
          for( i <- 1 to TREE_SIZE ) {
             try {
@@ -171,14 +196,23 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                treeSeq :+= child
                parents += child -> parent
                if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
-                  var p    = parent; while( !markMap.contains( p )) { p = parents( p )}
-                  val pm   = markMap( p )
-                  val cm   = tm.insertChild( pm, i )
-                  markMap += child -> cm
-//                  markMap2 += cm -> child
-                  markMap2 += cm.pre -> child
-                  markMap2 += cm.post -> child
-                  markSeq :+= cm
+//                  var p    = parent; while( !markMap.contains( p )) { p = parents( p )}
+//                  val pm   = markMap( p )
+//                  val cm   = tm.insertChild( pm, i )
+//                  markMap += child -> cm
+////                  markMap2 += cm -> child
+//                  markMap2 += cm.pre -> child
+//                  markMap2 += cm.post -> child
+//                  markSeq :+= cm
+
+                  val cmPreSucc = mPreList.isomorphicQuery( preTagMap( _ ).compare( child.pre ))
+                  val cmPre = cmPreSucc.prepend()
+                  mPreList.add( cmPre )
+                  val cmPostSucc = mPostList.isomorphicQuery( postTagMap( _ ).compare( child.post ))
+                  val cmPost = cmPostSucc.prepend()
+                  mPostList.add( cmPost )
+                  preTagMap += cmPre -> child.pre
+                  postTagMap += cmPost -> child.post
                }
             } catch {
                case e =>
@@ -189,31 +223,31 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 
 //println( "MARK MAP 2 SIZE " + markMap2.size )
 
-         val preList    = {
-            implicit val m    = MaxKey( tm.preOrder.max )
-            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
-            val res = LLSkipList.empty[ TotalOrder.EntryLike ]( ord, m )
-            markSeq.foreach( v => res.add( v.pre ))
-            res
-         }
-         val postList   = {
-            implicit def m    = MaxKey( tm.postOrder.max )
-            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
-            val res = LLSkipList.empty[ TotalOrder.EntryLike ]( ord, m )
-            markSeq.foreach( v => res.add( v.post ))
-            res
-         }
-
-         if( PRINT_ORDERS ) {
-            val s1 = treeSeq.sortBy( _.pre : TotalOrder.EntryLike )
-            val s2 = treeSeq.sortBy( _.post : TotalOrder.EntryLike )
-            println( s1.map( _.value ).mkString( " pre full: ", ", ", "" ))
-            println( s2.map( _.value ).mkString( "post full: ", ", ", "" ))
-            println( preList.toList.map( _.tag ).mkString( " pre tags : ", ", ", "" ))
-            println( preList.toList.map(  markMap2( _ ).value ).mkString( " pre order: ", ", ", "" ))
-            println( postList.toList.map( _.tag ).mkString( "post tags : ", ", ", "" ))
-            println( postList.toList.map( markMap2( _ ).value ).mkString( "post order: ", ", ", "" ))
-         }
+//         val preList    = {
+//            implicit val m    = MaxKey( tm.preOrder.max )
+//            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
+//            val res = LLSkipList.empty[ TotalOrder.EntryLike ]( ord, m )
+//            markSeq.foreach( v => res.add( v.pre ))
+//            res
+//         }
+//         val postList   = {
+//            implicit def m    = MaxKey( tm.postOrder.max )
+//            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
+//            val res = LLSkipList.empty[ TotalOrder.EntryLike ]( ord, m )
+//            markSeq.foreach( v => res.add( v.post ))
+//            res
+//         }
+//
+//         if( PRINT_ORDERS ) {
+//            val s1 = treeSeq.sortBy( _.pre : TotalOrder.EntryLike )
+//            val s2 = treeSeq.sortBy( _.post : TotalOrder.EntryLike )
+//            println( s1.map( _.value ).mkString( " pre full: ", ", ", "" ))
+//            println( s2.map( _.value ).mkString( "post full: ", ", ", "" ))
+//            println( preList.toList.map( _.tag ).mkString( " pre tags : ", ", ", "" ))
+//            println( preList.toList.map(  markMap2( _ ).value ).mkString( " pre order: ", ", ", "" ))
+//            println( postList.toList.map( _.tag ).mkString( "post tags : ", ", ", "" ))
+//            println( postList.toList.map( markMap2( _ ).value ).mkString( "post order: ", ", ", "" ))
+//         }
 
          if( PRINT_DOT ) {
             val sb = new StringBuilder()
@@ -222,9 +256,9 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
             treeSeq.foreach { v =>
                val id = v.value
                sb.append( "  " + id.toString )
-               if( markMap.contains( v )) {
-                  sb.append( " [fillcolor=red, style=filled]" )
-               }
+//               if( markMap.contains( v )) {
+//                  sb.append( " [fillcolor=red, style=filled]" )
+//               }
                sb.append( "\n" )
             }
             parents.foreach { case (child, parent) =>
@@ -253,19 +287,19 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 //println( "iso-query yielded " + iso )
 //            val point = iso.topRight
 
-            val preIso  = preList.isomorphicQuery  { e => markMap2.get( e ).map( _.pre.compare(  child.pre  )).getOrElse( 1 )}
-            val postIso = postList.isomorphicQuery { e => markMap2.get( e ).map( _.post.compare( child.post )).getOrElse( 1 )}
-            val atPreIso = markMap2.get( preIso )
-            val x       = if( atPreIso == Some( child )) preIso.tag else preIso.tag - 1
-            val y       = postIso.tag
-            val point   = Point( x, y )
-
-            val found = tm.quad.nearestNeighborOption( point, metric )
-            val parent = {
-               var p = child; while( !markMap.contains( p )) { p = parents( p )}
-               markMap( p )
-            }
-            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
+//            val preIso  = preList.isomorphicQuery  { e => markMap2.get( e ).map( _.pre.compare(  child.pre  )).getOrElse( 1 )}
+//            val postIso = postList.isomorphicQuery { e => markMap2.get( e ).map( _.post.compare( child.post )).getOrElse( 1 )}
+//            val atPreIso = markMap2.get( preIso )
+//            val x       = if( atPreIso == Some( child )) preIso.tag else preIso.tag - 1
+//            val y       = postIso.tag
+//            val point   = Point( x, y )
+//
+//            val found = tm.quad.nearestNeighborOption( point, metric )
+//            val parent = {
+//               var p = child; while( !markMap.contains( p )) { p = parents( p )}
+//               markMap( p )
+//            }
+//            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
          }
       }
    }
