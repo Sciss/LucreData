@@ -192,10 +192,10 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          }
 
          if( PRINT_ORDERS ) {
-            println( preList.toList.map( _.tag ).mkString( " pre tags : ", ", ", "" ))
-            println( preList.toList.map(  markMap2( _ ).value ).mkString( " pre order: ", ", ", "" ))
-            println( postList.toList.map( _.tag ).mkString( "post tags : ", ", ", "" ))
-            println( postList.toList.map( markMap2( _ ).value ).mkString( "post order: ", ", ", "" ))
+            println( preList.map( _.tag ).mkString( " pre tags : ", ", ", "" ))
+            println( preList.map(  markMap2( _ ).value ).mkString( " pre order: ", ", ", "" ))
+            println( postList.map( _.tag ).mkString( "post tags : ", ", ", "" ))
+            println( postList.map( markMap2( _ ).value ).mkString( "post order: ", ", ", "" ))
          }
 
          if( PRINT_DOT ) {

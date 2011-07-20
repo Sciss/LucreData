@@ -28,10 +28,13 @@
 
 package de.sciss.collection
 
-import collection.mutable.{Set => MSet}
-import collection.SortedSet
+import collection.{SortedSet => CSortedSet, SortedSetLike => CSortedSetLike}
+import collection.mutable.{Set => MSet, SetLike => MSetLike}
+import collection.generic.{MutableSetFactory, GenericCompanion}
 
-object SkipList {
+object SkipList /* extends MutableSetFactory[ SkipList ] */ {
+   def empty[ A ]( implicit ord: Ordering[ A ]): SkipList[ A ] = sys.error( "TODO" )
+
    /**
     * A trait for observing the promotion and demotion of a key
     * in the skip list's level hierarchy
@@ -54,7 +57,26 @@ object SkipList {
       def keyDown( key : A ) {}
    }
 }
-trait SkipList[ @specialized( Int, Long ) A ] extends /* SortedSet[ A ] with */ MSet[ A ] {
+//trait SkipList[ @specialized( Int, Long ) A ] extends /* SortedSet[ A ] with */ MSet[ A ]
+
+//trait SkipList[ @specialized( Int, Long ) A ]
+//extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] with CSortedSet[ A ] with CSortedSetLike[ A, SkipList[ A ]]
+
+trait SkipList[ @specialized( Int, Long ) A ]
+extends de.sciss.collection.mutable.SortedSet[ A ] {
+
+//   override def companion: GenericCompanion[ SkipList ] = SkipList
+//
+//   /**
+//    * Needs to be overridden in subclasses.
+//    */
+//   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering )
+
+   /**
+    * This operation is not supported
+    */
+   def rangeImpl( from: Option[ A ], until: Option[ A ]): SkipList[ A ] = sys.error( "Unsupported operation" )
+
    /**
     * Searches for the Branch of a given key.
     *
