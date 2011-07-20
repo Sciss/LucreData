@@ -14,8 +14,8 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long         = 0L // System.currentTimeMillis()
    val TREE_SIZE           = 24 // 100000
    val MARKER_PERCENTAGE   = 0.2
-   val PRINT_DOT           = false // true
-   val PRINT_ORDERS        = true
+   val PRINT_DOT           = false  // true
+   val PRINT_ORDERS        = true // false  // true
 
    class Vertex[ A ]( val value: A, val pre: TotalOrder#Entry, val post: TotalOrder#Entry )
    extends PointLike {
@@ -152,7 +152,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          type V      = Vertex[ Int ]
          val t       = new Tree( 0 )
          val tm      = new Tree( 0 )
-tm.verbose = true
+//tm.verbose = true
          val rnd     = new util.Random( seed )
          var treeSeq = IndexedSeq[ V ]( t.root )
          var markSeq = IndexedSeq[ V ]( tm.root )
@@ -165,9 +165,6 @@ tm.verbose = true
 //println( "----1" )
 
          for( i <- 1 to TREE_SIZE ) {
-if( i == TREE_SIZE ) {
-   println( "aqui" )
-}
             try {
                val parent  = treeSeq( rnd.nextInt( i ))
                val child   = t.insertChild( parent, i )
@@ -242,7 +239,7 @@ if( i == TREE_SIZE ) {
 
          val metric = DistanceMeasure.chebyshev.quadrant( 2 )
          treeSeq.foreach { child =>
-println( "testing... #" + child )
+//println( "testing... #" + child )
             if( child.value == 24 ) {
                println( "aqui" )
             }
