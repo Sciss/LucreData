@@ -50,6 +50,9 @@ object InteractiveSkipListView extends App with Runnable {
       val cp   = f.getContentPane
       val iv   = new InteractiveSkipListView( mode )
       cp.add( iv, BorderLayout.CENTER )
+
+      PDFSupport.addMenu( f, Seq( iv ))
+
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )

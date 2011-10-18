@@ -185,7 +185,112 @@ object HASkipList {
       }
 
       def +=( elem: A ) : this.type = { add( elem ); this }
-      def -=( elem: A ) : this.type = error( "Not yet implemented" )
+      def -=( elem: A ) : this.type = { remove( elem ); this }
+
+      override def remove( v: A ) : Boolean = {
+         // prevents infinite loop if user provided a surmountable maxKey, or if v == maxKey
+         if( ordering.gteq( v, maxKey )) return false
+sys.error( "TODO" )
+//         var pn: NodeImpl  = Head
+//         var sn            = Head.downNode
+//         var success       = !sn.isBottom
+////         bottom.key        = v
+////         var xPred: NodeImpl = null
+//         var multiPrev     = maxKey    // this stores the key previous to v in the bottom level if v did exist in higher levels
+//         var lastAbove     = maxKey    // last key at level above, needed to determine if we drop into the last gap
+//         while( !sn.isBottom ) {
+//            var idx = 0
+//            var cmp = ordering.compare( v, sn.key( idx ))
+//            while( cmp > 0 ) {   // find where you drop
+////               xPred = x   // keep track of the previous gap which might be needed for a 'left-merge/borrow'
+////               x     = x.right
+//               idx  += 1
+//               cmp   = ordering.compare( v, sn.key( idx ))
+//            }
+//            val d       = sn.down( idx )
+//            val dIsBot  = d.isBottom
+//            val xKey    = sn.key( idx )
+//            // the following holds, if either we drop into gap G with size 1, or we reached the bottom level and v was found
+//            if( (d.size == minGap + 1) || (dIsBot && cmp == 0) ) { // i.e., either gap size is 1, or we found the key in level 0
+//               if( !ordering.equiv( xKey, lastAbove )) { // if does NOT drop in last gap -> merge or borrow to the right
+//                  val xSucc = x.right // now the gap G is between x and xSucc
+//                  // if 1 elem in next gap G' (aka xSucc.down.right),
+//                  // or at bottom level --> merge G and G', by lowering the element
+//                  // between G and G', that is xSucc
+//                  if( dIsBot ) { // we found the key in level 0
+//                     x.right  = xSucc.right    // replace x by its...
+//                     x.key    = xSucc.key      // ... right neighbour
+//                  } else { // we're in level > 0, merge or borrow according to size of G''
+//                     keyObserver.keyDown( xKey )
+//                     val sd   = xSucc.down
+//                     val sdr  = sd.right
+//                     if( ordering.equiv( xSucc.key, sdr.key )) { // i.e. G' has size 1
+//                        x.right     = xSucc.right    // lower separator of G and G', i.e. remove xSucc from current level
+//                        x.key       = xSucc.key      // the new max key for dropping into (the merged) G
+//                     } else {	   // if >=2 elems in next gap G'
+//                        val upKey   = sd.key             // raise 1st elem in next gap & lower...
+//                        x.key       = upKey
+//                        xSucc.down  = sdr                // ... separator of current+next gap
+//                        keyObserver.keyUp( upKey )
+//                     }
+//                  }
+//               } else {    // if DOES drop in last gap --> merge or borrow to the left
+//                  val pdr     = xPred.down.right
+//                  val dnKey   = xPred.key
+//                  if( ordering.lteq( dnKey, pdr.key )) { // if only 1 elm in previous gap --> merge ; XXX could be ordering.equiv ?
+//                     if( dIsBot ) { // if del_Key is in elem of height > 1
+//                        multiPrev = dnKey  // predecessor of del_key at bottom level
+//                     } else {
+//                        keyObserver.keyDown( dnKey )
+//                     }
+//                     xPred.right = x.right      // lower separator of previous+current gap
+//                     xPred.key   = xKey
+//                     x           = xPred
+//                  } else {    // if >= 2 elems in previous gap
+//                     // tmp = last elem in previous gap
+//                     val pdrr    = pdr.right
+//                     val tmp     = if( ordering.equiv( dnKey, pdrr.key )) pdr else pdrr
+//                     val upKey   = tmp.key
+//                     xPred.key   = upKey        // raise last elem in previous gap & lower...
+//                     x.down      = tmp.right    // ... separator of previous+current gap
+//                     keyObserver.keyDown( dnKey )
+//                     keyObserver.keyUp( upKey )
+//                  }
+//               }
+//            // i.e. either a gap of >= 2 or reached bottom
+//            } else {
+//               if( dIsBot ) { // which means the key was not found
+//                  success = false
+//               }
+//            }
+//            lastAbove   = x.key
+//            x           = d
+//         }
+//
+//         // we might need to remove v from higher levels in a second pass
+//         if( !ordering.equiv( multiPrev, maxKey )) {
+//            x = hd.down
+//            while( !x.isBottom ) {
+//               while( ordering.gt( v, x.key )) x = x.right
+//               val d = x.down
+//               if( ordering.equiv( v, x.key )) {
+////println( "---8 " + x.key )
+//                  x.key = multiPrev
+//                  if( !d.isBottom ) {
+//                     keyObserver.keyDown( v )
+//                     keyObserver.keyUp( multiPrev )
+//                  }
+//               }
+//               x = d
+//            }
+//         }
+//
+//         // lower header of DSL, if necessary
+//         x = hd.down
+//         if( x.right.isTail ) hd = x
+//
+//         success
+      }
 
       def iterator : Iterator[ A ] = new Iterator[ A ] {
          var x: Node[ A ]  = _
