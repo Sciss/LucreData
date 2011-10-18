@@ -42,7 +42,8 @@ import annotation.tailrec
  * XXX todo: verify the structure doesn't get damaged when we try to insert an existing key
  *
  * XXX todo: there is currently a bug with minGap = 1, resulting in keys occasionally being
- * stored twice in successive bottom bins.
+ * stored twice in successive bottom bins. UPDATE: this is probably just from the same key
+ * inserted repeatedly!
  */
 object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
@@ -63,8 +64,9 @@ object HASkipList {
       def isBottom : Boolean // = this eq Bottom
    }
 
-   private class Impl[ /* @specialized( Int, Long ) */ A ]( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
-                                                    ( implicit mf: Manifest[ A ], val ordering: Ordering[ A ])
+   private final class Impl[ /* @specialized( Int, Long ) */ A ]
+      ( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
+      ( implicit mf: Manifest[ A ], val ordering: Ordering[ A ])
    extends HASkipList[ A ] {
       val arrSize = maxGap + 1
       var arrMid  = maxGap >> 1

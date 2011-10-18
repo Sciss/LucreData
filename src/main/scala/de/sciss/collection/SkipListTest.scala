@@ -69,18 +69,24 @@ object SkipListTest extends App with Runnable {
       val ha2  = HASkipList.empty[ Int ]( 2, hao2 )
       val ha3  = HASkipList.empty[ Int ]( 6, hao3 )
 //      val l    = List( 9, 13, 30, 39, 41, 48, 51, 53, 55, 60 ) ++ List( 20, 21, 61 )
-      val rnd  = new util.Random() // ( 0L )
+      val rnd  = new util.Random( 0L )
       val l    = List.fill( n )( rnd.nextInt( 100 ))
 //      val l      = List( 60, 48, 29, 47 )
-      println( l )
 
-      l.take( 25 ).foreach( ll.add( _ ))
-      l.foreach { i =>
+//      val l25 = l.take( 12 )
+      val l25 = List(60, 48, 29, 47, 15, 53, 91, 61, 19, 54, 77) // , 77
+      println( l25 /* .sorted */)
+
+      l25.foreach( ll.add( _ ))
+      l25.foreach { i =>
 //         if( i == 19 ) {
 //            println( "HERE" )
 //         }
          ha.add( i )
       }
+ha.add( 77 )
+
+      println( l /* .sorted */)
       l.foreach( ha2.add( _ ))
       l.foreach( ha3.add( _ ))
 
