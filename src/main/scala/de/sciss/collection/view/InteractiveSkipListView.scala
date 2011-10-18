@@ -30,9 +30,9 @@ package de.sciss.collection
 package view
 
 import java.awt.event.{ActionListener, ActionEvent}
-import javax.swing.{WindowConstants, JFrame, JTextField, JButton, JPanel}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
 import mutable.{HASkipList, LLSkipList, SkipList}
+import javax.swing.{BorderFactory, WindowConstants, JFrame, JTextField, JButton, JPanel}
 
 /**
  * Simple GUI app to probe the LLSkipList interactively.
@@ -83,6 +83,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
    }
 
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
+//slv.setBorder( BorderFactory.createLineBorder( Color.red, 2 ))
 
    add( slv, BorderLayout.CENTER )
    private val p = new JPanel( new FlowLayout() )
@@ -99,7 +100,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
    }
    private val ggNum = new JTextField( 2 )
    p.add( ggNum )
-   private def tryNum( fun: Int => Unit ) { try { val i = ggNum.getText().toInt; fun( i )} catch { case nfe: NumberFormatException => }}
+   private def tryNum( fun: Int => Unit ) { try { val i = ggNum.getText.toInt; fun( i )} catch { case nfe: NumberFormatException => }}
    private val ggStatus = new JTextField( 12 )
    ggStatus.setEditable( false )
    private def status( str: String ) { ggStatus.setText( str )}

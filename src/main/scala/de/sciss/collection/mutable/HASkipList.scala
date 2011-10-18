@@ -39,11 +39,7 @@ import annotation.tailrec
  *
  * It uses the horizontal array technique with a parameter for k (minimum gap size)
  *
- * XXX todo: verify the structure doesn't get damaged when we try to insert an existing key
- *
- * XXX todo: there is currently a bug with minGap = 1, resulting in keys occasionally being
- * stored twice in successive bottom bins. UPDATE: this is probably just from the same key
- * inserted repeatedly!
+ * XXX todo: removal is not yet implemented
  */
 object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
@@ -53,7 +49,6 @@ object HASkipList {
    def empty[ A ]( minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = SkipList.NoKeyObserver )
                  ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
       require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
-      if( minGap == 1 ) println( "WARNING: HASkipList implementation currently broken for minGap = 1" )
       new Impl( maxKey.value, minGap, keyObserver )
    }
 
@@ -85,8 +80,8 @@ object HASkipList {
       }
 
       def height : Int = {
-         val x = new Nav
-         var i = -1; while( !x.isBottom ) { x.moveDown; i += 1 }
+         var x: NodeImpl = Head.downNode
+         var i = 0; while( !x.isBottom ) { x = x.down( 0 ); i += 1 }
          i
       }
 
@@ -94,133 +89,98 @@ object HASkipList {
 
       def isomorphicQuery( compare: A => Int ) : A = error( "not yet implemented" )
 
-      // a kind of finger to navigate through
-      // the data structure
-      final class Nav {
-         var node: NodeImpl = Head
-         var idx: Int = 0
-         def isBottom : Boolean = node.isBottom
-//         def isHead : Boolean = node eq head
-         def key : A = node.key( idx )
-         def moveRight( key: A ) : Boolean = {
-            while( ordering.gt( key, node.key( idx ))) idx += 1
-            ordering.equiv( key, node.key( idx ))
-         }
-         def moveDown {
-            node  = node.down( idx )
-            idx   = 0
-         }
-
-         def copy( target: Nav ) {
-            target.node = node
-            target.idx  = idx
-         }
-
-         def isFull : Boolean = node.size == arrSize
-
-//         /**
-//          * Splits the current node, and
-//          * returns the right hand side
-//          * as a new node. This nav will
-//          * remain positioned at the
-//          * old node which is shrunk to
-//          * the left hand side. We assume
-//          * that the index is 0, so make
-//          * sure this condition is met!
-//          */
-//         def split : Branch = node.split
-
-         def splitChild( key: A, ch: Nav ) {
-            val left       = ch.node
-            val right      = left.split
-            val splitKey   = left.key( arrMid )
-            if( node eq Head ) {
-               val n             = new Branch
-               n.keyArr( 0 )     = splitKey
-               n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
-               n.downArr( 0 )    = left
-               n.downArr( 1 )    = right
-               n.size            = 2
-               Head.downNode     = n
-//println( "splitting below head; new node has size " + n.size + " ; ch.node.size (left) " + ch.node.size + " ; ch.idx " + ch.idx )
-               node              = n
-            } else {
-               val n             = node.asNode
-               val i1            = idx + 1
-//println( "splitting into parent; new node has old size " + n.size )
-               System.arraycopy( n.keyArr, idx, n.keyArr, i1, n.size - idx )
-               val num           = n.size - i1
-               if( num > 0 ) System.arraycopy( n.downArr, i1, n.downArr, i1 + 1, num )
-               n.keyArr( idx )   = splitKey
-               // this is already the case:
-//               n.downArr( idx )  = left
-               n.downArr( i1 )   = right
-               n.size           += 1
-            }
-            // important: if the current key of the parent
-            // is greater or equal than the splitKey,
-            // we must update the child navigation accordingly,
-            // beause it means we are now traversing the right
-            // half!
-            if( ordering.gteq( key, splitKey )) ch.node = right
-
-            // notify observer
-            keyObserver.keyUp( splitKey )
-         }
-
-         /**
-          * Inserts the key and value at
-          * the current index into the
-          * current node which is assumed
-          * to be a leaf
-          */
-         def insert( key: A ) {
-            if( node eq Head ) {
-               val n             = new Leaf
-               n.keyArr( 0 )     = key
-               n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
-//               n.valArr( 0 )     = v
-               n.size            = 2
-               Head.downNode     = n
-//println( "inserting new leaf below head of new size " + n.size )
-//               node              = n
-            } else {
-               val n             = node.asLeaf
-//               val i1            = idx + 1
-//               val sz            = n.size - idx
-//println( "inserting in node of old size " + n.size + " where idx = " + idx )
-               System.arraycopy( n.keyArr, idx, n.keyArr, idx + 1, n.size - idx )
-//               System.arraycopy( n.valArr, idx, n.valArr, i1, sz )
-               n.keyArr( idx )   = key
-//               n.valArr( idx )   = v
-               n.size           += 1
-            }
-         }
-      }
-
       // ---- set support ----
 
-      def contains( key: A ) : Boolean = {
-//         val key  = keyFun( v )
-         val x    = new Nav
+      def contains( v: A ) : Boolean = {
+         if( ordering.gteq( v, maxKey )) return false
+         var x: NodeImpl = Head.downNode
          while( !x.isBottom ) {
-            if( x.moveRight( key )) return true
-            x.moveDown
+            var idx = 0
+            var cmp = ordering.compare( v, x.key( idx ))
+            while( cmp > 0 ) {
+               idx += 1
+               cmp  = ordering.compare( v, x.key( idx ))
+            }
+            if( cmp == 0 ) return true
+            x = x.down( idx )
          }
          false
       }
 
-      override def add( key: A ) : Boolean = {
+      override def add( v: A ) : Boolean = {
+         require( ordering.lt( v, maxKey ), "Cannot add key (" + v + ") greater or equal to maxKey" )
 //         val key  = keyFun( v )
-         val x    = new Nav
-         val x0   = new Nav
-         do {
-            if( x.moveRight( key )) return false // key was already present; XXX should replace though!
-            x.copy( x0 )
-            x.moveDown
-            if( x.isFull ) x0.splitChild( key, x )
-         } while( !x.isBottom )
-         x0.insert( key )
+         var pn: NodeImpl = Head
+         var sn   = Head.downNode
+         var pidx = 0
+         while( !sn.isBottom ) {
+            var idx = 0
+            var cmp = ordering.compare( v, sn.key( idx ))
+            while( cmp > 0 ) {
+               idx += 1
+               cmp = ordering.compare( v, sn.key( idx ))
+            }
+            if( cmp == 0 ) return false
+
+            if( sn.isFull ) {
+               // ---- BEGIN SPLIT ----
+               val left       = sn
+               val right      = left.split()
+               val splitKey   = left.key( arrMid )
+               if( pn eq Head ) {
+                  val n             = new Branch
+                  n.keyArr( 0 )     = splitKey
+                  n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
+                  n.downArr( 0 )    = left
+                  n.downArr( 1 )    = right
+                  n.size            = 2
+                  Head.downNode     = n
+               } else {
+                  val n             = pn.asBranch
+                  val i1            = pidx + 1
+                  System.arraycopy( n.keyArr, pidx, n.keyArr, i1, n.size - pidx )
+                  val num           = n.size - i1
+                  if( num > 0 ) System.arraycopy( n.downArr, i1, n.downArr, i1 + 1, num )
+                  n.keyArr( pidx )  = splitKey
+                  // this is already the case:
+//               n.downArr( idx )  = left
+                  n.downArr( i1 )   = right
+                  n.size           += 1
+               }
+
+               // notify observer
+               keyObserver.keyUp( splitKey )
+
+               // important: if the current key of the parent
+               // is greater or equal than the splitKey,
+               // we must update the child navigation accordingly,
+               // beause it means we are now traversing the right
+               // half!
+               if( idx >= left.size ) {
+                  sn    = right
+                  idx  -= left.size
+               }
+               // ---- END SPLIT ----
+            }
+            pn    = sn
+            sn    = sn.down( idx )
+            pidx  = idx
+         }
+
+         // ---- BEGIN INSERT ----
+         if( pn eq Head ) {
+            val n             = new Leaf
+            n.keyArr( 0 )     = v
+            n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
+            n.size            = 2
+            Head.downNode     = n
+         } else {
+            val n             = pn.asLeaf
+            System.arraycopy( n.keyArr, pidx, n.keyArr, pidx + 1, n.size - pidx )
+            n.keyArr( pidx )  = v
+            n.size           += 1
+         }
+         // ---- END INSERT ----
          true
       }
 
@@ -273,10 +233,12 @@ object HASkipList {
           * as a new node. This old node
           * is shrunk to the left hand side
           */
-         def split : NodeImpl
+         def split() : NodeImpl
 
-         def asNode : Branch
+         def asBranch : Branch
          def asLeaf : Leaf
+
+         def isFull = size == arrSize
       }
 
       sealed trait BranchOrLeaf extends NodeImpl {
@@ -285,12 +247,15 @@ object HASkipList {
          def key( i: Int ) : A = keyArr( i )
          def isBottom   = false
 //         def isHead     = false
+
+         protected final def toString( name: String ) : String =
+            keyArr.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
       }
 
-      class Leaf extends BranchOrLeaf {
+      final class Leaf extends BranchOrLeaf {
 //         var valArr  = new Array[ A ]( arrSize )
          def down( i: Int ) : NodeImpl = Bottom
-         def split : NodeImpl = {
+         def split() : NodeImpl = {
             val res     = new Leaf
             val roff    = arrMid + 1
             val rsz     = size - roff
@@ -301,14 +266,16 @@ object HASkipList {
             size        = roff
             res
          }
-         def asNode : Branch = notSupported
+         def asBranch : Branch = notSupported
          def asLeaf : Leaf = this
+
+         override def toString = toString( "Leaf" )
       }
 
-      class Branch extends BranchOrLeaf {
+      final class Branch extends BranchOrLeaf {
          var downArr = new Array[ NodeImpl ]( arrSize )
          def down( i: Int ) : NodeImpl = downArr( i )
-         def split : NodeImpl = {
+         def split() : NodeImpl = {
             val res     = new Branch
             val roff    = arrMid + 1
             val rsz     = size - roff
@@ -319,15 +286,17 @@ object HASkipList {
             size        = roff
             res
          }
-         def asNode : Branch = this
+         def asBranch : Branch = this
          def asLeaf : Leaf = notSupported
+
+         override def toString = toString( "Branch" )
       }
 
       private def notSupported = throw new IllegalArgumentException()
 
       sealed trait HeadOrBottom extends NodeImpl {
-         def split : NodeImpl  = notSupported
-         def asNode : Branch  = notSupported
+         def split() : NodeImpl  = notSupported
+         def asBranch : Branch  = notSupported
          def asLeaf : Leaf    = notSupported
       }
 
@@ -338,6 +307,8 @@ object HASkipList {
          val size = 1
          val isBottom   = false
 //         val isHead     = true
+
+         override def toString = "Head"
       }
 
       object Bottom extends HeadOrBottom {
@@ -346,6 +317,8 @@ object HASkipList {
          val size = 0
          val isBottom   = true
 //         val isHead     = false
+
+         override def toString = "Bottom"
       }
    }
 }

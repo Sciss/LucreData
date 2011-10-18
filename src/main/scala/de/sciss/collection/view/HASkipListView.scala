@@ -35,14 +35,17 @@ import java.awt.{Color, Point, Rectangle, Dimension, Graphics2D}
 class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView[ A ] {
    private var boxMap = Map.empty[ HASkipList.Node[ A ], NodeBox ]
 
-   {
-      val n = l.top
-      if( !n.isBottom ) {
+   setPreferredSize( rebuildMap() match {
+      case Some( bb )   => new Dimension( bb.r.width + 9, bb.r.height + 9 )
+      case None         => new Dimension( 54, 54 )
+   })
+
+   private def rebuildMap() : Option[ Box  ] = {
+      boxMap = boxMap.empty
+      if( l.top.isBottom ) None else {
          val bb = buildBoxMap( l.top )
          bb.moveTo( 0, 0 )
-         setPreferredSize( new Dimension( bb.r.width + 9, bb.r.height + 9 ))
-      } else {
-         setPreferredSize( new Dimension( 54, 54 ))
+         Some( bb )
       }
    }
 
@@ -57,11 +60,13 @@ class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView[ A ] {
    }
 
    protected def paintList( g2: Graphics2D ) {
+      rebuildMap()
       drawNode( g2, l.top )
    }
 
    private def drawNode( g2: Graphics2D, n: HASkipList.Node[ A ], arr: Option[ Point ] = None ) {
       boxMap.get( n ).foreach { b =>
+         g2.setColor( Color.black )
          g2.draw( b.r )
          val x = b.r.x
          val y = b.r.y
