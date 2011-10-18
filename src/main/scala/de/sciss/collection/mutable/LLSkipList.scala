@@ -52,19 +52,19 @@ object LLSkipList {
       // XXX fucking shit : scala has a specialization bug; we needed to add lazy here when Node was an instance trait of
       // LLSkipList -- now that we have put Node back into the object, the access error is gone again.
 
-      val bottom= {
+      val bottom = {
          val res     = new NodeImpl
          res.right   = res // so that we can safely call r infinitely
          res.down    = res // dito
          res
       }
-      val tl    = {
+      val tl = {
          val res     = new NodeImpl
          res.key     = maxKey
          res.right   = res // so that we can safely call r infinitely
          res
       }
-      var hd         = {
+      var hd = {
          val res     = new NodeImpl
          res.key     = maxKey
          res.down    = bottom

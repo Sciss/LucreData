@@ -118,7 +118,7 @@ object MarkedAncestors extends App {
 
          def toDot( nodeLabel: SimpleTree[ L ] => String = n => ("label=" + n.label),
                     edgeLabel: (SimpleTree[ L ], SimpleTree[ L ]) => Option[ String ] = (_, _) => None ) : String = {
-            var sb = new StringBuilder()
+            val sb = new StringBuilder()
             sb.append( "digraph Tree {\n" )
 //            children.foldLeft( 0 )( (id, ch) => ch.appendDot( 0, id, sb ))
             appendDot( (this, -1), 0, sb, nodeLabel, edgeLabel )
@@ -133,7 +133,7 @@ object MarkedAncestors extends App {
             val (parent, pid) = p
             if( pid >= 0 ) {
                sb.append( "  " + pid + " -> " + id + (edgeLabel( parent, this ) match {
-                  case Some( str ) => " [" + str + "]\n"
+                  case Some( _str ) => " [" + _str + "]\n"
                   case None => "\n"
                }))
             }

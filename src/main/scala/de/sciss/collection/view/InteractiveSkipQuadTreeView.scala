@@ -46,7 +46,7 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      QuadTreeTest.addPDFExport[ SkipQuadTreeView[ PointLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
+      PDFSupport.addMenu[ SkipQuadTreeView[ PointLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
       f.setVisible( true )
    }
 }

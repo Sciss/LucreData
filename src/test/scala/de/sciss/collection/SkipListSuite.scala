@@ -13,8 +13,8 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
 
    val rnd   = new util.Random()
 
-   if( LL ) withList( "LL", oo => LLSkipList.empty[ Int ]( oo.getOrElse( new SkipList.NoKeyObserver[ Int ])))
-   if( HA ) withList( "HA", oo => HASkipList.empty[ Int ]( keyObserver = oo.getOrElse( new SkipList.NoKeyObserver[ Int ])))
+   if( LL ) withList( "LL", oo => LLSkipList.empty[ Int ]( oo.getOrElse( SkipList.NoKeyObserver )))
+   if( HA ) withList( "HA", oo => HASkipList.empty[ Int ]( keyObserver = oo.getOrElse( SkipList.NoKeyObserver )))
 
    def randFill( l: SkipList[ Int ], s: MSet[ Int ]) {
       given( "a randomly filled structure" )

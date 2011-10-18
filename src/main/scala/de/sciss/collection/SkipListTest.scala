@@ -29,10 +29,10 @@
 package de.sciss.collection
 
 import mutable.{HASkipList, LLSkipList, SkipList}
-import view.{HASkipListView, LLSkipListView}
 import javax.swing.{JComponent, JLabel, BoxLayout, Box, WindowConstants, JFrame}
 import java.awt.EventQueue
 import collection.immutable.IntMap
+import view.{PDFSupport, HASkipListView, LLSkipListView}
 
 object SkipListTest extends App with Runnable {
    val n = 50  // <= 25 to show the same list for the LL implementation!
@@ -111,6 +111,9 @@ object SkipListTest extends App with Runnable {
       addBox( hav,  "HA 1-3 DSL" )
       addBox( hav2, "HA 2-5 DSL" )
       addBox( hav3, "HA 6-13 DSL" )
+
+      PDFSupport.addMenu( f, Seq( llv, hav, hav2, hav3 ))
+
       f.pack()
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
       f.setLocationRelativeTo( null )

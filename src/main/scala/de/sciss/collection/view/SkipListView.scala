@@ -32,10 +32,12 @@ import javax.swing.JComponent
 import java.awt.{RenderingHints, Graphics2D, Graphics, Font, Color}
 import java.awt.geom.{AffineTransform, GeneralPath}
 
-abstract class SkipListView extends JComponent {
+abstract class SkipListView[ A ] extends JComponent {
    setBackground( Color.white )
    setForeground( Color.black )
    setFont( new Font( "Serif", Font.ITALIC, 15 ))
+
+   var highlight = Map.empty[ A, Color ]
 
    override def paintComponent( g: Graphics ) {
       val g2      = g.asInstanceOf[ Graphics2D ]
@@ -43,7 +45,7 @@ abstract class SkipListView extends JComponent {
       g2.fillRect( 0, 0, getWidth, getHeight )
       g2.setColor( getForeground )
       g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON )
-      var atOrig  = g2.getTransform
+      val atOrig  = g2.getTransform
       g2.translate( 4, 4 )
       paintList( g2 )
       g2.setTransform( atOrig )

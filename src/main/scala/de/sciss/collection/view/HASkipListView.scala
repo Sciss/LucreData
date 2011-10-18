@@ -29,10 +29,10 @@
 package de.sciss.collection
 package view
 
-import java.awt.{Point, Rectangle, Dimension, Graphics2D}
 import mutable.HASkipList
+import java.awt.{Color, Point, Rectangle, Dimension, Graphics2D}
 
-class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView {
+class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView[ A ] {
    private var boxMap = Map.empty[ HASkipList.Node[ A ], NodeBox ]
 
    {
@@ -78,6 +78,7 @@ class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView {
             val x1      = x + (i * 23)
             val key     = n.key( i )
             val keyStr  = if( key == Int.MaxValue ) "M" else key.toString
+            g2.setColor( highlight.getOrElse( key, Color.black ))
             g2.drawString( keyStr, x1 + 4, y + 17 )
             drawNode( g2, n.down( i ), Some( new Point( x1 + 11, y + 36 )))
          }

@@ -33,13 +33,13 @@ import java.awt.geom.GeneralPath
 import java.awt.{Color, Dimension, Graphics2D}
 import mutable.LLSkipList
 
-class LLSkipListView[ A ]( l: LLSkipList[ A ]) extends SkipListView {
+class LLSkipListView[ A ]( l: LLSkipList[ A ]) extends SkipListView[ A ] {
    private val ord = l.ordering
    private val mx  = l.maxKey
 
    setPreferredSize( new Dimension( (l.size + 1) * 64 + 16, l.height * 64 + 16 ))
 
-   var highlight = Map.empty[ A, Color ] // Option.empty[ A ]
+//   var highlight = Map.empty[ A, Color ] // Option.empty[ A ]
 
    protected def paintList( g2: Graphics2D ) {
       var x = l.top

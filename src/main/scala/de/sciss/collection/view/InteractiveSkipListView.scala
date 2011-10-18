@@ -32,7 +32,7 @@ package view
 import java.awt.event.{ActionListener, ActionEvent}
 import javax.swing.{WindowConstants, JFrame, JTextField, JButton, JPanel}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
-import mutable.{LLSkipList, SkipList}
+import mutable.{HASkipList, LLSkipList, SkipList}
 
 /**
  * Simple GUI app to probe the LLSkipList interactively.
@@ -40,23 +40,48 @@ import mutable.{LLSkipList, SkipList}
 object InteractiveSkipListView extends App with Runnable {
    EventQueue.invokeLater( this )
    def run() {
+      val mode = args.toSeq match {
+         case Seq( "-a", sz ) => HA( sz.toInt )
+         case _ => LL
+      }
+
       val f    = new JFrame( "SkipList" )
 //      f.setResizable( false )
       val cp   = f.getContentPane
-      val iv   = new InteractiveSkipListView
+      val iv   = new InteractiveSkipListView( mode )
       cp.add( iv, BorderLayout.CENTER )
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
       f.setVisible( true )
    }
+
+   sealed trait Mode
+   case object LL extends Mode
+   final case class HA( gap: Int ) extends Mode
 }
-class InteractiveSkipListView extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
+class InteractiveSkipListView( mode: InteractiveSkipListView.Mode )
+extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
+   view =>
+
+   import InteractiveSkipListView._
+
 //   private var obsSet = Set.empty[ Int ]
    private var obsUp = IndexedSeq.empty[ Int ]
    private var obsDn = IndexedSeq.empty[ Int ]
-   val l    = LLSkipList.empty[ Int ]( keyObserver =  this )
-   val slv  = new LLSkipListView( l )
+
+   val (l, slv) = mode match {
+      case LL =>
+         val _l   = LLSkipList.empty[ Int ]( keyObserver = this )
+         val _slv = new LLSkipListView( _l )
+         (_l, _slv)
+
+      case HA( gap ) =>
+         val _l   = HASkipList.empty[ Int ]( minGap = gap, keyObserver = view )
+         val _slv = new HASkipListView( _l )
+         (_l, _slv)
+   }
+
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
 
    add( slv, BorderLayout.CENTER )
