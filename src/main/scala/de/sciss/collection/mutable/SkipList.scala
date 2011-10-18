@@ -51,7 +51,7 @@ object SkipList {
     * A trait for observing the promotion and demotion of a key
     * in the skip list's level hierarchy
     */
-   trait KeyObserver[ /* @specialized( Int, Long ) */ A ] {
+   trait KeyObserver[ /* @specialized( Int, Long ) */ -A ] {
       /**
        * Notifies the observer that a given key
        * is promoted to a higher (more sparse) level
@@ -64,9 +64,9 @@ object SkipList {
       def keyDown( key : A ) : Unit
    }
 
-   final class NoKeyObserver[ /* @specialized( Int, Long ) */ A ] extends KeyObserver[ A ] {
-      def keyUp( key : A ) {}
-      def keyDown( key : A ) {}
+   object NoKeyObserver extends KeyObserver[ Any ] {
+      def keyUp( key : Any ) {}
+      def keyDown( key : Any ) {}
    }
 }
 // XXX java.lang.NullPointerException at scala.tools.nsc.typechecker.Namers$Namer.enterSym(Namers.scala:404)

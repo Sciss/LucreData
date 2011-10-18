@@ -49,7 +49,7 @@ object HASkipList {
 //      new Impl[ B, A ]( minGap, key maxKey )
 
    def empty[ A : Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty()
-   def empty[ A ]( minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ])
+   def empty[ A ]( minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = SkipList.NoKeyObserver )
                  ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
       require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
       if( minGap == 1 ) println( "WARNING: HASkipList implementation currently broken for minGap = 1" )

@@ -1,5 +1,3 @@
-package de.sciss.collection.mutable
-
 /*
  *  TotalOrder.scala
  *  (TreeTests)
@@ -27,6 +25,8 @@ package de.sciss.collection.mutable
  *
  *  Changelog:
  */
+
+package de.sciss.collection.mutable
 
 /**
  * A data structure to maintain an ordered sequence of elements such
@@ -79,7 +79,7 @@ object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
 
       def isHead : Boolean = prev == null
       def isLast : Boolean = next.isEnd
-      def isEnd : Boolean = next eq this
+      def isEnd : Boolean  = next eq this
 
 //      /**
 //       * Compares the positions of x and y in the sequence

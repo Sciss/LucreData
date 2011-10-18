@@ -317,7 +317,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 //            }
 //            val point = iso.topRight
 //
-            val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare(  child.pre  )).getOrElse( 1 )}
+            val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare( child.pre  )).getOrElse( 1 )}
             val postIso = mPostList.isomorphicQuery { e => postTagIsoMap.get( e ).map( _.compare( child.post )).getOrElse( 1 )}
             val atPreIso= preTagIsoMap.get( preIso )
             val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1

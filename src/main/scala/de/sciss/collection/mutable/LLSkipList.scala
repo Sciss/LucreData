@@ -35,7 +35,7 @@ package mutable
  */
 object LLSkipList {
    def empty[ A : Ordering : MaxKey ] : LLSkipList[ A ] = empty()
-   def empty[ A ]( keyObserver: SkipList.KeyObserver[ A ] = new SkipList.NoKeyObserver[ A ])
+   def empty[ A ]( keyObserver: SkipList.KeyObserver[ A ] = SkipList.NoKeyObserver )
                  ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ]) : LLSkipList[ A ] =
       new Impl( maxKey.value, keyObserver )
 
