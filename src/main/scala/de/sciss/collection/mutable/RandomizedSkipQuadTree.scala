@@ -43,7 +43,7 @@ object RandomizedSkipQuadTree {
       t
    }
 
-   private def unsupportedOp : Nothing = error( "Operation not supported" )
+//   private def unsupportedOp : Nothing = error( "Operation not supported" )
 
 //   private object TreeImpl {
 //      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
@@ -200,20 +200,20 @@ object RandomizedSkipQuadTree {
          def compare( that: VisitedNode ) = -(minDist.compareTo( that.minDist ))
       }
 
-      private def identify( n: Node ) : String = {
-         val nq      = n.quad
-         val names   = Array( "NE", "NW", "SW", "SE" )
-         val lb      = IndexedSeq.newBuilder[ String ]
-         @tailrec def add( quad: Quad ) {
-            val idx = quad.indexOf( nq )
-            if( idx >= 0 ) {
-               lb += names( idx )
-               add( quad.quadrant( idx ))
-            }
-         }
-         add( quad )
-         lb.result().mkString( " -> " )
-      }
+//      private def identify( n: Node ) : String = {
+//         val nq      = n.quad
+//         val names   = Array( "NE", "NW", "SW", "SE" )
+//         val lb      = IndexedSeq.newBuilder[ String ]
+//         @tailrec def add( quad: Quad ) {
+//            val idx = quad.indexOf( nq )
+//            if( idx >= 0 ) {
+//               lb += names( idx )
+//               add( quad.quadrant( idx ))
+//            }
+//         }
+//         add( quad )
+//         lb.result().mkString( " -> " )
+//      }
 
       override def nearestNeighbor( point: PointLike, metric: DistanceMeasure ) : A = {
          val res = nn( point, metric )

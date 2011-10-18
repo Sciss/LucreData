@@ -5,7 +5,6 @@ import mutable.{SkipQuadTree, RandomizedSkipQuadTree, DeterministicSkipQuadTree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
-import sys.error
 
 /**
  * To run this test copy + paste the following into sbt:

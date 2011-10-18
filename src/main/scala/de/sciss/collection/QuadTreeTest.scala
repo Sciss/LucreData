@@ -37,7 +37,9 @@ import com.itextpdf.text.pdf.PdfWriter
 import com.itextpdf.text.{Document => IDocument, Rectangle => IRectangle}
 import java.io.{FileOutputStream, File}
 import java.awt.{Graphics2D, Graphics, Component, FileDialog, EventQueue}
-import javax.swing.{DefaultListCellRenderer, JScrollPane, JList, SwingConstants, Action, JOptionPane, Icon, JLabel, AbstractAction, JMenu, JMenuBar, JMenuItem, BoxLayout, JComponent, WindowConstants, JFrame}
+import javax.swing.{DefaultListCellRenderer, JScrollPane, JList, Action, JOptionPane, Icon, AbstractAction, JMenu,
+   JMenuBar, JMenuItem, BoxLayout, JComponent, WindowConstants, JFrame}
+
 object QuadTreeTest extends App {
    args.headOption match {
       case Some( "-fig1" ) => new Figure1

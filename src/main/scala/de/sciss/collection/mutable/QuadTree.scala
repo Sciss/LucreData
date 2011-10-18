@@ -95,10 +95,10 @@ object QuadTree {
          val e = quad.extent
          require( d.x >= -e && d.x < e && d.y >= -e && d.y < e )
          quad match {
-            case QEmpty( center, extent ) => QLeaf( center, extent, point, value )
+            case QEmpty( _c, _e ) => QLeaf( _c, _e, point, value )
             case t: QNode[ _ ] => t.insert( point, value ); t
-            case QLeaf( center, extent, point2, value2 ) =>
-               val t = QuadTree[ V ]( center, extent )
+            case QLeaf( _c, _e, point2, value2 ) =>
+               val t = QuadTree[ V ]( _c, _e )
                t.insert( point2, value2 )
                t.insert( point, value )
                t

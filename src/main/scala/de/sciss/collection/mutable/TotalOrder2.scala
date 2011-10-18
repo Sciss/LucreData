@@ -28,7 +28,7 @@ package de.sciss.collection.mutable
  *  Changelog:
  */
 
-import collection.mutable.{ Builder, DoubleLinkedListLike, LinearSeq => MLinearSeq, Seq => MSeq }
+import collection.mutable.{ Builder, DoubleLinkedListLike, LinearSeq => MLinearSeq}
 import collection.generic.{SeqFactory, GenericCompanion, GenericTraversableTemplate}
 import sys.error // suckers
 

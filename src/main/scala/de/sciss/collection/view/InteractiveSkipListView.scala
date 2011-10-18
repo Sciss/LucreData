@@ -32,7 +32,6 @@ package view
 import java.awt.event.{ActionListener, ActionEvent}
 import javax.swing.{WindowConstants, JFrame, JTextField, JButton, JPanel}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
-import collection.breakOut
 import mutable.{LLSkipList, SkipList}
 
 /**
@@ -40,7 +39,7 @@ import mutable.{LLSkipList, SkipList}
  */
 object InteractiveSkipListView extends App with Runnable {
    EventQueue.invokeLater( this )
-   def run {
+   def run() {
       val f    = new JFrame( "SkipList" )
 //      f.setResizable( false )
       val cp   = f.getContentPane

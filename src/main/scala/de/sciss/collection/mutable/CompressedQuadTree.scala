@@ -30,7 +30,6 @@ package de.sciss.collection
 package mutable
 
 import annotation.tailrec
-import sys.error
 import geom.{PointLike, Quad}
 
 object CompressedQuadTree {

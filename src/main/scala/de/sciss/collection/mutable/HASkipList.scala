@@ -246,7 +246,7 @@ object HASkipList {
          }
 
          def hasNext : Boolean = !ordering.equiv( x.key( idx ), maxKey )
-         def next : A = {
+         def next() : A = {
             val res = x.key( idx )
             idx += 1
             if( idx == x.size ) {

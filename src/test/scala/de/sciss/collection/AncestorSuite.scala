@@ -33,11 +33,10 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : V
 
-      trait VertexLike
-      extends PointLike {
-         val value: A
-         val pre: preOrder.Entry
-         val post: postOrder.Entry
+      trait VertexLike extends PointLike {
+         def value: A
+         def pre: preOrder.Entry
+         def post: postOrder.Entry
          def x: Int = pre.tag
          def y: Int = post.tag
          override def toString = "Vertex(" + value + ", " + x + ", " + y + ")"

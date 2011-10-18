@@ -29,8 +29,6 @@
 package de.sciss.collection
 package mutable
 
-import sys.error
-
 /**
  * A deterministic 1-3 skip list implemented using a linked list with
  * 'drawn back keys', as described by T. Papadakis.

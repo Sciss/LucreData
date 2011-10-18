@@ -28,8 +28,6 @@ package de.sciss.collection.geom
  *  Changelog:
  */
 
-import sys.error
-
 trait QueryShape {
    def overlapArea( q: Quad ) : Long
    def area : Long

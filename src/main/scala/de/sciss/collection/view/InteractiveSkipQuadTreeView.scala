@@ -263,7 +263,7 @@ class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
    private val ggStatus = new JTextField( 18 )
    ggStatus.setEditable( false )
    private def status( str: String ) { ggStatus.setText( str )}
-   private val colrGreen = new Color( 0x00, 0xA0, 0x00 )
+//   private val colrGreen = new Color( 0x00, 0xA0, 0x00 )
 
 //   butAddRemove( "Add" )( t.add( _ ))
 //   butAddRemove( "Remove" )( l.remove( _ ))
