@@ -192,7 +192,7 @@ object HASkipList {
          // prevents infinite loop if user provided a surmountable maxKey, or if v == maxKey
          if( ordering.gteq( v, maxKey )) return false
 
-         var pn: NodeImpl  = Head
+//         var pn: NodeImpl  = Head
          var x             = Head.downNode
          var success       = !x.isBottom
 //         bottom.key        = v
@@ -210,7 +210,7 @@ println()
                idx  += 1
                cmp   = ordering.compare( v, x.key( idx ))
             }
-            val d       = x.down( idx )
+            var d       = x.down( idx )
             val dIsBot  = d.isBottom
             var xKey    = x.key( idx )
 
@@ -218,20 +218,20 @@ println( "-0 step" )
             if( dIsBot ) {
 println( "--1 isBottom" )
                if( cmp == 0 ) {
-println( "---2 key found" )
+println( "---2 key found" )  // OK
                   val idx1 = idx + 1
                   val l = x.asLeaf
                   // replace x by its right neighbour
                   System.arraycopy( l.keyArr, idx1, l.keyArr, idx, l.size - idx1 )
                   l.size -= 1
                } else { // which means the key was not found
-println( "---3 key not found" )
+println( "---3 key not found" )  // OK
                   success = false
                }
             } else if( d.hasMinSize ) {   // we drop into gap G with size minGap
 println( "--4 drop into minimum gap" )
                if( !ordering.equiv( xKey, lastAbove )) { // if does NOT drop in last gap -> merge or borrow to the right
-println( "---5 not last gap : merge/borrow right" )
+println( "---5 not last gap : merge/borrow right" )  // OK
 //                  val xSucc = x.right // now the gap G is between x and xSucc
                   // if minGap elems in next gap G' (aka xSucc.down.right),
                   // or at bottom level --> merge G and G', by lowering the element
@@ -242,7 +242,7 @@ println( "---5 not last gap : merge/borrow right" )
                   xKey              = x.key( idx1 )
                   val rightSibling  = x.down( idx1 ) // .asBranch
                   if( rightSibling.hasMinSize ) {    // i.e. G' has size minGap -- merge
-println( "----6 merge right" )
+println( "----6 merge right" )  // OK
                      val idx2 = idx1 + 1
                      // overwrite x.key, but keep x.down
                      System.arraycopy( b.keyArr,  idx1, b.keyArr,  idx,  b.size - idx1 )
@@ -261,7 +261,7 @@ println( "----6 merge right" )
                         bd.size  = arrMinSz + arrMinSz
                      }
                   } else {	   // if >minGap elems in next gap G' -- borrow
-println( "----7 borrow right" )
+println( "----7 borrow right" )  // OK
                      val upKey         = rightSibling.key( 0 ) // raise 1st elem in next gap & lower...
                      b.keyArr( idx )   = upKey
                      // ... separator of current+next gap
@@ -290,17 +290,37 @@ println( "----7 borrow right" )
 println( "---8 last gap : merge/borrow left" )
                   val idx1          = idx - 1
                   val leftSibling   = x.down( idx1 )
-//                  val pdr     = xPred.down.right
                   val dnKey         = x.key( idx1 ) // xPred.key
-//                  if( ordering.lteq( dnKey, pdr.key )) { ... }
                   if( leftSibling.hasMinSize ) { // if only minGap elems in previous gap --> merge
 println( "----9 merge left" )
-//                     if( dIsBot ) { // if del_Key is in elem of height > 1
-//                        multiPrev = dnKey  // predecessor of del_key at bottom level
-//                     } else {
+                     if( dIsBot ) { // if del_Key is in elem of height > 1
+                        multiPrev = dnKey  // predecessor of del_key at bottom level
+sys.error( "TODO" )
+                     } else {
                         keyObserver.keyDown( dnKey )
-//                     }
-                     sys.error( "TODO" )
+                     }
+                     val b = x.asBranch   // XXX this could be factored out and go up one level\
+assert( idx == b.size - 1 )
+//                     System.arraycopy( b.keyArr, idx, b.keyArr, idx1, b.size - idx )
+                     b.keyArr( idx1 ) = xKey
+                     b.size -= 1
+                     if( leftSibling.isLeaf ) {
+                        val lls  = leftSibling.asLeaf
+                        val ld   = d.asLeaf
+                        val szld = ld.size
+                        System.arraycopy( ld.keyArr, 0, lls.keyArr, arrMinSz, szld )
+                        lls.size  = arrMinSz + szld
+                     } else {
+                        val bls = leftSibling.asBranch
+                        val bd   = d.asBranch
+                        val szbd = bd.size
+                        System.arraycopy( bd.keyArr,  0, bls.keyArr,  arrMinSz, szbd )
+                        System.arraycopy( bd.downArr, 0, bls.downArr, arrMinSz, szbd )
+                        bls.size  = arrMinSz + szbd
+                     }
+                     d = leftSibling
+
+
 //                     xPred.right = x.right      // lower separator of previous+current gap
 //                     xPred.key   = xKey
 //                     x           = xPred
