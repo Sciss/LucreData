@@ -239,6 +239,7 @@ println( "---5 not last gap : merge/borrow right" )
                   val idx1 = idx + 1
                   keyObserver.keyDown( xKey )
                   val b             = x.asBranch
+                  xKey              = x.key( idx1 )
                   val rightSibling  = x.down( idx1 ) // .asBranch
                   if( rightSibling.hasMinSize ) {    // i.e. G' has size minGap -- merge
 println( "----6 merge right" )
@@ -246,6 +247,7 @@ println( "----6 merge right" )
                      // overwrite x.key, but keep x.down
                      System.arraycopy( b.keyArr,  idx1, b.keyArr,  idx,  b.size - idx1 )
                      System.arraycopy( b.downArr, idx2, b.downArr, idx1, b.size - idx2 )
+                     b.size -= 1
                      if( d.isLeaf ) {
                         val ld   = d.asLeaf
                         val lrs  = rightSibling.asLeaf
@@ -254,8 +256,8 @@ println( "----6 merge right" )
                      } else {
                         val bd   = d.asBranch
                         val brs  = rightSibling.asBranch
-                        System.arraycopy( brs.keyArr,  0, bd.keyArr,  minGap, arrMinSz )
-                        System.arraycopy( brs.downArr, 0, bd.downArr, minGap, arrMinSz )
+                        System.arraycopy( brs.keyArr,  0, bd.keyArr,  arrMinSz, arrMinSz )
+                        System.arraycopy( brs.downArr, 0, bd.downArr, arrMinSz, arrMinSz )
                         bd.size  = arrMinSz + arrMinSz
                      }
                   } else {	   // if >minGap elems in next gap G' -- borrow

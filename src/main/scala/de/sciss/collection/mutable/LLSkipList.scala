@@ -82,6 +82,10 @@ object LLSkipList {
 
          def isBottom   = this eq bottom
          def isTail     = this eq tl
+
+         override def toString =
+            if( isBottom ) "B" else if( isTail ) "T" else (if( key == maxKey ) "M" else key.toString) +
+               (if( right.isTail ) "" else " -> " + right)
       }
 
       // ---- set support ----

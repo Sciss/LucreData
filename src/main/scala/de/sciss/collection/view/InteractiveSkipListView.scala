@@ -32,7 +32,7 @@ package view
 import java.awt.event.{ActionListener, ActionEvent}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
 import mutable.{HASkipList, LLSkipList, SkipList}
-import javax.swing.{BorderFactory, WindowConstants, JFrame, JTextField, JButton, JPanel}
+import javax.swing.{WindowConstants, JFrame, JTextField, JButton, JPanel}
 
 /**
  * Simple GUI app to probe the LLSkipList interactively.
@@ -117,8 +117,11 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
 //      if( obsUp.nonEmpty ) println( "Lvl up:   " + obsUp.mkString( ", " ))
    }}}
 
+Seq.tabulate( 9 )( i => l.add( (i+1) * 10 ))
    butAddRemove( "Add" )( l.add( _ ))
-   butAddRemove( "Remove" )( l.remove( _ ))
+   butAddRemove( "Remove" ) { key =>
+      l.remove( key )
+   }
 
    but( "Contains" ) { tryNum { i =>
       status( l.contains( i ).toString )
