@@ -210,25 +210,30 @@ object HASkipList {
             }
             val d       = x.down( idx )
             val dIsBot  = d.isBottom
-            val xKey    = x.key( idx )
+            var xKey    = x.key( idx )
             // the following holds, if either we drop into gap G with size minGap, or we reached the bottom level and v was found
             if( d.hasMinSize || (dIsBot && cmp == 0) ) { // i.e., either gap size is minGap, or we found the key in level 0
+println( "--1" )
                if( !ordering.equiv( xKey, lastAbove )) { // if does NOT drop in last gap -> merge or borrow to the right
+println( "---2" )
 //                  val xSucc = x.right // now the gap G is between x and xSucc
-                  // if 1 elem in next gap G' (aka xSucc.down.right),
+                  // if minGap elems in next gap G' (aka xSucc.down.right),
                   // or at bottom level --> merge G and G', by lowering the element
                   // between G and G', that is xSucc
                   val idx1 = idx + 1
                   if( dIsBot ) { // we found the key in level 0
+println( "----3" )
                      val l = x.asLeaf
                      // replace x by its right neighbour
                      System.arraycopy( l.keyArr, idx1, l.keyArr, idx, l.size - idx1 )
                      l.size -= 1
                   } else { // we're in level > 0, merge or borrow according to size of G''
+println( "----4" )
                      keyObserver.keyDown( xKey )
                      val b             = x.asBranch
                      val rightSibling  = x.down( idx1 ) // .asBranch
                      if( rightSibling.hasMinSize ) {    // i.e. G' has size minGap -- merge
+println( "-----5" )
                         val idx2 = idx1 + 1
                         // overwrite x.key, but keep x.down
                         System.arraycopy( b.keyArr,  idx1, b.keyArr,  idx,  b.size - idx1 )
@@ -236,61 +241,105 @@ object HASkipList {
                         if( d.isLeaf ) {
                            val ld   = d.asLeaf
                            val lrs  = rightSibling.asLeaf
-                           System.arraycopy( lrs.keyArr, 0, ld.keyArr, minGap, lrs.size )
-                           ld.size  = minGap + lrs.size
+                           System.arraycopy( lrs.keyArr, 0, ld.keyArr, arrMinSz, arrMinSz )
+                           ld.size  = arrMinSz + arrMinSz
                         } else {
                            val bd   = d.asBranch
                            val brs  = rightSibling.asBranch
-                           System.arraycopy( brs.keyArr,  0, bd.keyArr,  minGap, brs.size )
-                           System.arraycopy( brs.downArr, 0, bd.downArr, minGap, brs.size )
-                           bd.size  = minGap + brs.size
+                           System.arraycopy( brs.keyArr,  0, bd.keyArr,  minGap, arrMinSz )
+                           System.arraycopy( brs.downArr, 0, bd.downArr, minGap, arrMinSz )
+                           bd.size  = arrMinSz + arrMinSz
                         }
                      } else {	   // if >minGap elems in next gap G' -- borrow
-//                        val upKey   = rightSibling.key             // raise 1st elem in next gap & lower...
-//                        x.key       = upKey
-//                        xSucc.down  = sdr                // ... separator of current+next gap
-//                        keyObserver.keyUp( upKey )
-                        sys.error( "TODO" )
+println( "-----6" )
+                        val upKey         = rightSibling.key( 0 ) // raise 1st elem in next gap & lower...
+                        b.keyArr( idx )   = upKey
+                        // ... separator of current+next gap
+                        if( d.isLeaf ) {
+                           val ld   = d.asLeaf
+                           val lrs  = rightSibling.asLeaf
+//                           ld.keyArr( minGap ) = upKey
+                           ld.keyArr( arrMinSz ) = upKey
+                           ld.size  = arrMinSz + 1
+                           val szm1 = lrs.size - 1
+                           System.arraycopy( lrs.keyArr, 1, lrs.keyArr, 0, szm1 )
+                           lrs.size = szm1
+                        } else {
+                           val bd   = d.asBranch
+                           val brs  = rightSibling.asBranch
+//                           bd.keyArr( minGap ) = upKey
+                           bd.keyArr( arrMinSz ) = upKey
+                           bd.size  = arrMinSz + 1
+                           val szm1 = brs.size - 1
+                           System.arraycopy( brs.keyArr,  1, brs.keyArr,  0, szm1 )
+                           System.arraycopy( brs.downArr, 1, brs.downArr, 0, szm1 )
+                           brs.size = szm1
+                        }
+                        keyObserver.keyUp( upKey )
                      }
                   }
                } else {    // if DOES drop in last gap --> merge or borrow to the left
-                  sys.error( "TODO" )
+println( "---7" )
+                  val idx1          = idx - 1
+                  val leftSibling   = x.down( idx1 )
 //                  val pdr     = xPred.down.right
-//                  val dnKey   = xPred.key
-//                  if( ordering.lteq( dnKey, pdr.key )) { // if only 1 elm in previous gap --> merge ; XXX could be ordering.equiv ?
-//                     if( dIsBot ) { // if del_Key is in elem of height > 1
-//                        multiPrev = dnKey  // predecessor of del_key at bottom level
-//                     } else {
-//                        keyObserver.keyDown( dnKey )
-//                     }
+                  val dnKey         = x.key( idx1 ) // xPred.key
+//                  if( ordering.lteq( dnKey, pdr.key )) { ... }
+                  if( leftSibling.hasMinSize ) { // if only minGap elems in previous gap --> merge
+println( "----8" )
+                     if( dIsBot ) { // if del_Key is in elem of height > 1
+                        multiPrev = dnKey  // predecessor of del_key at bottom level
+                     } else {
+                        keyObserver.keyDown( dnKey )
+                     }
+                     sys.error( "TODO" )
 //                     xPred.right = x.right      // lower separator of previous+current gap
 //                     xPred.key   = xKey
 //                     x           = xPred
-//                  } else {    // if >= 2 elems in previous gap
-//                     // tmp = last elem in previous gap
-//                     val pdrr    = pdr.right
-//                     val tmp     = if( ordering.equiv( dnKey, pdrr.key )) pdr else pdrr
-//                     val upKey   = tmp.key
-//                     xPred.key   = upKey        // raise last elem in previous gap & lower...
+                  } else {    // if >minGap elems in previous gap --> borrow
+println( "----9" )
+//                     val dsz     = d.size
+                     val lssz1   = leftSibling.size - 1
+                     val upKey   = leftSibling.key( lssz1 - 1 )
+                     val b       = x.asBranch
+                     b.keyArr( idx1 ) = upKey   // raise last elem in previous gap & lower...
 //                     x.down      = tmp.right    // ... separator of previous+current gap
-//                     keyObserver.keyDown( dnKey )
-//                     keyObserver.keyUp( upKey )
-//                  }
+                     if( d.isLeaf ) {
+                        val ld   = d.asLeaf
+                        val lls  = leftSibling.asLeaf
+                        System.arraycopy( ld.keyArr, 0, ld.keyArr, 1, arrMinSz )
+                        ld.keyArr( 0 ) = dnKey
+                        ld.size        = arrMinSz + 1
+                        lls.size       = lssz1
+                     } else {
+                        val bd   = d.asBranch
+                        val bls  = leftSibling.asBranch
+                        System.arraycopy( bd.keyArr,  0, bd.keyArr,  1, arrMinSz )
+                        System.arraycopy( bd.downArr, 0, bd.downArr, 1, arrMinSz )
+                        bd.keyArr( 0 )    = dnKey
+                        bd.downArr( 0 )   = bls.downArr( lssz1 )
+                        bd.size           = arrMinSz + 1
+                        bls.size          = lssz1
+                     }
+                     keyObserver.keyDown( dnKey )
+                     keyObserver.keyUp( upKey )
+                  }
                }
-            // i.e. either a gap of >= 2 or reached bottom
+            // i.e. either a gap of >minGap or reached bottom
             } else {
+println( "--10" )
                if( dIsBot ) { // which means the key was not found
+println( "---11" )
                   success = false
                }
             }
-            sys.error( "TODO" )
-//            lastAbove   = x.key
-//            x           = d
+            lastAbove   = xKey // x.key( idx )
+            x           = d
          }
 
-         sys.error( "TODO" )
-//         // we might need to remove v from higher levels in a second pass
-//         if( !ordering.equiv( multiPrev, maxKey )) {
+         // we might need to remove v from higher levels in a second pass
+         if( !ordering.equiv( multiPrev, maxKey )) {
+            sys.error( "TODO" )
 //            x = hd.down
 //            while( !x.isBottom ) {
 //               while( ordering.gt( v, x.key )) x = x.right
@@ -305,13 +354,15 @@ object HASkipList {
 //               }
 //               x = d
 //            }
-//         }
-//
-//         // lower header of DSL, if necessary
-//         x = hd.down
-//         if( x.right.isTail ) hd = x
-//
-//         success
+         }
+
+         // lower header of DSL, if necessary
+         x = Head.downNode
+         if( x.isEmpty ) {
+            Head.downNode = x.down( 0 )
+         }
+
+         success
       }
 
       def iterator : Iterator[ A ] = new Iterator[ A ] {
@@ -365,9 +416,12 @@ object HASkipList {
          def asBranch : Branch
          def asLeaf : Leaf
          def isLeaf : Boolean
+//         def isBranch : Boolean
 
          final def hasMaxSize = size == arrMaxSz
          final def hasMinSize = size == arrMinSz
+
+         def isEmpty : Boolean
       }
 
       sealed trait BranchOrLeaf extends NodeImpl {
@@ -376,6 +430,8 @@ object HASkipList {
          final def key( i: Int ) : A = keyArr( i )
          final def isBottom   = false
 //         def isHead     = false
+
+         final def isEmpty = ordering.equiv( keyArr( 0 ), maxKey )
 
          protected final def toString( name: String ) : String =
             keyArr.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
@@ -398,6 +454,7 @@ object HASkipList {
          def asBranch : Branch = notSupported
          def asLeaf : Leaf = this
          def isLeaf : Boolean = true
+//         def isBranch : Boolean = false
 
          override def toString = toString( "Leaf" )
       }
@@ -419,6 +476,7 @@ object HASkipList {
          def asBranch : Branch = this
          def asLeaf : Leaf = notSupported
          def isLeaf : Boolean = false
+//         def isBranch : Boolean = true
 
          override def toString = toString( "Branch" )
       }
@@ -430,6 +488,8 @@ object HASkipList {
          final def asBranch : Branch   = notSupported
          final def asLeaf : Leaf       = notSupported
          final def isLeaf : Boolean    = false
+//         final def isBranch : Boolean  = false
+         final def isEmpty = false
       }
 
       object Head extends HeadOrBottom {
