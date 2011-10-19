@@ -24,6 +24,18 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
    if( HA ) withList( "HA-1", oo => HASkipList.empty[ Int ]( minGap = 1, keyObserver = oo ))
    if( HA ) withList( "HA-2", oo => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
 
+//   feature( "Arraycopy optimization" ) {
+//      scenario( "Reading arraycopy results" ) {
+//         println( "::::1 = " + HASkipList.arrc1 )
+//         println( "::::2 = " + HASkipList.arrc2 )
+//         println( "::::3 = " + HASkipList.arrc3 )
+//         println( "::::4 = " + HASkipList.arrc4 )
+//         println( "::::5 = " + HASkipList.arrc5 )
+//         println( "::::6 = " + HASkipList.arrc6 )
+//         println( "::::7 = " + HASkipList.arrc7 )
+//      }
+//   }
+
    def randFill( l: SkipList[ Int ], s: MSet[ Int ]) {
       given( "a randomly filled structure" )
       val n     = 0x200000

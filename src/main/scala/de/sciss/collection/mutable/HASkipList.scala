@@ -45,6 +45,14 @@ object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
 //      new Impl[ B, A ]( minGap, key maxKey )
 
+//var arrc1 = -1
+//var arrc2 = -1
+//var arrc3 = -1
+//var arrc4 = -1
+//var arrc5 = -1
+//var arrc6 = -1
+//var arrc7 = -1
+
    def empty[ A : Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty()
    def empty[ A ]( minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = SkipList.NoKeyObserver )
                  ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
@@ -220,6 +228,7 @@ object HASkipList {
                   l.size   = szl - 1
                   if( idx1 < szl ) { // replace x by its right neighbour
                      System.arraycopy( l.keyArr, idx1, l.keyArr, idx, szl - idx1 )
+//arrc1 = math.max( arrc1, szl - idx1 )
                   } else { // this was the last element.
                      // therefore we just need to have the size decremented.
                      // but also, we need a second pass to remove the key
@@ -283,6 +292,8 @@ object HASkipList {
                      // overwrite x.key, but keep x.down
                      System.arraycopy( b.keyArr,  idx1, b.keyArr,  idx,  b.size - idx1 )
                      System.arraycopy( b.downArr, idx2, b.downArr, idx1, b.size - idx2 )
+//arrc2 = math.max( arrc2, b.size - idx1 )
+//arrc3 = math.max( arrc3, b.size - idx2 )
                      b.size -= 1
                      if( d.isLeaf ) {
                         val ld   = d.asLeaf
@@ -308,6 +319,7 @@ object HASkipList {
                         ld.size  = arrMinSz + 1
                         val szm1 = lrs.size - 1
                         System.arraycopy( lrs.keyArr, 1, lrs.keyArr, 0, szm1 )
+//arrc4 = math.max( arrc4, szm1 )
                         lrs.size = szm1
                      } else {
                         val bd   = d.asBranch
@@ -318,6 +330,7 @@ object HASkipList {
                         val szm1 = brs.size - 1
                         System.arraycopy( brs.keyArr,  1, brs.keyArr,  0, szm1 )
                         System.arraycopy( brs.downArr, 1, brs.downArr, 0, szm1 )
+//arrc5 = math.max( arrc5, szm1 )
                         brs.size = szm1
                      }
                      keyObserver.keyUp( upKey )
@@ -336,7 +349,7 @@ object HASkipList {
                         keyObserver.keyDown( dnKey )
 //                     }
                      val b = x.asBranch   // XXX this could be factored out and go up one level
-assert( idx == b.size - 1 )
+//assert( idx == b.size - 1 )
 //                     System.arraycopy( b.keyArr, idx, b.keyArr, idx1, b.size - idx )
                      b.keyArr( idx1 ) = xKey
                      b.size -= 1
@@ -345,6 +358,7 @@ assert( idx == b.size - 1 )
                         val ld   = d.asLeaf
                         val szld = ld.size
                         System.arraycopy( ld.keyArr, 0, lls.keyArr, arrMinSz, szld )
+//arrc6 = math.max( arrc6, szld )
                         lls.size  = arrMinSz + szld
                      } else {
                         val bls = leftSibling.asBranch
@@ -352,6 +366,7 @@ assert( idx == b.size - 1 )
                         val szbd = bd.size
                         System.arraycopy( bd.keyArr,  0, bls.keyArr,  arrMinSz, szbd )
                         System.arraycopy( bd.downArr, 0, bls.downArr, arrMinSz, szbd )
+//arrc7 = math.max( arrc7, szbd )
                         bls.size  = arrMinSz + szbd
                      }
                      d = leftSibling
