@@ -268,7 +268,6 @@ println( "----7 borrow right" )
                      if( d.isLeaf ) {
                         val ld   = d.asLeaf
                         val lrs  = rightSibling.asLeaf
-//                           ld.keyArr( minGap ) = upKey
                         ld.keyArr( arrMinSz ) = upKey
                         ld.size  = arrMinSz + 1
                         val szm1 = lrs.size - 1
@@ -277,8 +276,8 @@ println( "----7 borrow right" )
                      } else {
                         val bd   = d.asBranch
                         val brs  = rightSibling.asBranch
-//                           bd.keyArr( minGap ) = upKey
-                        bd.keyArr( arrMinSz ) = upKey
+                        bd.keyArr( arrMinSz )   = upKey
+                        bd.downArr( arrMinSz )  = brs.downArr( 0 )
                         bd.size  = arrMinSz + 1
                         val szm1 = brs.size - 1
                         System.arraycopy( brs.keyArr,  1, brs.keyArr,  0, szm1 )
