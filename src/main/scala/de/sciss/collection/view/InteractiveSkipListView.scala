@@ -119,7 +119,8 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
 
 Seq.tabulate( 9 )( i => l.add( (i+1) * 10 ))
 //l.add( 54 ); l.add( 55 ); l.add( 56 )
-l.add( 24 ); l.add( 25 ); l.add( 26 )
+//l.add( 24 ); l.add( 25 ); l.add( 26 )
+l.remove(60);l.remove(20)
    butAddRemove( "Add" )( l.add( _ ))
    butAddRemove( "Remove" ) { key =>
       l.remove( key )

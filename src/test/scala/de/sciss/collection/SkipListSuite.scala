@@ -14,7 +14,7 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
 class SkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
    val OBSERVATION   = true
-   val REMOVAL       = false
+   val REMOVAL       = true
    val LL            = true
    val HA            = true     // note: currently doesn't pass tests with REMOVAL == true!
 
@@ -115,13 +115,22 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   def withList( name: String, lf: SkipList.KeyObserver[ Int ] => SkipList[ Int ]) {
+   private def withList( name: String, lf: SkipList.KeyObserver[ Int ] => SkipList[ Int ]) {
+      def scenarioWithTime( descr: String )( body: => Unit ) {
+         scenario( descr ) {
+            val t1 = System.currentTimeMillis()
+            body
+            val t2 = System.currentTimeMillis()
+            println( "For " + name + " the tests took " + formatSeconds( (t2 - t1) * 0.001 ))
+         }
+      }
+
       if( CONSISTENCY ) {
          feature( "The " + name + " skip list structure should be consistent" ) {
             info( "Several mass operations on the structure" )
             info( "are tried and expected behaviour verified" )
 
-            scenario( "Consistency is verified on a randomly filled structure" ) {
+            scenarioWithTime( "Consistency is verified on a randomly filled structure" ) {
                val l  = lf( SkipList.NoKeyObserver )
                val s  = MSet.empty[ Int ]
                randFill( l, s )
@@ -138,7 +147,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
             info( "Several operations are performed on the structure while an" )
             info( "observer monitors key promotions and demotions" )
 
-            scenario( "Observation is verified on a randomly filled structure" ) {
+            scenarioWithTime( "Observation is verified on a randomly filled structure" ) {
                val obs   = new Obs
                val l     = lf( obs )
                val s     = randFill2 // randFill3
@@ -188,6 +197,33 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
             }
          }
       }
+   }
+
+   private def formatSeconds( seconds: Double ) : String = {
+      val millisR    = (seconds * 1000).toInt
+      val sb         = new StringBuilder( 10 )
+      val secsR      = millisR / 1000
+      val millis     = millisR % 1000
+      val mins       = secsR / 60
+      val secs       = secsR % 60
+      if( mins > 0 ) {
+         sb.append( mins )
+         sb.append( ':' )
+         if( secs < 10 ) {
+            sb.append( '0' )
+         }
+      }
+      sb.append( secs )
+      sb.append( '.' )
+      if( millis < 10 ) {
+         sb.append( '0' )
+      }
+      if( millis < 100 ) {
+         sb.append( '0' )
+      }
+      sb.append( millis )
+      sb.append( 's' )
+      sb.toString()
    }
 
    class Obs extends SkipList.KeyObserver[ Int ] {
