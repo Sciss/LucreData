@@ -299,7 +299,7 @@ sys.error( "TODO" )
                      } else {
                         keyObserver.keyDown( dnKey )
                      }
-                     val b = x.asBranch   // XXX this could be factored out and go up one level\
+                     val b = x.asBranch   // XXX this could be factored out and go up one level
 assert( idx == b.size - 1 )
 //                     System.arraycopy( b.keyArr, idx, b.keyArr, idx1, b.size - idx )
                      b.keyArr( idx1 ) = xKey
@@ -333,15 +333,15 @@ println( "----10 borrow left" )
                      b.keyArr( idx1 ) = upKey   // raise last elem in previous gap & lower...
 //                     x.down      = tmp.right    // ... separator of previous+current gap
                      if( d.isLeaf ) {
-                        val ld   = d.asLeaf
-                        val lls  = leftSibling.asLeaf
+                        val ld            = d.asLeaf
+                        val lls           = leftSibling.asLeaf
                         System.arraycopy( ld.keyArr, 0, ld.keyArr, 1, arrMinSz )
-                        ld.keyArr( 0 ) = dnKey
-                        ld.size        = arrMinSz + 1
-                        lls.size       = lssz1
+                        ld.keyArr( 0 )    = dnKey
+                        ld.size           = arrMinSz + 1
+                        lls.size          = lssz1
                      } else {
-                        val bd   = d.asBranch
-                        val bls  = leftSibling.asBranch
+                        val bd            = d.asBranch
+                        val bls           = leftSibling.asBranch
                         System.arraycopy( bd.keyArr,  0, bd.keyArr,  1, arrMinSz )
                         System.arraycopy( bd.downArr, 0, bd.downArr, 1, arrMinSz )
                         bd.keyArr( 0 )    = dnKey

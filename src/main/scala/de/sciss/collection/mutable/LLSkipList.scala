@@ -225,7 +225,7 @@ object LLSkipList {
                      xPred.key   = xKey
                      x           = xPred
                   } else {    // if >= 2 elems in previous gap
-//println( "---6 " + xKey )
+println( "---6 " + xKey )
                      // tmp = last elem in previous gap
                      val pdrr    = pdr.right
                      val tmp     = if( ordering.equiv( dnKey, pdrr.key )) pdr else pdrr
