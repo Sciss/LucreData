@@ -45,17 +45,17 @@ import geom.{Point, DistanceMeasure, PointLike, Quad, QueryShape}
 object DeterministicSkipQuadTree {
 //   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
 
-   def empty[ A ]( quad: Quad, skipGap: Int = 2 )( implicit view: A => PointLike ) : DeterministicSkipQuadTree[ A ] =
+   def empty[ A ]( quad: Quad, skipGap: Int = 2 )( implicit view: A => PointLike ) : SkipQuadTree[ A ] =
       new TreeImpl[ A ]( quad, skipGap, view )
 
-   def apply[ A <% PointLike ]( quad: Quad, skipGap: Int = 2 )( xs: A* ) : DeterministicSkipQuadTree[ A ] = {
+   def apply[ A <% PointLike ]( quad: Quad, skipGap: Int = 2 )( xs: A* ) : SkipQuadTree[ A ] = {
       val t = empty[ A ]( quad, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
    private final class TreeImpl[ A ]( quad: Quad, _skipGap: Int, val pointView: A => PointLike )
-   extends DeterministicSkipQuadTree[ A ] with impl.SkipQuadTreeImpl[ A ] {
+   extends impl.SkipQuadTreeImpl[ A ] {
       tree =>
 
       val totalOrder = TotalOrder()
@@ -738,4 +738,4 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 
    // visible interface
 }
-trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ]
+//trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ]

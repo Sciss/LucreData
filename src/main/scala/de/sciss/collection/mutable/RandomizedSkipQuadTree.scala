@@ -35,9 +35,9 @@ import annotation.tailrec
 import geom.{QueryShape, DistanceMeasure, Quad, PointLike}
 
 object RandomizedSkipQuadTree {
-   def empty[ A ]( quad: Quad )( implicit view: A => PointLike ) : RandomizedSkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )
+   def empty[ A ]( quad: Quad )( implicit view: A => PointLike ) : SkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )
 
-   def apply[ A <% PointLike ]( quad: Quad )( xs: A* ) : RandomizedSkipQuadTree[ A ] = {
+   def apply[ A <% PointLike ]( quad: Quad )( xs: A* ) : SkipQuadTree[ A ] = {
       val t = empty[ A ]( quad )
       xs.foreach( t.+=( _ ))
       t
@@ -49,7 +49,7 @@ object RandomizedSkipQuadTree {
 //      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
 //   }
    private final class TreeImpl[ A ]( quad: Quad, val pointView: A => PointLike )
-   extends RandomizedSkipQuadTree[ A ] with impl.SkipQuadTreeImpl[ A ] {
+   extends impl.SkipQuadTreeImpl[ A ] {
       val headTree         = Node( quad, null, null )()
       private var tailVar  = headTree
 
@@ -673,4 +673,4 @@ object RandomizedSkipQuadTree {
       }
    }
 }
-trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ]
+//trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ]
