@@ -54,9 +54,12 @@ object DeterministicSkipQuadTree {
       t
    }
 
-   private class TreeImpl[ A ]( _quad: Quad, _skipGap: Int, val pointView: A => PointLike ) extends DeterministicSkipQuadTree[ A ] {
+   private final class TreeImpl[ A ]( quad: Quad, _skipGap: Int, val pointView: A => PointLike )
+   extends DeterministicSkipQuadTree[ A ] with impl.SkipQuadTreeImpl[ A ] {
+      tree =>
+
       val totalOrder = TotalOrder()
-      var tl: TopNode = TopLeftNode
+      private var tailVar: TopNode = TopLeftNode
       val list: SkipList[ Leaf ] = {
          implicit def maxKey = MaxKey( MaxLeaf )
          if( _skipGap < 2 ) {
@@ -72,54 +75,31 @@ object DeterministicSkipQuadTree {
       val numChildren = 4
 
       def headTree : QNode = TopLeftNode
-      def lastTree : QNode = tl
+      def lastTree : QNode = tailVar
 
       type InOrder = totalOrder.Entry
 
-      // ---- map support ----
+      protected def findLeaf( point: PointLike ) : Leaf = tailVar.findLeaf( point )
 
-      def +=( elem: A ) : this.type = {
-         addLeaf( elem )
-         this
-      }
-
-      override def add( elem: A ) : Boolean = {
-         val oldLeaf = addLeaf( elem )
-         if( oldLeaf == null ) true else !oldLeaf.value.equals( elem )
-      }
-
-      def update( elem: A ) : Option[ A ] = {
-         val oldLeaf = addLeaf( elem )
-         if( oldLeaf == null ) None else Some( oldLeaf.value )
-      }
-
-      private def addLeaf( elem: A ) : Leaf = {
+      protected def insertLeaf( elem: A ) : Leaf = {
          val point   = pointView( elem )
-         val p0      = tl.findP0( point )
-         val oldLeaf = p0.findLeaf( point )
+         require( quad.contains( point ), point.toString + " lies out of root square " + quad )
+
+         val p0      = tailVar.findP0( point )
+         val oldLeaf = p0.findImmediateLeaf( point )
 require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
          val leaf    = p0.insert( point, elem )
          list.add( leaf )
          oldLeaf
       }
 
-      def isDefinedAt( point: PointLike ) : Boolean = findLeaf( point ) != null
-      def contains( elem: A ) : Boolean = {
-         val l = findLeaf( pointView( elem ))
-         if( l == null ) false else elem.equals( l.value )
+      protected def removeLeaf( point: PointLike ) : Leaf = {
+         sys.error( "TODO" )
       }
 
-      def get( point: PointLike ) : Option[ A ] = {
-         val l = findLeaf( point )
-         if( l == null ) None else Some( l.value )
-      }
-
-      private def findLeaf( point: PointLike ) : Leaf = {
-         tl.findP0( point ).findLeaf( point )
-      }
-
-      def -=( value: A ) : this.type = error( "TODO" )
-      def removeAt( point: PointLike ) : Option[ A ] = error( "TODO" )
+//      protected def findLeaf( point: PointLike ) : Leaf = {
+//         tailVar.findP0( point ).findLeaf( point )
+//      }
 
       def iterator = new Iterator[ A ] {
          val underlying = list.iterator
@@ -130,8 +110,11 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
          def hasNext : Boolean = underlying.hasNext
       }
 
-      def rangeQuery( qs: QueryShape ) : Iterator[ A ]   = notYetImplemented
-      def nearestNeighborOption( point: PointLike, metric: DistanceMeasure ) : Option[ A ] = notYetImplemented
+      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = notYetImplemented
+
+      protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
+         sys.error( "TODO" )
+      }
 
 //      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
 //         error( "TODO" )
@@ -149,8 +132,8 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
             val path = new Array[ Node ]( 6 ) // hmmm... according to what i've seen, the maximum necessary size is 4 ?!
             val q0o  = l.parent.findPN( path, 0 )
             val q0   = if( q0o == null ) { // create new level
-               val res = TopRightNode( tl )
-               tl = res
+               val res = TopRightNode( tailVar )
+               tailVar = res
                res
             } else q0o
             q0.insert( l, path )
@@ -302,7 +285,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           */
          def findP0( point: PointLike ) : LeftNode
 
-         def findLeaf( point: PointLike ) : Leaf = {
+         final def findImmediateLeaf( point: PointLike ) : Leaf = {
             var i = 0; while( i < numChildren ) {
                child( i ) match {
                   case l: Leaf if( pointView( l.value ) == point ) => return l
@@ -311,6 +294,8 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
             i += 1 }
             null
          }
+
+         def findLeaf( point: PointLike ) : Leaf
 
          /**
           * Returns the square covered by this node
@@ -324,7 +309,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           */
          def next: RightNode
 
-         def nextOption: Option[ QNode ] = Option( next )
+         final def nextOption: Option[ QNode ] = Option( next )
 
          /**
           * Sets the corresponding interesting
@@ -332,12 +317,12 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           */
          def next_=( n: RightNode ) : Unit
 
-         def union( mq: Quad, point2: PointLike ) = {
+         final def union( mq: Quad, point2: PointLike ) = {
             val q = quad
             interestingSquare( mq, q.left, q.top, q.side, point2 )
          }
 
-         def quadIdxIn( iq: Quad ) : Int = quadInQuad( iq, quad )
+         final def quadIdxIn( iq: Quad ) : Int = quadInQuad( iq, quad )
 
          /**
           * The reverse process of `findP0`: Finds the lowest
@@ -345,7 +330,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * which is also contained in Qi+1. Returns this node
           * in Qi+1, or null if no such node exists.
           */
-         def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
+         final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
             val n = next
             if( n != null ) n else {
                path( pathSize ) = this
@@ -358,27 +343,22 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       }
 
       sealed trait RightNode extends Node {
+         final val children = Array.fill[ Child ]( 4 )( Empty ) // XXX is apply faster?
+         final var next : RightNode = null
+
          // Child support
-         def prevOption = Some( prev: QNode )
+         final def prevOption = Some( prev: QNode )
 
          def prev : Node
-         def children : Array[ Child ]
-         def child( idx: Int ) : Child = children( idx )
+         final def child( idx: Int ) : Child = children( idx )
 
-         def findP0( point: PointLike ) : LeftNode = {
+         final def findP0( point: PointLike ) : LeftNode = {
             val qidx = pointInQuad( quad, point )
             child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
             }
          }
-
-         /**
-          * Abstract method which should instantiate an appropriate
-          * sub-node whose parent is this node, and whose predecessor
-          * in the lower quadtree is given.
-          */
-         def newNode( prev: Node, iq: Quad ) : RightNode
 
          /**
           * Promotes a leaf that exists in Qi-1 to this
@@ -396,7 +376,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * This method also sets the parent of the leaf
           * accordingly.
           */
-         def insert( leaf: Leaf, path: Array[ Node ]) {
+         final def insert( leaf: Leaf, path: Array[ Node ]) {
             val point   = pointView( leaf.value )
             val qidx    = pointInQuad( quad, point )
             val c       = children
@@ -429,26 +409,37 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
                   n2
             }
          }
+
+         /**
+          * Instantiates an appropriate
+          * sub-node whose parent is this node, and whose predecessor
+          * in the lower quadtree is given.
+          */
+         final def newNode( prev: Node, iq: Quad ) : RightNode = InnerRightNode( this, prev, iq )
+
+         final def findLeaf( point: PointLike ) : Leaf = {
+            val qidx = quad.indexOf( point )
+            child( qidx ) match {
+               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
+               case l: Leaf if( pointView( l.value ) == point ) => l
+               case _ => prev.findLeaf( point )
+            }
+         }
       }
 
       sealed trait LeftNode extends Node with LeftNonEmpty {
-         // Child support
-         def prevOption = Option.empty[ QNode ]
-
          /**
           * For a `LeftNode`, all its children are more specific
           * -- they are instances of `LeftChild` and thus support
           * order intervals.
           */
-         def children : Array[ LeftChild ]
-         def child( idx: Int ) : Child = children( idx )
+         final val children = Array.fill[ LeftChild ]( 4 )( Empty ) // XXX is apply faster?
+         final var next : RightNode = null
 
-         /**
-          * Abstract method which should instantiate an appropriate
-          * leaf whose parent is this node, and which should be
-          * ordered according to its position in this node.
-          */
-         def newLeaf( point: PointLike, value: A ) : Leaf
+         // Child support
+         final def prevOption = Option.empty[ QNode ]
+
+         final def child( idx: Int ) : Child = children( idx )
 
 //         /**
 //          * Creates a new leaf based on a given leaf,
@@ -459,14 +450,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 //          */
 //         def newValue( leaf: Leaf, value: A ) : Leaf
 
-         /**
-          * Abstract method which should instantiate an appropriate
-          * sub-node whose parent is this node, and which should be
-          * ordered according to its position in this node.
-          */
-         def newNode( iq: Quad ) : LeftNode
-
-         def findP0( point: PointLike ) : LeftNode = {
+         final def findP0( point: PointLike ) : LeftNode = {
             val qidx = pointInQuad( quad, point )
             child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
@@ -474,7 +458,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
             }
          }
 
-         def insert( point: PointLike, value: A ) : Leaf = {
+         final def insert( point: PointLike, value: A ) : Leaf = {
             val qidx = pointInQuad( quad, point )
             val c    = children
             c( qidx ) match {
@@ -512,13 +496,13 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
                   leaf
             }
          }
-      }
 
-      sealed trait LeftNodeImpl extends LeftNode {
-         val children = Array.fill[ LeftChild ]( 4 )( Empty ) // XXX is apply faster?
-         var next : RightNode = null
-
-         def newLeaf( point: PointLike, value: A ) : Leaf = LeafImpl( this, point, value ) { l =>
+         /**
+          * Instantiates an appropriate
+          * leaf whose parent is this node, and which should be
+          * ordered according to its position in this node.
+          */
+         final def newLeaf( point: PointLike, value: A ) : Leaf = LeafImpl( this, point, value ) { l =>
             val lne: LeftNonEmpty = l
             ((lne.quadIdxIn( quad ): @switch) match {
                case 0 => startOrder.append() // startOrder.insertAfter( lne )
@@ -540,6 +524,15 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 //            ord
 //         }
 
+         final def findLeaf( point: PointLike ) : Leaf = {
+            val qidx = quad.indexOf( point )
+            child( qidx ) match {
+               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
+               case l: Leaf if( pointView( l.value ) == point ) => l
+               case _ => null
+            }
+         }
+
          @tailrec final def insetStart( n: LeftNonEmpty, idx: Int ) : InOrder = {
             if( idx == -1 ) {
                startOrder.append() // startOrder.insertAfter( n )
@@ -557,41 +550,39 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
             }
          }
 
-         def insets( n: LeftNode, nidx: Int ) : (InOrder, InOrder) = {
+         final def insets( n: LeftNode, nidx: Int ) : (InOrder, InOrder) = {
             (insetStart( n, nidx ), insetStop( n, nidx ))
          }
 
-         def newNode( iq: Quad ) : LeftNode = InnerLeftNode( this, iq ) { n =>
+         /**
+          * Instantiates an appropriate
+          * sub-node whose parent is this node, and which should be
+          * ordered according to its position in this node.
+          */
+         final def newNode( iq: Quad ) : LeftNode = InnerLeftNode( this, iq ) { n =>
             insets( n, n.quadIdxIn( quad ))
          }
       }
 
-      sealed trait RightNodeImpl extends RightNode {
-         val children = Array.fill[ Child ]( 4 )( Empty ) // XXX is apply faster?
-         var next : RightNode = null
-
-         def newNode( prev: Node, iq: Quad ) : RightNode = InnerRightNode( this, prev, iq )
-      }
-
       sealed trait TopNode extends Node {
-         val parent : Node                = null
-         def quad : Quad                  = _quad
-         def parent_=( n: Node ) : Unit   = unsupportedOp
+         final def parent : Node                = null
+         final def quad : Quad                  = tree.quad
+         final def parent_=( n: Node ) : Unit   = unsupportedOp
       }
 
-      object TopLeftNode extends LeftNodeImpl with TopNode {
+      object TopLeftNode extends LeftNode with TopNode {
          val startOrder                   = totalOrder.root // TotalOrder() // TotalOrder[ LeftNonEmpty ]( this )
          val stopOrder                    = startOrder.append() // startOrder.insertAfter( this )
       }
 
-      final case class InnerLeftNode( var parent: Node, quad: Quad )( _ins: LeftNode => (InOrder, InOrder) ) extends LeftNodeImpl {
+      final case class InnerLeftNode( var parent: Node, quad: Quad )( _ins: LeftNode => (InOrder, InOrder) ) extends LeftNode {
          val (startOrder, stopOrder) = _ins( this )
       }
 
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final case class TopRightNode( prev: Node ) extends RightNodeImpl with TopNode {
+      final case class TopRightNode( prev: Node ) extends RightNode with TopNode {
          prev.next = this
 //assert( prev.quad == quad )
       }
@@ -599,7 +590,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final case class InnerRightNode( var parent: Node, prev: Node, quad: Quad ) extends RightNodeImpl {
+      final case class InnerRightNode( var parent: Node, prev: Node, quad: Quad ) extends RightNode {
          prev.next = this
 //assert( prev.quad == quad )
       }
@@ -618,7 +609,8 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       // the problem is there can be several pointers to a leaf, so at least for now,
       // let's not make life more complicated than necessary. also skip list would
       // need to be made 'replace-aware'.
-      final case class LeafImpl( var parent: Node, point: PointLike, /* var */ value: A )( _ins: Leaf => InOrder ) extends Leaf {
+      final case class LeafImpl( var parent: Node, point: PointLike, /* var */ value: A )( _ins: Leaf => InOrder )
+      extends Leaf {
          val order = _ins( this )
       }
    }

@@ -13,9 +13,10 @@ import collection.mutable.{Set => MSet}
  * }}
  */
 class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
-   val RANDOMIZED    = true
-   val DETERMINISTIC = false     // currently doesn't pass tests
-   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val RANDOMIZED    = false
+   val DETERMINISTIC = true     // currently doesn't pass tests
+//   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 0x2    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd   = new util.Random( 0L ) // ( 12L )

@@ -48,49 +48,18 @@ object RandomizedSkipQuadTree {
 //   private object TreeImpl {
 //      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
 //   }
-   private final class TreeImpl[ A ]( _quad: Quad, val pointView: A => PointLike ) extends RandomizedSkipQuadTree[ A ] {
-      val headTree         = Node( _quad, null, null )()
+   private final class TreeImpl[ A ]( quad: Quad, val pointView: A => PointLike )
+   extends RandomizedSkipQuadTree[ A ] with impl.SkipQuadTreeImpl[ A ] {
+      val headTree         = Node( quad, null, null )()
       private var tailVar  = headTree
 
       def lastTree: QNode = tailVar
 
-      // ---- map support ----
-
-      def +=( elem: A ) : this.type = {
-         insertLeaf( elem )
-         this
-      }
-
-//      override def update( point: PointLike, value: A ) : Unit = insertLeaf( point, value )
-
-      override def add( elem: A ) : Boolean = {
-         val oldLeaf = insertLeaf( elem )
-         if( oldLeaf == null ) true else !oldLeaf.value.equals( elem )
-      }
-
-      def update( elem: A ) : Option[ A ] = {
-         val oldLeaf = insertLeaf( elem )
-         if( oldLeaf == null ) None else Some( oldLeaf.value )
-      }
-
-      override def remove( elem: A ) : Boolean = {
-         val oldLeaf = removeLeaf( pointView( elem ))
-         oldLeaf != null
-      }
-
-      def removeAt( point: PointLike ) : Option[ A ] = {
-         val oldLeaf = removeLeaf( point )
-         if( oldLeaf == null ) None else Some( oldLeaf.value )
-      }
-
-      def -=( elem: A ) : this.type = {
-         removeLeaf( pointView( elem ))
-         this
-      }
+      protected def findLeaf( point: PointLike ) : Leaf = tailVar.findLeaf( point )
 
       protected def insertLeaf( value: A ) : Leaf = {
          val point = pointView( value )
-         require( _quad.contains( point ), point.toString + " lies out of root square " + _quad )
+         require( quad.contains( point ), point.toString + " lies out of root square " + quad )
 
          val ns      = MStack.empty[ Node ]
          tailVar.findP0( point, ns )
@@ -106,7 +75,7 @@ object RandomizedSkipQuadTree {
                coin &= flipCoin
             }
             while( coin ) {
-               n        = Node( _quad, null, tailVar )()
+               n        = Node( quad, null, tailVar )()
                pr       = n.insert( point, value, pr )
                tailVar  = n
                coin    &= flipCoin
@@ -120,31 +89,8 @@ object RandomizedSkipQuadTree {
          l
       }
 
-      override def contains( elem: A ) : Boolean = {
-         val point = pointView( elem )
-         if( !_quad.contains( point )) return false
-         val l = tailVar.findLeaf( point )
-         if( l == null ) false else l.value.equals( elem )
-      }
-
-      override def isDefinedAt( point: PointLike ) : Boolean = {
-         if( !_quad.contains( point )) return false
-         tailVar.findLeaf( point ) != null
-      }
-
-//      def apply( point: PointLike ) : A = {
-//         val leaf = tailVar.findLeaf( point )
-//         if( leaf == null ) throw new java.util.NoSuchElementException( "key not found: " + point )
-//         leaf.value
-//      }
-
-      def get( point: PointLike ) : Option[ A ] = {
-         val leaf = tailVar.findLeaf( point )
-         if( leaf == null ) None else Some( leaf.value )
-      }
-
       protected def removeLeaf( point: PointLike ) : Leaf = {
-         if( !_quad.contains( point )) {
+         if( !quad.contains( point )) {
 //println( "wooops " + point )
             return null
          }
@@ -215,16 +161,6 @@ object RandomizedSkipQuadTree {
 //         lb.result().mkString( " -> " )
 //      }
 
-      override def nearestNeighbor( point: PointLike, metric: DistanceMeasure ) : A = {
-         val res = nn( point, metric )
-         if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
-      }
-
-      def nearestNeighborOption( point: PointLike, metric: DistanceMeasure ) : Option[ A ] = {
-         val res = nn( point, metric )
-         if( res != null ) Some( res.value ) else None
-      }
-
 //      /*
 //algorithm "minimum empty rectangle search"
 //- given a point 'q' whose location is unknown, but for which
@@ -252,10 +188,10 @@ object RandomizedSkipQuadTree {
 //
 //error( "WRONG. See new algorithm 19-Jul-11" )
 //
-//         var qLeft   = _quad.left
-//         var qTop    = _quad.top
-//         var qRight  = _quad.right
-//         var qBottom = _quad.bottom
+//         var qLeft   = quad.left
+//         var qTop    = quad.top
+//         var qRight  = quad.right
+//         var qBottom = quad.bottom
 //         var qp : PointLike = null
 //         val coll    = MStack.empty[ Node ]
 //
@@ -366,7 +302,7 @@ object RandomizedSkipQuadTree {
 //         error( "never here" )
 //      }
 
-      private def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
+      protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
          var bestLeaf: Leaf      = null
          var bestDist            = Long.MaxValue   // all distances here are squared!
          val pri                 = PriorityQueue.empty[ VisitedNode ]
@@ -592,7 +528,7 @@ object RandomizedSkipQuadTree {
 
          def findP0( point: PointLike, ns: MStack[ Node ]) /* : Leaf = */ {
             val qidx = quad.indexOf( point )
-            quads( qidx ) match {
+            child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point, ns )
 //               case l: Leaf if( prev == null && l.point == point ) =>
 //                  ns.push( this )
@@ -605,7 +541,7 @@ object RandomizedSkipQuadTree {
 
          def findLeaf( point: PointLike ) : Leaf = {
             val qidx = quad.indexOf( point )
-            quads( qidx ) match {
+            child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
                case l: Leaf if( pointView( l.value ) == point ) => l
                case _ => if( prev == null ) null else prev.findLeaf( point )
@@ -701,7 +637,7 @@ object RandomizedSkipQuadTree {
             }
          }
 
-         private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int,  b: PointLike ) : Quad = {
+         private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int, b: PointLike ) : Quad = {
             val pq            = quad.quadrant( pqidx )
             val tlx           = pq.left   // pq.cx - pq.extent
             val tly           = pq.top    // pq.cy - pq.extent

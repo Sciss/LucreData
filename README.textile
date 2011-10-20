@@ -12,6 +12,8 @@ This is a sandbox project for implementing and probing various data structures i
 
 * Papadakis, T., "Skip lists and probabilistic analysis of algorithms", University of Waterloo, Waterloo (CA), 1993
 
+* M. Bender, R. Cole, E. Demaine, M. Farach-Colton, and J. Zito, "Two Simplified Algorithms for Maintaining Order in a List," in Algorithms—ESA 2002, pp. 219--223, 2002.
+
 h3. requirements
 
 Builds with xsbt (sbt 0.11) against Scala 2.9.1. Also included is an Intellij IDEA 10.5 CE project.

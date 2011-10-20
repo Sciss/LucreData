@@ -45,26 +45,7 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
 
    def quad : Quad = headTree.quad
 
-   def numLevels : Int = {
-      var n = headTree
-      val t = lastTree
-      var i = 1; while( !(n eq t) ) {
-         n = n.nextOption.orNull
-         i += 1
-      }
-      i
-   }
-
-   override def isEmpty : Boolean = {
-      val n = headTree
-      var i = 0; while( i < 4 ) {
-         n.child( i ) match {
-            case e: QEmpty =>
-            case _ => return false
-         }
-      i += 1 }
-      true
-   }
+   def numLevels : Int
 
    def get( point: PointLike ) : Option[ A ]
 //   def apply( point: PointLike ) : A = get.getOrElse( throw new )
@@ -108,9 +89,11 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A =
-      nearestNeighborOption( point, metric ).getOrElse(
-         throw new NoSuchElementException( "nearestNeighbor of an empty tree" ))
+   def nearestNeighbor( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A
+
+//   =
+//      nearestNeighborOption( point, metric ).getOrElse(
+//         throw new NoSuchElementException( "nearestNeighbor of an empty tree" ))
 
    def nearestNeighborOption( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
 

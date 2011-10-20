@@ -33,15 +33,20 @@ import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import javax.swing.{WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
 import geom.{DistanceMeasure, Point, PointLike, Quad}
-import mutable.RandomizedSkipQuadTree
+import mutable.{DeterministicSkipQuadTree, RandomizedSkipQuadTree}
 
 object InteractiveSkipQuadTreeView extends App with Runnable {
    EventQueue.invokeLater( this )
    def run() {
+      val mode = args.toSeq match {
+         case Seq( "--det" ) => Deterministic
+         case _ => Randomized
+      }
+
       val f    = new JFrame( "Skip Quadtree" )
 //      f.setResizable( false )
       val cp   = f.getContentPane
-      val iv   = new InteractiveSkipQuadTreeView
+      val iv   = new InteractiveSkipQuadTreeView( mode )
       cp.add( iv, BorderLayout.CENTER )
       f.pack()
       f.setLocationRelativeTo( null )
@@ -49,9 +54,19 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
       PDFSupport.addMenu[ SkipQuadTreeView[ PointLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
       f.setVisible( true )
    }
+
+   sealed trait Mode
+   case object Randomized extends Mode
+   case object Deterministic extends Mode
 }
-class InteractiveSkipQuadTreeView extends JPanel( new BorderLayout() ) {
-   val t    = RandomizedSkipQuadTree.empty[ PointLike ]( Quad( 256, 256, 256 ))
+class InteractiveSkipQuadTreeView( mode: InteractiveSkipQuadTreeView.Mode )
+extends JPanel( new BorderLayout() ) {
+   import InteractiveSkipQuadTreeView._
+
+   val t    = mode match {
+      case Randomized      => RandomizedSkipQuadTree.empty[    PointLike ]( Quad( 256, 256, 256 ))
+      case Deterministic   => DeterministicSkipQuadTree.empty[ PointLike ]( Quad( 256, 256, 256 ))
+   }
    val slv  = new SkipQuadTreeView( t )
    private val in = slv.getInsets
 
