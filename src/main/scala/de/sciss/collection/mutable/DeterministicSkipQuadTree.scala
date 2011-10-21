@@ -34,9 +34,6 @@ import geom.{Point, DistanceMeasure, PointLike, Quad, QueryShape}
 
 /**
  * XXX TODO:
- * - TotalOrder[ LeftNonEmpty ] can now be probably
- *   TotalOrder[ Unit ], which in turn could be an optimized
- *   TotalOrder that doesn't carry an `elem` field any more.
  * - delete is missing
  * - find nearest neighbour is missing
  * - detect insertion of existing points (this causes a corruption currently!)
@@ -59,7 +56,7 @@ object DeterministicSkipQuadTree {
 
       val totalOrder = TotalOrder()
       private var tailVar: TopNode = TopLeftNode
-      val list: SkipList[ Leaf ] = {
+      private val skipList: SkipList[ Leaf ] = {
          implicit def maxKey = MaxKey( MaxLeaf )
          if( _skipGap < 2 ) {
             require( _skipGap == 1, "Illegal skipGap value (" + _skipGap + ")" )
@@ -69,7 +66,6 @@ object DeterministicSkipQuadTree {
             HASkipList.empty[ Leaf ]( _skipGap, KeyObserver ) // ( Ordering.ordered[ Leaf ], maxKey, mf )
          }
       } // 2-5 DSL
-      def skipList = list
 
       val numChildren = 4
 
@@ -86,9 +82,13 @@ object DeterministicSkipQuadTree {
 
          val p0      = tailVar.findP0( point )
          val oldLeaf = p0.findImmediateLeaf( point )
-require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
-         val leaf    = p0.insert( point, elem )
-         list.add( leaf )
+         if( oldLeaf == null ) {
+            val leaf = p0.insert( point, elem )
+            skipList.add( leaf )
+         } else {
+//            require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
+            oldLeaf.value = elem
+         }
          oldLeaf
       }
 
@@ -101,7 +101,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 //      }
 
       def iterator = new Iterator[ A ] {
-         val underlying = list.iterator
+         val underlying = skipList.iterator
          def next() : A = {
             val leaf = underlying.next()
             leaf.value
@@ -235,7 +235,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       sealed trait Leaf extends LeftNonEmpty with Ordered[ Leaf ] with QLeaf {
 //         def point : PointLike
          def value : A
-//         def value_=( v: A ) : Unit  // XXX hmmm, not so nice
+         def value_=( v: A ) : Unit  // XXX hmmm, not so nice
 
          /**
           * The position of this leaf in the in-order list.
@@ -361,7 +361,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 
          /**
           * Promotes a leaf that exists in Qi-1 to this
-          * tree, by inserting it into this note which
+          * tree, by inserting it into this node which
           * is its interesting node in Qi (XXX are we
           * sure there cannot be any intermediate
           * descendants from here?).
@@ -501,7 +501,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * leaf whose parent is this node, and which should be
           * ordered according to its position in this node.
           */
-         final def newLeaf( point: PointLike, value: A ) : Leaf = LeafImpl( this, point, value ) { l =>
+         final def newLeaf( point: PointLike, value: A ) : Leaf = new LeafImpl( this, point, value, { l =>
             val lne: LeftNonEmpty = l
             ((lne.quadIdxIn( quad ): @switch) match {
                case 0 => startOrder.append() // startOrder.insertAfter( lne )
@@ -515,7 +515,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
                }
                case 3 => stopOrder.prepend() // stopOrder.insertBefore( lne )
             }) : InOrder // to satisfy idea's presentation compiler
-         }
+         })
 
 //         def newValue( old: Leaf, value: A ) : Leaf = LeafImpl( this, leaf.point, value ) { l =>
 //            val ord = old.order
@@ -600,7 +600,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
          val order                        = totalOrder.max // TotalOrder.max // TotalOrder.max[ LeftNonEmpty ]
 
          def value : A                    = unsupportedOp
-//         def value_=( v: A ) : Unit       = unsupportedOp
+         def value_=( v: A ) : Unit       = unsupportedOp
          def parent : Node                = unsupportedOp
          def parent_=( n: Node ) : Unit   = unsupportedOp
       }
@@ -609,7 +609,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       // the problem is there can be several pointers to a leaf, so at least for now,
       // let's not make life more complicated than necessary. also skip list would
       // need to be made 'replace-aware'.
-      final case class LeafImpl( var parent: Node, point: PointLike, /* var */ value: A )( _ins: Leaf => InOrder )
+      final class LeafImpl( var parent: Node, val point: PointLike, var value: A, _ins: Leaf => InOrder )
       extends Leaf {
          val order = _ins( this )
       }
