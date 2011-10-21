@@ -50,7 +50,7 @@ object RandomizedSkipQuadTree {
 //   }
    private final class TreeImpl[ A ]( quad: Quad, val pointView: A => PointLike )
    extends impl.SkipQuadTreeImpl[ A ] {
-      val headTree         = Node( quad, null, null )()
+      val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
 
       def lastTree: QNode = tailVar
@@ -75,7 +75,7 @@ object RandomizedSkipQuadTree {
                coin &= flipCoin
             }
             while( coin ) {
-               n        = Node( quad, null, tailVar )()
+               n        = new Node( quad, null, tailVar )
                pr       = n.insert( point, value, pr )
                tailVar  = n
                coin    &= flipCoin
@@ -471,7 +471,7 @@ object RandomizedSkipQuadTree {
       sealed trait NonEmpty extends Child
 
       final case class Leaf( value: A ) extends NonEmpty with QLeaf
-      final case class Node( quad: Quad, var parent: Node, prev: Node )( val quads: Array[ Child ] = new Array[ Child ]( 4 ))
+      final class Node( val quad: Quad, var parent: Node, val prev: Node, val quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends NonEmpty with QNode {
          var next: Node = null;
 
@@ -616,7 +616,7 @@ object RandomizedSkipQuadTree {
                   val pidx    = iq.indexOf( point )
                   iquads( pidx ) = l
                   val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
-                  val q       = Node( iq, this, qpred )( iquads )
+                  val q       = new Node( iq, this, qpred, iquads )
                   t.parent    = q
                   quads( qidx ) = q
                   q
@@ -631,7 +631,7 @@ object RandomizedSkipQuadTree {
                   val pidx    = iq.indexOf( point )
                   iquads( pidx ) = l
                   val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
-                  val q       = Node( iq, this, qpred )( iquads )
+                  val q       = new Node( iq, this, qpred, iquads )
                   quads( qidx ) = q
                   q
             }

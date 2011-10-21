@@ -131,7 +131,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
             val path = new Array[ Node ]( 6 ) // hmmm... according to what i've seen, the maximum necessary size is 4 ?!
             val q0o  = l.parent.findPN( path, 0 )
             val q0   = if( q0o == null ) { // create new level
-               val res = TopRightNode( tailVar )
+               val res = new TopRightNode( tailVar )
                tailVar = res
                res
             } else q0o
@@ -414,7 +414,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * sub-node whose parent is this node, and whose predecessor
           * in the lower quadtree is given.
           */
-         final def newNode( prev: Node, iq: Quad ) : RightNode = InnerRightNode( this, prev, iq )
+         final def newNode( prev: Node, iq: Quad ) : RightNode = new InnerRightNode( this, prev, iq )
 
          final def findLeaf( point: PointLike ) : Leaf = {
             val qidx = quad.indexOf( point )
@@ -558,9 +558,9 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * sub-node whose parent is this node, and which should be
           * ordered according to its position in this node.
           */
-         final def newNode( iq: Quad ) : LeftNode = InnerLeftNode( this, iq ) { n =>
+         final def newNode( iq: Quad ) : LeftNode = new InnerLeftNode( this, iq, { n =>
             insets( n, quad.indexOf( n.quad ))  // n.quadIdxIn( quad )
-         }
+         })
       }
 
       sealed trait TopNode extends Node {
@@ -574,14 +574,15 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
          val stopOrder                    = startOrder.append() // startOrder.insertAfter( this )
       }
 
-      final case class InnerLeftNode( var parent: Node, quad: Quad )( _ins: LeftNode => (InOrder, InOrder) ) extends LeftNode {
+      final class InnerLeftNode( var parent: Node, val quad: Quad, _ins: LeftNode => (InOrder, InOrder) )
+      extends LeftNode {
          val (startOrder, stopOrder) = _ins( this )
       }
 
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final case class TopRightNode( prev: Node ) extends RightNode with TopNode {
+      final class TopRightNode( val prev: Node ) extends RightNode with TopNode {
          prev.next = this
 //assert( prev.quad == quad )
       }
@@ -589,7 +590,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final case class InnerRightNode( var parent: Node, prev: Node, quad: Quad ) extends RightNode {
+      final class InnerRightNode( var parent: Node, val prev: Node, val quad: Quad ) extends RightNode {
          prev.next = this
 //assert( prev.quad == quad )
       }
