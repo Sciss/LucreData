@@ -1,5 +1,7 @@
 package de.sciss.collection.geom
 
+import annotation.tailrec
+
 /*
  *  Quad.scala
  *  (TreeTests)
@@ -67,7 +69,20 @@ trait QueryShape {
  * XXX TODO: not possible to have a side length of 1, which might
  * be(come) a problem.
  */
+object Quad {
+   // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
+   @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
+      val gt = a > (b & mask)
+      if( shift == 0 ) {
+         if( gt ) mask >> 1 else mask
+      } else {
+        binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
+      }
+   }
+}
 final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape with */ RectangleLike {
+   import Quad._
+
    def quadrant( idx: Int ) : Quad = {
       val e = extent >> 1
       idx match {
@@ -304,6 +319,26 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
                if( right >= aq.right ) 3 else -1    // se
             }
          } else -1
+      }
+   }
+
+   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: PointLike ) : Quad = {
+      val tlx           = left   // pq.cx - pq.extent
+      val tly           = top    // pq.cy - pq.extent
+      val akx           = aleft - tlx
+      val aky           = atop  - tly
+      val bkx           = b.x - tlx
+      val bky           = b.y - tly
+      // XXX TODO : Tuple3 is not specialized
+      val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
+      val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
+      val mx            = binSplit( x1, x2 )
+      val my            = binSplit( y1, y2 )
+      // that means the x extent is greater (x grid more coarse).
+      if( mx <= my ) {
+         Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
+      } else {
+         Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
       }
    }
 }

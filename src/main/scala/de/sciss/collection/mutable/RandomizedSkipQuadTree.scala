@@ -609,7 +609,7 @@ object RandomizedSkipQuadTree {
                   val tq      = t.quad
 //                  assert( !tq.contains( point ))
                   val te      = tq.extent
-                  val iq      = gisqr( qidx, tq.cx - te, tq.cy - te, te << 1, point )
+                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq.cx - te, tq.cy - te, te << 1, point )
                   val iquads  = new Array[ Child ]( 4 )
                   val tidx    = iq.indexOf( tq )
                   iquads( tidx ) = t
@@ -624,7 +624,7 @@ object RandomizedSkipQuadTree {
                case l2: Leaf =>
 //                  assert( point != point2 )
                   val point2  = pointView( l2.value )
-                  val iq      = gisqr( qidx, point2.x, point2.y, 1, point )
+                  val iq      = quad.quadrant( qidx ).greatestInteresting( point2.x, point2.y, 1, point )
                   val iquads  = new Array[ Child ]( 4 )
                   val lidx    = iq.indexOf( point2 )
                   iquads( lidx ) = l2
@@ -636,41 +636,10 @@ object RandomizedSkipQuadTree {
                   q
             }
          }
-
-         private def gisqr( pqidx: Int, aleft: Int, atop: Int, asize: Int, b: PointLike ) : Quad = {
-            val pq            = quad.quadrant( pqidx )
-            val tlx           = pq.left   // pq.cx - pq.extent
-            val tly           = pq.top    // pq.cy - pq.extent
-            val akx           = aleft - tlx
-            val aky           = atop  - tly
-            val bkx           = b.x - tlx
-            val bky           = b.y - tly
-            // XXX TODO : Tuple3 is not specialized
-            val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
-            val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
-            val mx            = binSplit( x1, x2 )
-            val my            = binSplit( y1, y2 )
-            // that means the x extent is greater (x grid more coarse).
-            if( mx <= my ) {
-               Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
-            } else {
-               Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
-            }
-         }
       }
    }
 
    val random = new util.Random()
    private def flipCoin : Boolean = random.nextBoolean()
-
-   // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
-   @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
-      val gt = a > (b & mask)
-      if( shift == 0 ) {
-         if( gt ) mask >> 1 else mask
-      } else {
-        binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
-      }
-   }
 }
 //trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ]

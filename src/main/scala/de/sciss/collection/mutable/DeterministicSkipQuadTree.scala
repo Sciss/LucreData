@@ -29,7 +29,6 @@
 package de.sciss.collection
 package mutable
 
-import sys.error
 import annotation.{switch, tailrec}
 import geom.{Point, DistanceMeasure, PointLike, Quad, QueryShape}
 
@@ -94,7 +93,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       }
 
       protected def removeLeaf( point: PointLike ) : Leaf = {
-         sys.error( "TODO" )
+         notYetImplemented
       }
 
 //      protected def findLeaf( point: PointLike ) : Leaf = {
@@ -113,7 +112,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       def rangeQuery( qs: QueryShape ) : Iterator[ A ] = notYetImplemented
 
       protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
-         sys.error( "TODO" )
+         notYetImplemented
       }
 
 //      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
@@ -250,26 +249,26 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * to say, in a node, the child order corresponds to
           * their quadrant indices (I < II < III < IV).
           */
-         def compare( that: Leaf ) : Int = order.compare( that.order )
+         final def compare( that: Leaf ) : Int = order.compare( that.order )
 
-         def union( mq: Quad, point2: PointLike ) = {
+         final def union( mq: Quad, point2: PointLike ) = {
             val point   = pointView( value )
-            interestingSquare( mq, point.x, point.y, 1, point2 )
+            mq.greatestInteresting( point.x, point.y, 1, point2 )
          }
 
-         def quadIdxIn( iq: Quad ) : Int = pointInQuad( iq, pointView( value ))
+         final def quadIdxIn( iq: Quad ) : Int = iq.indexOf( pointView( value ))
 
          /**
           * For a leaf (which does not have a subtree),
           * the `startOrder` is identical to its `order`.
           */
-         def startOrder : InOrder = order
+         final def startOrder : InOrder = order
 
          /**
           * For a leaf (which does not have a subtree),
           * the `stopOrder` is identical to its `order`.
           */
-         def stopOrder : InOrder = order
+         final def stopOrder : InOrder = order
       }
 
       sealed trait Node extends NonEmpty with QNode {
@@ -319,10 +318,10 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 
          final def union( mq: Quad, point2: PointLike ) = {
             val q = quad
-            interestingSquare( mq, q.left, q.top, q.side, point2 )
+            mq.greatestInteresting( q.left, q.top, q.side, point2 )
          }
 
-         final def quadIdxIn( iq: Quad ) : Int = quadInQuad( iq, quad )
+         final def quadIdxIn( iq: Quad ) : Int = iq.indexOf( quad )
 
          /**
           * The reverse process of `findP0`: Finds the lowest
@@ -353,7 +352,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
          final def child( idx: Int ) : Child = children( idx )
 
          final def findP0( point: PointLike ) : LeftNode = {
-            val qidx = pointInQuad( quad, point )
+            val qidx = quad.indexOf( point )
             child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
@@ -378,7 +377,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           */
          final def insert( leaf: Leaf, path: Array[ Node ]) {
             val point   = pointView( leaf.value )
-            val qidx    = pointInQuad( quad, point )
+            val qidx    = quad.indexOf( point )
             val c       = children
             c( qidx ) match {
                case Empty =>
@@ -451,7 +450,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
 //         def newValue( leaf: Leaf, value: A ) : Leaf
 
          final def findP0( point: PointLike ) : LeftNode = {
-            val qidx = pointInQuad( quad, point )
+            val qidx = quad.indexOf( point )
             child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => this
@@ -459,7 +458,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
          }
 
          final def insert( point: PointLike, value: A ) : Leaf = {
-            val qidx = pointInQuad( quad, point )
+            val qidx = quad.indexOf( point )
             val c    = children
             c( qidx ) match {
                case Empty =>
@@ -560,7 +559,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
           * ordered according to its position in this node.
           */
          final def newNode( iq: Quad ) : LeftNode = InnerLeftNode( this, iq ) { n =>
-            insets( n, n.quadIdxIn( quad ))
+            insets( n, quad.indexOf( n.quad ))  // n.quadIdxIn( quad )
          }
       }
 
@@ -615,127 +614,7 @@ require( oldLeaf == null, "UPDATES NOT YET SUPPORTED" )
       }
    }
 
-  /**
-    * Determines the quadrant index of a point `a` in a square `p` defined
-    * by its center `pc` and extent `pe`.
-    *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
-    *          outside of `p`.
-    */
-   private def pointInQuad( pq: Quad, a: PointLike ) : Int = {
-      val cx   = pq.cx
-      val cy   = pq.cy
-      val ax   = a.x
-      val ay   = a.y
-      val e    = pq.extent
-      if( ay < cy ) {      // north
-         if( ax >= cx ) {  // east
-            if( cx + e >  ax && cy - e <= ay ) 0 else -1   // ne
-         } else {             // west
-            if( cx - e <= ax && cy - e <= ay ) 1 else -2   // nw
-         }
-      } else {                // south
-         if( ax < cx ) {   // west
-            if( cx - e <= ax && cy + e >  ay ) 2 else -3   // sw
-         } else {             // east
-            if( cx + e >  ax && cy + e >  ay ) 3 else -4   // se
-         }
-      }
-   }
-
-   private def quadInQuad( pq: Quad, aq: Quad ) : Int = {
-      val cx      = pq.cx
-      val cy      = pq.cy
-      val e       = pq.extent
-      val ae      = aq.extent
-      val aleft   = aq.cx - ae
-      val atop    = aq.cy - ae
-      val aright  = aq.cx + ae
-      val abottom = aq.cy + ae
-      if( atop < cy ) {       // north
-         if( cy - e <= atop && abottom <= cy ) {
-            if( aleft >= cx ) {  // east
-               if( cx + e >= aright ) 0 else -1  // ne
-            } else {             // west
-               if( cx - e <= aleft && aright <= cx ) 1 else -1  // nw
-            }
-         } else -1
-      } else {                // south
-         if( cy + e >= abottom && atop >= cy ) {
-            if( aleft < cx ) {   // west
-               if( cx - e <= aleft && aright <= cx ) 2 else -1   // sw
-            } else {             // east
-               if( cx + e >= aright ) 3 else -1    // se
-            }
-         } else - 1
-      }
-   }
-
-   private def unsupportedOp : Nothing       = error( "Operation not supported" )
-   private def notYetImplemented : Nothing   = error( "Not yet implemented" )
-
-   // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
-   @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
-      val gt = a > (b & mask)
-      if( shift == 0 ) {
-         if( gt ) mask >> 1 else mask
-      } else {
-        binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
-      }
-   }
-
-//   private def interestingSquare( pq: Quad, aleft: Int, atop: Int, asize: Int,  b: Point ) : Quad = {
-//      val tlx           = pq.cx - pq.extent
-//      val tly           = pq.cy - pq.extent
-//      val akx           = aleft - tlx
-//      val aky           = atop  - tly
-//      val bkx           = b.x - tlx
-//      val bky           = b.y - tly
-//      val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx ) // XXX Tuple3 not specialized
-//      val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky ) // XXX Tuple3 not specialized
-//      val mx            = binSplit( x1, x2 )
-//      val my            = binSplit( y1, y2 )
-//      // that means the x extent is greater (x grid more coarse).
-//      if( mx <= my ) {
-//         Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )   // XXX check for Int.MaxValue issues
-//      } else {
-//         Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )   // XXX check for Int.MaxValue issues
-//      }
-//   }
-
-   private def interestingSquare( pq: Quad, aleft: Int, atop: Int, asize: Int, b: PointLike ) : Quad = {
-      val tlx  = pq.left
-      val tly  = pq.top
-      val akx  = aleft - tlx
-      val aky  = atop  - tly
-      val bkx  = b.x - tlx
-      val bky  = b.y - tly
-      var x0, x1, x2, y0, y1, y2 = 0
-
-      if( akx <= bkx ) {
-         x0 = akx
-         x1 = akx + asize
-         x2 = bkx
-      } else {
-         x0 = bkx
-         x1 = bkx + 1
-         x2 = akx
-      }
-      if( aky <= bky ) {
-         y0 = aky
-         y1 = aky + asize
-         y2 = bky
-      } else {
-         y0 = bky
-         y1 = bky + 1
-         y2 = aky
-      }
-      val mask = math.min( binSplit( x1, x2 ), binSplit( y1, y2 ))
-      val ext  = -mask
-      val m2   = mask << 1
-      Quad( tlx + (x0 & m2) + ext, tly + (y0 & m2) + ext, ext )
-   }
-
-   // visible interface
+   private def unsupportedOp : Nothing       = sys.error( "Operation not supported" )
+   private def notYetImplemented : Nothing   = sys.error( "Not yet implemented" )
 }
 //trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ]
