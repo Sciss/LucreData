@@ -134,12 +134,13 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
     */
    def iterator : Iterator[ A ]
 
-   trait Q
+   /* sealed */ trait Q
    trait QEmpty extends Q
-   trait QLeaf extends Q {
+   sealed trait QNonEmpty extends Q
+   trait QLeaf extends QNonEmpty {
       def value: A
    }
-   trait QNode extends Q {
+   trait QNode extends QNonEmpty {
       def quad: Quad
       def child( idx: Int ) : Q
       def prevOption: Option[ QNode ]

@@ -1,7 +1,8 @@
 package de.sciss.collection.mutable
 package impl
 
-import de.sciss.collection.geom.{PointLike, DistanceMeasure}
+import de.sciss.collection.geom.{QueryShape, PointLike, DistanceMeasure}
+import collection.mutable.{Queue => MQueue}
 
 trait SkipQuadTreeImpl[ A ] extends SkipQuadTree[ A ] {
    // ---- map support ----
@@ -85,8 +86,94 @@ trait SkipQuadTreeImpl[ A ] extends SkipQuadTree[ A ] {
       i
    }
 
+   final def rangeQuery( qs: QueryShape ) : Iterator[ A ] = new RangeQuery( qs )
+
    protected def insertLeaf( elem: A ) : QLeaf
    protected def removeLeaf( point: PointLike ) : QLeaf
    protected def findLeaf( point: PointLike ) : QLeaf
    protected def nn( point: PointLike, metric: DistanceMeasure ) : QLeaf
+
+   private final class RangeQuery( qs: QueryShape ) extends Iterator[ A ] {
+      val stabbing      = MQueue.empty[ (QNode, Long) ]
+      val in            = MQueue.empty[ QNonEmpty ]
+      var current : A   = _
+      var hasNext       = true
+
+      stabbing += headTree -> qs.overlapArea( headTree.quad )
+      findNextValue()
+
+      def rangeQueryRight( node: QNode, area: Long, qs: QueryShape ) : QNode = {
+         var i = 0; while( i < 4 ) {
+            node.child( i ) match {
+               case n2: QNode =>
+                  val a2 = qs.overlapArea( n2.quad )
+                  if( a2 == area ) {
+//                     if( next != null ) {
+//                        next.rangeQueryRight( area, qs )
+//                     } else {
+//                        n2.rangeQueryLeft( a2, qs )
+//                     }
+                     node.nextOption match {
+                        case Some( next ) => rangeQueryRight( next, area, qs )
+                        case None         => rangeQueryRight( n2, a2, qs )
+                     }
+                  }
+               case _ =>
+            }
+         i += 1 }
+         // at this point, we know `this` is critical
+//         if( prev != null ) prev else this
+         node.prevOption.getOrElse( node )
+      }
+
+      def next() : A = {
+         if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
+         val res = current
+         findNextValue()
+         res
+      }
+
+      def findNextValue() : Unit = while( true ) {
+         if( in.isEmpty ) {
+            if( stabbing.isEmpty ) {
+               hasNext = false
+               return
+            }
+            val tup  = stabbing.dequeue()
+            val ns   = tup._1                         // stabbing node
+            val as   = tup._2
+//            val nc   = ns.rangeQueryRight( as, qs )   // critical node
+            val nc   = rangeQueryRight( ns, as, qs )   // critical node
+            var i = 0; while( i < 4 ) {
+               nc.child( i ) match {
+                  case cl: QLeaf =>
+                     if( qs.contains( pointView( cl.value ))) in += cl
+                  case cn: QNode =>
+                     val q    = cn.quad
+                     val ao   = qs.overlapArea( q )
+                     if( ao > 0 ) {
+                        if( ao < q.area ) {           // stabbing
+                           stabbing += cn -> ao
+                        } else {                      // in
+                           in += cn
+                        }
+                     }
+                  case _ =>
+               }
+            i += 1 }
+
+         } else in.dequeue() match {
+            case l: QLeaf =>
+               current = l.value
+               return
+            case n: QNode =>
+               var i = 0; while( i < 4 ) {
+                  n.child( i ) match {
+                     case ne: QNonEmpty => in += ne // sucky `enqueue` creates intermediate Seq because of varargs
+                     case _ =>
+                  }
+               i += 1 }
+         }
+      }
+   }
 }

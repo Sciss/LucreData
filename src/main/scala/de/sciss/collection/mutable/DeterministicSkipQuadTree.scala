@@ -109,7 +109,7 @@ object DeterministicSkipQuadTree {
          def hasNext : Boolean = underlying.hasNext
       }
 
-      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = notYetImplemented
+//      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = notYetImplemented
 
       protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
          notYetImplemented

@@ -140,7 +140,7 @@ object RandomizedSkipQuadTree {
          }
       }
 
-      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = new RangeQuery( qs )
+//      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = new RangeQuery( qs )
 
       private final class VisitedNode( val n: Node, val minDist: Long /* , maxDist: Long */) extends Ordered[ VisitedNode ] {
          def compare( that: VisitedNode ) = -(minDist.compareTo( that.minDist ))
@@ -406,64 +406,64 @@ object RandomizedSkipQuadTree {
          error( "never here" )
       }
 
-      private class RangeQuery( qs: QueryShape ) extends Iterator[ A ] {
-         val stabbing      = MQueue.empty[ (Node, Long) ]
-         val in            = MQueue.empty[ NonEmpty ]
-         var current : A   = _
-         var hasNext       = true
-
-         stabbing += headTree -> qs.overlapArea( headTree.quad )
-         findNextValue()
-
-         def next() : A = {
-            if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
-            val res = current
-            findNextValue()
-            res
-         }
-
-         def findNextValue() : Unit = while( true ) {
-            if( in.isEmpty ) {
-               if( stabbing.isEmpty ) {
-                  hasNext = false
-                  return
-               }
-               val tup  = stabbing.dequeue()
-               val ns   = tup._1                         // stabbing node
-               val as   = tup._2
-               val nc   = ns.rangeQueryRight( as, qs )   // critical node
-               var i = 0; while( i < 4 ) {
-                  nc.child( i ) match {
-                     case cl: Leaf =>
-                        if( qs.contains( pointView( cl.value ))) in += cl
-                     case cn: Node =>
-                        val q    = cn.quad
-                        val ao   = qs.overlapArea( q )
-                        if( ao > 0 ) {
-                           if( ao < q.area ) {           // stabbing
-                              stabbing += cn -> ao
-                           } else {                      // in
-                              in += cn
-                           }
-                        }
-                     case _ =>
-                  }
-               i += 1 }
-
-            } else in.dequeue() match {
-               case l: Leaf =>
-                  current = l.value
-                  return
-               case n: Node =>
-                  var i = 0; while( i < 4 ) {
-                     n.child( i ) match {
-                        case ne: NonEmpty => in += ne // sucky `enqueue` creates intermediate Seq because of varargs
-                        case _ =>
-                     }
-                  i += 1 }
-            }
-         }
-      }
+//      private class RangeQuery( qs: QueryShape ) extends Iterator[ A ] {
+//         val stabbing      = MQueue.empty[ (Node, Long) ]
+//         val in            = MQueue.empty[ NonEmpty ]
+//         var current : A   = _
+//         var hasNext       = true
+//
+//         stabbing += headTree -> qs.overlapArea( headTree.quad )
+//         findNextValue()
+//
+//         def next() : A = {
+//            if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
+//            val res = current
+//            findNextValue()
+//            res
+//         }
+//
+//         def findNextValue() : Unit = while( true ) {
+//            if( in.isEmpty ) {
+//               if( stabbing.isEmpty ) {
+//                  hasNext = false
+//                  return
+//               }
+//               val tup  = stabbing.dequeue()
+//               val ns   = tup._1                         // stabbing node
+//               val as   = tup._2
+//               val nc   = ns.rangeQueryRight( as, qs )   // critical node
+//               var i = 0; while( i < 4 ) {
+//                  nc.child( i ) match {
+//                     case cl: Leaf =>
+//                        if( qs.contains( pointView( cl.value ))) in += cl
+//                     case cn: Node =>
+//                        val q    = cn.quad
+//                        val ao   = qs.overlapArea( q )
+//                        if( ao > 0 ) {
+//                           if( ao < q.area ) {           // stabbing
+//                              stabbing += cn -> ao
+//                           } else {                      // in
+//                              in += cn
+//                           }
+//                        }
+//                     case _ =>
+//                  }
+//               i += 1 }
+//
+//            } else in.dequeue() match {
+//               case l: Leaf =>
+//                  current = l.value
+//                  return
+//               case n: Node =>
+//                  var i = 0; while( i < 4 ) {
+//                     n.child( i ) match {
+//                        case ne: NonEmpty => in += ne // sucky `enqueue` creates intermediate Seq because of varargs
+//                        case _ =>
+//                     }
+//                  i += 1 }
+//            }
+//         }
+//      }
 
       sealed trait Child extends Q
       case object Empty extends Child with QEmpty
@@ -471,6 +471,7 @@ object RandomizedSkipQuadTree {
       sealed trait NonEmpty extends Child
 
       final case class Leaf( value: A ) extends NonEmpty with QLeaf
+
       final class Node( val quad: Quad, var parent: Node, val prev: Node, val quads: Array[ Child ] = new Array[ Child ]( 4 ))
       extends NonEmpty with QNode {
          var next: Node = null;
@@ -489,24 +490,24 @@ object RandomizedSkipQuadTree {
          def prevOption = Option( prev: QNode ) // Option( null ) becomes None
          def nextOption = Option( next: QNode ) // Option( null ) becomes None
 
-         def rangeQueryRight( area: Long, qs: QueryShape ) : Node = {
-            var i = 0; while( i < 4 ) {
-               quads( i ) match {
-                  case n2: Node =>
-                     val a2 = qs.overlapArea( n2.quad )
-                     if( a2 == area ) {
-                        if( next != null ) {
-                           next.rangeQueryRight( area, qs )
-                        } else {
-                           n2.rangeQueryLeft( a2, qs )
-                        }
-                     }
-                  case _ =>
-               }
-            i += 1 }
-            // at this point, we know `this` is critical
-            if( prev != null ) prev else this
-         }
+//         def rangeQueryRight( area: Long, qs: QueryShape ) : Node = {
+//            var i = 0; while( i < 4 ) {
+//               quads( i ) match {
+//                  case n2: Node =>
+//                     val a2 = qs.overlapArea( n2.quad )
+//                     if( a2 == area ) {
+//                        if( next != null ) {
+//                           next.rangeQueryRight( area, qs )
+//                        } else {
+//                           n2.rangeQueryLeft( a2, qs )
+//                        }
+//                     }
+//                  case _ =>
+//               }
+//            i += 1 }
+//            // at this point, we know `this` is critical
+//            if( prev != null ) prev else this
+//         }
 
          def rangeQueryLeft( area: Long, qs: QueryShape ) : Node = {
             var i = 0; while( i < 4 ) {
