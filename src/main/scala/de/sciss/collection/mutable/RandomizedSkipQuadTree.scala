@@ -112,7 +112,7 @@ object RandomizedSkipQuadTree {
                   n  = pn
                   idx= pidx
                }
-               n.child( idx ) match {
+               n.children( idx ) match {
                   case l: Leaf =>
                      leaf  = l
                      idx  += 1
@@ -148,24 +148,24 @@ object RandomizedSkipQuadTree {
 
       final case class Leaf( value: A ) extends NonEmpty with QLeaf
 
-      final class Node( val quad: Quad, var parent: Node, val prev: Node, val quads: Array[ Child ] = new Array[ Child ]( 4 ))
+      final class Node( val quad: Quad, var parent: Node, val prev: Node, val children: Array[ Child ] = new Array[ Child ]( 4 ))
       extends NonEmpty with QNode {
          var next: Node = null;
 
          // fix null squares and link
          {
             var i = 0; while( i < 4 ) {
-               if( quads( i ) == null ) quads( i ) = Empty
+               if( children( i ) == null ) children( i ) = Empty
             i += 1 }
 
             if( prev != null ) prev.next = this
          }
 
-         def child( idx: Int ) : Child = quads( idx )
+         def child( idx: Int ) : Child = children( idx )
 
          def findP0( point: PointLike, ns: MStack[ Node ]) /* : Leaf = */ {
             val qidx = quad.indexOf( point )
-            child( qidx ) match {
+            children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point, ns )
 //               case l: Leaf if( prev == null && l.point == point ) =>
 //                  ns.push( this )
@@ -178,7 +178,7 @@ object RandomizedSkipQuadTree {
 
          def findLeaf( point: PointLike ) : Leaf = {
             val qidx = quad.indexOf( point )
-            child( qidx ) match {
+            children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
                case l: Leaf if( pointView( l.value ) == point ) => l
                case _ => if( prev == null ) null else prev.findLeaf( point )
@@ -189,14 +189,14 @@ object RandomizedSkipQuadTree {
 
          def remove( point: PointLike ) : Leaf = {
             val qidx = quad.indexOf( point )
-            quads( qidx ) match {
+            children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.remove( point )
                case l: Leaf if( pointView( l.value ) == point ) =>
-                  quads( qidx ) = Empty
+                  children( qidx ) = Empty
                   var lonely: NonEmpty = null
                   var numNonEmpty = 0
                   var i = 0; while( i < 4 ) {
-                     quads( i ) match {
+                     children( i ) match {
                         case n: NonEmpty =>
                            numNonEmpty += 1
                            lonely = n
@@ -206,7 +206,7 @@ object RandomizedSkipQuadTree {
                   if( numNonEmpty == 1 && parent != null ) {   // gotta remove this node and put remaining non empty element in parent
                      if( prev != null ) prev.next = null       // note: since remove is called from Qn to Q0, there is no this.next !
                      val myIdx = parent.quad.indexOf( quad )
-                     parent.quads( myIdx ) = lonely
+                     parent.children( myIdx ) = lonely
                      lonely match {
                         case n: Node => n.parent = parent
                         case _ =>
@@ -228,8 +228,8 @@ object RandomizedSkipQuadTree {
           */
          def update( point: PointLike, value: A ) {
             val qidx = quad.indexOf( point )
-            quads( qidx ) match {
-               case l: Leaf if( pointView( l.value ) == point ) => quads( qidx ) = Leaf( value )
+            children( qidx ) match {
+               case l: Leaf if( pointView( l.value ) == point ) => children( qidx ) = Leaf( value )
                case _ =>
             }
          }
@@ -237,9 +237,9 @@ object RandomizedSkipQuadTree {
          def insert( point: PointLike, value: A, prevP: Node ) : Node = {
             val qidx = quad.indexOf( point )
             val l    = Leaf( value )
-            quads( qidx ) match {
+            children( qidx ) match {
                case Empty =>
-                  quads( qidx ) = l
+                  children( qidx ) = l
                   this
 
                case t: Node =>
@@ -255,7 +255,7 @@ object RandomizedSkipQuadTree {
                   val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
                   val q       = new Node( iq, this, qpred, iquads )
                   t.parent    = q
-                  quads( qidx ) = q
+                  children( qidx ) = q
                   q
 
                case l2: Leaf =>
@@ -269,7 +269,7 @@ object RandomizedSkipQuadTree {
                   iquads( pidx ) = l
                   val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
                   val q       = new Node( iq, this, qpred, iquads )
-                  quads( qidx ) = q
+                  children( qidx ) = q
                   q
             }
          }

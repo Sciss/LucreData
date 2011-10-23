@@ -170,7 +170,7 @@ object DistanceMeasure {
 }
 /**
  * A `DistanceMeasure` is used in nearest neighbour search,
- * in order to allow different ways points and quads are
+ * in order to allow different ways points and children are
  * favoured or filtered during the search.
  *
  * For simplicity and performance, the measures, although

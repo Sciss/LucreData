@@ -88,7 +88,15 @@ object DeterministicSkipQuadTree {
       }
 
       protected def removeLeaf( point: PointLike ) : Leaf = {
-         notYetImplemented
+         if( !quad.contains( point )) return null
+
+         // "To insert or delete a point y into or from S, we first search the
+         // quadtree structure to locate y in each Qi ..."
+         val p0 = tailVar.findP0( point )
+
+         // "... Then we insert or delete y
+         // in the binary Q0 and update our total order."
+         p0.removeImmediateLeaf( point )
       }
 
 //      protected def findLeaf( point: PointLike ) : Leaf = {
@@ -134,7 +142,7 @@ object DeterministicSkipQuadTree {
        * A child is an object that can be
        * stored in a quadrant of a node.
        */
-      sealed trait Child /* extends Q */
+      sealed trait Child extends Q
       /**
        * A left child is one which is stored in Q0.
        * This is either empty or an object (`LeftNonEmpty`)
@@ -146,7 +154,7 @@ object DeterministicSkipQuadTree {
       /**
        * A dummy object indicating a vacant quadrant in a node.
        */
-      case object Empty extends LeftChild with QEmpty // [ A ]
+      case object Empty extends LeftChild with QEmpty
 
       /**
        * An object denoting a filled quadrant of a node.
@@ -257,11 +265,13 @@ object DeterministicSkipQuadTree {
       }
 
       sealed trait Node extends NonEmpty with QNode {
+//         def children : Array[ Child ]
+         
          /**
           * Returns the child for a given
           * quadrant index
           */
-         def child( idx: Int ) : Child with Q
+         def child( idx: Int ) : Child
 
          /**
           * Finds to smallest interesting square
@@ -327,18 +337,18 @@ object DeterministicSkipQuadTree {
       }
 
       sealed trait RightNode extends Node {
-         final val children = Array.fill[ Child with Q ]( 4 )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ Child ]( 4 )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          // Child support
 //         final def prevOption = Some( prev: QNode )
 
          def prev : Node
-         final def child( idx: Int ) : Child with Q = children( idx )
+         final def child( idx: Int ) : Child = children( idx )
 
          final def findP0( point: PointLike ) : LeftNode = {
             val qidx = quad.indexOf( point )
-            child( qidx ) match {
+            children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
             }
@@ -403,7 +413,7 @@ object DeterministicSkipQuadTree {
 
          final def findLeaf( point: PointLike ) : Leaf = {
             val qidx = quad.indexOf( point )
-            child( qidx ) match {
+            children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
                case l: Leaf if( pointView( l.value ) == point ) => l
                case _ => prev.findLeaf( point )
@@ -417,14 +427,14 @@ object DeterministicSkipQuadTree {
           * -- they are instances of `LeftChild` and thus support
           * order intervals.
           */
-         final val children = Array.fill[ LeftChild with Q ]( 4 )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ LeftChild ]( 4 )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          // Child support
 //         final def prevOption = Option.empty[ QNode ]
          final def prev : QNode = null
 
-         final def child( idx: Int ) : Child with Q = children( idx )
+         final def child( idx: Int ) : Child = children( idx )
 
 //         /**
 //          * Creates a new leaf based on a given leaf,
@@ -442,6 +452,68 @@ object DeterministicSkipQuadTree {
                case _ => this
             }
          }
+
+         final def removeImmediateLeaf( point: PointLike ) : Leaf = {
+            var qidx = 0; while( qidx < numChildren ) {
+               children( qidx ) match {
+                  case l: Leaf if( pointView( l.value ) == point ) =>
+                     children( qidx ) = Empty
+                     leafRemoved()
+                     // "... and update our total order"
+                     skipList.remove( l )
+                     return l
+
+                  case _ =>
+               }
+            qidx += 1 }
+            null
+         }
+
+         /**
+          * Called when a leaf has been removed from the node.
+          * The node may need to cleanup after this, e.g. promote
+          * an underfull node upwards.
+          */
+         protected def leafRemoved() : Unit
+
+//         final def removeImmediateLeaf( point: PointLike ) : Leaf = {
+//            var qidx = 0; while( qidx < numChildren ) {
+//               children( qidx ) match {
+//                  case l: Leaf if( pointView( l.value ) == point ) =>
+//                     children( qidx ) = Empty
+//                     var lonely: NonEmpty = null
+//                     var numNonEmpty = 0
+//                     var i = 0; while( i < 4 ) {
+//                        children( i ) match {
+//                           case n: NonEmpty =>
+//                              numNonEmpty += 1
+//                              lonely = n
+//                           case _ =>
+//                        }
+//                     i += 1 }
+//                     if( numNonEmpty == 1 && parent != null ) {   // gotta remove this node and put remaining non empty element in parent
+//                        // note: there is no prev by definition (we are in a left-node)!
+////                        if( prev != null ) prev.next = null       // note: since remove is called from Qn to Q0, there is no this.next !
+//                        val myIdx = parent.quad.indexOf( quad )
+//                        parent.children( myIdx ) = lonely
+//                        lonely match {
+//                           case n: Node => n.parent = parent
+//                           case _ =>
+//                        }
+//                     }
+//                        // note: there is no prev by definition (we are in a left-node)!
+////                     // meaning that this is a root node (but not headTree)
+////                     else if( numNonEmpty == 0 && prev != null ) {
+////                        prev.next   = null
+////                        tailVar     = prev
+////                     }
+//                     return l
+//
+//                  case _ =>
+//               }
+//            qidx += 1 }
+//            null
+//         }
 
          final def insert( point: PointLike, value: A ) : Leaf = {
             val qidx = quad.indexOf( point )
@@ -511,7 +583,7 @@ object DeterministicSkipQuadTree {
 
          final def findLeaf( point: PointLike ) : Leaf = {
             val qidx = quad.indexOf( point )
-            child( qidx ) match {
+            children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
                case l: Leaf if( pointView( l.value ) == point ) => l
                case _ => null
@@ -558,11 +630,45 @@ object DeterministicSkipQuadTree {
       object TopLeftNode extends LeftNode with TopNode {
          val startOrder                   = totalOrder.root // TotalOrder() // TotalOrder[ LeftNonEmpty ]( this )
          val stopOrder                    = startOrder.append() // startOrder.insertAfter( this )
+
+         // that's alright, we don't need to do anything special here
+         protected def leafRemoved() {}
       }
 
       final class InnerLeftNode( var parent: Node, val quad: Quad, _ins: LeftNode => (InOrder, InOrder) )
       extends LeftNode {
          val (startOrder, stopOrder) = _ins( this )
+
+         // make sure the node is not underfull, in which case
+         // we need to merge upwards
+         protected def leafRemoved() {
+            var lonely: LeftNonEmpty = null
+            var numNonEmpty = 0
+            var i = 0; while( i < 4 ) {
+               children( i ) match {
+                  case n: LeftNonEmpty =>
+                     numNonEmpty += 1
+                     lonely = n
+                  case _ =>
+               }
+            i += 1 }
+            if( numNonEmpty == 1 ) {   // gotta remove this node and put remaining non empty element in parent
+               val myIdx = parent.quad.indexOf( quad )
+
+               @tailrec def findLeftParent( n: Node ) : LeftNode = n match {
+                  case ln: LeftNode    => ln
+                  case rn: RightNode   => findLeftParent( rn.prev )
+               }
+               val p = findLeftParent( parent )
+
+               p.children( myIdx ) = lonely
+               lonely match {
+                  // be aware that n.parent may point to other skiplist level!
+                  case n: Node if( n.parent == this ) => n.parent = p
+                  case _ =>
+               }
+            }
+         }
       }
 
       /**
@@ -598,6 +704,8 @@ object DeterministicSkipQuadTree {
       final class LeafImpl( var parent: Node, val point: PointLike, var value: A, _ins: Leaf => InOrder )
       extends Leaf {
          val order = _ins( this )
+
+         override def toString = "Leaf(" + point + ", " + value + ")"
       }
    }
 
