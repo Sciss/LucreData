@@ -143,7 +143,13 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
    trait QNode extends QNonEmpty {
       def quad: Quad
       def child( idx: Int ) : Q
-      def prevOption: Option[ QNode ]
-      def nextOption: Option[ QNode ]
+      final def prevOption: Option[ QNode ] = Option( prev )
+      final def nextOption: Option[ QNode ] = Option( next )
+//      def prev: QNode
+//      def next: QNode
+
+      // XXX todo: how can we make this implementation private?
+      /* protected[SkipQuadTree] */ def prev: QNode
+      /* protected[SkipQuadTree] */ def next: QNode
    }
 }

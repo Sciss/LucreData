@@ -111,9 +111,9 @@ object DeterministicSkipQuadTree {
 
 //      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = notYetImplemented
 
-      protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
-         notYetImplemented
-      }
+//      protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
+//         notYetImplemented
+//      }
 
 //      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
 //         error( "TODO" )
@@ -161,7 +161,7 @@ object DeterministicSkipQuadTree {
       /**
        * A dummy object indicating a vacant quadrant in a node.
        */
-      case object Empty extends LeftChild with QEmpty
+      case object Empty extends LeftChild with QEmpty // [ A ]
 
       /**
        * An object denoting a filled quadrant of a node.
@@ -308,7 +308,7 @@ object DeterministicSkipQuadTree {
           */
          def next: RightNode
 
-         final def nextOption: Option[ QNode ] = Option( next )
+//         final def nextOption: Option[ QNode ] = Option( next )
 
          /**
           * Sets the corresponding interesting
@@ -346,7 +346,7 @@ object DeterministicSkipQuadTree {
          final var next : RightNode = null
 
          // Child support
-         final def prevOption = Some( prev: QNode )
+//         final def prevOption = Some( prev: QNode )
 
          def prev : Node
          final def child( idx: Int ) : Child = children( idx )
@@ -436,7 +436,8 @@ object DeterministicSkipQuadTree {
          final var next : RightNode = null
 
          // Child support
-         final def prevOption = Option.empty[ QNode ]
+//         final def prevOption = Option.empty[ QNode ]
+         final def prev : QNode = null
 
          final def child( idx: Int ) : Child = children( idx )
 

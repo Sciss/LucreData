@@ -29,10 +29,8 @@
 package de.sciss.collection
 package mutable
 
-import sys.error
-import collection.mutable.{PriorityQueue, Queue => MQueue, Stack => MStack}
-import annotation.tailrec
-import geom.{QueryShape, DistanceMeasure, Quad, PointLike}
+import collection.mutable.{Stack => MStack}
+import geom.{Quad, PointLike}
 
 object RandomizedSkipQuadTree {
    def empty[ A ]( quad: Quad )( implicit view: A => PointLike ) : SkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )
@@ -53,7 +51,7 @@ object RandomizedSkipQuadTree {
       val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
 
-      def lastTree: QNode = tailVar
+      def lastTree: QNode  = tailVar
 
       protected def findLeaf( point: PointLike ) : Leaf = tailVar.findLeaf( point )
 
@@ -302,109 +300,109 @@ object RandomizedSkipQuadTree {
 //         error( "never here" )
 //      }
 
-      protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
-         var bestLeaf: Leaf      = null
-         var bestDist            = Long.MaxValue   // all distances here are squared!
-         val pri                 = PriorityQueue.empty[ VisitedNode ]
-         val acceptedChildren    = new Array[ VisitedNode ]( 4 )
-         var numAcceptedChildren = 0
-         var rmax                = Long.MaxValue
-//         val abortSq    = {
-//            val al = abort.toLong
-//            al * al
+//      protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
+//         var bestLeaf: Leaf      = null
+//         var bestDist            = Long.MaxValue   // all distances here are squared!
+//         val pri                 = PriorityQueue.empty[ VisitedNode ]
+//         val acceptedChildren    = new Array[ VisitedNode ]( 4 )
+//         var numAcceptedChildren = 0
+//         var rmax                = Long.MaxValue
+////         val abortSq    = {
+////            val al = abort.toLong
+////            al * al
+////         }
+//
+//         def recheckRMax {
+//            var j = 0; while( j < numAcceptedChildren ) {
+//               if( acceptedChildren( j ).minDist > rmax ) {  // immediately kick it out
+//                  numAcceptedChildren -= 1
+//                  var k = j; while( k < numAcceptedChildren ) {
+//                     acceptedChildren( k ) = acceptedChildren( k + 1 )
+//                  k += 1 }
+//               }
+//            j += 1 }
 //         }
-
-         def recheckRMax {
-            var j = 0; while( j < numAcceptedChildren ) {
-               if( acceptedChildren( j ).minDist > rmax ) {  // immediately kick it out
-                  numAcceptedChildren -= 1
-                  var k = j; while( k < numAcceptedChildren ) {
-                     acceptedChildren( k ) = acceptedChildren( k + 1 )
-                  k += 1 }
-               }
-            j += 1 }
-         }
-
-         @tailrec def findNNTail( n0: Node ) {
-            numAcceptedChildren = 0
-            var accept1Idx = 0
-            val oldRMax1 = rmax
-            var i = 0; while( i < 4 ) {
-               n0.child( i ) match {
-                  case l: Leaf =>
-                     val ldist = metric.distance( point, pointView( l.value ))
-                     if( ldist < bestDist ) {
-                        bestDist = ldist
-                        bestLeaf = l
-                        if( bestDist < rmax ) {
-//println( "      : leaf " + l.point + " - " + bestDist )
-                           rmax = bestDist
-                        }
-                     }
-
-                  case c: Node =>
-                     val cq            = c.quad
-                     val cMinDist      = metric.minDistance( point, cq )
-                     if( cMinDist <= rmax ) {   // otherwise we're out already
-                        val cMaxDist   = metric.maxDistance( point, cq )
-                        if( cMaxDist < rmax ) {
-//println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
-                           rmax = cMaxDist
-                        }
-                        acceptedChildren( numAcceptedChildren ) = new VisitedNode( c, cMinDist /*, cMaxDist */)
-                        accept1Idx = i
-                        numAcceptedChildren += 1
-                     }
-
-                  case _ =>
-               }
-            i += 1 }
-
-            if( rmax != oldRMax1 ) recheckRMax
-
-            // Unless exactly one child is accepted, round is over
-            if( numAcceptedChildren != 1 ) return
-
-            // Otherwise find corresponding node in highest level, and descend
-            var dn   = acceptedChildren( 0 ).n
-            val qdn  = dn.quad
-            var succ = n0.next
-            while( succ != null ) {
-               succ.child( accept1Idx ) match {
-                  case dn2: Node if( dn2.quad == qdn ) =>
-                     dn    = dn2
-                     succ  = succ.next
-                  case _ =>
-                     succ  = null
-               }
-            }
-
-            // now go left
-            while( dn.prev != null ) dn = dn.prev
-            findNNTail( dn )
-         }
-
-         var n0 = headTree
-         while( true ) {
-//println( "ROUND : " + identify( n0 ))
-            findNNTail( n0 )
-            if( bestDist <= 0L ) return bestLeaf
-            var i = 0; while( i < numAcceptedChildren ) {
-//println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
-               pri += acceptedChildren( i )
-            i += 1 }
-            var vis: VisitedNode = null
-            do {
-               if( pri.isEmpty ) {
-                  return bestLeaf
-               } else {
-                  vis = pri.dequeue()
-               }
-            } while( vis.minDist > rmax )
-            n0 = vis.n
-         }
-         error( "never here" )
-      }
+//
+//         @tailrec def findNNTail( n0: Node ) {
+//            numAcceptedChildren = 0
+//            var accept1Idx = 0
+//            val oldRMax1 = rmax
+//            var i = 0; while( i < 4 ) {
+//               n0.child( i ) match {
+//                  case l: Leaf =>
+//                     val ldist = metric.distance( point, pointView( l.value ))
+//                     if( ldist < bestDist ) {
+//                        bestDist = ldist
+//                        bestLeaf = l
+//                        if( bestDist < rmax ) {
+////println( "      : leaf " + l.point + " - " + bestDist )
+//                           rmax = bestDist
+//                        }
+//                     }
+//
+//                  case c: Node =>
+//                     val cq            = c.quad
+//                     val cMinDist      = metric.minDistance( point, cq )
+//                     if( cMinDist <= rmax ) {   // otherwise we're out already
+//                        val cMaxDist   = metric.maxDistance( point, cq )
+//                        if( cMaxDist < rmax ) {
+////println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
+//                           rmax = cMaxDist
+//                        }
+//                        acceptedChildren( numAcceptedChildren ) = new VisitedNode( c, cMinDist /*, cMaxDist */)
+//                        accept1Idx = i
+//                        numAcceptedChildren += 1
+//                     }
+//
+//                  case _ =>
+//               }
+//            i += 1 }
+//
+//            if( rmax != oldRMax1 ) recheckRMax
+//
+//            // Unless exactly one child is accepted, round is over
+//            if( numAcceptedChildren != 1 ) return
+//
+//            // Otherwise find corresponding node in highest level, and descend
+//            var dn   = acceptedChildren( 0 ).n
+//            val qdn  = dn.quad
+//            var succ = n0.next
+//            while( succ != null ) {
+//               succ.child( accept1Idx ) match {
+//                  case dn2: Node if( dn2.quad == qdn ) =>
+//                     dn    = dn2
+//                     succ  = succ.next
+//                  case _ =>
+//                     succ  = null
+//               }
+//            }
+//
+//            // now go left
+//            while( dn.prev != null ) dn = dn.prev
+//            findNNTail( dn )
+//         }
+//
+//         var n0 = headTree
+//         while( true ) {
+////println( "ROUND : " + identify( n0 ))
+//            findNNTail( n0 )
+//            if( bestDist <= 0L ) return bestLeaf
+//            var i = 0; while( i < numAcceptedChildren ) {
+////println( "++ " + identify( acceptedChildren( i ).n ) + " - " + acceptedChildren( i ).minDist )
+//               pri += acceptedChildren( i )
+//            i += 1 }
+//            var vis: VisitedNode = null
+//            do {
+//               if( pri.isEmpty ) {
+//                  return bestLeaf
+//               } else {
+//                  vis = pri.dequeue()
+//               }
+//            } while( vis.minDist > rmax )
+//            n0 = vis.n
+//         }
+//         error( "never here" )
+//      }
 
 //      private class RangeQuery( qs: QueryShape ) extends Iterator[ A ] {
 //         val stabbing      = MQueue.empty[ (Node, Long) ]
@@ -487,8 +485,8 @@ object RandomizedSkipQuadTree {
 
          def child( idx: Int ) : Child = quads( idx )
 
-         def prevOption = Option( prev: QNode ) // Option( null ) becomes None
-         def nextOption = Option( next: QNode ) // Option( null ) becomes None
+//         def prevOption = Option( prev: QNode ) // Option( null ) becomes None
+//         def nextOption = Option( next: QNode ) // Option( null ) becomes None
 
 //         def rangeQueryRight( area: Long, qs: QueryShape ) : Node = {
 //            var i = 0; while( i < 4 ) {
@@ -509,23 +507,23 @@ object RandomizedSkipQuadTree {
 //            if( prev != null ) prev else this
 //         }
 
-         def rangeQueryLeft( area: Long, qs: QueryShape ) : Node = {
-            var i = 0; while( i < 4 ) {
-               quads( i ) match {
-                  case n2: Node =>
-                     val a2 = qs.overlapArea( n2.quad )
-                     if( a2 == area ) {
-                        if( next != null ) {
-                           next.rangeQueryLeft( area, qs )
-                        } else {
-                           n2.rangeQueryLeft( a2, qs )
-                        }
-                     }
-                  case _ =>
-               }
-            i += 1 }
-            this
-         }
+//         def rangeQueryLeft( area: Long, qs: QueryShape ) : Node = {
+//            var i = 0; while( i < 4 ) {
+//               quads( i ) match {
+//                  case n2: Node =>
+//                     val a2 = qs.overlapArea( n2.quad )
+//                     if( a2 == area ) {
+//                        if( next != null ) {
+//                           next.rangeQueryLeft( area, qs )
+//                        } else {
+//                           n2.rangeQueryLeft( a2, qs )
+//                        }
+//                     }
+//                  case _ =>
+//               }
+//            i += 1 }
+//            this
+//         }
 
          def findP0( point: PointLike, ns: MStack[ Node ]) /* : Leaf = */ {
             val qidx = quad.indexOf( point )

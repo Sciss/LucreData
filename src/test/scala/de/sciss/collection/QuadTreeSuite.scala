@@ -16,7 +16,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = true
    val RANGE_SEARCH  = true
-   val NN_SEARCH     = false     // not yet supported by Deterministic
+   val NN_SEARCH     = true
    val REMOVAL       = false     // not yet supported by Deterministic
 
    val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
