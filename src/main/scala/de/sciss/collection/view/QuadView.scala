@@ -21,9 +21,6 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.collection
@@ -66,12 +63,12 @@ abstract class QuadView extends JComponent {
       val g2 = g.asInstanceOf[ Graphics2D ]
       g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON )
       val atOrig = g2.getTransform
-      val in = getInsets()
+      val in = getInsets
       g2.setColor( getBackground )
       g2.fillRect( 0, 0, getWidth, getHeight )
       g2.setColor( getForeground )
       g2.translate( in.left, in.top )
-      val at2 = g2.getTransform()
+      val at2 = g2.getTransform
       val h = QuadView.PaintHelper( g2 )
       draw( h )
       topPainter.foreach { fun =>

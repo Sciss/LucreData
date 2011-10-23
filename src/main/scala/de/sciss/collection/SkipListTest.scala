@@ -1,5 +1,5 @@
 /*
- *  LLSkipListTest.scala
+ *  SkipListTest.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -21,9 +21,6 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.collection

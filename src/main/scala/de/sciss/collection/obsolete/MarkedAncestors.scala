@@ -1,5 +1,3 @@
-package de.sciss.collection.obsolete
-
 /*
  *  MarkedAncestors.scala
  *  (TreeTests)
@@ -23,10 +21,9 @@ package de.sciss.collection.obsolete
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
+
+package de.sciss.collection.obsolete
 
 import collection.breakOut
 import collection.immutable.{IndexedSeq => IIdxSeq}

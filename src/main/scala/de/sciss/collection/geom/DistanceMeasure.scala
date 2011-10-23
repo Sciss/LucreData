@@ -23,9 +23,6 @@ package de.sciss.collection.geom
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 import annotation.switch

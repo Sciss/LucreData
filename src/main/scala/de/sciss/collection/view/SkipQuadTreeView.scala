@@ -21,9 +21,6 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.collection
@@ -46,7 +43,7 @@ class SkipQuadTreeView[ A ]( t: SkipQuadTree[ A ]) extends QuadView {
 
    private def setPrefSz( lvl: Int ) {
       val w1   = ((t.quad.extent.toLong << 1) * scale + 0.5).toInt + 1
-      val in   = getInsets()
+      val in   = getInsets
       setPreferredSize( new Dimension( ((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom) ))
    }
 

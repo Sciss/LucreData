@@ -1,7 +1,3 @@
-package de.sciss.collection.geom
-
-import annotation.tailrec
-
 /*
  *  Quad.scala
  *  (TreeTests)
@@ -25,10 +21,11 @@ import annotation.tailrec
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
+
+package de.sciss.collection.geom
+
+import annotation.tailrec
 
 trait QueryShape {
    def overlapArea( q: Quad ) : Long

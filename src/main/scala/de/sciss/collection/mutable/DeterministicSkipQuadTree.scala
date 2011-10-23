@@ -21,22 +21,17 @@
  *
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
- *
- *
- *  Changelog:
  */
 
 package de.sciss.collection
 package mutable
 
 import annotation.{switch, tailrec}
-import geom.{Point, DistanceMeasure, PointLike, Quad, QueryShape}
+import geom.{Point, PointLike, Quad}
 
 /**
  * XXX TODO:
  * - delete is missing
- * - find nearest neighbour is missing
- * - detect insertion of existing points (this causes a corruption currently!)
  */
 object DeterministicSkipQuadTree {
 //   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
@@ -109,16 +104,6 @@ object DeterministicSkipQuadTree {
          def hasNext : Boolean = underlying.hasNext
       }
 
-//      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = notYetImplemented
-
-//      protected def nn( point: PointLike, metric: DistanceMeasure ) : Leaf = {
-//         notYetImplemented
-//      }
-
-//      def isomorphicQuery( orient: A => Int ) : RectangleLike = {
-//         error( "TODO" )
-//      }
-
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {
             // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
@@ -149,7 +134,7 @@ object DeterministicSkipQuadTree {
        * A child is an object that can be
        * stored in a quadrant of a node.
        */
-      sealed trait Child extends Q
+      sealed trait Child /* extends Q */
       /**
        * A left child is one which is stored in Q0.
        * This is either empty or an object (`LeftNonEmpty`)
@@ -276,7 +261,7 @@ object DeterministicSkipQuadTree {
           * Returns the child for a given
           * quadrant index
           */
-         def child( idx: Int ) : Child
+         def child( idx: Int ) : Child with Q
 
          /**
           * Finds to smallest interesting square
@@ -342,14 +327,14 @@ object DeterministicSkipQuadTree {
       }
 
       sealed trait RightNode extends Node {
-         final val children = Array.fill[ Child ]( 4 )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ Child with Q ]( 4 )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          // Child support
 //         final def prevOption = Some( prev: QNode )
 
          def prev : Node
-         final def child( idx: Int ) : Child = children( idx )
+         final def child( idx: Int ) : Child with Q = children( idx )
 
          final def findP0( point: PointLike ) : LeftNode = {
             val qidx = quad.indexOf( point )
@@ -432,14 +417,14 @@ object DeterministicSkipQuadTree {
           * -- they are instances of `LeftChild` and thus support
           * order intervals.
           */
-         final val children = Array.fill[ LeftChild ]( 4 )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ LeftChild with Q ]( 4 )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          // Child support
 //         final def prevOption = Option.empty[ QNode ]
          final def prev : QNode = null
 
-         final def child( idx: Int ) : Child = children( idx )
+         final def child( idx: Int ) : Child with Q = children( idx )
 
 //         /**
 //          * Creates a new leaf based on a given leaf,
