@@ -13,9 +13,9 @@ import collection.mutable.{Set => MSet}
  * }}
  */
 class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
-   val RANDOMIZED    = false
+   val RANDOMIZED    = true
    val DETERMINISTIC = true
-   val RANGE_SEARCH  = false     // not yet supported by Deterministic
+   val RANGE_SEARCH  = true
    val NN_SEARCH     = false     // not yet supported by Deterministic
    val REMOVAL       = false     // not yet supported by Deterministic
 
@@ -109,9 +109,9 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       val szT      = t.size
       val szM      = m.size
       then( "all elements of m should be contained in t" )
-      assert( onlyInM.isEmpty, onlyInM.take( 10 ).toString )
+      assert( onlyInM.isEmpty, onlyInM.take( 10 ).toString() )
       then( "all elements of t should be contained in m" )
-      assert( onlyInT.isEmpty, onlyInT.take( 10 ).toString )
+      assert( onlyInT.isEmpty, onlyInT.take( 10 ).toString() )
       then( "both should report the same size" )
       assert( szT == szM, "quadtree has size " + szT + " / map has size " + szM )
    }
@@ -128,7 +128,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
          t.contains( p )
       }
       then( "none of them should be contained in t" )
-      assert( inT.isEmpty, inT.take( 10 ).toString )
+      assert( inT.isEmpty, inT.take( 10 ).toString() )
    }
 
    def verifyAddRemoveAll( t: SkipQuadTree[ PointLike ], m: MSet[ PointLike ]) {
@@ -137,7 +137,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       val newInT   = m.filter( e => t.update( e ).isEmpty )
       val szAfter  = t.size
       then( "all of the put operations should return 'Some'" )
-      assert( newInT.isEmpty, newInT.take( 10 ).toString )
+      assert( newInT.isEmpty, newInT.take( 10 ).toString() )
       then( "the size of t should not change" )
       assert( szBefore == szAfter, "t had size " + szBefore + " before, but now reports " + szAfter )
 
@@ -145,7 +145,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       val keptInT  = m.filter( e => t.removeAt( e ).isEmpty )
       val szAfter2 = t.size
       then( "all of the remove operations should return 'Some'" )
-      assert( keptInT.isEmpty, keptInT.take( 10 ).toString )
+      assert( keptInT.isEmpty, keptInT.take( 10 ).toString() )
       then( "the size of t should be zero" )
       assert( szAfter2 == 0, szAfter2.toString )
    }
@@ -179,7 +179,7 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
       val nnM: Map[ PointLike, PointLike ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )
       then( "the results should match brute force with the corresponding set" )
       assert( nnT == nnM, {
-         (nnT.collect { case (q, v) if( nnM( q ) != v ) => (q, v, nnM( q ))}).take( 10 ).toString
+         (nnT.collect { case (q, v) if( nnM( q ) != v ) => (q, v, nnM( q ))}).take( 10 ).toString()
 //         nnT.take( 10 ).toString + " -- " + nnM.take( 10 )
       })
    }
