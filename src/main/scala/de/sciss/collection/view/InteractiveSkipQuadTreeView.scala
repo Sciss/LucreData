@@ -33,6 +33,8 @@ import geom.{DistanceMeasure, Point, PointLike, Quad}
 import mutable.{DeterministicSkipQuadTree, RandomizedSkipQuadTree}
 
 object InteractiveSkipQuadTreeView extends App with Runnable {
+   val seed = 0L
+
    EventQueue.invokeLater( this )
    def run() {
       val mode = args.toSeq match {
@@ -59,6 +61,8 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
 class InteractiveSkipQuadTreeView( mode: InteractiveSkipQuadTreeView.Mode )
 extends JPanel( new BorderLayout() ) {
    import InteractiveSkipQuadTreeView._
+
+   private val rnd = new util.Random( seed )
 
    val t    = mode match {
       case Randomized      => RandomizedSkipQuadTree.empty[    PointLike ]( Quad( 256, 256, 256 ))
@@ -192,7 +196,7 @@ extends JPanel( new BorderLayout() ) {
    }}
 
    but( "Add 10x Random" ) {
-      val ps = Seq.fill( 10 )( Point( util.Random.nextInt( 512 ), util.Random.nextInt( 512 )))
+      val ps = Seq.fill( 10 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 )))
       t ++= ps
       slv.highlight = ps.toSet
    }

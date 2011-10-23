@@ -17,15 +17,15 @@ class QuadTreeSuite extends FeatureSpec with GivenWhenThen {
    val DETERMINISTIC = true
    val RANGE_SEARCH  = true
    val NN_SEARCH     = true
-   val REMOVAL       = false     // not yet supported by Deterministic
+   val REMOVAL       = true     // not yet supported by Deterministic
 
    val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
-   val rnd   = new util.Random( 0L ) // ( 12L )
+   val rnd           = new util.Random( 0L ) // ( 12L )
 
 //   val quad = Quad( 0x20000000, 0x20000000, 0x20000000 )
-   val quad = Quad( 0x40000000, 0x40000000, 0x40000000 )
+   val quad          = Quad( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadTree.empty[    PointLike ]( quad ))
    if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadTree.empty[ PointLike ]( quad ))
 
