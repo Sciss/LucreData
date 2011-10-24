@@ -27,19 +27,20 @@ package de.sciss.collection
 package mutable
 
 import annotation.{switch, tailrec}
-import geom.{Dim, Point2D}
+import geom.Dim
 
 object DeterministicSkipOctree {
-   def empty[ D <: Dim[ D ], A ]( quad: D#Quad, skipGap: Int = 2 )( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
-      new TreeImpl[ D, A ]( quad, skipGap, view )
+   def empty[ D <: Dim[ D ], A ]( dim: D, quad: D#Quad, skipGap: Int = 2 )
+                                ( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
+      new TreeImpl[ D, A ]( dim, quad, skipGap, view )
 
-   def apply[ D <: Dim[ D ], A <% D#Point ]( quad: D#Quad, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
-      val t = empty[ D, A ]( quad, skipGap )
+   def apply[ D <: Dim[ D ], A <% D#Point ]( dim: D, quad: D#Quad, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
+      val t = empty[ D, A ]( dim, quad, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private final class TreeImpl[ D <: Dim[ D ], A ]( val quad: D#Quad, _skipGap: Int, val pointView: A => D#Point )
+   private final class TreeImpl[ D <: Dim[ D ], A ]( dim: D, val quad: D#Quad, _skipGap: Int, val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
       tree =>
 
@@ -63,12 +64,12 @@ object DeterministicSkipOctree {
 
       type InOrder = totalOrder.Entry
 
-      protected def findLeaf( point: D#Point ) : Leaf = {
+      protected def findLeaf( point: D#Point ) : QLeaf = {
          val p0 = tailVar.findP0( point )
          p0.findImmediateLeaf( point )
       }
 
-      protected def insertLeaf( elem: A ) : Leaf = {
+      protected def insertLeaf( elem: A ) : QLeaf = {
          val point   = pointView( elem )
          require( quad.contains( point ), point.toString + " lies out of root square " + quad )
 
@@ -84,7 +85,7 @@ object DeterministicSkipOctree {
          oldLeaf
       }
 
-      protected def removeLeaf( point: D#Point ) : Leaf = {
+      protected def removeLeaf( point: D#Point ) : QLeaf = {
          if( !quad.contains( point )) return null
 
          // "To insert or delete a point y into or from S, we first search the
@@ -118,16 +119,19 @@ object DeterministicSkipOctree {
 //         tailVar.findP0( point ).findLeaf( point )
 //      }
 
-      def iterator = new Iterator[ A ] {
-         val underlying = skipList.iterator
+      def iterator: Iterator[ A ] = new Iter( skipList.iterator )
+
+      private final class Iter( underlying: Iterator[ Leaf ]) extends Iterator[ A ] {
          def next() : A = {
             val leaf = underlying.next()
             leaf.value
          }
          def hasNext : Boolean = underlying.hasNext
+
+//         override def toString() = "Octree.Iterator"
       }
 
-      object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
+      private object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {
 //println( "up : " + l )
             // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
@@ -170,7 +174,7 @@ object DeterministicSkipOctree {
        * A child is an object that can be
        * stored in a quadrant of a node.
        */
-      sealed trait Child extends Q {
+      private sealed trait Child extends Q {
          def shortString : String
       }
       /**
@@ -184,7 +188,7 @@ object DeterministicSkipOctree {
        * - `Leaf`
        * - `InnerLeftNode`
        */
-      sealed trait LeftChild extends Child
+      private sealed trait LeftChild extends Child
 
       /**
        * A right child is one which is stored in Qi, i > 0.
@@ -195,12 +199,12 @@ object DeterministicSkipOctree {
        * - `Leaf`
        * - `InnerRightNode`
        */
-      sealed trait RightChild extends Child
+      private sealed trait RightChild extends Child
 
       /**
        * A dummy object indicating a vacant quadrant in a node.
        */
-      case object Empty extends LeftChild with RightChild with QEmpty {
+      private case object Empty extends LeftChild with RightChild with QEmpty {
          def shortString = "empty"
          override def toString = shortString
       }
@@ -213,7 +217,7 @@ object DeterministicSkipOctree {
        * as well as determining its position within an
        * encompassing quad.
        */
-      sealed trait NonEmpty extends Child {
+      private sealed trait NonEmpty extends Child {
          /**
           * Computes the greatest interesting square within
           * a given quadrant `mq` so that this (leaf's or node's)
@@ -233,7 +237,7 @@ object DeterministicSkipOctree {
        * A tree element in Q0 has markers for the
        * in-order traversal.
        */
-      sealed trait LeftNonEmpty extends NonEmpty {
+      private sealed trait LeftNonEmpty extends NonEmpty {
          /**
           * A marker in the in-order list corresponding to
           * the beginning of the objects 'interval'. That is
@@ -261,14 +265,14 @@ object DeterministicSkipOctree {
       /**
        * A common trait used in pattern matching, comprised of `Leaf` and `InnerLeftNode`.
        */
-      sealed trait LeftInnerNonEmpty extends LeftNonEmpty with InnerNonEmpty with LeftChild {
+      private sealed trait LeftInnerNonEmpty extends LeftNonEmpty with InnerNonEmpty with LeftChild {
          def parentLeft_=( p: LeftNode ) : Unit
       }
 
       /**
        * A common trait used in pattern matching, comprised of `Leaf` and `InnerRightNode`.
        */
-      sealed trait RightInnerNonEmpty extends InnerNonEmpty with RightChild {
+      private sealed trait RightInnerNonEmpty extends InnerNonEmpty with RightChild {
          def parentRight_=( p: RightNode ) : Unit
       }
 
@@ -282,7 +286,7 @@ object DeterministicSkipOctree {
        * points into the highest level quadtree that
        * the leaf resides in, according to the skiplist.
        */
-      sealed trait Leaf extends LeftInnerNonEmpty with RightInnerNonEmpty with Ordered[ Leaf ] with QLeaf {
+      private sealed trait Leaf extends LeftInnerNonEmpty with RightInnerNonEmpty with Ordered[ Leaf ] with QLeaf {
          def value : A
          def value_=( v: A ) : Unit  // XXX hmmm, not so nice
 
@@ -333,7 +337,7 @@ sys.error( "TODO" )
        * as well as a pointer `next` to the corresponding node in the
        * next highest tree. A `Node` also provides various search methods.
        */
-      sealed trait Node extends NonEmpty with QNode {
+      private sealed trait Node extends NonEmpty with QNode {
          /**
           * Returns the child for a given
           * quadrant index
@@ -418,7 +422,7 @@ sys.error( "TODO" )
       /**
        * An inner non empty tree element has a mutable parent node.
        */
-      sealed trait InnerNonEmpty extends NonEmpty {
+      private sealed trait InnerNonEmpty extends NonEmpty {
          def parent: Node
 //         def parent_=( p: Node ) : Unit
       }
@@ -426,7 +430,7 @@ sys.error( "TODO" )
       /**
        * Utility trait which elements the rightward search `findPN`.
        */
-      sealed trait InnerNode extends Node with InnerNonEmpty {
+      private sealed trait InnerNode extends Node with InnerNonEmpty {
          final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
             val n = next
             if( n != null ) n else {
@@ -441,7 +445,7 @@ sys.error( "TODO" )
        * of type `RightChild`. It furthermore defines the node in Qi-1 via the
        * `prev` method.
        */
-      sealed trait RightNode extends Node with NonEmpty {
+      private sealed trait RightNode extends Node with NonEmpty {
          final val children = Array.fill[ RightChild ]( numChildren )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
@@ -461,15 +465,6 @@ sys.error( "TODO" )
                case _ => prev.findP0( point )
             }
          }
-
-//         final def findLeaf( point: D#PointType ) : Leaf = {
-//            val qidx = quad.indexOf( point )
-//            children( qidx ) match {
-//               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
-//               case l: Leaf if( pointView( l.value ) == point ) => l
-//               case _ => prev.findLeaf( point )
-//            }
-//         }
 
          /**
           * Promotes a leaf that exists in Qi-1 to this
@@ -559,7 +554,7 @@ sys.error( "TODO" )
        * `findImmediateLeaf` which is typically called after arriving here
        * from a `findP0` call.
        */
-      sealed trait LeftNode extends Node with LeftNonEmpty {
+      private sealed trait LeftNode extends Node with LeftNonEmpty {
          /**
           * For a `LeftNode`, all its children are more specific
           * -- they are instances of `LeftChild` and thus support
@@ -579,15 +574,6 @@ sys.error( "TODO" )
          final def prev : QNode = null
 
          final def child( idx: Int ) : Child = children( idx )
-
-//         /**
-//          * Creates a new leaf based on a given leaf,
-//          * but with a new value. The caller is responsible for
-//          * replacing the leaf in the children array, however
-//          * the method must ensure the old leaf is removed from
-//          * the order and the new one is inserted accordingly.
-//          */
-//         def newValue( leaf: Leaf, value: A ) : Leaf
 
          final def findP0( point: D#Point ) : LeftNode = {
             val qidx = quad.indexOf( point )
@@ -612,15 +598,6 @@ sys.error( "TODO" )
             }
          }
 
-//         final def findLeaf( point: D#PointType ) : Leaf = {
-//            val qidx = quad.indexOf( point )
-//            children( qidx ) match {
-//               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
-//               case l: Leaf if( pointView( l.value ) == point ) => l
-//               case _ => null
-//            }
-//         }
-
          final def removeImmediateLeaf( leaf: Leaf ) {
             var qidx = 0; while( qidx < numChildren ) {
                if( children( qidx ) == leaf ) {
@@ -632,65 +609,6 @@ sys.error( "TODO" )
                }
             qidx += 1 }
          }
-
-//         final def removeImmediateLeaf( point: D#PointType ) : Leaf = {
-//            var qidx = 0; while( qidx < numChildren ) {
-//               children( qidx ) match {
-//                  case l: Leaf if( pointView( l.value ) == point ) =>
-//                     // Important: We remove l from the total order first,
-//                     // because that way we get orderly demotions
-//                     // of leaves, and then when we remove l
-//                     // in the quadtree, we are certain that this
-//                     // happens in Q0 (i.e. l.parent == this!)
-//                     skipList.remove( l )
-//                     children( qidx ) = Empty
-//                     leafRemoved()
-//                     return l
-//
-//                  case _ =>
-//               }
-//            qidx += 1 }
-//            null
-//         }
-
-//         final def removeImmediateLeaf( point: D#PointType ) : Leaf = {
-//            var qidx = 0; while( qidx < numChildren ) {
-//               children( qidx ) match {
-//                  case l: Leaf if( pointView( l.value ) == point ) =>
-//                     children( qidx ) = Empty
-//                     var lonely: NonEmpty = null
-//                     var numNonEmpty = 0
-//                     var i = 0; while( i < numChildren ) {
-//                        children( i ) match {
-//                           case n: NonEmpty =>
-//                              numNonEmpty += 1
-//                              lonely = n
-//                           case _ =>
-//                        }
-//                     i += 1 }
-//                     if( numNonEmpty == 1 && parent != null ) {   // gotta remove this node and put remaining non empty element in parent
-//                        // note: there is no prev by definition (we are in a left-node)!
-////                        if( prev != null ) prev.next = null       // note: since remove is called from Qn to Q0, there is no this.next !
-//                        val myIdx = parent.quad.indexOf( quad )
-//                        parent.children( myIdx ) = lonely
-//                        lonely match {
-//                           case n: Node => n.parent = parent
-//                           case _ =>
-//                        }
-//                     }
-//                        // note: there is no prev by definition (we are in a left-node)!
-////                     // meaning that this is a root node (but not headTree)
-////                     else if( numNonEmpty == 0 && prev != null ) {
-////                        prev.next   = null
-////                        tailVar     = prev
-////                     }
-//                     return l
-//
-//                  case _ =>
-//               }
-//            qidx += 1 }
-//            null
-//         }
 
          final def insert( point: D#Point, value: A ) : Leaf = {
             val qidx = quad.indexOf( point )
@@ -756,12 +674,6 @@ sys.error( "TODO" )
             l
          }
 
-//         def newValue( old: Leaf, value: A ) : Leaf = LeafImpl( this, leaf.point, value ) { l =>
-//            val ord = old.order
-//            ord.elem = l
-//            ord
-//         }
-
          @tailrec private def insetStart( n: LeftNode, idx: Int ) : InOrder = {
             if( idx == -1 ) {
                startOrder.append() // startOrder.insertAfter( n )
@@ -793,7 +705,7 @@ sys.error( "TODO" )
          })
       }
 
-      sealed trait TopNode extends Node {
+      private sealed trait TopNode extends Node {
 //         final def parent : Node                = null
          final def quad : D#Quad = tree.quad
 //         final def parent_=( n: Node ) : Unit   = unsupportedOp
@@ -807,7 +719,7 @@ sys.error( "TODO" )
          }
       }
 
-      object TopLeftNode extends LeftNode with TopNode {
+      private object TopLeftNode extends LeftNode with TopNode {
          val startOrder                   = totalOrder.root // TotalOrder() // TotalOrder[ LeftNonEmpty ]( this )
          val stopOrder                    = startOrder.append() // startOrder.insertAfter( this )
 
@@ -817,7 +729,7 @@ sys.error( "TODO" )
          def nodeName = "top-left"
       }
 
-      final class InnerLeftNode( var parent: LeftNode, val quad: D#Quad, _ins: LeftNode => (InOrder, InOrder) )
+      private final class InnerLeftNode( var parent: LeftNode, val quad: D#Quad, _ins: LeftNode => (InOrder, InOrder) )
       extends LeftNode with InnerNode with LeftInnerNonEmpty {
          val (startOrder, stopOrder) = _ins( this )
 
@@ -871,7 +783,7 @@ sys.error( "TODO" )
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final class TopRightNode( val prev: TopNode ) extends RightNode with TopNode {
+      private final class TopRightNode( val prev: TopNode ) extends RightNode with TopNode {
          prev.next = this
 
          def nodeName = "top-right"
@@ -903,7 +815,7 @@ sys.error( "TODO" )
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: D#Quad )
+      private final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: D#Quad )
       extends RightNode with InnerNode with RightInnerNonEmpty {
          prev.next = this
 //assert( prev.quad == quad )
@@ -940,8 +852,8 @@ sys.error( "TODO" )
          }
       }
 
-      object MaxLeaf extends Leaf {
-         val point                        = Point2D( Int.MaxValue, Int.MaxValue )  // YYY
+      private object MaxLeaf extends Leaf {
+         def point                        = dim.maxPoint
          val order                        = totalOrder.max // TotalOrder.max // TotalOrder.max[ LeftNonEmpty ]
 
          def value : A                       = unsupportedOp
@@ -960,7 +872,7 @@ sys.error( "TODO" )
       // the problem is there can be several pointers to a leaf, so at least for now,
       // let's not make life more complicated than necessary. also skip list would
       // need to be made 'replace-aware'.
-      final class LeafImpl( val point: D#Point, var value: A, _ins: Leaf => InOrder )
+      private final class LeafImpl( val point: D#Point, var value: A, _ins: Leaf => InOrder )
       extends Leaf {
          private var parentVar: Node = null
          def parent: Node = parentVar
