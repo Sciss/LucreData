@@ -1,6 +1,6 @@
 package de.sciss.collection.geom
 
-trait Point2DLike extends PointLike[ Space.Two ] with Rectangle2DLike {
+trait Point2DLike extends PointLike[ Space.TwoDim ] with Rectangle2DLike {
    def x: Int
    def y: Int
 

@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-trait Rectangle2DLike extends QueryShape[ Space.Two ] {
+trait Rectangle2DLike extends QueryShape[ Space.TwoDim ] {
    def top : Int
    def left : Int
 //   def width : Int

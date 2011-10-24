@@ -63,7 +63,7 @@ object Quad2D {
    }
 }
 
-trait Quad2DLike extends QuadLike[ Space.Two ] with Rectangle2DLike {
+trait Quad2DLike extends QuadLike[ Space.TwoDim ] with Rectangle2DLike {
    def cx: Int
    def cy: Int
 

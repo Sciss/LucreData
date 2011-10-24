@@ -40,7 +40,7 @@ package de.sciss.collection.geom
 //      }
 //   }
 //}
-trait Quad3DLike extends QuadLike[ Space.Three ] {
+trait Quad3DLike extends QuadLike[ Space.ThreeDim ] {
    def cx: Int
    def cy: Int
    def cz: Int

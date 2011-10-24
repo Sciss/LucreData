@@ -43,6 +43,13 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
 
    def numLevels : Int
 
+   /**
+    * The number of quadrants in each quad. This is equal
+    * to `1 << numDimensions` and gives the upper bound
+    * of the index to `QNode.child()`.
+    */
+   def numQuadChildren : Int
+
    def get( point: D#Point ) : Option[ A ]
 //   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
    def isDefinedAt( point: D#Point ) : Boolean

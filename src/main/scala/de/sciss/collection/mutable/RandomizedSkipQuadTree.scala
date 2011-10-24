@@ -44,7 +44,8 @@ object RandomizedSkipQuadtree {
 //      def apply[ V ]( quad: Quad2D ) = new TreeImpl[ V ]( quad )
 //   }
    private final class TreeImpl[ A ]( val quad: Quad2D, val pointView: A => Point2DLike )
-   extends impl.SkipOctreeImpl[ Space.Two, A ] {
+   extends impl.SkipOctreeImpl[ Space.TwoDim, A ] {
+      val numQuadChildren = 4
       val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
 
@@ -103,7 +104,7 @@ object RandomizedSkipQuadtree {
 
          def prepareNext() {
             while( true ) {
-               while( idx > 3 ) {
+               while( idx >= numQuadChildren ) {
                   if( stack.isEmpty ) {
                      hasNext = false
                      return
@@ -148,13 +149,13 @@ object RandomizedSkipQuadtree {
 
       final case class Leaf( value: A ) extends NonEmpty with QLeaf
 
-      final class Node( val quad: Quad2DLike, var parent: Node, val prev: Node, val children: Array[ Child ] = new Array[ Child ]( 4 ))
+      final class Node( val quad: Quad2DLike, var parent: Node, val prev: Node, val children: Array[ Child ] = new Array[ Child ]( numQuadChildren ))
       extends NonEmpty with QNode {
          var next: Node = null;
 
          // fix null squares and link
          {
-            var i = 0; while( i < 4 ) {
+            var i = 0; while( i < numQuadChildren ) {
                if( children( i ) == null ) children( i ) = Empty
             i += 1 }
 
@@ -195,7 +196,7 @@ object RandomizedSkipQuadtree {
                   children( qidx ) = Empty
                   var lonely: NonEmpty = null
                   var numNonEmpty = 0
-                  var i = 0; while( i < 4 ) {
+                  var i = 0; while( i < numQuadChildren ) {
                      children( i ) match {
                         case n: NonEmpty =>
                            numNonEmpty += 1
@@ -248,7 +249,7 @@ object RandomizedSkipQuadtree {
 //                  val te      = tq.extent
 //                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq.cx - te, tq.cy - te, te << 1, point )
                   val iq      = quad.quadrant( qidx ).greatestInteresting( tq, point )
-                  val iquads  = new Array[ Child ]( 4 )
+                  val iquads  = new Array[ Child ]( numQuadChildren )
                   val tidx    = iq.indexOf( tq )
                   iquads( tidx ) = t
                   val pidx    = iq.indexOf( point )
@@ -263,7 +264,7 @@ object RandomizedSkipQuadtree {
 //                  assert( point != point2 )
                   val point2  = pointView( l2.value )
                   val iq      = quad.quadrant( qidx ).greatestInteresting( point2, point )
-                  val iquads  = new Array[ Child ]( 4 )
+                  val iquads  = new Array[ Child ]( numQuadChildren )
                   val lidx    = iq.indexOf( point2 )
                   iquads( lidx ) = l2
                   val pidx    = iq.indexOf( point )

@@ -1,23 +1,23 @@
 package de.sciss.collection.geom
 
 object Space {
-   sealed trait Two extends Space[ Two ] {
+   sealed trait TwoDim extends Space[ TwoDim ] {
       type Point           = Point2DLike
       type Quad            = Quad2DLike
 
       final val maxPoint   = Point2D( Int.MaxValue, Int.MaxValue )
       final val dim        = 2
    }
-   object Two extends Two
+   object TwoDim extends TwoDim
 
-   sealed trait Three extends Space[ Three ] {
+   sealed trait ThreeDim extends Space[ ThreeDim ] {
       type Point           = Point3DLike
       type Quad            = Quad3DLike
 
       final val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
       final val dim        = 2
    }
-   object Three extends Three
+   object ThreeDim extends ThreeDim
 }
 
 /**

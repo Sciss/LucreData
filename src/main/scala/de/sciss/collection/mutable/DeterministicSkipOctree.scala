@@ -44,6 +44,7 @@ object DeterministicSkipOctree {
    extends impl.SkipOctreeImpl[ D, A ] {
       tree =>
 
+      val numQuadChildren: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
       val totalOrder = TotalOrder()
       private var tailVar: TopNode = TopLeftNode
       private val skipList: SkipList[ Leaf ] = {
@@ -55,8 +56,6 @@ object DeterministicSkipOctree {
             HASkipList.empty[ Leaf ]( _skipGap, KeyObserver )
          }
       } // 2-5 DSL
-
-      val numQuadChildren: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
 
       def headTree : QNode = TopLeftNode
       def lastTree : QNode = tailVar
@@ -646,7 +645,7 @@ object DeterministicSkipOctree {
          private def newLeaf( point: D#Point, value: A ) : Leaf = {
             val l = new LeafImpl( point, value, { l =>
                val lne: LeftNonEmpty = l
-               sys.error( "TODO" ) // YYY
+if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
                ((lne.quadIdxIn( quad ): @switch) match {
                   case 0 => startOrder.append() // startOrder.insertAfter( lne )
                   case 1 => children( 0 ) match {

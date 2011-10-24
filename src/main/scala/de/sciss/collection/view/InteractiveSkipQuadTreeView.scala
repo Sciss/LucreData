@@ -71,9 +71,9 @@ extends JPanel( new BorderLayout() ) {
    val slv  = new SkipQuadtreeView( t )
    private val in = slv.getInsets
 
-   private var baseDist : DistanceMeasure[ Space.Two ] = DistanceMeasure2D.euclideanSq
-   private var distFilter : DistanceMeasure[ Space.Two ] => DistanceMeasure[ Space.Two ] = identity
-   private var distMeasure : DistanceMeasure[ Space.Two ] = baseDist
+   private var baseDist : DistanceMeasure[ Space.TwoDim ] = DistanceMeasure2D.euclideanSq
+   private var distFilter : DistanceMeasure[ Space.TwoDim ] => DistanceMeasure[ Space.TwoDim ] = identity
+   private var distMeasure : DistanceMeasure[ Space.TwoDim ] = baseDist
 
    def recalcDistMeasure { distMeasure = distFilter( baseDist )}
 
