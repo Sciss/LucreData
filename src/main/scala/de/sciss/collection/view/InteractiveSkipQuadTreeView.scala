@@ -320,9 +320,9 @@ extends JPanel( new BorderLayout() ) {
 
 // TEST CODE
 println( "---ADDING" )
-addPoints( 30 )
-//println( "---REMOVING" )
-//removePoints( 13 )
+addPoints( 31 )
+println( "---REMOVING" )
+removePoints( 5 )
 
    def verifyConsistency( t: SkipQuadTree[ PointLike ]) {
       val q = t.quad
