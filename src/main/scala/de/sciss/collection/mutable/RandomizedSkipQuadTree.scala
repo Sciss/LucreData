@@ -135,7 +135,7 @@ object RandomizedSkipQuadtree {
          }
       }
 
-//      def rangeQuery( qs: QueryShape ) : Iterator[ A ] = new RangeQuery( qs )
+//      def rangeQuery( qs: QueryShape2D ) : Iterator[ A ] = new RangeQuery( qs )
 
       private final class VisitedNode( val n: Node, val minDist: Long /* , maxDist: Long */) extends Ordered[ VisitedNode ] {
          def compare( that: VisitedNode ) = -(minDist.compareTo( that.minDist ))

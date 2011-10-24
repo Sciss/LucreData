@@ -1,9 +1,9 @@
 package de.sciss.collection.geom
 
-trait PointLike[D <: Dim] {
-   def distanceSq( that: PointLike[ D ]) : Long
-   def contains( p: PointLike[ D ]) : Boolean
-   def orient( b: PointLike[ D ]) : Int
+trait PointLike[ D <: Dim ] {
+   def distanceSq( that: D#PointType ) : Long
+   def contains( p: D#PointType ) : Boolean
+   def orient( b: D#PointType ) : Int
 
-   final def area : Long = 1L
+   def area : Long // = 1L
 }

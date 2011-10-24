@@ -1,5 +1,5 @@
 /*
- *  SkipQuadtree.scala
+ *  SkipOctree.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -23,32 +23,31 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection
-package mutable
+package de.sciss.collection.mutable
 
 import collection.mutable.{Set => MSet}
-import geom.{Quad2D, QueryShape, DistanceMeasure, Point2DLike}
+import de.sciss.collection.geom.{Dim, DistanceMeasure, QueryShape2D}
 
 /**
- * A `SkipQuadtree` is a two-dimensional data structure that
+ * A `SkipOctree` is a multi-dimensional data structure that
  * maps coordinates to values. It extends the interface
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipQuadtree[ A ] extends MSet[ A ] {
+trait SkipOctree[ D <: Dim, A ] extends MSet[ A ] {
    def headTree: QNode
    def lastTree: QNode
-   def pointView : A => Point2DLike // PointView[ A ]
+   def pointView : A => D#PointType // PointLike[ D ] // PointView[ A ]
 
-   def quad : Quad2D = headTree.quad
+   def quad : D#QuadType = headTree.quad // Quad[ D ] = headTree.quad
 
    def numLevels : Int
 
-   def get( point: Point2DLike ) : Option[ A ]
+   def get( point: D#PointType ) : Option[ A ]
 //   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
-   def isDefinedAt( point: Point2DLike ) : Boolean
+   def isDefinedAt( point: D#PointType ) : Boolean
 
-   def removeAt( point: Point2DLike ) : Option[ A ]
+   def removeAt( point: D#PointType ) : Option[ A ]
 
    /**
     * Adds an element to the tree
@@ -66,7 +65,7 @@ trait SkipQuadtree[ A ] extends MSet[ A ] {
     */
    def update( elem: A ) : Option[ A ]
 
-   def rangeQuery( qs: QueryShape ) : Iterator[ A ]
+   def rangeQuery( qs: QueryShape2D ) : Iterator[ A ]
 
    /**
     * Reports the nearest neighbor entry with respect to
@@ -86,9 +85,9 @@ trait SkipQuadtree[ A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: Point2DLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A
+   def nearestNeighbor( point: D#PointType, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A
 
-   def nearestNeighborOption( point: Point2DLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
+   def nearestNeighborOption( point: D#PointType, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored
@@ -104,15 +103,13 @@ trait SkipQuadtree[ A ] extends MSet[ A ] {
       def value: A
    }
    trait QNode extends QNonEmpty {
-      def quad: Quad2D
+      def quad: D#QuadType // Quad[ D ]
       def child( idx: Int ) : Q
       final def prevOption: Option[ QNode ] = Option( prev )
       final def nextOption: Option[ QNode ] = Option( next )
-//      def prev: QNode
-//      def next: QNode
 
       // XXX todo: how can we make this implementation private?
-      /* protected[SkipQuadtree] */ def prev: QNode
-      /* protected[SkipQuadtree] */ def next: QNode
+      /* protected[SkipOctree] */ def prev: QNode
+      /* protected[SkipOctree] */ def next: QNode
    }
 }

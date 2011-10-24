@@ -27,7 +27,7 @@ package de.sciss.collection.geom
 
 import sys.error
 
-trait Rectangle2DLike extends QueryShape {
+trait Rectangle2DLike extends QueryShape2D {
    def top : Int
    def left : Int
 //   def width : Int

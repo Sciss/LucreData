@@ -26,7 +26,7 @@
 package de.sciss.collection.mutable
 package impl
 
-import de.sciss.collection.geom.{QueryShape, Point2DLike, DistanceMeasure}
+import de.sciss.collection.geom.{QueryShape2D, Point2DLike, DistanceMeasure}
 import annotation.tailrec
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 
@@ -112,14 +112,14 @@ trait SkipQuadtreeImpl[ A ] extends SkipQuadtree[ A ] {
       i
    }
 
-   final def rangeQuery( qs: QueryShape ) : Iterator[ A ] = new RangeQuery( qs )
+   final def rangeQuery( qs: QueryShape2D ) : Iterator[ A ] = new RangeQuery( qs )
 
    protected def insertLeaf( elem: A ) : QLeaf
    protected def removeLeaf( point: Point2DLike ) : QLeaf
    protected def findLeaf( point: Point2DLike ) : QLeaf
 //   protected def nn( point: Point2DLike, metric: DistanceMeasure ) : QLeaf
 
-   private final class RangeQuery( qs: QueryShape ) extends Iterator[ A ] {
+   private final class RangeQuery( qs: QueryShape2D ) extends Iterator[ A ] {
       val stabbing      = MQueue.empty[ (QNode, Long) ]
       val in            = MQueue.empty[ QNonEmpty ]
       var current : A   = _
@@ -128,7 +128,7 @@ trait SkipQuadtreeImpl[ A ] extends SkipQuadtree[ A ] {
       stabbing += headTree -> qs.overlapArea( headTree.quad )
       findNextValue()
 
-      def rangeQueryLeft( node: QNode, area: Long, qs: QueryShape ) : QNode = {
+      def rangeQueryLeft( node: QNode, area: Long, qs: QueryShape2D ) : QNode = {
          var i = 0; while( i < 4 ) {
             node.child( i ) match {
                case n2: QNode =>
@@ -147,7 +147,7 @@ trait SkipQuadtreeImpl[ A ] extends SkipQuadtree[ A ] {
          node
       }
 
-      def rangeQueryRight( node: QNode, area: Long, qs: QueryShape ) : QNode = {
+      def rangeQueryRight( node: QNode, area: Long, qs: QueryShape2D ) : QNode = {
          var i = 0; while( i < 4 ) {
             node.child( i ) match {
                case n2: QNode =>
