@@ -113,7 +113,8 @@ object DeterministicSkipQuadTree {
 
             val p = l.parent
             p.removeImmediateLeaf( l )
-            assert( p.isInstanceOf[ LeftNode ], "Internal error - final leaf parent should be left : " + l )
+//            assert( p.isInstanceOf[ LeftNode ], "Internal error - final leaf parent should be left : " + l )
+            assert( l.parent == null, "Internal error - leaf should be removed by now : " + l )
          }
 
          l
@@ -161,10 +162,10 @@ println( "down : " + l )
 
             val p = l.parent
             p.removeImmediateLeaf( l )
-            p match {
-               case rn: RightNode => l.parent = rn.prev
-               case ln: LeftNode => sys.error( "Internal error - leaf unexpectedly removed : " + l )
-            }
+//            p match {
+//               case rn: RightNode => l.parent = rn.prev.findParent( l )
+//               case ln: LeftNode => sys.error( "Internal error - leaf unexpectedly removed : " + l )
+//            }
          }
       }
 
@@ -527,8 +528,22 @@ println( "down : " + l )
             var qidx = 0; while( qidx < numChildren ) {
                if( children( qidx ) == leaf ) {
                   children( qidx ) = Empty
-                  leafRemoved()
-                  return
+                  var newParent  = prev
+                  var pidx       = qidx
+                  while( true ) {
+                     newParent.child( pidx ) match {
+                        case sn: Node =>
+                           newParent   = sn
+                           pidx        = leaf.quadIdxIn( sn.quad )
+                        case sl: Leaf =>
+                           assert( sl == leaf, "Internal error - diverging leaves : " + leaf + " versus " + sl )
+                           leafRemoved()
+                           leaf.parent = newParent
+                           return
+                        case _ =>
+                           assert( false, "Internal error - could not find parent of leaf in previous level : " + leaf )
+                     }
+                  }
                }
             qidx += 1 }
          }
@@ -607,6 +622,7 @@ println( "down : " + l )
                if( children( qidx ) == leaf ) {
                   children( qidx ) = Empty
                   leafRemoved()
+                  leaf.parent = null
                   return
                }
             qidx += 1 }

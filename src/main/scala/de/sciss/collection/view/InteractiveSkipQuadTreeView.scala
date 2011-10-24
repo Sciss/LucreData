@@ -303,7 +303,7 @@ extends JPanel( new BorderLayout() ) {
 
    add( slv, BorderLayout.CENTER )
 //   private def tryNum( fun: Int => Unit ) { try { val i = ggNum.getText().toInt; fun( i )} catch { case nfe: NumberFormatException => }}
-   private val ggStatus = new JTextField( 18 )
+   private val ggStatus = new JTextField( 16 )
    ggStatus.setEditable( false )
    private def status( str: String ) { ggStatus.setText( str )}
 //   private val colrGreen = new Color( 0x00, 0xA0, 0x00 )
@@ -321,8 +321,8 @@ extends JPanel( new BorderLayout() ) {
 // TEST CODE
 println( "---ADDING" )
 addPoints( 30 )
-println( "---REMOVING" )
-removePoints( 13 )
+//println( "---REMOVING" )
+//removePoints( 13 )
 
    def verifyConsistency( t: SkipQuadTree[ PointLike ]) {
       val q = t.quad
