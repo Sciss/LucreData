@@ -38,7 +38,7 @@ package de.sciss.collection.geom
  * the square root of the distances, while still preserving
  * the ordering between the possible results.
  */
-trait DistanceMeasure[ D <: Dim[ D ]] {
+trait DistanceMeasure[ D <: Space[ D ]] {
    /**
     * Calculates the distance between two points.
     */

@@ -40,7 +40,7 @@ package de.sciss.collection.geom
 //      }
 //   }
 //}
-trait Quad3DLike extends QuadLike[ Dim.Three ] {
+trait Quad3DLike extends QuadLike[ Space.Three ] {
    def cx: Int
    def cy: Int
    def cz: Int
@@ -260,4 +260,8 @@ extends Quad3DLike {
 //         } else -1
 //      }
    }
+
+   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : Quad3DLike = sys.error( "TODO" )
+
+   def greatestInteresting( a: Quad3DLike, b: Point3DLike ) : Quad3DLike = sys.error( "TODO" )
 }

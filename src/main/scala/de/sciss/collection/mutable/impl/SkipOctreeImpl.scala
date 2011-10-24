@@ -28,9 +28,9 @@ package impl
 
 import annotation.tailrec
 import collection.mutable.{PriorityQueue, Queue => MQueue}
-import de.sciss.collection.geom.{Dim, QueryShape, DistanceMeasure}
+import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure}
 
-trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
+trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
    // ---- map support ----
 
    final def +=( elem: A ) : this.type = {

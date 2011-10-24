@@ -27,7 +27,7 @@ package de.sciss.collection
 package mutable
 
 import collection.mutable.{Stack => MStack}
-import geom.{Quad2DLike, Dim, Quad2D, Point2DLike}
+import geom.{Quad2DLike, Space, Quad2D, Point2DLike}
 
 object RandomizedSkipQuadtree {
    def empty[ A ]( quad: Quad2D )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] = new TreeImpl[ A ]( quad, view )
@@ -44,7 +44,7 @@ object RandomizedSkipQuadtree {
 //      def apply[ V ]( quad: Quad2D ) = new TreeImpl[ V ]( quad )
 //   }
    private final class TreeImpl[ A ]( val quad: Quad2D, val pointView: A => Point2DLike )
-   extends impl.SkipOctreeImpl[ Dim.Two, A ] {
+   extends impl.SkipOctreeImpl[ Space.Two, A ] {
       val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
 
@@ -245,8 +245,9 @@ object RandomizedSkipQuadtree {
                case t: Node =>
                   val tq      = t.quad
 //                  assert( !tq.contains( point ))
-                  val te      = tq.extent
-                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq.cx - te, tq.cy - te, te << 1, point )
+//                  val te      = tq.extent
+//                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq.cx - te, tq.cy - te, te << 1, point )
+                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq, point )
                   val iquads  = new Array[ Child ]( 4 )
                   val tidx    = iq.indexOf( tq )
                   iquads( tidx ) = t
@@ -261,7 +262,7 @@ object RandomizedSkipQuadtree {
                case l2: Leaf =>
 //                  assert( point != point2 )
                   val point2  = pointView( l2.value )
-                  val iq      = quad.quadrant( qidx ).greatestInteresting( point2.x, point2.y, 1, point )
+                  val iq      = quad.quadrant( qidx ).greatestInteresting( point2, point )
                   val iquads  = new Array[ Child ]( 4 )
                   val lidx    = iq.indexOf( point2 )
                   iquads( lidx ) = l2

@@ -30,7 +30,7 @@ import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import mutable.{SkipQuadtree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
 import javax.swing.{JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
-import geom.{Quad2DLike, DistanceMeasure2D, Dim, DistanceMeasure, Point2D, Point2DLike, Quad2D}
+import geom.{Quad2DLike, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Point2DLike, Quad2D}
 
 object InteractiveSkipQuadtreeView extends App with Runnable {
    val seed = 0L
@@ -71,9 +71,9 @@ extends JPanel( new BorderLayout() ) {
    val slv  = new SkipQuadtreeView( t )
    private val in = slv.getInsets
 
-   private var baseDist : DistanceMeasure[ Dim.Two ] = DistanceMeasure2D.euclideanSq
-   private var distFilter : DistanceMeasure[ Dim.Two ] => DistanceMeasure[ Dim.Two ] = identity
-   private var distMeasure : DistanceMeasure[ Dim.Two ] = baseDist
+   private var baseDist : DistanceMeasure[ Space.Two ] = DistanceMeasure2D.euclideanSq
+   private var distFilter : DistanceMeasure[ Space.Two ] => DistanceMeasure[ Space.Two ] = identity
+   private var distMeasure : DistanceMeasure[ Space.Two ] = baseDist
 
    def recalcDistMeasure { distMeasure = distFilter( baseDist )}
 

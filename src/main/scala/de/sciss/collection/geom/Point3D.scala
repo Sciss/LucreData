@@ -1,6 +1,6 @@
 package de.sciss.collection.geom
 
-trait Point3DLike extends PointLike[ Dim.Three ] {
+trait Point3DLike extends PointLike[ Space.Three ] {
    def x: Int
    def y: Int
    def z: Int

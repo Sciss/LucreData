@@ -27,20 +27,20 @@ package de.sciss.collection
 package mutable
 
 import annotation.{switch, tailrec}
-import geom.Dim
+import geom.Space
 
 object DeterministicSkipOctree {
-   def empty[ D <: Dim[ D ], A ]( dim: D, quad: D#Quad, skipGap: Int = 2 )
+   def empty[ D <: Space[ D ], A ]( space: D, quad: D#Quad, skipGap: Int = 2 )
                                 ( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
-      new TreeImpl[ D, A ]( dim, quad, skipGap, view )
+      new TreeImpl[ D, A ]( space, quad, skipGap, view )
 
-   def apply[ D <: Dim[ D ], A <% D#Point ]( dim: D, quad: D#Quad, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
-      val t = empty[ D, A ]( dim, quad, skipGap )
+   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, quad: D#Quad, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
+      val t = empty[ D, A ]( space, quad, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private final class TreeImpl[ D <: Dim[ D ], A ]( dim: D, val quad: D#Quad, _skipGap: Int, val pointView: A => D#Point )
+   private final class TreeImpl[ D <: Space[ D ], A ]( space: D, val quad: D#Quad, _skipGap: Int, val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
       tree =>
 
@@ -56,7 +56,7 @@ object DeterministicSkipOctree {
          }
       } // 2-5 DSL
 
-      private val numChildren: Int = sys.error( "TODO" ) // 4   // YYY
+      val numQuadChildren: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
 
       def headTree : QNode = TopLeftNode
       def lastTree : QNode = tailVar
@@ -144,7 +144,7 @@ object DeterministicSkipOctree {
             // hmmm... XXX This is super tricky. the ancestor test suite
             // takes up to 8 elements. how can be prove the maximum required size?
             val path = new Array[ Node ]( 9 ) // YYY
-sys.error( "TODO" )
+
             val q0o  = l.parent.findPN( path, 0 )
             val q0   = if( q0o == null ) { // create new level
                val res = new TopRightNode( tailVar )
@@ -311,8 +311,7 @@ sys.error( "TODO" )
 
          final def union( mq: D#Quad, point2: D#Point ) = {
             val point   = pointView( value )
-//            mq.greatestInteresting( point.x, point.y, 1, point2 )
-sys.error( "TODO" ) // YYY
+            mq.greatestInteresting( point, point2 )
          }
 
          final def quadIdxIn( iq: D#Quad ) : Int = iq.indexOf( pointView( value ))
@@ -387,8 +386,7 @@ sys.error( "TODO" ) // YYY
 
          final def union( mq: D#Quad, point2: D#Point ) = {
             val q = quad
-//            mq.greatestInteresting( q.left, q.top, q.side, point2 )
-sys.error( "TODO" ) // YYY
+            mq.greatestInteresting( q, point2 )
          }
 
          final def quadIdxIn( iq: D#Quad ) : Int = iq.indexOf( quad )
@@ -412,7 +410,7 @@ sys.error( "TODO" ) // YYY
          final def shortString = nodeName + "(" + quad + ")"
 
          override def toString = shortString +
-            Seq.tabulate( numChildren )( i => child( i ).shortString )
+            Seq.tabulate( numQuadChildren )( i => child( i ).shortString )
                .mkString( " : children = [", ", ", "]" )
 
          final def prevOption: Option[ QNode ] = Option( prev )
@@ -446,7 +444,7 @@ sys.error( "TODO" ) // YYY
        * `prev` method.
        */
       private sealed trait RightNode extends Node with NonEmpty {
-         final val children = Array.fill[ RightChild ]( numChildren )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ RightChild ]( numQuadChildren )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          def prev : Node
@@ -518,7 +516,7 @@ sys.error( "TODO" ) // YYY
          @inline private def newNode( prev: Node, iq: D#Quad ) : InnerRightNode = new InnerRightNode( this, prev, iq )
 
          final def removeImmediateLeaf( leaf: Leaf ) {
-            var qidx = 0; while( qidx < numChildren ) {
+            var qidx = 0; while( qidx < numQuadChildren ) {
                if( children( qidx ) == leaf ) {
                   children( qidx ) = Empty
                   var newParent  = prev
@@ -554,7 +552,7 @@ sys.error( "TODO" ) // YYY
           * -- they are instances of `LeftChild` and thus support
           * order intervals.
           */
-         final val children = Array.fill[ LeftChild ]( numChildren )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ LeftChild ]( numQuadChildren )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          /**
@@ -590,7 +588,7 @@ sys.error( "TODO" ) // YYY
          }
 
          final def removeImmediateLeaf( leaf: Leaf ) {
-            var qidx = 0; while( qidx < numChildren ) {
+            var qidx = 0; while( qidx < numQuadChildren ) {
                if( children( qidx ) == leaf ) {
                   children( qidx ) = Empty
                   leafRemoved()
@@ -675,7 +673,7 @@ sys.error( "TODO" ) // YYY
             }
          }
          @tailrec private def insetStop( n: LeftNode, idx: Int ) : InOrder = {
-            if( idx == numChildren ) {
+            if( idx == numQuadChildren ) {
                stopOrder.prepend() // stopOrder.insertBefore( n )
             } else children( idx ) match {
                case n2: LeftNonEmpty => n2.stopOrder.append() // n2.stopOrder.insertAfter( n )
@@ -739,7 +737,7 @@ sys.error( "TODO" ) // YYY
          protected def leafRemoved() {
             var lonely: LeftInnerNonEmpty = null
             var numNonEmpty = 0
-            var i = 0; while( i < numChildren ) {
+            var i = 0; while( i < numQuadChildren ) {
                children( i ) match {
                   case n: LeftInnerNonEmpty =>
                      numNonEmpty += 1
@@ -782,7 +780,7 @@ sys.error( "TODO" ) // YYY
          protected def leafRemoved() {
             if( next != null ) return
 
-            var i = 0; while( i < numChildren ) {
+            var i = 0; while( i < numQuadChildren ) {
                children( i ) match {
                   case _: RightInnerNonEmpty => return   // node not empty, abort the check
                   case _ =>
@@ -825,7 +823,7 @@ sys.error( "TODO" ) // YYY
          protected def leafRemoved() {
             var lonely: RightInnerNonEmpty = null
             var numNonEmpty = 0
-            var i = 0; while( i < numChildren ) {
+            var i = 0; while( i < numQuadChildren ) {
                children( i ) match {
                   case n: RightInnerNonEmpty =>
                      numNonEmpty += 1
@@ -843,7 +841,7 @@ sys.error( "TODO" ) // YYY
       }
 
       private object MaxLeaf extends Leaf {
-         def point                        = dim.maxPoint
+         def point                        = space.maxPoint
          val order                        = totalOrder.max // TotalOrder.max // TotalOrder.max[ LeftNonEmpty ]
 
          def value : A                       = unsupportedOp

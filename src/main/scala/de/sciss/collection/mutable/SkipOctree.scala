@@ -26,7 +26,7 @@
 package de.sciss.collection.mutable
 
 import collection.mutable.{Set => MSet}
-import de.sciss.collection.geom.{Dim, DistanceMeasure, QueryShape}
+import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
 
 /**
  * A `SkipOctree` is a multi-dimensional data structure that
@@ -34,7 +34,7 @@ import de.sciss.collection.geom.{Dim, DistanceMeasure, QueryShape}
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipOctree[ D <: Dim[ D ], A ] extends MSet[ A ] {
+trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
    def headTree: QNode
    def lastTree: QNode
    def pointView : A => D#Point // PointLike[ D ] // PointView[ A ]

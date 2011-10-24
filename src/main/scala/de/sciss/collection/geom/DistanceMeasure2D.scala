@@ -33,7 +33,7 @@ object DistanceMeasure2D {
     * which is faster than the euclidean distance as the square root
     * does not need to be taken.
     */
-   val euclideanSq : DistanceMeasure[ Dim.Two ] = new DistanceMeasure2D {
+   val euclideanSq : DistanceMeasure[ Space.Two ] = new DistanceMeasure2D {
       def distance( a: Point2DLike, b: Point2DLike ) = b.distanceSq( a )
       def minDistance( a: Point2DLike, b: Quad2DLike ) = b.minDistanceSq( a )
       def maxDistance( a: Point2DLike, b: Quad2DLike ) = b.maxDistanceSq( a )
@@ -43,7 +43,7 @@ object DistanceMeasure2D {
     * A chebychev distance measure, based on the maximum of the absolute
     * distances across all dimensions.
     */
-   val chebyshev : DistanceMeasure[ Dim.Two ] = new ChebyshevLikeDistanceMeasure {
+   val chebyshev : DistanceMeasure[ Space.Two ] = new ChebyshevLikeDistanceMeasure {
       protected final def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
    }
 
@@ -51,7 +51,7 @@ object DistanceMeasure2D {
     * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
     * distances across all dimensions. This is, strictly speaking, only a semi metric.
     */
-   val vehsybehc : DistanceMeasure[ Dim.Two ] = new ChebyshevLikeDistanceMeasure {
+   val vehsybehc : DistanceMeasure[ Space.Two ] = new ChebyshevLikeDistanceMeasure {
       protected final def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
    }
 
@@ -167,10 +167,10 @@ object DistanceMeasure2D {
       }
    }
 
-   private sealed trait DistanceMeasure2D extends DistanceMeasure[ Dim.Two ] {
-      final def clip( quad: Quad2DLike ) : DistanceMeasure[ Dim.Two ] = new Clip( this, quad )
-      final def approximate( thresh: Long ) : DistanceMeasure[ Dim.Two ] = new Approximate( this, thresh )
-      final def quadrant( idx: Int ) : DistanceMeasure[ Dim.Two ] = (idx: @switch) match {
+   private sealed trait DistanceMeasure2D extends DistanceMeasure[ Space.Two ] {
+      final def clip( quad: Quad2DLike ) : DistanceMeasure[ Space.Two ] = new Clip( this, quad )
+      final def approximate( thresh: Long ) : DistanceMeasure[ Space.Two ] = new Approximate( this, thresh )
+      final def quadrant( idx: Int ) : DistanceMeasure[ Space.Two ] = (idx: @switch) match {
          case 0 => sys.error( "TODO" )
          case 1 => sys.error( "TODO" )
          case 2 => new SouthWest( this )

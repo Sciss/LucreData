@@ -25,8 +25,8 @@
 
 package de.sciss.collection
 
-import geom.Dim
+import geom.Space
 
 package object mutable {
-   type SkipQuadtree[ A ] = SkipOctree[ Dim.Two, A ]
+   type SkipQuadtree[ A ] = SkipOctree[ Space.Two, A ]
 }

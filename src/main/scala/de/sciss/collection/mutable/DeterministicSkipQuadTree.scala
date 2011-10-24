@@ -27,7 +27,7 @@ package de.sciss.collection
 package mutable
 
 import annotation.{switch, tailrec}
-import geom.{Quad2DLike, Dim, Point2D, Point2DLike, Quad2D}
+import geom.{Quad2DLike, Space, Point2D, Point2DLike, Quad2D}
 
 object DeterministicSkipQuadtree {
 //   def apply[ V ]( quad: Quad2D ) : DeterministicSkipQuadtree[ V ] = new TreeImpl[ V ]( quad )
@@ -42,7 +42,7 @@ object DeterministicSkipQuadtree {
    }
 
    private final class TreeImpl[ A ]( val quad: Quad2D, _skipGap: Int, val pointView: A => Point2DLike )
-   extends impl.SkipOctreeImpl[ Dim.Two, A ] {
+   extends impl.SkipOctreeImpl[ Space.Two, A ] {
       tree =>
 
       val totalOrder = TotalOrder()
@@ -309,7 +309,7 @@ object DeterministicSkipQuadtree {
 
          final def union( mq: Quad2DLike, point2: Point2DLike ) = {
             val point   = pointView( value )
-            mq.greatestInteresting( point.x, point.y, 1, point2 )
+            mq.greatestInteresting( point, point2 )
          }
 
          final def quadIdxIn( iq: Quad2DLike ) : Int = iq.indexOf( pointView( value ))
@@ -384,7 +384,7 @@ object DeterministicSkipQuadtree {
 
          final def union( mq: Quad2DLike, point2: Point2DLike ) = {
             val q = quad
-            mq.greatestInteresting( q.left, q.top, q.side, point2 )
+            mq.greatestInteresting( q, point2 )
          }
 
          final def quadIdxIn( iq: Quad2DLike ) : Int = iq.indexOf( quad )

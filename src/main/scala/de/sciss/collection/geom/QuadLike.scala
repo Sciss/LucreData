@@ -1,6 +1,6 @@
 package de.sciss.collection.geom
 
-trait QuadLike[ D <: Dim[ D ]] /* extends RectangleLike[ D ] */ {
+trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
    def extent: Int
 
    def quadrant( idx: Int ) : D#Quad // Quad[ D ]
@@ -44,7 +44,7 @@ trait QuadLike[ D <: Dim[ D ]] /* extends RectangleLike[ D ] */ {
    /**
     * Calculates the maximum 'squared' (to the power of the dimension) euclidean
     * distance to a point in the euclidean metric.
-    * This is the distance (pow dim) to the corner which is the furthest from
+    * This is the distance (pow space) to the corner which is the furthest from
     * the `point`, no matter if it lies within the quad or not.
     */
    def maxDistanceSq( point: D#Point ) : Long
@@ -65,5 +65,15 @@ trait QuadLike[ D <: Dim[ D ]] /* extends RectangleLike[ D ] */ {
     */
    def indexOf( inner: D#Quad ) : Int
 
-//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: PointLike[ D ]) : Quad[ D ]
+   /**
+    * Calculates the greatest interesting quad inside this quad which
+    * contains both points `a` and `b`, and they occupy distinct quadrants.
+    */
+   def greatestInteresting( a: D#Point, b: D#Point ) : D#Quad
+
+   /**
+    * Calculates the greatest interesting quad inside this quad which
+    * contains both quad `a` and point `b`, and they occupy distinct quadrants.
+    */
+   def greatestInteresting( a: D#Quad, b: D#Point ) : D#Quad
 }

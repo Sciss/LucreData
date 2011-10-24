@@ -63,11 +63,11 @@ object Quad2D {
    }
 }
 
-trait Quad2DLike extends QuadLike[ Dim.Two ] with Rectangle2DLike {
+trait Quad2DLike extends QuadLike[ Space.Two ] with Rectangle2DLike {
    def cx: Int
    def cy: Int
 
-   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike
+//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike
 }
 
 final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
@@ -312,7 +312,13 @@ final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
       }
    }
 
-   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike = {
+   def greatestInteresting( a: Point2DLike, b: Point2DLike ) : Quad2DLike =
+      gi( a.x, a.y, 1, b )
+
+   def greatestInteresting( a: Quad2DLike, b: Point2DLike ) : Quad2DLike =
+      gi( a.left, a.top, a.side, b )
+
+   private def gi( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike = {
       val tlx           = left   // pq.cx - pq.extent
       val tly           = top    // pq.cy - pq.extent
       val akx           = aleft - tlx
