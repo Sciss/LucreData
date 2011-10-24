@@ -1,6 +1,6 @@
 package de.sciss.collection
 
-import geom.{Point2D, Point2DLike, Quad2D}
+import geom.{DistanceMeasure2D, Point2D, Point2DLike, Quad2D}
 import mutable.{SkipQuadtree, RandomizedSkipQuadtree, DeterministicSkipQuadtree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
@@ -174,7 +174,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
          val dy = if( p.y < quad.cy ) quad.bottom.toLong - p.y else p.y - quad.top
          dx <= 0xB504F300L && dy <= 0xB504F300L && dx * dx + dy * dy > 0L
       })
-      val nnT: Map[ Point2DLike, Point2DLike ] = ps.map( p => p -> t.nearestNeighbor( p ))( breakOut )
+      val nnT: Map[ Point2DLike, Point2DLike ] = ps.map( p => p -> t.nearestNeighbor( p, DistanceMeasure2D.euclideanSq ))( breakOut )
       val ks   = m // .keySet
       val nnM: Map[ Point2DLike, Point2DLike ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )
       then( "the results should match brute force with the corresponding set" )

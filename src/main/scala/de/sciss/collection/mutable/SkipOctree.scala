@@ -85,9 +85,9 @@ trait SkipOctree[ D <: Dim, A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: D#PointType, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A
+   def nearestNeighbor( point: D#PointType, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : A
 
-   def nearestNeighborOption( point: D#PointType, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
+   def nearestNeighborOption( point: D#PointType, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored

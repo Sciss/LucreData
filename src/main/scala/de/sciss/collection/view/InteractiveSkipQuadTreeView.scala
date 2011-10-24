@@ -28,9 +28,9 @@ package view
 
 import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
-import geom.{DistanceMeasure, Point2D, Point2DLike, Quad2D}
 import mutable.{SkipQuadtree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
 import javax.swing.{JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
+import geom.{DistanceMeasure2D, Dim, DistanceMeasure, Point2D, Point2DLike, Quad2D}
 
 object InteractiveSkipQuadtreeView extends App with Runnable {
    val seed = 0L
@@ -71,9 +71,9 @@ extends JPanel( new BorderLayout() ) {
    val slv  = new SkipQuadtreeView( t )
    private val in = slv.getInsets
 
-   private var baseDist : DistanceMeasure = DistanceMeasure.euclideanSq
-   private var distFilter : DistanceMeasure => DistanceMeasure = identity
-   private var distMeasure : DistanceMeasure = baseDist
+   private var baseDist : DistanceMeasure[ Dim.Two ] = DistanceMeasure2D.euclideanSq
+   private var distFilter : DistanceMeasure[ Dim.Two ] => DistanceMeasure[ Dim.Two ] = identity
+   private var distMeasure : DistanceMeasure[ Dim.Two ] = baseDist
 
    def recalcDistMeasure { distMeasure = distFilter( baseDist )}
 
@@ -181,9 +181,9 @@ extends JPanel( new BorderLayout() ) {
    }}
 
    combo( "Euclidean", "Maximum", "Minimum" ) { i => baseDist = i match {
-         case 0 => DistanceMeasure.euclideanSq
-         case 1 => DistanceMeasure.chebyshev
-         case 2 => DistanceMeasure.vehsybehc
+         case 0 => DistanceMeasure2D.euclideanSq
+         case 1 => DistanceMeasure2D.chebyshev
+         case 2 => DistanceMeasure2D.vehsybehc
       }
       recalcDistMeasure
    }

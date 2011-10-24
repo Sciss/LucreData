@@ -81,12 +81,12 @@ trait SkipQuadtreeImpl[ A ] extends SkipQuadtree[ A ] {
       if( l == null ) None else Some( l.value )
    }
 
-   final override def nearestNeighbor( point: Point2DLike, metric: DistanceMeasure ) : A = {
+   final override def nearestNeighbor( point: Point2DLike, metric: DistanceMeasure[ Dim.Two ]) : A = {
       val res = nn( point, metric )
       if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
    }
 
-   final def nearestNeighborOption( point: Point2DLike, metric: DistanceMeasure ) : Option[ A ] = {
+   final def nearestNeighborOption( point: Point2DLike, metric: DistanceMeasure[ Dim.Two ]) : Option[ A ] = {
       val res = nn( point, metric )
       if( res != null ) Some( res.value ) else None
    }
@@ -227,7 +227,7 @@ trait SkipQuadtreeImpl[ A ] extends SkipQuadtree[ A ] {
       }
    }
 
-   private def nn( point: Point2DLike, metric: DistanceMeasure ) : QLeaf = {
+   private def nn( point: Point2DLike, metric: DistanceMeasure[ Dim.Two ]) : QLeaf = {
       var bestLeaf: QLeaf     = null
       var bestDist            = Long.MaxValue   // all distances here are squared!
       val pri                 = PriorityQueue.empty[ VisitedNode ]

@@ -25,7 +25,7 @@
 
 package de.sciss.collection
 
-import geom.{Point2DLike, Point2D, Quad2D}
+import geom.{DistanceMeasure2D, Point2DLike, Point2D, Quad2D}
 import mutable.{SkipQuadtree, CompressedQuadtree, DeterministicSkipQuadtree, Quadtree, RandomizedSkipQuadtree}
 import scala.collection.breakOut
 import java.awt.EventQueue
@@ -331,7 +331,7 @@ Options:
          // query Point2D(1609162490,1507881173), wrong result Point2D(1598649701,1592263107), correct result Point2D(1657161143,1524021651)
          // query Point2D( 310852551,1213007527), wrong result Point2D( 257112136,1084105610), correct result Point2D( 226535009,1195010500)
          val q1   = Point2D(1609162490,1507881173)
-         val res1 = t.nearestNeighbor( q1 ) // .get
+         val res1 = t.nearestNeighbor( q1, DistanceMeasure2D.euclideanSq ) // .get
          println( q1 -> res1 )
 //      val q2   = Point2D( 310852551,1213007527)
 //      val res2 = t.nearestNeighbor( q2 ).get
@@ -362,7 +362,7 @@ Options:
       val query   = Point2D(1599145891,-1341955486)
       val quad    = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
       val t       = RandomizedSkipQuadtree[ Point2D ]( quad )( pts: _* )
-      val res     = t.nearestNeighbor( query )
+      val res     = t.nearestNeighbor( query, DistanceMeasure2D.euclideanSq )
       println( res + " - " + res.distanceSq( query ))
       val correct = pts.minBy( _.distanceSq( query ))
       println( correct + " - " + correct.distanceSq( query ))
