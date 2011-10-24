@@ -1,5 +1,5 @@
 /*
- *  DeterministicSkipQuadTree.scala
+ *  DeterministicSkipQuadtree.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -33,20 +33,20 @@ import geom.{Point2D, Point2DLike, Quad2D}
  * XXX TODO:
  * - delete is missing
  */
-object DeterministicSkipQuadTree {
-//   def apply[ V ]( quad: Quad2D ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
+object DeterministicSkipQuadtree {
+//   def apply[ V ]( quad: Quad2D ) : DeterministicSkipQuadtree[ V ] = new TreeImpl[ V ]( quad )
 
-   def empty[ A ]( quad: Quad2D, skipGap: Int = 2 )( implicit view: A => Point2DLike ) : SkipQuadTree[ A ] =
+   def empty[ A ]( quad: Quad2D, skipGap: Int = 2 )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] =
       new TreeImpl[ A ]( quad, skipGap, view )
 
-   def apply[ A <% Point2DLike ]( quad: Quad2D, skipGap: Int = 2 )( xs: A* ) : SkipQuadTree[ A ] = {
+   def apply[ A <% Point2DLike ]( quad: Quad2D, skipGap: Int = 2 )( xs: A* ) : SkipQuadtree[ A ] = {
       val t = empty[ A ]( quad, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
    private final class TreeImpl[ A ]( quad: Quad2D, _skipGap: Int, val pointView: A => Point2DLike )
-   extends impl.SkipQuadTreeImpl[ A ] {
+   extends impl.SkipQuadtreeImpl[ A ] {
       tree =>
 
       val totalOrder = TotalOrder()
@@ -575,7 +575,7 @@ object DeterministicSkipQuadTree {
          /**
           * Note that `prev` will not be called as part of this quadtree implementation
           * which smartly distinguishes between left and right nodes. It is merely here
-          * to satisfy the `QNode` interface of `SkipQuadTree`.
+          * to satisfy the `QNode` interface of `SkipQuadtree`.
           */
          final def prev : QNode = null
 
@@ -981,4 +981,4 @@ object DeterministicSkipQuadTree {
 
 //   private def notYetImplemented : Nothing   = sys.error( "Not yet implemented" )
 }
-//trait DeterministicSkipQuadTree[ V ] extends SkipQuadTree[ V ]
+//trait DeterministicSkipQuadtree[ V ] extends SkipQuadtree[ V ]

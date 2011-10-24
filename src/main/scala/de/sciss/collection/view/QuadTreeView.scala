@@ -1,5 +1,5 @@
 /*
- *  QuadTreeView.scala
+ *  QuadtreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -28,7 +28,7 @@ package de.sciss.collection.view
 import java.awt.Dimension
 import de.sciss.collection.geom.Quad2D
 
-abstract class QuadTreeView extends QuadView {
+abstract class QuadtreeView extends QuadView {
    def rootQuad : Quad2D
 
    override def getPreferredSize : Dimension = {

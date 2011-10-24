@@ -1,5 +1,5 @@
 /*
- *  SkipQuadTree.scala
+ *  SkipQuadtree.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -30,12 +30,12 @@ import collection.mutable.{Set => MSet}
 import geom.{Quad2D, QueryShape, DistanceMeasure, Point2DLike}
 
 /**
- * A `SkipQuadTree` is a two-dimensional data structure that
+ * A `SkipQuadtree` is a two-dimensional data structure that
  * maps coordinates to values. It extends the interface
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipQuadTree[ A ] extends MSet[ A ] {
+trait SkipQuadtree[ A ] extends MSet[ A ] {
    def headTree: QNode
    def lastTree: QNode
    def pointView : A => Point2DLike // PointView[ A ]
@@ -112,7 +112,7 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
 //      def next: QNode
 
       // XXX todo: how can we make this implementation private?
-      /* protected[SkipQuadTree] */ def prev: QNode
-      /* protected[SkipQuadTree] */ def next: QNode
+      /* protected[SkipQuadtree] */ def prev: QNode
+      /* protected[SkipQuadtree] */ def next: QNode
    }
 }

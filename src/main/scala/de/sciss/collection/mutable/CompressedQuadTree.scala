@@ -1,5 +1,5 @@
 /*
- *  CompressedQuadTree.scala
+ *  CompressedQuadtree.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -29,7 +29,7 @@ package mutable
 import annotation.tailrec
 import geom.{Point2DLike, Quad2D}
 
-object CompressedQuadTree {
+object CompressedQuadtree {
    def apply[ V ]( quad: Quad2D ) : QNode[ V ] = {
       val quads = new Array[ Q[ V ]]( 4 )
 //      createEmptyQuads( quad, children )

@@ -1,5 +1,5 @@
 /*
- *  SkipQuadTreeView.scala
+ *  SkipQuadtreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -27,9 +27,9 @@ package de.sciss.collection
 package view
 
 import java.awt.{Color, Dimension}
-import mutable.SkipQuadTree
+import mutable.SkipQuadtree
 
-class SkipQuadTreeView[ A ]( t: SkipQuadTree[ A ]) extends QuadView {
+class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
    var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
    private var scaleVar = 1.0

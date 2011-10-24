@@ -1,5 +1,5 @@
 /*
- *  InteractiveSkipQuad2DTreeView.scala
+ *  InteractiveSkipQuadtreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -29,10 +29,10 @@ package view
 import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import geom.{DistanceMeasure, Point2D, Point2DLike, Quad2D}
-import mutable.{SkipQuadTree, DeterministicSkipQuadTree, RandomizedSkipQuadTree}
+import mutable.{SkipQuadtree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
 import javax.swing.{JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
 
-object InteractiveSkipQuad2DTreeView extends App with Runnable {
+object InteractiveSkipQuadtreeView extends App with Runnable {
    val seed = 0L
 
    EventQueue.invokeLater( this )
@@ -45,12 +45,12 @@ object InteractiveSkipQuad2DTreeView extends App with Runnable {
       val f    = new JFrame( "Skip Quad2Dtree" )
 //      f.setResizable( false )
       val cp   = f.getContentPane
-      val iv   = new InteractiveSkipQuad2DTreeView( mode )
+      val iv   = new InteractiveSkipQuadtreeView( mode )
       cp.add( iv, BorderLayout.CENTER )
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      PDFSupport.addMenu[ SkipQuadTreeView[ Point2DLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
+      PDFSupport.addMenu[ SkipQuadtreeView[ Point2DLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
       f.setVisible( true )
    }
 
@@ -58,17 +58,17 @@ object InteractiveSkipQuad2DTreeView extends App with Runnable {
    case object Randomized extends Mode
    case object Deterministic extends Mode
 }
-class InteractiveSkipQuad2DTreeView( mode: InteractiveSkipQuad2DTreeView.Mode )
+class InteractiveSkipQuadtreeView( mode: InteractiveSkipQuadtreeView.Mode )
 extends JPanel( new BorderLayout() ) {
-   import InteractiveSkipQuad2DTreeView._
+   import InteractiveSkipQuadtreeView._
 
    private val rnd = new util.Random( seed )
 
    val t    = mode match {
-      case Randomized      => RandomizedSkipQuadTree.empty[    Point2DLike ]( Quad2D( 256, 256, 256 ))
-      case Deterministic   => DeterministicSkipQuadTree.empty[ Point2DLike ]( Quad2D( 256, 256, 256 ))
+      case Randomized      => RandomizedSkipQuadtree.empty[    Point2DLike ]( Quad2D( 256, 256, 256 ))
+      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Quad2D( 256, 256, 256 ))
    }
-   val slv  = new SkipQuadTreeView( t )
+   val slv  = new SkipQuadtreeView( t )
    private val in = slv.getInsets
 
    private var baseDist : DistanceMeasure = DistanceMeasure.euclideanSq
@@ -324,7 +324,7 @@ extends JPanel( new BorderLayout() ) {
 //println( "---REMOVING" )
 //removePoints( 4 )
 
-   def verifyConsistency( t: SkipQuadTree[ Point2DLike ]) {
+   def verifyConsistency( t: SkipQuadtree[ Point2DLike ]) {
       val q = t.quad
       var h = t.lastTree
       var currUnlinkedQuad2Ds   = Set.empty[ Quad2D ]

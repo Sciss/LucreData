@@ -1,5 +1,5 @@
 /*
- *  SkipQuadTreeImpl.scala
+ *  SkipQuadtreeImpl.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -30,7 +30,7 @@ import de.sciss.collection.geom.{QueryShape, Point2DLike, DistanceMeasure}
 import annotation.tailrec
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 
-trait SkipQuadTreeImpl[ A ] extends SkipQuadTree[ A ] {
+trait SkipQuadtreeImpl[ A ] extends SkipQuadtree[ A ] {
    // ---- map support ----
 
    final def +=( elem: A ) : this.type = {

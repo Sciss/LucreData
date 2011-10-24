@@ -1,5 +1,5 @@
 /*
- *  CompressedQuadTreeView.scala
+ *  CompressedQuadtreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -26,10 +26,10 @@
 package de.sciss.collection
 package view
 
-import mutable.CompressedQuadTree
+import mutable.CompressedQuadtree
 
-class CompressedQuadTreeView( t: CompressedQuadTree.QNode[ _ ]) extends QuadView {
-   import CompressedQuadTree._
+class CompressedQuadtreeView( t: CompressedQuadtree.QNode[ _ ]) extends QuadView {
+   import CompressedQuadtree._
 
    protected def draw( h: QuadView.PaintHelper ) {
       draw( h, t )

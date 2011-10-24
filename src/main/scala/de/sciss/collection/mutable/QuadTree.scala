@@ -1,5 +1,5 @@
 /*
- *  QuadTree.scala
+ *  Quadtree.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -28,7 +28,7 @@ package mutable
 
 import geom.{Point2D, Point2DLike, Quad2D}
 
-object QuadTree {
+object Quadtree {
    def apply[ V ]( center: Point2D, extent: Int ) : QNode[ V ] = new NodeImpl[ V ]( center, extent )
    def fromMap[ V ]( center: Point2D, extent: Int, m: Map[ Point2DLike, V ]) : QNode[ V ] = {
       val t = new NodeImpl[ V ]( center, extent )
@@ -95,7 +95,7 @@ object QuadTree {
             case QEmpty( _c, _e ) => QLeaf( _c, _e, point, value )
             case t: QNode[ _ ] => t.insert( point, value ); t
             case QLeaf( _c, _e, point2, value2 ) =>
-               val t = QuadTree[ V ]( _c, _e )
+               val t = Quadtree[ V ]( _c, _e )
                t.insert( point2, value2 )
                t.insert( point, value )
                t

@@ -1,5 +1,5 @@
 /*
- *  RandomizedSkipQuadTree.scala
+ *  RandomizedSkipQuadtree.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -29,10 +29,10 @@ package mutable
 import collection.mutable.{Stack => MStack}
 import geom.{Quad2D, Point2DLike}
 
-object RandomizedSkipQuadTree {
-   def empty[ A ]( quad: Quad2D )( implicit view: A => Point2DLike ) : SkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )
+object RandomizedSkipQuadtree {
+   def empty[ A ]( quad: Quad2D )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] = new TreeImpl[ A ]( quad, view )
 
-   def apply[ A <% Point2DLike ]( quad: Quad2D )( xs: A* ) : SkipQuadTree[ A ] = {
+   def apply[ A <% Point2DLike ]( quad: Quad2D )( xs: A* ) : SkipQuadtree[ A ] = {
       val t = empty[ A ]( quad )
       xs.foreach( t.+=( _ ))
       t
@@ -44,7 +44,7 @@ object RandomizedSkipQuadTree {
 //      def apply[ V ]( quad: Quad2D ) = new TreeImpl[ V ]( quad )
 //   }
    private final class TreeImpl[ A ]( quad: Quad2D, val pointView: A => Point2DLike )
-   extends impl.SkipQuadTreeImpl[ A ] {
+   extends impl.SkipQuadtreeImpl[ A ] {
       val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
 
@@ -279,4 +279,4 @@ object RandomizedSkipQuadTree {
    val random = new util.Random()
    private def flipCoin : Boolean = random.nextBoolean()
 }
-//trait RandomizedSkipQuadTree[ V ] extends SkipQuadTree[ V ]
+//trait RandomizedSkipQuadtree[ V ] extends SkipQuadtree[ V ]

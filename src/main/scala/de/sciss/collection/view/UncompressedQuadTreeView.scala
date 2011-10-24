@@ -1,5 +1,5 @@
 /*
- *  QuadTreeView.scala
+ *  UncompressedQuadtreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -26,20 +26,20 @@
 package de.sciss.collection
 package view
 
-import mutable.QuadTree
+import mutable.Quadtree
 
-class UncompressedQuadTreeView( t: QuadTree.Q[ _ ]) extends QuadTreeView {
+class UncompressedQuadtreeView( t: Quadtree.Q[ _ ]) extends QuadtreeView {
    protected def drawTree( h: QuadView.PaintHelper ) {
       draw( h, t )
    }
 
    def rootQuad = t.quad
 
-   private def draw( h: QuadView.PaintHelper, quad: QuadTree.Q[ _ ]) {
+   private def draw( h: QuadView.PaintHelper, quad: Quadtree.Q[ _ ]) {
       quad match {
-         case t: QuadTree.QNode[ _ ]   => List( t.nw, t.ne, t.sw, t.se ).foreach( draw( h, _ ))
-         case _: QuadTree.QEmpty[ _ ]  => h.drawFrame( quad.quad )
-         case l: QuadTree.QLeaf[ _ ]   =>
+         case t: Quadtree.QNode[ _ ]   => List( t.nw, t.ne, t.sw, t.se ).foreach( draw( h, _ ))
+         case _: Quadtree.QEmpty[ _ ]  => h.drawFrame( quad.quad )
+         case l: Quadtree.QLeaf[ _ ]   =>
             h.drawFrame( quad.quad )
             h.drawPoint( l.point )
       }
