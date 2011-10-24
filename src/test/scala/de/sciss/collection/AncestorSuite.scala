@@ -1,6 +1,6 @@
 package de.sciss.collection
 
-import geom.{Point, DistanceMeasure, Quad, PointLike}
+import geom.{Point2D, DistanceMeasure, Quad2D, Point2DLike}
 import mutable.{DeterministicSkipQuadTree, LLSkipList, RandomizedSkipQuadTree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
@@ -28,7 +28,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       val preOrder   = TotalOrder( preObserver )
       val postOrder  = TotalOrder( postObserver )
       val root       = newVertex( _init, preOrder.root, postOrder.root )
-      val quad       = Quad( 0x40000000, 0x40000000, 0x40000000 )
+      val quad       = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
       val t          = if( USE_DET ) {
          DeterministicSkipQuadTree.empty[ V ]( quad )
       } else {
@@ -39,7 +39,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : V
 
-      trait VertexLike extends PointLike {
+      trait VertexLike extends Point2DLike {
          def value: A
          def pre: preOrder.Entry
          def post: postOrder.Entry
@@ -166,7 +166,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          then( "the results should be identical to an independently maintained map" )
          val metric = DistanceMeasure.chebyshev.quadrant( 2 )
          treeSeq.foreach { child => parents.get( child ).foreach { parent =>
-            val point = Point( child.x - 1, child.y + 1 ) // make sure we skip the child itself
+            val point = Point2D( child.x - 1, child.y + 1 ) // make sure we skip the child itself
             val found = t.t.nearestNeighborOption( point, metric )
             assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
          }}
@@ -308,7 +308,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                sb.append( "  " + parent.value.toString + " -> " + child.value.toString + "\n" )
             }
             sb.append( "}\n" )
-            println( sb.toString )
+            println( sb.toString() )
          }
 
          when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
@@ -328,7 +328,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
             val atPreIso= preTagIsoMap.get( preIso )
             val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
             val y       = postIso.tag
-            val point   = Point( x, y )
+            val point   = Point2D( x, y )
 
             val found = tm.t.nearestNeighborOption( point, metric ).map( _.value )
             val parent = {

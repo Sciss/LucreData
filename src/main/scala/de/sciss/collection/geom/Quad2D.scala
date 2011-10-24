@@ -28,24 +28,24 @@ package de.sciss.collection.geom
 import annotation.tailrec
 
 trait QueryShape {
-   def overlapArea( q: Quad ) : Long
+   def overlapArea( q: Quad2D ) : Long
    def area : Long
 
    /**
     * Queries the overlap of this shape with a given
-    * `Point p`. The point is considered to have
+    * `Point2D p`. The point is considered to have
     * a side length of 1!
     *
     * @return  `true` if this shape contains or partly overlaps
     *          the given point
     */
-   def contains( p: PointLike ) : Boolean
+   def contains( p: Point2DLike ) : Boolean
 }
 
 //final case class Circle( cx: Int, cy: Int, radius: Int ) extends QueryShape {
 ////   import QueryShape._
 //
-//   def contains( p: Point ) : Boolean = {
+//   def contains( p: Point2D ) : Boolean = {
 //      val dx   = cx.toLong - p.x.toLong // (cx - p.x).toLong
 //      val dy   = cy.toLong - p.y.toLong // (cy - p.y).toLong
 //      val rd   = radius.toLong
@@ -66,7 +66,7 @@ trait QueryShape {
  * XXX TODO: not possible to have a side length of 1, which might
  * be(come) a problem.
  */
-object Quad {
+object Quad2D {
    // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
    @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
       val gt = a > (b & mask)
@@ -77,16 +77,16 @@ object Quad {
       }
    }
 }
-final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape with */ RectangleLike {
-   import Quad._
+final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends /* QueryShape with */ Rectangle2DLike {
+   import Quad2D._
 
-   def quadrant( idx: Int ) : Quad = {
+   def quadrant( idx: Int ) : Quad2D = {
       val e = extent >> 1
       idx match {
-         case 0 => Quad( cx + e, cy - e, e ) // ne
-         case 1 => Quad( cx - e, cy - e, e ) // nw
-         case 2 => Quad( cx - e, cy + e, e ) // sw
-         case 3 => Quad( cx + e, cy + e, e ) // se
+         case 0 => Quad2D( cx + e, cy - e, e ) // ne
+         case 1 => Quad2D( cx - e, cy - e, e ) // nw
+         case 2 => Quad2D( cx - e, cy + e, e ) // sw
+         case 3 => Quad2D( cx + e, cy + e, e ) // se
          case _ => throw new IllegalArgumentException( idx.toString )
       }
    }
@@ -121,7 +121,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
     */
    def side : Int    = extent << 1
 
-   def contains( point: PointLike ) : Boolean = {
+   def contains( point: Point2DLike ) : Boolean = {
       val px = point.x
       val py = point.y
       (left <= px) && (right >= px) && (top <= py) && (bottom >= py)
@@ -131,7 +131,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
     * Checks whether a given quad is fully contained in this quad.
     * This is also the case if their bounds full match.
     */
-   def contains( quad: Quad ) : Boolean =
+   def contains( quad: Quad2D ) : Boolean =
       quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
 
    def area : Long = {
@@ -139,7 +139,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
       sd * sd
    }
 
-   def overlapArea( q: Quad ) : Long = {
+   def overlapArea( q: Quad2D ) : Long = {
       val l = math.max( q.left, left ).toLong
       val r = math.min( q.right, right ).toLong
       val w = r - l + 1 // (r - l).toLong + 1
@@ -155,20 +155,20 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
     * Calculates the minimum distance to a point in the euclidean metric.
     * This calls `minDistanceSq` and then takes the square root.
     */
-   def minDistance( point: PointLike ) : Double = math.sqrt( minDistanceSq( point ))
+   def minDistance( point: Point2DLike ) : Double = math.sqrt( minDistanceSq( point ))
 
    /**
     * Calculates the maximum distance to a point in the euclidean metric.
     * This calls `maxDistanceSq` and then takes the square root.
     */
-   def maxDistance( point: PointLike ) : Double = math.sqrt( maxDistanceSq( point ))
+   def maxDistance( point: Point2DLike ) : Double = math.sqrt( maxDistanceSq( point ))
 
    /**
     * The squared (euclidean) distance of the closest of the quad's corners
     * to the point, if the point is outside the quad,
     * or `0L`, if the point is contained
     */
-   def minDistanceSq( point: PointLike ) : Long = {
+   def minDistanceSq( point: Point2DLike ) : Long = {
       val px   = point.x
       val py   = point.y
       val l    = left
@@ -240,7 +240,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
     * This is the distance (squared) to the corner which is the furthest from
     * the `point`, no matter if it lies within the quad or not.
     */
-   def maxDistanceSq( point: PointLike ) : Long = {
+   def maxDistanceSq( point: Point2DLike ) : Long = {
       val px   = point.x
       val py   = point.y
       if( px < cx ) {
@@ -272,7 +272,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
     * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
     *          outside of this quad.
     */
-   def indexOf( a: PointLike ) : Int = {
+   def indexOf( a: Point2DLike ) : Int = {
       val ax   = a.x
       val ay   = a.y
       if( ay < cy ) {      // north
@@ -296,7 +296,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
     * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `aq` lies
     *          outside of this quad.
     */
-   def indexOf( aq: Quad ) : Int = {
+   def indexOf( aq: Quad2D ) : Int = {
       val atop = aq.top
       if( atop < cy ) {       // north
          if( top <= atop && aq.bottom <= cy ) {
@@ -319,7 +319,7 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
       }
    }
 
-   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: PointLike ) : Quad = {
+   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2D = {
       val tlx           = left   // pq.cx - pq.extent
       val tly           = top    // pq.cy - pq.extent
       val akx           = aleft - tlx
@@ -333,14 +333,14 @@ final case class Quad( cx: Int, cy: Int, extent: Int ) extends /* QueryShape wit
       val my            = binSplit( y1, y2 )
       // that means the x extent is greater (x grid more coarse).
       if( mx <= my ) {
-         Quad( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
+         Quad2D( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
       } else {
-         Quad( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
+         Quad2D( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
       }
    }
 }
 
-trait PointLike extends RectangleLike {
+trait Point2DLike extends Rectangle2DLike {
    def x: Int
    def y: Int
 
@@ -351,25 +351,25 @@ trait PointLike extends RectangleLike {
 //   final def width            = 1
 //   final def height           = 1
 
-   def distanceSq( that: PointLike ) : Long = {
+   def distanceSq( that: Point2DLike ) : Long = {
       val dx = that.x.toLong - x.toLong
       val dy = that.y.toLong - y.toLong
       dx * dx + dy * dy
    }
 
    // ---- QueryShape ----
-   final def overlapArea( q: Quad ) : Long = if( q.contains( this )) 1L else 0L
+   final def overlapArea( q: Quad2D ) : Long = if( q.contains( this )) 1L else 0L
    final def area : Long = 1L
 
    /**
     * Queries the overlap of this shape with a given
-    * `Point p`. The point is considered to have
+    * `Point2D p`. The point is considered to have
     * a side length of 1!
     *
     * @return  `true` if this shape contains or partly overlaps
     *          the given point
     */
-   final def contains( p: PointLike ) : Boolean = p.x == this.x && p.y == this.y
+   final def contains( p: Point2DLike ) : Boolean = p.x == this.x && p.y == this.y
 
    /**
     * Returns the orientation of the given point wrt this point, according
@@ -387,11 +387,11 @@ trait PointLike extends RectangleLike {
     *  '3' for 'after', so that if the orient is before or
     *  after, the sign can be retrieved via `_ - 2`
     *
-    *  For example, if this is `Point(4, 4)` and the query
-    *  point is `Point(4, 5)`, the result is `12`. If the
-    *  query is `Point(0, 0)`, the result is `5`, etc.
+    *  For example, if this is `Point2D(4, 4)` and the query
+    *  point is `Point2D(4, 5)`, the result is `12`. If the
+    *  query is `Point2D(0, 0)`, the result is `5`, etc.
     */
-   final def orient( b: PointLike ) : Int = {
+   final def orient( b: Point2DLike ) : Int = {
       val ax = x
       val ay = y
       val bx = b.x
@@ -402,7 +402,7 @@ trait PointLike extends RectangleLike {
    }
 }
 
-final case class Point( x: Int, y: Int ) extends PointLike {
-   def +( p: Point ) = Point( x + p.x, y + p.y )
-   def -( p: Point ) = Point( x - p.x, y - p.y )
+final case class Point2D( x: Int, y: Int ) extends Point2DLike {
+   def +( p: Point2D ) = Point2D( x + p.x, y + p.y )
+   def -( p: Point2D ) = Point2D( x - p.x, y - p.y )
 }

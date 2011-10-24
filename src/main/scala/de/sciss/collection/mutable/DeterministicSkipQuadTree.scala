@@ -27,25 +27,25 @@ package de.sciss.collection
 package mutable
 
 import annotation.{switch, tailrec}
-import geom.{Point, PointLike, Quad}
+import geom.{Point2D, Point2DLike, Quad2D}
 
 /**
  * XXX TODO:
  * - delete is missing
  */
 object DeterministicSkipQuadTree {
-//   def apply[ V ]( quad: Quad ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
+//   def apply[ V ]( quad: Quad2D ) : DeterministicSkipQuadTree[ V ] = new TreeImpl[ V ]( quad )
 
-   def empty[ A ]( quad: Quad, skipGap: Int = 2 )( implicit view: A => PointLike ) : SkipQuadTree[ A ] =
+   def empty[ A ]( quad: Quad2D, skipGap: Int = 2 )( implicit view: A => Point2DLike ) : SkipQuadTree[ A ] =
       new TreeImpl[ A ]( quad, skipGap, view )
 
-   def apply[ A <% PointLike ]( quad: Quad, skipGap: Int = 2 )( xs: A* ) : SkipQuadTree[ A ] = {
+   def apply[ A <% Point2DLike ]( quad: Quad2D, skipGap: Int = 2 )( xs: A* ) : SkipQuadTree[ A ] = {
       val t = empty[ A ]( quad, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private final class TreeImpl[ A ]( quad: Quad, _skipGap: Int, val pointView: A => PointLike )
+   private final class TreeImpl[ A ]( quad: Quad2D, _skipGap: Int, val pointView: A => Point2DLike )
    extends impl.SkipQuadTreeImpl[ A ] {
       tree =>
 
@@ -69,7 +69,7 @@ object DeterministicSkipQuadTree {
 
       type InOrder = totalOrder.Entry
 
-      protected def findLeaf( point: PointLike ) : Leaf = {
+      protected def findLeaf( point: Point2DLike ) : Leaf = {
          val p0 = tailVar.findP0( point )
          p0.findImmediateLeaf( point )
       }
@@ -90,7 +90,7 @@ object DeterministicSkipQuadTree {
          oldLeaf
       }
 
-      protected def removeLeaf( point: PointLike ) : Leaf = {
+      protected def removeLeaf( point: Point2DLike ) : Leaf = {
          if( !quad.contains( point )) return null
 
          // "To insert or delete a point y into or from S, we first search the
@@ -120,7 +120,7 @@ object DeterministicSkipQuadTree {
          l
       }
 
-//      protected def findLeaf( point: PointLike ) : Leaf = {
+//      protected def findLeaf( point: Point2DLike ) : Leaf = {
 //         tailVar.findP0( point ).findLeaf( point )
 //      }
 
@@ -226,13 +226,13 @@ object DeterministicSkipQuadTree {
           * square and the given point will be placed in
           * separated quadrants of this resulting square.
           */
-         def union( mq: Quad, point: PointLike ) : Quad
+         def union( mq: Quad2D, point: Point2DLike ) : Quad2D
 
          /**
           * Queries the quadrant index for this (leaf's or node's) square
           * with respect to a given outer square `iq`.
           */
-         def quadIdxIn( iq: Quad ) : Int
+         def quadIdxIn( iq: Quad2D ) : Int
       }
 
       /**
@@ -311,12 +311,12 @@ object DeterministicSkipQuadTree {
           */
          final def compare( that: Leaf ) : Int = order.compare( that.order )
 
-         final def union( mq: Quad, point2: PointLike ) = {
+         final def union( mq: Quad2D, point2: Point2DLike ) = {
             val point   = pointView( value )
             mq.greatestInteresting( point.x, point.y, 1, point2 )
          }
 
-         final def quadIdxIn( iq: Quad ) : Int = iq.indexOf( pointView( value ))
+         final def quadIdxIn( iq: Quad2D ) : Int = iq.indexOf( pointView( value ))
 
          /**
           * For a leaf (which does not have a subtree),
@@ -355,7 +355,7 @@ object DeterministicSkipQuadTree {
           * @return  the node defined by the given search `point`, or `null`
           *          if no such node exists.
           */
-         def findP0( point: PointLike ) : LeftNode
+         def findP0( point: Point2DLike ) : LeftNode
 
          /**
           * Assuming that the given `leaf` is a child of this node,
@@ -366,12 +366,12 @@ object DeterministicSkipQuadTree {
           */
          def removeImmediateLeaf( leaf: Leaf ) : Unit
 
-//         def findLeaf( point: PointLike ) : Leaf
+//         def findLeaf( point: Point2DLike ) : Leaf
 
          /**
           * Returns the square covered by this node
           */
-         def quad: Quad
+         def quad: Quad2D
 
          /**
           * Returns the corresponding interesting
@@ -386,12 +386,12 @@ object DeterministicSkipQuadTree {
           */
          def next_=( n: RightNode ) : Unit
 
-         final def union( mq: Quad, point2: PointLike ) = {
+         final def union( mq: Quad2D, point2: Point2DLike ) = {
             val q = quad
             mq.greatestInteresting( q.left, q.top, q.side, point2 )
          }
 
-         final def quadIdxIn( iq: Quad ) : Int = iq.indexOf( quad )
+         final def quadIdxIn( iq: Quad2D ) : Int = iq.indexOf( quad )
 
          /**
           * The reverse process of `findP0`: Finds the lowest
@@ -455,7 +455,7 @@ object DeterministicSkipQuadTree {
          def prev : Node
          final def child( idx: Int ) : RightChild = children( idx )
 
-         final def findP0( point: PointLike ) : LeftNode = {
+         final def findP0( point: Point2DLike ) : LeftNode = {
             val qidx = quad.indexOf( point )
             children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
@@ -463,7 +463,7 @@ object DeterministicSkipQuadTree {
             }
          }
 
-//         final def findLeaf( point: PointLike ) : Leaf = {
+//         final def findLeaf( point: Point2DLike ) : Leaf = {
 //            val qidx = quad.indexOf( point )
 //            children( qidx ) match {
 //               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
@@ -527,7 +527,7 @@ object DeterministicSkipQuadTree {
           * sub-node whose parent is this node, and whose predecessor
           * in the lower quadtree is given.
           */
-         @inline private def newNode( prev: Node, iq: Quad ) : InnerRightNode = new InnerRightNode( this, prev, iq )
+         @inline private def newNode( prev: Node, iq: Quad2D ) : InnerRightNode = new InnerRightNode( this, prev, iq )
 
          final def removeImmediateLeaf( leaf: Leaf ) {
             var qidx = 0; while( qidx < numChildren ) {
@@ -590,7 +590,7 @@ object DeterministicSkipQuadTree {
 //          */
 //         def newValue( leaf: Leaf, value: A ) : Leaf
 
-         final def findP0( point: PointLike ) : LeftNode = {
+         final def findP0( point: Point2DLike ) : LeftNode = {
             val qidx = quad.indexOf( point )
             child( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point )
@@ -605,7 +605,7 @@ object DeterministicSkipQuadTree {
           * @return  the `Leaf` child in this node associated with the given
           *          `point`, or `null` if no such leaf exists.
           */
-         final def findImmediateLeaf( point: PointLike ) : Leaf = {
+         final def findImmediateLeaf( point: Point2DLike ) : Leaf = {
             val qidx = quad.indexOf( point )
             child( qidx ) match {
                case l: Leaf if( pointView( l.value ) == point ) => l
@@ -613,7 +613,7 @@ object DeterministicSkipQuadTree {
             }
          }
 
-//         final def findLeaf( point: PointLike ) : Leaf = {
+//         final def findLeaf( point: Point2DLike ) : Leaf = {
 //            val qidx = quad.indexOf( point )
 //            children( qidx ) match {
 //               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
@@ -634,7 +634,7 @@ object DeterministicSkipQuadTree {
             qidx += 1 }
          }
 
-//         final def removeImmediateLeaf( point: PointLike ) : Leaf = {
+//         final def removeImmediateLeaf( point: Point2DLike ) : Leaf = {
 //            var qidx = 0; while( qidx < numChildren ) {
 //               children( qidx ) match {
 //                  case l: Leaf if( pointView( l.value ) == point ) =>
@@ -654,7 +654,7 @@ object DeterministicSkipQuadTree {
 //            null
 //         }
 
-//         final def removeImmediateLeaf( point: PointLike ) : Leaf = {
+//         final def removeImmediateLeaf( point: Point2DLike ) : Leaf = {
 //            var qidx = 0; while( qidx < numChildren ) {
 //               children( qidx ) match {
 //                  case l: Leaf if( pointView( l.value ) == point ) =>
@@ -693,7 +693,7 @@ object DeterministicSkipQuadTree {
 //            null
 //         }
 
-         final def insert( point: PointLike, value: A ) : Leaf = {
+         final def insert( point: Point2DLike, value: A ) : Leaf = {
             val qidx = quad.indexOf( point )
             val c    = children
             c( qidx ) match {
@@ -737,7 +737,7 @@ object DeterministicSkipQuadTree {
           * leaf whose parent is this node, and which should be
           * ordered according to its position in this node.
           */
-         private def newLeaf( point: PointLike, value: A ) : Leaf = {
+         private def newLeaf( point: Point2DLike, value: A ) : Leaf = {
             val l = new LeafImpl( point, value, { l =>
                val lne: LeftNonEmpty = l
                ((lne.quadIdxIn( quad ): @switch) match {
@@ -789,14 +789,14 @@ object DeterministicSkipQuadTree {
           * sub-node whose parent is this node, and which should be
           * ordered according to its position in this node.
           */
-         @inline private def newNode( iq: Quad ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
+         @inline private def newNode( iq: Quad2D ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
             insets( n, quad.indexOf( n.quad ))  // n.quadIdxIn( quad )
          })
       }
 
       sealed trait TopNode extends Node {
 //         final def parent : Node                = null
-         final def quad : Quad                  = tree.quad
+         final def quad : Quad2D                  = tree.quad
 //         final def parent_=( n: Node ) : Unit   = unsupportedOp
 
          final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
@@ -818,7 +818,7 @@ object DeterministicSkipQuadTree {
          def nodeName = "top-left"
       }
 
-      final class InnerLeftNode( var parent: LeftNode, val quad: Quad, _ins: LeftNode => (InOrder, InOrder) )
+      final class InnerLeftNode( var parent: LeftNode, val quad: Quad2D, _ins: LeftNode => (InOrder, InOrder) )
       extends LeftNode with InnerNode with LeftInnerNonEmpty {
          val (startOrder, stopOrder) = _ins( this )
 
@@ -904,7 +904,7 @@ object DeterministicSkipQuadTree {
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: Quad )
+      final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: Quad2D )
       extends RightNode with InnerNode with RightInnerNonEmpty {
          prev.next = this
 //assert( prev.quad == quad )
@@ -942,7 +942,7 @@ object DeterministicSkipQuadTree {
       }
 
       object MaxLeaf extends Leaf {
-         val point                        = Point( Int.MaxValue, Int.MaxValue )
+         val point                        = Point2D( Int.MaxValue, Int.MaxValue )
          val order                        = totalOrder.max // TotalOrder.max // TotalOrder.max[ LeftNonEmpty ]
 
          def value : A                       = unsupportedOp
@@ -961,7 +961,7 @@ object DeterministicSkipQuadTree {
       // the problem is there can be several pointers to a leaf, so at least for now,
       // let's not make life more complicated than necessary. also skip list would
       // need to be made 'replace-aware'.
-      final class LeafImpl( val point: PointLike, var value: A, _ins: Leaf => InOrder )
+      final class LeafImpl( val point: Point2DLike, var value: A, _ins: Leaf => InOrder )
       extends Leaf {
          private var parentVar: Node = null
          def parent: Node = parentVar

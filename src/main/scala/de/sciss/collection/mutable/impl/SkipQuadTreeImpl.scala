@@ -26,7 +26,7 @@
 package de.sciss.collection.mutable
 package impl
 
-import de.sciss.collection.geom.{QueryShape, PointLike, DistanceMeasure}
+import de.sciss.collection.geom.{QueryShape, Point2DLike, DistanceMeasure}
 import annotation.tailrec
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 
@@ -53,7 +53,7 @@ trait SkipQuadTreeImpl[ A ] extends SkipQuadTree[ A ] {
       oldLeaf != null
    }
 
-   final def removeAt( point: PointLike ) : Option[ A ] = {
+   final def removeAt( point: Point2DLike ) : Option[ A ] = {
       val oldLeaf = removeLeaf( point )
       if( oldLeaf == null ) None else Some( oldLeaf.value )
    }
@@ -70,23 +70,23 @@ trait SkipQuadTreeImpl[ A ] extends SkipQuadTree[ A ] {
       if( l == null ) false else l.value == elem
    }
 
-   final override def isDefinedAt( point: PointLike ) : Boolean = {
+   final override def isDefinedAt( point: Point2DLike ) : Boolean = {
       if( !quad.contains( point )) return false
       findLeaf( point ) != null
    }
 
-   final def get( point: PointLike ) : Option[ A ] = {
+   final def get( point: Point2DLike ) : Option[ A ] = {
       if( !quad.contains( point )) return None
       val l = findLeaf( point )
       if( l == null ) None else Some( l.value )
    }
 
-   final override def nearestNeighbor( point: PointLike, metric: DistanceMeasure ) : A = {
+   final override def nearestNeighbor( point: Point2DLike, metric: DistanceMeasure ) : A = {
       val res = nn( point, metric )
       if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
    }
 
-   final def nearestNeighborOption( point: PointLike, metric: DistanceMeasure ) : Option[ A ] = {
+   final def nearestNeighborOption( point: Point2DLike, metric: DistanceMeasure ) : Option[ A ] = {
       val res = nn( point, metric )
       if( res != null ) Some( res.value ) else None
    }
@@ -115,9 +115,9 @@ trait SkipQuadTreeImpl[ A ] extends SkipQuadTree[ A ] {
    final def rangeQuery( qs: QueryShape ) : Iterator[ A ] = new RangeQuery( qs )
 
    protected def insertLeaf( elem: A ) : QLeaf
-   protected def removeLeaf( point: PointLike ) : QLeaf
-   protected def findLeaf( point: PointLike ) : QLeaf
-//   protected def nn( point: PointLike, metric: DistanceMeasure ) : QLeaf
+   protected def removeLeaf( point: Point2DLike ) : QLeaf
+   protected def findLeaf( point: Point2DLike ) : QLeaf
+//   protected def nn( point: Point2DLike, metric: DistanceMeasure ) : QLeaf
 
    private final class RangeQuery( qs: QueryShape ) extends Iterator[ A ] {
       val stabbing      = MQueue.empty[ (QNode, Long) ]
@@ -227,7 +227,7 @@ trait SkipQuadTreeImpl[ A ] extends SkipQuadTree[ A ] {
       }
    }
 
-   private def nn( point: PointLike, metric: DistanceMeasure ) : QLeaf = {
+   private def nn( point: Point2DLike, metric: DistanceMeasure ) : QLeaf = {
       var bestLeaf: QLeaf     = null
       var bestDist            = Long.MaxValue   // all distances here are squared!
       val pri                 = PriorityQueue.empty[ VisitedNode ]

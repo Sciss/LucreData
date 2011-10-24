@@ -1,5 +1,5 @@
 /*
- *  InteractiveSkipQuadTreeView.scala
+ *  InteractiveSkipQuad2DTreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -28,11 +28,11 @@ package view
 
 import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
-import geom.{DistanceMeasure, Point, PointLike, Quad}
+import geom.{DistanceMeasure, Point2D, Point2DLike, Quad2D}
 import mutable.{SkipQuadTree, DeterministicSkipQuadTree, RandomizedSkipQuadTree}
 import javax.swing.{JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
 
-object InteractiveSkipQuadTreeView extends App with Runnable {
+object InteractiveSkipQuad2DTreeView extends App with Runnable {
    val seed = 0L
 
    EventQueue.invokeLater( this )
@@ -42,15 +42,15 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
          case _ => Randomized
       }
 
-      val f    = new JFrame( "Skip Quadtree" )
+      val f    = new JFrame( "Skip Quad2Dtree" )
 //      f.setResizable( false )
       val cp   = f.getContentPane
-      val iv   = new InteractiveSkipQuadTreeView( mode )
+      val iv   = new InteractiveSkipQuad2DTreeView( mode )
       cp.add( iv, BorderLayout.CENTER )
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      PDFSupport.addMenu[ SkipQuadTreeView[ PointLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
+      PDFSupport.addMenu[ SkipQuadTreeView[ Point2DLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
       f.setVisible( true )
    }
 
@@ -58,15 +58,15 @@ object InteractiveSkipQuadTreeView extends App with Runnable {
    case object Randomized extends Mode
    case object Deterministic extends Mode
 }
-class InteractiveSkipQuadTreeView( mode: InteractiveSkipQuadTreeView.Mode )
+class InteractiveSkipQuad2DTreeView( mode: InteractiveSkipQuad2DTreeView.Mode )
 extends JPanel( new BorderLayout() ) {
-   import InteractiveSkipQuadTreeView._
+   import InteractiveSkipQuad2DTreeView._
 
    private val rnd = new util.Random( seed )
 
    val t    = mode match {
-      case Randomized      => RandomizedSkipQuadTree.empty[    PointLike ]( Quad( 256, 256, 256 ))
-      case Deterministic   => DeterministicSkipQuadTree.empty[ PointLike ]( Quad( 256, 256, 256 ))
+      case Randomized      => RandomizedSkipQuadTree.empty[    Point2DLike ]( Quad2D( 256, 256, 256 ))
+      case Deterministic   => DeterministicSkipQuadTree.empty[ Point2DLike ]( Quad2D( 256, 256, 256 ))
    }
    val slv  = new SkipQuadTreeView( t )
    private val in = slv.getInsets
@@ -90,20 +90,20 @@ extends JPanel( new BorderLayout() ) {
       ggY.setText( y.toString )
    }
 
-   private def tryPoint( fun: Point => Unit ) {
+   private def tryPoint( fun: Point2D => Unit ) {
       try {
-         val p = Point( ggX.getText.toInt, ggY.getText.toInt )
+         val p = Point2D( ggX.getText.toInt, ggY.getText.toInt )
          fun( p )
       } catch {
          case n: NumberFormatException =>
       }
    }
 
-   private def tryQuad( fun: Quad => Unit ) {
+   private def tryQuad2D( fun: Quad2D => Unit ) {
       try {
          val ext = ggExt.getText.toInt
          require( ext > 0 )
-         val q = Quad( ggX.getText.toInt, ggY.getText.toInt, ext )
+         val q = Quad2D( ggX.getText.toInt, ggY.getText.toInt, ext )
          fun( q )
       } catch {
          case n: NumberFormatException =>
@@ -169,7 +169,7 @@ extends JPanel( new BorderLayout() ) {
       slv.highlight = Set( p )
    }}
 
-   private def rangeString( pt: Set[ PointLike ]) : String = {
+   private def rangeString( pt: Set[ Point2DLike ]) : String = {
       val s = pt.map( p => "(" + p.x + "," + p.y + ")" ).mkString( " " )
       if( s.isEmpty ) "(empty)" else s
    }
@@ -187,7 +187,7 @@ extends JPanel( new BorderLayout() ) {
       }
       recalcDistMeasure
    }
-   combo( "All Quadrants", "North East", "North West", "South West", "South East" ) { i =>
+   combo( "All Quad2Drants", "North East", "North West", "South West", "South East" ) { i =>
       if( i > 0 ) {
          distFilter = _.quadrant( i - 1 )
       } else {
@@ -198,7 +198,7 @@ extends JPanel( new BorderLayout() ) {
 
    but( "NN" )( findNN )
 
-   but( "Range" ) { tryQuad { q =>
+   but( "Range" ) { tryQuad2D { q =>
       val set = t.rangeQuery( q ).toSet
       status( rangeString( set.take( 3 )))
       println( rangeString( set ))
@@ -208,7 +208,7 @@ extends JPanel( new BorderLayout() ) {
    label( "Randomly:" )
 
    private def addPoints( num: Int ) {
-      val ps = Seq.fill( num )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 )))
+      val ps = Seq.fill( num )( Point2D( rnd.nextInt( 512 ), rnd.nextInt( 512 )))
       t ++= ps
       slv.highlight = ps.toSet
    }
@@ -237,7 +237,7 @@ extends JPanel( new BorderLayout() ) {
 
       val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
       val topPointer = (h: QuadView.PaintHelper) => {
-         tryQuad { q =>
+         tryQuad2D { q =>
             h.g2.setColor( Color.blue )
             h.g2.drawRect( q.left, q.top, q.side, q.side )
             h.g2.setColor( colrTrns )
@@ -264,7 +264,7 @@ extends JPanel( new BorderLayout() ) {
          val ext = math.max( math.abs( m1.getPoint.x - m2.getPoint.x ),
                              math.abs( m1.getPoint.y - m2.getPoint.y ))
          ggExt.setText( ext.toString )
-         tryQuad { q =>
+         tryQuad2D { q =>
             val set = t.rangeQuery( q ).toSet
             slv.highlight = set
             slv.repaint()
@@ -324,17 +324,17 @@ extends JPanel( new BorderLayout() ) {
 //println( "---REMOVING" )
 //removePoints( 4 )
 
-   def verifyConsistency( t: SkipQuadTree[ PointLike ]) {
+   def verifyConsistency( t: SkipQuadTree[ Point2DLike ]) {
       val q = t.quad
       var h = t.lastTree
-      var currUnlinkedQuads   = Set.empty[ Quad ]
-      var currPoints          = Set.empty[ PointLike ]
+      var currUnlinkedQuad2Ds   = Set.empty[ Quad2D ]
+      var currPoints          = Set.empty[ Point2DLike ]
       var prevs = 0
       do {
          assert( h.quad == q, "Root level quad is " + h.quad + " while it should be " + q + " in level n - " + prevs )
-         val nextUnlinkedQuads   = currUnlinkedQuads
+         val nextUnlinkedQuad2Ds   = currUnlinkedQuad2Ds
          val nextPoints          = currPoints
-         currUnlinkedQuads       = Set.empty
+         currUnlinkedQuad2Ds       = Set.empty
          currPoints              = Set.empty
          def checkChildren( n: t.QNode, depth: Int ) {
             def assertInfo = " in level n-" + prevs + " / depth " + depth
@@ -350,13 +350,13 @@ extends JPanel( new BorderLayout() ) {
                            assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
                            assert( next.quad == cq, "Next quad does not match (" + cq + " vs. " + next.quad + ")" + assertInfo )
                         case None =>
-                           assert( !nextUnlinkedQuads.contains( cq ), "Double missing link for " + cq + assertInfo )
+                           assert( !nextUnlinkedQuad2Ds.contains( cq ), "Double missing link for " + cq + assertInfo )
                      }
                      c.prevOption match {
                         case Some( prev ) =>
                            assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + assertInfo )
                            assert( prev.quad == cq, "Next quad do not match (" + cq + " vs. " + prev.quad + ")" + assertInfo )
-                        case None => currUnlinkedQuads += cq
+                        case None => currUnlinkedQuad2Ds += cq
                      }
                      checkChildren( c, depth + 1 )
                   case l: t.QLeaf =>

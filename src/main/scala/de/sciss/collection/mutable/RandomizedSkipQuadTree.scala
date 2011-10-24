@@ -27,12 +27,12 @@ package de.sciss.collection
 package mutable
 
 import collection.mutable.{Stack => MStack}
-import geom.{Quad, PointLike}
+import geom.{Quad2D, Point2DLike}
 
 object RandomizedSkipQuadTree {
-   def empty[ A ]( quad: Quad )( implicit view: A => PointLike ) : SkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )
+   def empty[ A ]( quad: Quad2D )( implicit view: A => Point2DLike ) : SkipQuadTree[ A ] = new TreeImpl[ A ]( quad, view )
 
-   def apply[ A <% PointLike ]( quad: Quad )( xs: A* ) : SkipQuadTree[ A ] = {
+   def apply[ A <% Point2DLike ]( quad: Quad2D )( xs: A* ) : SkipQuadTree[ A ] = {
       val t = empty[ A ]( quad )
       xs.foreach( t.+=( _ ))
       t
@@ -41,16 +41,16 @@ object RandomizedSkipQuadTree {
 //   private def unsupportedOp : Nothing = error( "Operation not supported" )
 
 //   private object TreeImpl {
-//      def apply[ V ]( quad: Quad ) = new TreeImpl[ V ]( quad )
+//      def apply[ V ]( quad: Quad2D ) = new TreeImpl[ V ]( quad )
 //   }
-   private final class TreeImpl[ A ]( quad: Quad, val pointView: A => PointLike )
+   private final class TreeImpl[ A ]( quad: Quad2D, val pointView: A => Point2DLike )
    extends impl.SkipQuadTreeImpl[ A ] {
       val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
 
       def lastTree: QNode  = tailVar
 
-      protected def findLeaf( point: PointLike ) : Leaf = tailVar.findLeaf( point )
+      protected def findLeaf( point: Point2DLike ) : Leaf = tailVar.findLeaf( point )
 
       protected def insertLeaf( value: A ) : Leaf = {
          val point = pointView( value )
@@ -84,7 +84,7 @@ object RandomizedSkipQuadTree {
          l
       }
 
-      protected def removeLeaf( point: PointLike ) : Leaf = {
+      protected def removeLeaf( point: Point2DLike ) : Leaf = {
          if( !quad.contains( point )) {
 //println( "wooops " + point )
             return null
@@ -148,7 +148,7 @@ object RandomizedSkipQuadTree {
 
       final case class Leaf( value: A ) extends NonEmpty with QLeaf
 
-      final class Node( val quad: Quad, var parent: Node, val prev: Node, val children: Array[ Child ] = new Array[ Child ]( 4 ))
+      final class Node( val quad: Quad2D, var parent: Node, val prev: Node, val children: Array[ Child ] = new Array[ Child ]( 4 ))
       extends NonEmpty with QNode {
          var next: Node = null;
 
@@ -163,7 +163,7 @@ object RandomizedSkipQuadTree {
 
          def child( idx: Int ) : Child = children( idx )
 
-         def findP0( point: PointLike, ns: MStack[ Node ]) /* : Leaf = */ {
+         def findP0( point: Point2DLike, ns: MStack[ Node ]) /* : Leaf = */ {
             val qidx = quad.indexOf( point )
             children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findP0( point, ns )
@@ -176,7 +176,7 @@ object RandomizedSkipQuadTree {
             }
          }
 
-         def findLeaf( point: PointLike ) : Leaf = {
+         def findLeaf( point: Point2DLike ) : Leaf = {
             val qidx = quad.indexOf( point )
             children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
@@ -185,9 +185,9 @@ object RandomizedSkipQuadTree {
             }
          }
 
-         def findSameSquare( iq: Quad ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
+         def findSameSquare( iq: Quad2D ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
 
-         def remove( point: PointLike ) : Leaf = {
+         def remove( point: Point2DLike ) : Leaf = {
             val qidx = quad.indexOf( point )
             children( qidx ) match {
                case n: Node if( n.quad.contains( point )) => n.remove( point )
@@ -226,7 +226,7 @@ object RandomizedSkipQuadTree {
           * If a leaf with the given point exists in this node,
           * updates its value accordingly.
           */
-         def update( point: PointLike, value: A ) {
+         def update( point: Point2DLike, value: A ) {
             val qidx = quad.indexOf( point )
             children( qidx ) match {
                case l: Leaf if( pointView( l.value ) == point ) => children( qidx ) = Leaf( value )
@@ -234,7 +234,7 @@ object RandomizedSkipQuadTree {
             }
          }
 
-         def insert( point: PointLike, value: A, prevP: Node ) : Node = {
+         def insert( point: Point2DLike, value: A, prevP: Node ) : Node = {
             val qidx = quad.indexOf( point )
             val l    = Leaf( value )
             children( qidx ) match {

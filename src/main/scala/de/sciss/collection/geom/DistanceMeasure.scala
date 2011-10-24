@@ -35,9 +35,9 @@ object DistanceMeasure {
     * does not need to be taken.
     */
    val euclideanSq = new DistanceMeasure {
-      def distance( a: PointLike, b: PointLike ) = b.distanceSq( a )
-      def minDistance( a: PointLike, b: Quad ) = b.minDistanceSq( a )
-      def maxDistance( a: PointLike, b: Quad ) = b.maxDistanceSq( a )
+      def distance( a: Point2DLike, b: Point2DLike ) = b.distanceSq( a )
+      def minDistance( a: Point2DLike, b: Quad2D ) = b.minDistanceSq( a )
+      def maxDistance( a: Point2DLike, b: Quad2D ) = b.maxDistanceSq( a )
    }
 
    /**
@@ -56,41 +56,41 @@ object DistanceMeasure {
       protected final def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
    }
 
-   private class Clip( underlying: DistanceMeasure, quad: Quad ) extends DistanceMeasure {
-      def distance( a: PointLike, b: PointLike )   = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
-      def minDistance( a: PointLike, b: Quad )     = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
-      def maxDistance( a: PointLike, b: Quad )     = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
+   private class Clip( underlying: DistanceMeasure, quad: Quad2D ) extends DistanceMeasure {
+      def distance( a: Point2DLike, b: Point2DLike )   = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
+      def minDistance( a: Point2DLike, b: Quad2D )     = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
+      def maxDistance( a: Point2DLike, b: Quad2D )     = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
    }
 
    private class Approximate( underlying: DistanceMeasure, thresh: Long ) extends DistanceMeasure {
-      def minDistance( a: PointLike, b: Quad ) = underlying.minDistance( a, b )
-      def maxDistance( a: PointLike, b: Quad ) = underlying.maxDistance( a, b )
-      def distance( a: PointLike, b: PointLike ) = {
+      def minDistance( a: Point2DLike, b: Quad2D ) = underlying.minDistance( a, b )
+      def maxDistance( a: Point2DLike, b: Quad2D ) = underlying.maxDistance( a, b )
+      def distance( a: Point2DLike, b: Point2DLike ) = {
          val res = b.distanceSq( a )
          if( res > thresh ) res else 0L
       }
    }
 
    private class SouthWest( underlying: DistanceMeasure ) extends DistanceMeasure {
-      def distance( a: PointLike, b: PointLike ) =
+      def distance( a: Point2DLike, b: Point2DLike ) =
          if( b.x <= a.x && b.y >= a.y ) underlying.distance( a, b ) else Long.MaxValue
 
-      def minDistance( p: PointLike, q: Quad ) =
+      def minDistance( p: Point2DLike, q: Quad2D ) =
          if( p.x >= q.left && p.y <= q.bottom ) underlying.minDistance( p, q ) else Long.MaxValue
 
-      def maxDistance( p: PointLike, q: Quad ) =
+      def maxDistance( p: Point2DLike, q: Quad2D ) =
          if( q.right <= p.x && q.top >= p.y ) underlying.maxDistance( p, q ) else Long.MaxValue
    }
 
    private sealed trait ChebyshevLikeDistanceMeasure extends DistanceMeasure {
       protected def apply( dx: Long, dy: Long ) : Long
 
-      def distance( a: PointLike, b: PointLike ) = {
+      def distance( a: Point2DLike, b: Point2DLike ) = {
          val dx = math.abs( a.x.toLong - b.x.toLong )
          val dy = math.abs( a.y.toLong - b.y.toLong )
          apply( dx, dy )
       }
-      def minDistance( a: PointLike, q: Quad ) : Long = {
+      def minDistance( a: Point2DLike, q: Quad2D ) : Long = {
          val px   = a.x
          val py   = a.y
          val l    = q.left
@@ -145,7 +145,7 @@ object DistanceMeasure {
          apply( dx, dy )
       }
 
-      def maxDistance( a: PointLike, q: Quad ) : Long = {
+      def maxDistance( a: Point2DLike, q: Quad2D ) : Long = {
          val px = a.x
          val py = a.y
          if( px < q.cx ) {
@@ -185,7 +185,7 @@ trait DistanceMeasure {
    /**
     * Calculates the distance between two points.
     */
-   def distance( a: PointLike, b: PointLike ) : Long
+   def distance( a: Point2DLike, b: Point2DLike ) : Long
 
    /**
     * Calculates the minimum distance between a point and
@@ -194,7 +194,7 @@ trait DistanceMeasure {
     * is closest to the point `a`, if `a` lies outside of `b`,
     * or zero, if `a` lies within `b`.
     */
-   def minDistance( a: PointLike, b: Quad ) : Long
+   def minDistance( a: Point2DLike, b: Quad2D ) : Long
 
    /**
     * Calculates the maximum distance between a point and
@@ -203,18 +203,18 @@ trait DistanceMeasure {
     * is furthest to the point `a`, no matter whether `a`
     * is contained in `b` or not.
     */
-   def maxDistance( a: PointLike, b: Quad ) : Long
+   def maxDistance( a: Point2DLike, b: Quad2D ) : Long
 
    /**
     * Applies a filter to this measure by constraining distances
-    * to objects `b` which lie within the given `Quad`. That
+    * to objects `b` which lie within the given `Quad2D`. That
     * is, if for example `distance( a, b )` is called, first it
     * is checked if `b` is within `quad`. If so, the underlying
     * measure is calculated, otherwise, `Long.MaxValue` is returned.
     * This behaviour extends to the `minDistance` and `maxDistance`
     * methods.
     */
-   final def clip( quad: Quad ) : DistanceMeasure = new DistanceMeasure.Clip( this, quad )
+   final def clip( quad: Quad2D ) : DistanceMeasure = new DistanceMeasure.Clip( this, quad )
 
    /**
     * Composes this distance so that a threshold is applied to

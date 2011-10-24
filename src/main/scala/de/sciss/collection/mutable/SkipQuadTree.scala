@@ -27,7 +27,7 @@ package de.sciss.collection
 package mutable
 
 import collection.mutable.{Set => MSet}
-import geom.{Quad, QueryShape, DistanceMeasure, PointLike}
+import geom.{Quad2D, QueryShape, DistanceMeasure, Point2DLike}
 
 /**
  * A `SkipQuadTree` is a two-dimensional data structure that
@@ -38,17 +38,17 @@ import geom.{Quad, QueryShape, DistanceMeasure, PointLike}
 trait SkipQuadTree[ A ] extends MSet[ A ] {
    def headTree: QNode
    def lastTree: QNode
-   def pointView : A => PointLike // PointView[ A ]
+   def pointView : A => Point2DLike // PointView[ A ]
 
-   def quad : Quad = headTree.quad
+   def quad : Quad2D = headTree.quad
 
    def numLevels : Int
 
-   def get( point: PointLike ) : Option[ A ]
-//   def apply( point: PointLike ) : A = get.getOrElse( throw new )
-   def isDefinedAt( point: PointLike ) : Boolean
+   def get( point: Point2DLike ) : Option[ A ]
+//   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
+   def isDefinedAt( point: Point2DLike ) : Boolean
 
-   def removeAt( point: PointLike ) : Option[ A ]
+   def removeAt( point: Point2DLike ) : Option[ A ]
 
    /**
     * Adds an element to the tree
@@ -75,9 +75,9 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
     * Note: There is a potential numeric overflow if the
     * squared distance of the query point towards the
     * furthest corner of the tree's root quad exceeds 63 bits.
-    * For a root `Quad( 0x40000000, 0x40000000, 0x40000000 )`, this
+    * For a root `Quad2D( 0x40000000, 0x40000000, 0x40000000 )`, this
     * happens for example for any point going more towards north-west
-    * than `PointLike( -1572067139, -1572067139 )`.
+    * than `Point2DLike( -1572067139, -1572067139 )`.
     *
     * @param   point the point of which the nearest neighbor is to be found
     * @param   a threshold which is an acceptable abortion criterion. I.e.,
@@ -86,9 +86,9 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A
+   def nearestNeighbor( point: Point2DLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : A
 
-   def nearestNeighborOption( point: PointLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
+   def nearestNeighborOption( point: Point2DLike, metric: DistanceMeasure = DistanceMeasure.euclideanSq ) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored
@@ -104,7 +104,7 @@ trait SkipQuadTree[ A ] extends MSet[ A ] {
       def value: A
    }
    trait QNode extends QNonEmpty {
-      def quad: Quad
+      def quad: Quad2D
       def child( idx: Int ) : Q
       final def prevOption: Option[ QNode ] = Option( prev )
       final def nextOption: Option[ QNode ] = Option( next )

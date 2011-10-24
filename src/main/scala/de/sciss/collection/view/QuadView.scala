@@ -28,7 +28,7 @@ package view
 
 import java.awt.{Color, RenderingHints, Graphics2D, Graphics}
 import javax.swing.{BorderFactory, JComponent}
-import geom.{PointLike, Quad}
+import geom.{Point2DLike, Quad2D}
 
 object QuadView {
    private val colrGreen = new Color( 0x00, 0xC0, 0x00 )
@@ -36,7 +36,7 @@ object QuadView {
    case class PaintHelper( g2: Graphics2D ) {
       var scale: Double = 1.0
 
-      def drawFrame( quad: Quad, color: Color = Color.black ) {
+      def drawFrame( quad: Quad2D, color: Color = Color.black ) {
          g2.setColor( color )
          val e = quad.extent
          val w = ((e.toLong << 1) * scale + 0.5).toInt
@@ -45,7 +45,7 @@ object QuadView {
 
       def translate( x: Int, y: Int ) { g2.translate( x, y )}
 
-      def drawPoint( point: PointLike, highlight: Boolean = false ) {
+      def drawPoint( point: Point2DLike, highlight: Boolean = false ) {
          g2.setColor( if( highlight ) colrGreen else Color.red )
          g2.fillOval( (point.x * scale + 0.5).toInt - 2, (point.y * scale + 0.5).toInt - 2, 5, 5 )
       }

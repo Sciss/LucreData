@@ -26,10 +26,10 @@
 package de.sciss.collection.view
 
 import java.awt.Dimension
-import de.sciss.collection.geom.Quad
+import de.sciss.collection.geom.Quad2D
 
 abstract class QuadTreeView extends QuadView {
-   def rootQuad : Quad
+   def rootQuad : Quad2D
 
    override def getPreferredSize : Dimension = {
       val w1   = rootQuad.extent * 2 + 1
