@@ -11,7 +11,7 @@ resolvers += "itextpdf.com" at "http://maven.itextpdf.com"
 libraryDependencies ++= Seq(
    "de.sciss" % "prefuse" % "0.20",
    "com.itextpdf" % "itextpdf" % "5.1.1",
-   "org.scalatest" % "scalatest_2.9.0" % "1.6.1" % "test"
+   "org.scalatest" %% "scalatest" % "1.6.1" % "test"
 )
 
 retrieveManaged := true

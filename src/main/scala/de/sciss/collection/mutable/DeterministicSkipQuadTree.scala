@@ -105,7 +105,15 @@ object DeterministicSkipQuadTree {
          if( l != null ) {
             // this will trigger removals from upper levels
             skipList.remove( l )
-            p0.removeImmediateLeaf( l )
+            // be careful: p0 at this point may be invalid
+            // as the skiplist removal might have merged
+            // it with its parent(s). we thus need to find
+            // the parent of l in Q0 again!
+//            p0.removeImmediateLeaf( l )
+
+            val p = l.parent
+            p.removeImmediateLeaf( l )
+            assert( p.isInstanceOf[ LeftNode ], "Internal error - final leaf parent should be left : " + l )
          }
 
          l
@@ -126,6 +134,7 @@ object DeterministicSkipQuadTree {
 
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {
+println( "up : " + l )
             // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
             //  then traverse upwards in Qi until we find the lowest
             //  ancestor q of x which is also interesting in Qi+1.
@@ -145,14 +154,17 @@ object DeterministicSkipQuadTree {
          }
 
          def keyDown( l: Leaf ) {
+println( "down : " + l )
             // "To delete x from Qi we go from xi to the smallest interesting
             //  square pi(x) containing x in Qi following the pointers. Then
             //  the deletion given pi(x) is as described in Section 2.3."
 
-//            println( "down : " + l )
-//            notYetImplemented
-
-            l.parent.removeImmediateLeaf( l )
+            val p = l.parent
+            p.removeImmediateLeaf( l )
+            p match {
+               case rn: RightNode => l.parent = rn.prev
+               case ln: LeftNode => sys.error( "Internal error - leaf unexpectedly removed : " + l )
+            }
          }
       }
 
@@ -160,7 +172,9 @@ object DeterministicSkipQuadTree {
        * A child is an object that can be
        * stored in a quadrant of a node.
        */
-      sealed trait Child extends Q
+      sealed trait Child extends Q {
+         def shortString : String
+      }
       /**
        * A left child is one which is stored in Q0.
        * This is either empty or an object (`LeftInnerNonEmpty`)
@@ -188,7 +202,10 @@ object DeterministicSkipQuadTree {
       /**
        * A dummy object indicating a vacant quadrant in a node.
        */
-      case object Empty extends LeftChild with RightChild with QEmpty
+      case object Empty extends LeftChild with RightChild with QEmpty {
+         def shortString = "empty"
+         override def toString = shortString
+      }
 
       /**
        * An object denoting a filled quadrant of a node.
@@ -247,14 +264,14 @@ object DeterministicSkipQuadTree {
        * A common trait used in pattern matching, comprised of `Leaf` and `InnerLeftNode`.
        */
       sealed trait LeftInnerNonEmpty extends LeftNonEmpty with InnerNonEmpty with LeftChild {
-         def parent_=( p: LeftNode ) : Unit
+         def parentLeft_=( p: LeftNode ) : Unit
       }
 
       /**
        * A common trait used in pattern matching, comprised of `Leaf` and `InnerRightNode`.
        */
       sealed trait RightInnerNonEmpty extends InnerNonEmpty with RightChild {
-         def parent_=( p: RightNode ) : Unit
+         def parentRight_=( p: RightNode ) : Unit
       }
 
       /**
@@ -271,6 +288,9 @@ object DeterministicSkipQuadTree {
          def value : A
          def value_=( v: A ) : Unit  // XXX hmmm, not so nice
 
+         final def parentLeft_=( p: LeftNode )   { parent_=( p )}
+         final def parentRight_=( p: RightNode ) { parent_=( p )}
+         def parent_=( p: Node ) : Unit
 //         def parent_=( p: Node ) : Unit
 
          /**
@@ -381,6 +401,13 @@ object DeterministicSkipQuadTree {
           * an underfull node upwards.
           */
          protected def leafRemoved() : Unit
+
+         def nodeName : String
+         final def shortString = nodeName + "(" + quad + ")"
+
+         override def toString = shortString + " : children = [" +
+            child(0).shortString + ", " + child(1).shortString + ", " + child(2).shortString + ", " +
+            child(3).shortString + "]"
       }
 
       /**
@@ -480,7 +507,7 @@ object DeterministicSkipQuadTree {
                   // check first if the parent is `this`,
                   // and if so, adjust the parent to point
                   // to the new intermediate node `ne`!
-                  if( old.parent == this ) old.parent = n2
+                  if( old.parent == this ) old.parentRight_=( n2 )
                   val lidx    = leaf.quadIdxIn( qn2 )
                   c2( lidx )  = leaf
                   leaf.parent = n2
@@ -674,7 +701,7 @@ object DeterministicSkipQuadTree {
                   // check first if the parent is `this`,
                   // and if so, adjust the parent to point
                   // to the new intermediate node `ne`!
-                  if( old.parent == this ) old.parent = n2
+                  if( old.parent == this ) old.parentLeft_=( n2 )
                   val leaf    = n2.newLeaf( point, value )
                   val lidx    = leaf.quadIdxIn( qn2 )
                   c2( lidx )  = leaf
@@ -765,11 +792,17 @@ object DeterministicSkipQuadTree {
 
          // that's alright, we don't need to do anything special here
          protected def leafRemoved() {}
+
+         def nodeName = "top-left"
       }
 
       final class InnerLeftNode( var parent: LeftNode, val quad: Quad, _ins: LeftNode => (InOrder, InOrder) )
       extends LeftNode with InnerNode with LeftInnerNonEmpty {
          val (startOrder, stopOrder) = _ins( this )
+
+         def nodeName = "inner-left"
+
+         def parentLeft_=( p: LeftNode ) { parent = p }
 
          // make sure the node is not becoming uninteresting, in which case
          // we need to merge upwards
@@ -796,7 +829,7 @@ object DeterministicSkipQuadTree {
 //               val p = findLeftParent( parent )
 
                parent.children( myIdx ) = lonely
-               if( lonely.parent == this ) lonely.parent = parent
+               if( lonely.parent == this ) lonely.parentLeft_=( parent )
 //               lonely match {
 //                  // be aware that n.parent may point to other skiplist level!
 //                  case n: Node if( n.parent == this ) => n.parent = p
@@ -811,6 +844,8 @@ object DeterministicSkipQuadTree {
        */
       final class TopRightNode( val prev: TopNode ) extends RightNode with TopNode {
          prev.next = this
+
+         def nodeName = "top-right"
 
          // remove this node if it empty now and right-node tree
          protected def leafRemoved() {
@@ -837,6 +872,10 @@ object DeterministicSkipQuadTree {
          prev.next = this
 //assert( prev.quad == quad )
 
+         def nodeName = "inner-right"
+
+         def parentRight_=( p: RightNode ) { parent = p }
+
          // make sure the node is not becoming uninteresting, in which case
          // we need to merge upwards
          protected def leafRemoved() {
@@ -853,7 +892,7 @@ object DeterministicSkipQuadTree {
             if( numNonEmpty == 1 ) {   // gotta remove this node and put remaining non empty element in parent
                val myIdx = parent.quad.indexOf( quad )
                parent.children( myIdx ) = lonely
-               if( lonely.parent == this ) lonely.parent = parent
+               if( lonely.parent == this ) lonely.parentRight_=( parent )
             }
          }
       }
@@ -865,10 +904,12 @@ object DeterministicSkipQuadTree {
          def value : A                       = unsupportedOp
          def value_=( v: A ) : Unit          = unsupportedOp
          def parent : Node                   = unsupportedOp
-         def parent_=( n: LeftNode ) : Unit  = unsupportedOp
-         def parent_=( n: RightNode ) : Unit = unsupportedOp
+         def parent_=( n: Node ) : Unit      = unsupportedOp
 
          private def unsupportedOp : Nothing = sys.error( "Internal error -- Operation not supported" )
+
+         def shortString = "max-leaf"
+         override def toString = shortString
       }
 
       // it would be better to replace the leaf instead of updating value; however
@@ -879,10 +920,10 @@ object DeterministicSkipQuadTree {
       extends Leaf {
          private var parentVar: Node = null
          def parent: Node = parentVar
-         def parent_=( p: LeftNode ) { parentVar = p }
-         def parent_=( p: RightNode ) { parentVar = p }
+         def parent_=( p: Node ) { parentVar = p }
          val order = _ins( this )
 
+         def shortString = "leaf(" + point + ")"
          override def toString = "Leaf(" + point + ", " + value + ")"
       }
    }

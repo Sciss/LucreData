@@ -28,9 +28,9 @@ package view
 
 import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
-import javax.swing.{WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
 import geom.{DistanceMeasure, Point, PointLike, Quad}
-import mutable.{DeterministicSkipQuadTree, RandomizedSkipQuadTree}
+import mutable.{SkipQuadTree, DeterministicSkipQuadTree, RandomizedSkipQuadTree}
+import javax.swing.{JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
 
 object InteractiveSkipQuadTreeView extends App with Runnable {
    val seed = 0L
@@ -113,6 +113,7 @@ extends JPanel( new BorderLayout() ) {
    private val p = new JPanel( new FlowLayout() )
    private def but( lb: String )( action: => Unit ) : AbstractButton = {
       val b = new JButton( lb )
+      b.putClientProperty( "JButton.buttonType", "bevel" )
       b.setFocusable( false )
       b.addActionListener( new ActionListener {
          def actionPerformed( e: ActionEvent ) {
@@ -125,6 +126,7 @@ extends JPanel( new BorderLayout() ) {
    }
    private def combo( items: String* )( action: Int => Unit ) : JComboBox = {
       val b = new JComboBox( items.toArray[ AnyRef ])
+      b.putClientProperty( "JComboBox.isSquare", java.lang.Boolean.TRUE )
       b.setFocusable( false )
       b.addActionListener( new ActionListener {
          def actionPerformed( e: ActionEvent ) {
@@ -133,6 +135,13 @@ extends JPanel( new BorderLayout() ) {
       })
       p.add( b )
       b
+   }
+   private def space() {
+      p.add( Box.createHorizontalStrut( 8 ))
+   }
+   private def label( text: String ) {
+      val l = new JLabel( text, SwingConstants.RIGHT )
+      p.add( l )
    }
 
    but( "Help" ) {
@@ -195,14 +204,32 @@ extends JPanel( new BorderLayout() ) {
       println( rangeString( set ))
    }}
 
-   but( "Add 10x Random" ) {
-      val ps = Seq.fill( 10 )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 )))
+   space()
+   label( "Randomly:" )
+
+   private def addPoints( num: Int ) {
+      val ps = Seq.fill( num )( Point( rnd.nextInt( 512 ), rnd.nextInt( 512 )))
       t ++= ps
       slv.highlight = ps.toSet
    }
 
-   but( "Remove 10x" ) {
-      t --= t.iterator.take( 10 ).toList
+   but( "Add 1x" )  { addPoints(  1 )}
+   but( "Add 10x" ) { addPoints( 10 )}
+
+   space()
+   label( "In order:" )
+
+   private def removePoints( num: Int ) {
+      t --= t.iterator.take( num ).toList
+   }
+
+   but( "Remove 1x" )  { removePoints(  1 )}
+   but( "Remove 10x" ) { removePoints( 10 )}
+
+   space()
+
+   but( "Consistency" ) {
+      verifyConsistency( t )
    }
 
    private val ma = new MouseAdapter {
@@ -221,7 +248,7 @@ extends JPanel( new BorderLayout() ) {
       override def mouseDragged( e: MouseEvent ) {
          drag match {
             case Some( (m1, None) ) =>
-               val dist = e.getPoint().distance( m1.getPoint() )
+               val dist = e.getPoint.distance( m1.getPoint )
 //println( "Kieka " + dist )
                if( dist > 4 ) {
                   slv.topPainter = Some( topPointer )
@@ -234,8 +261,8 @@ extends JPanel( new BorderLayout() ) {
 
       def drag( m1: MouseEvent, m2: MouseEvent ) {
          drag = Some( m1 -> Some( m2 ))
-         val ext = math.max( math.abs( m1.getPoint().x - m2.getPoint().x ),
-                             math.abs( m1.getPoint().y - m2.getPoint().y ))
+         val ext = math.max( math.abs( m1.getPoint.x - m2.getPoint.x ),
+                             math.abs( m1.getPoint.y - m2.getPoint.y ))
          ggExt.setText( ext.toString )
          tryQuad { q =>
             val set = t.rangeQuery( q ).toSet
@@ -290,4 +317,61 @@ extends JPanel( new BorderLayout() ) {
 //   }}
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )
+
+// TEST CODE
+println( "---ADDING" )
+addPoints( 30 )
+println( "---REMOVING" )
+removePoints( 13 )
+
+   def verifyConsistency( t: SkipQuadTree[ PointLike ]) {
+      val q = t.quad
+      var h = t.lastTree
+      var currUnlinkedQuads   = Set.empty[ Quad ]
+      var currPoints          = Set.empty[ PointLike ]
+      var prevs = 0
+      do {
+         assert( h.quad == q, "Root level quad is " + h.quad + " while it should be " + q + " in level n - " + prevs )
+         val nextUnlinkedQuads   = currUnlinkedQuads
+         val nextPoints          = currPoints
+         currUnlinkedQuads       = Set.empty
+         currPoints              = Set.empty
+         def checkChildren( n: t.QNode, depth: Int ) {
+            def assertInfo = " in level n-" + prevs + " / depth " + depth
+
+            var i = 0; while( i < 4 ) {
+               n.child( i ) match {
+                  case c: t.QNode =>
+                     val nq = n.quad.quadrant( i )
+                     val cq = c.quad
+                     assert( nq.contains( cq ), "Child has invalid quad (" + cq + "), expected: " + nq + assertInfo )
+                     c.nextOption match {
+                        case Some( next ) =>
+                           assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
+                           assert( next.quad == cq, "Next quad does not match (" + cq + " vs. " + next.quad + ")" + assertInfo )
+                        case None =>
+                           assert( !nextUnlinkedQuads.contains( cq ), "Double missing link for " + cq + assertInfo )
+                     }
+                     c.prevOption match {
+                        case Some( prev ) =>
+                           assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + assertInfo )
+                           assert( prev.quad == cq, "Next quad do not match (" + cq + " vs. " + prev.quad + ")" + assertInfo )
+                        case None => currUnlinkedQuads += cq
+                     }
+                     checkChildren( c, depth + 1 )
+                  case l: t.QLeaf =>
+                     currPoints += l.value
+                  case _: t.QEmpty =>
+               }
+            i += 1 }
+         }
+         checkChildren( h, 0 )
+         val pointsOnlyInNext    = nextPoints.filterNot( currPoints.contains( _ ))
+         assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + "); in level n-" + prevs )
+         h                       = h.prevOption.orNull
+         prevs += 1
+      } while( h != null )
+
+      println( "Consistency check successful." )
+   }
 }
