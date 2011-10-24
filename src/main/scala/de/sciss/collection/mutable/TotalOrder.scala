@@ -158,6 +158,16 @@ sealed trait TotalOrder
          next.prev   = this
       }
 
+      def remove() {
+         require( nextVar != null, "Entry already removed" )
+         next.prev = prevVar
+         if( prevVar != null ) {
+            prevVar.next   = nextVar
+            prevVar        = null
+         }
+         nextVar = null
+      }
+
       /**
        * Compares the positions of x and y in the sequence
       */

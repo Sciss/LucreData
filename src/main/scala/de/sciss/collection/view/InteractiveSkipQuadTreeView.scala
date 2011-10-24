@@ -318,11 +318,11 @@ extends JPanel( new BorderLayout() ) {
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )
 
-// TEST CODE
-println( "---ADDING" )
-addPoints( 31 )
-println( "---REMOVING" )
-removePoints( 5 )
+//// TEST CODE
+//println( "---ADDING" )
+//addPoints( 31 )
+//println( "---REMOVING" )
+//removePoints( 4 )
 
    def verifyConsistency( t: SkipQuadTree[ PointLike ]) {
       val q = t.quad

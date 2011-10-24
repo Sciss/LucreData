@@ -135,7 +135,7 @@ object DeterministicSkipQuadTree {
 
       object KeyObserver extends SkipList.KeyObserver[ Leaf ] {
          def keyUp( l: Leaf ) {
-println( "up : " + l )
+//println( "up : " + l )
             // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
             //  then traverse upwards in Qi until we find the lowest
             //  ancestor q of x which is also interesting in Qi+1.
@@ -155,7 +155,7 @@ println( "up : " + l )
          }
 
          def keyDown( l: Leaf ) {
-println( "down : " + l )
+//println( "down : " + l )
             // "To delete x from Qi we go from xi to the smallest interesting
             //  square pi(x) containing x in Qi following the pointers. Then
             //  the deletion given pi(x) is as described in Section 2.3."
@@ -326,6 +326,8 @@ println( "down : " + l )
           * the `stopOrder` is identical to its `order`.
           */
          final def stopOrder : InOrder = order
+
+         def dispose() : Unit
       }
 
       /**
@@ -622,7 +624,8 @@ println( "down : " + l )
                if( children( qidx ) == leaf ) {
                   children( qidx ) = Empty
                   leafRemoved()
-                  leaf.parent = null
+                  leaf.dispose()
+//                  leaf.parent = null
                   return
                }
             qidx += 1 }
@@ -820,6 +823,13 @@ println( "down : " + l )
 
          def parentLeft_=( p: LeftNode ) { parent = p }
 
+         // might become important with persistent implementation
+         def dispose() {
+            assert( next == null )
+            startOrder.remove()
+            stopOrder.remove()
+         }
+
          // make sure the node is not becoming uninteresting, in which case
          // we need to merge upwards
          protected def leafRemoved() {
@@ -851,6 +861,7 @@ println( "down : " + l )
 //                  case n: Node if( n.parent == this ) => n.parent = p
 //                  case _ =>
 //               }
+               dispose()
             }
          }
       }
@@ -875,8 +886,15 @@ println( "down : " + l )
             i += 1 }
 
             // ok, we are the right most tree and the node is empty...
-            prev.next   = null
+            dispose()
+         }
+
+         def dispose() {
+            assert( next == null )
+            assert( tailVar == this )
             tailVar     = prev
+            prev.next   = null
+//            prev        = null
          }
       }
 
@@ -891,6 +909,12 @@ println( "down : " + l )
          def nodeName = "inner-right"
 
          def parentRight_=( p: RightNode ) { parent = p }
+
+         def dispose() {
+            assert( next == null )
+            prev.next   = null
+//            prev        = null
+         }
 
          // make sure the node is not becoming uninteresting, in which case
          // we need to merge upwards
@@ -909,6 +933,7 @@ println( "down : " + l )
                val myIdx = parent.quad.indexOf( quad )
                parent.children( myIdx ) = lonely
                if( lonely.parent == this ) lonely.parentRight_=( parent )
+               dispose()
             }
          }
       }
@@ -921,6 +946,7 @@ println( "down : " + l )
          def value_=( v: A ) : Unit          = unsupportedOp
          def parent : Node                   = unsupportedOp
          def parent_=( n: Node ) : Unit      = unsupportedOp
+         def dispose() : Unit                = unsupportedOp
 
          private def unsupportedOp : Nothing = sys.error( "Internal error -- Operation not supported" )
 
@@ -941,6 +967,12 @@ println( "down : " + l )
 
          def shortString = "leaf(" + point + ")"
          override def toString = "Leaf(" + point + ", " + value + ")"
+
+         def dispose() {
+            parentVar   = null
+//            value       = null.asInstanceOf[ A ]
+            order.remove()
+         }
       }
    }
 
