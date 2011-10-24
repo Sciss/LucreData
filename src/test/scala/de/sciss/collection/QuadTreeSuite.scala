@@ -1,6 +1,6 @@
 package de.sciss.collection
 
-import geom.{DistanceMeasure2D, Point2D, Point2DLike, Quad2D}
+import geom.{Quad2DLike, DistanceMeasure2D, Point2D, Point2DLike, Quad2D}
 import mutable.{SkipQuadtree, RandomizedSkipQuadtree, DeterministicSkipQuadtree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
@@ -53,7 +53,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       then( "they should be consistent with the underlying algorithm" )
       val q = t.quad
       var h = t.lastTree
-      var currUnlinkedQuads   = Set.empty[ Quad2D ]
+      var currUnlinkedQuads   = Set.empty[ Quad2DLike ]
       var currPoints          = Set.empty[ Point2DLike ]
       var prevs = 0
       do {

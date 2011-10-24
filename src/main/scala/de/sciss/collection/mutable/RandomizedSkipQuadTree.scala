@@ -27,7 +27,7 @@ package de.sciss.collection
 package mutable
 
 import collection.mutable.{Stack => MStack}
-import geom.{Dim, Quad2D, Point2DLike}
+import geom.{Quad2DLike, Dim, Quad2D, Point2DLike}
 
 object RandomizedSkipQuadtree {
    def empty[ A ]( quad: Quad2D )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] = new TreeImpl[ A ]( quad, view )
@@ -148,7 +148,7 @@ object RandomizedSkipQuadtree {
 
       final case class Leaf( value: A ) extends NonEmpty with QLeaf
 
-      final class Node( val quad: Quad2D, var parent: Node, val prev: Node, val children: Array[ Child ] = new Array[ Child ]( 4 ))
+      final class Node( val quad: Quad2DLike, var parent: Node, val prev: Node, val children: Array[ Child ] = new Array[ Child ]( 4 ))
       extends NonEmpty with QNode {
          var next: Node = null;
 
@@ -185,7 +185,7 @@ object RandomizedSkipQuadtree {
             }
          }
 
-         def findSameSquare( iq: Quad2D ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
+         def findSameSquare( iq: Quad2DLike ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
 
          def remove( point: Point2DLike ) : Leaf = {
             val qidx = quad.indexOf( point )

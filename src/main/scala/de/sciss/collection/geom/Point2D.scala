@@ -18,7 +18,7 @@ trait Point2DLike extends PointLike[ Dim.Two ] with Rectangle2DLike {
    }
 
    // ---- QueryShape2D ----
-   final def overlapArea( q: Quad2D ) : Long = if( q.contains( this )) 1L else 0L
+   final def overlapArea( q: Quad2DLike ) : Long = if( q.contains( this )) 1L else 0L
    final def area : Long = 1L
 
    /**

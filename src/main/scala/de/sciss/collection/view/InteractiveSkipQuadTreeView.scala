@@ -30,7 +30,7 @@ import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import mutable.{SkipQuadtree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
 import javax.swing.{JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
-import geom.{DistanceMeasure2D, Dim, DistanceMeasure, Point2D, Point2DLike, Quad2D}
+import geom.{Quad2DLike, DistanceMeasure2D, Dim, DistanceMeasure, Point2D, Point2DLike, Quad2D}
 
 object InteractiveSkipQuadtreeView extends App with Runnable {
    val seed = 0L
@@ -327,7 +327,7 @@ extends JPanel( new BorderLayout() ) {
    def verifyConsistency( t: SkipQuadtree[ Point2DLike ]) {
       val q = t.quad
       var h = t.lastTree
-      var currUnlinkedQuad2Ds   = Set.empty[ Quad2D ]
+      var currUnlinkedQuad2Ds   = Set.empty[ Quad2DLike ]
       var currPoints          = Set.empty[ Point2DLike ]
       var prevs = 0
       do {

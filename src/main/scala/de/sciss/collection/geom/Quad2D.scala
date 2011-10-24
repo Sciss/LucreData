@@ -62,11 +62,18 @@ object Quad2D {
       }
    }
 }
-final case class Quad2D( cx: Int, cy: Int, extent: Int )
-extends Quad[ Dim.Two ] with /* QueryShape2D with */ Rectangle2DLike {
+
+trait Quad2DLike extends QuadLike[ Dim.Two ] with Rectangle2DLike {
+   def cx: Int
+   def cy: Int
+
+   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike
+}
+
+final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
    import Quad2D._
 
-   def quadrant( idx: Int ) : Quad2D = {
+   def quadrant( idx: Int ) : Quad2DLike = {
       val e = extent >> 1
       idx match {
          case 0 => Quad2D( cx + e, cy - e, e ) // ne
@@ -117,7 +124,7 @@ extends Quad[ Dim.Two ] with /* QueryShape2D with */ Rectangle2DLike {
     * Checks whether a given quad is fully contained in this quad.
     * This is also the case if their bounds full match.
     */
-   def contains( quad: Quad2D ) : Boolean =
+   def contains( quad: Quad2DLike ) : Boolean =
       quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
 
    def area : Long = {
@@ -125,7 +132,7 @@ extends Quad[ Dim.Two ] with /* QueryShape2D with */ Rectangle2DLike {
       sd * sd
    }
 
-   def overlapArea( q: Quad2D ) : Long = {
+   def overlapArea( q: Quad2DLike ) : Long = {
       val l = math.max( q.left, left ).toLong
       val r = math.min( q.right, right ).toLong
       val w = r - l + 1 // (r - l).toLong + 1
@@ -282,7 +289,7 @@ extends Quad[ Dim.Two ] with /* QueryShape2D with */ Rectangle2DLike {
     * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `aq` lies
     *          outside of this quad.
     */
-   def indexOf( aq: Quad2D ) : Int = {
+   def indexOf( aq: Quad2DLike ) : Int = {
       val atop = aq.top
       if( atop < cy ) {       // north
          if( top <= atop && aq.bottom <= cy ) {
@@ -305,7 +312,7 @@ extends Quad[ Dim.Two ] with /* QueryShape2D with */ Rectangle2DLike {
       }
    }
 
-   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2D = {
+   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike = {
       val tlx           = left   // pq.cx - pq.extent
       val tly           = top    // pq.cy - pq.extent
       val akx           = aleft - tlx

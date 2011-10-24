@@ -25,8 +25,6 @@
 
 package de.sciss.collection.geom
 
-import sys.error
-
 trait Rectangle2DLike extends QueryShape[ Dim.Two ] {
    def top : Int
    def left : Int
@@ -58,5 +56,5 @@ final case class Rectangle2D( left: Int, top: Int, right: Int, bottom: Int ) ext
       val py = p.y
       px >= left && px <= right && py >= top && py <= bottom
    }
-   def overlapArea( q: Quad2D ) : Long = error( "NOT YET IMPLEMENTED" )
+   def overlapArea( q: Quad2DLike ) : Long = sys.error( "NOT YET IMPLEMENTED" )
 }

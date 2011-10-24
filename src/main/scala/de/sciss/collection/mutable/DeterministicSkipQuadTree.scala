@@ -27,7 +27,7 @@ package de.sciss.collection
 package mutable
 
 import annotation.{switch, tailrec}
-import geom.{Dim, Point2D, Point2DLike, Quad2D}
+import geom.{Quad2DLike, Dim, Point2D, Point2DLike, Quad2D}
 
 /**
  * XXX TODO:
@@ -226,13 +226,13 @@ object DeterministicSkipQuadtree {
           * square and the given point will be placed in
           * separated quadrants of this resulting square.
           */
-         def union( mq: Quad2D, point: Point2DLike ) : Quad2D
+         def union( mq: Quad2DLike, point: Point2DLike ) : Quad2DLike
 
          /**
           * Queries the quadrant index for this (leaf's or node's) square
           * with respect to a given outer square `iq`.
           */
-         def quadIdxIn( iq: Quad2D ) : Int
+         def quadIdxIn( iq: Quad2DLike ) : Int
       }
 
       /**
@@ -311,12 +311,12 @@ object DeterministicSkipQuadtree {
           */
          final def compare( that: Leaf ) : Int = order.compare( that.order )
 
-         final def union( mq: Quad2D, point2: Point2DLike ) = {
+         final def union( mq: Quad2DLike, point2: Point2DLike ) = {
             val point   = pointView( value )
             mq.greatestInteresting( point.x, point.y, 1, point2 )
          }
 
-         final def quadIdxIn( iq: Quad2D ) : Int = iq.indexOf( pointView( value ))
+         final def quadIdxIn( iq: Quad2DLike ) : Int = iq.indexOf( pointView( value ))
 
          /**
           * For a leaf (which does not have a subtree),
@@ -371,7 +371,7 @@ object DeterministicSkipQuadtree {
          /**
           * Returns the square covered by this node
           */
-         def quad: Quad2D
+         def quad: Quad2DLike
 
          /**
           * Returns the corresponding interesting
@@ -386,12 +386,12 @@ object DeterministicSkipQuadtree {
           */
          def next_=( n: RightNode ) : Unit
 
-         final def union( mq: Quad2D, point2: Point2DLike ) = {
+         final def union( mq: Quad2DLike, point2: Point2DLike ) = {
             val q = quad
             mq.greatestInteresting( q.left, q.top, q.side, point2 )
          }
 
-         final def quadIdxIn( iq: Quad2D ) : Int = iq.indexOf( quad )
+         final def quadIdxIn( iq: Quad2DLike ) : Int = iq.indexOf( quad )
 
          /**
           * The reverse process of `findP0`: Finds the lowest
@@ -530,7 +530,7 @@ object DeterministicSkipQuadtree {
           * sub-node whose parent is this node, and whose predecessor
           * in the lower quadtree is given.
           */
-         @inline private def newNode( prev: Node, iq: Quad2D ) : InnerRightNode = new InnerRightNode( this, prev, iq )
+         @inline private def newNode( prev: Node, iq: Quad2DLike ) : InnerRightNode = new InnerRightNode( this, prev, iq )
 
          final def removeImmediateLeaf( leaf: Leaf ) {
             var qidx = 0; while( qidx < numChildren ) {
@@ -792,14 +792,14 @@ object DeterministicSkipQuadtree {
           * sub-node whose parent is this node, and which should be
           * ordered according to its position in this node.
           */
-         @inline private def newNode( iq: Quad2D ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
+         @inline private def newNode( iq: Quad2DLike ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
             insets( n, quad.indexOf( n.quad ))  // n.quadIdxIn( quad )
          })
       }
 
       sealed trait TopNode extends Node {
 //         final def parent : Node                = null
-         final def quad : Quad2D                  = tree.quad
+         final def quad : Quad2DLike = tree.quad
 //         final def parent_=( n: Node ) : Unit   = unsupportedOp
 
          final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
@@ -821,7 +821,7 @@ object DeterministicSkipQuadtree {
          def nodeName = "top-left"
       }
 
-      final class InnerLeftNode( var parent: LeftNode, val quad: Quad2D, _ins: LeftNode => (InOrder, InOrder) )
+      final class InnerLeftNode( var parent: LeftNode, val quad: Quad2DLike, _ins: LeftNode => (InOrder, InOrder) )
       extends LeftNode with InnerNode with LeftInnerNonEmpty {
          val (startOrder, stopOrder) = _ins( this )
 
@@ -907,7 +907,7 @@ object DeterministicSkipQuadtree {
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: Quad2D )
+      final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: Quad2DLike )
       extends RightNode with InnerNode with RightInnerNonEmpty {
          prev.next = this
 //assert( prev.quad == quad )

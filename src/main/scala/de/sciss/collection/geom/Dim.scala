@@ -2,14 +2,14 @@ package de.sciss.collection.geom
 
 object Dim {
    sealed trait Two extends Dim[ Two ] {
-//      type Self = Two
       type PointType = Point2DLike
-      type QuadType  = Quad2D
+      type QuadType  = Quad2DLike
    }
-//   object Two extends Two {
-//      type PointType = Point2DLike
-//      type QuadType  = Quad2D
-//   }
+
+   sealed trait Three extends Dim[ Three ] {
+      type PointType = Point3DLike
+      type QuadType  = Quad3DLike
+   }
 }
 
 /**
@@ -18,5 +18,5 @@ object Dim {
  */
 sealed trait Dim[ Self <: Dim[ Self ]] {
    type PointType <: PointLike[ Self ]
-   type QuadType  <: Quad[ Self ]
+   type QuadType  <: QuadLike[ Self ]
 }
