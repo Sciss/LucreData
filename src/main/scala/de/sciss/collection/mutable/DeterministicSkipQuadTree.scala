@@ -29,10 +29,6 @@ package mutable
 import annotation.{switch, tailrec}
 import geom.{Quad2DLike, Dim, Point2D, Point2DLike, Quad2D}
 
-/**
- * XXX TODO:
- * - delete is missing
- */
 object DeterministicSkipQuadtree {
 //   def apply[ V ]( quad: Quad2D ) : DeterministicSkipQuadtree[ V ] = new TreeImpl[ V ]( quad )
 
@@ -62,7 +58,7 @@ object DeterministicSkipQuadtree {
          }
       } // 2-5 DSL
 
-      val numChildren = 4
+      private val numChildren = 4
 
       def headTree : QNode = TopLeftNode
       def lastTree : QNode = tailVar
@@ -446,7 +442,7 @@ object DeterministicSkipQuadtree {
        * `prev` method.
        */
       sealed trait RightNode extends Node with NonEmpty {
-         final val children = Array.fill[ RightChild ]( 4 )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ RightChild ]( numChildren )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
 //         def parent : RightNode
@@ -569,7 +565,7 @@ object DeterministicSkipQuadtree {
           * -- they are instances of `LeftChild` and thus support
           * order intervals.
           */
-         final val children = Array.fill[ LeftChild ]( 4 )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ LeftChild ]( numChildren )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          // Child support
@@ -664,7 +660,7 @@ object DeterministicSkipQuadtree {
 //                     children( qidx ) = Empty
 //                     var lonely: NonEmpty = null
 //                     var numNonEmpty = 0
-//                     var i = 0; while( i < 4 ) {
+//                     var i = 0; while( i < numChildren ) {
 //                        children( i ) match {
 //                           case n: NonEmpty =>
 //                              numNonEmpty += 1
@@ -775,7 +771,7 @@ object DeterministicSkipQuadtree {
             }
          }
          @tailrec private def insetStop( n: LeftNode, idx: Int ) : InOrder = {
-            if( idx == 4 ) {
+            if( idx == numChildren ) {
                stopOrder.prepend() // stopOrder.insertBefore( n )
             } else children( idx ) match {
                case n2: LeftNonEmpty => n2.stopOrder.append() // n2.stopOrder.insertAfter( n )
@@ -841,7 +837,7 @@ object DeterministicSkipQuadtree {
          protected def leafRemoved() {
             var lonely: LeftInnerNonEmpty = null
             var numNonEmpty = 0
-            var i = 0; while( i < 4 ) {
+            var i = 0; while( i < numChildren ) {
                children( i ) match {
                   case n: LeftInnerNonEmpty =>
                      numNonEmpty += 1
@@ -884,7 +880,7 @@ object DeterministicSkipQuadtree {
          protected def leafRemoved() {
             if( next != null ) return
 
-            var i = 0; while( i < 4 ) {
+            var i = 0; while( i < numChildren ) {
                children( i ) match {
                   case _: RightInnerNonEmpty => return   // node not empty, abort the check
                   case _ =>
@@ -927,7 +923,7 @@ object DeterministicSkipQuadtree {
          protected def leafRemoved() {
             var lonely: RightInnerNonEmpty = null
             var numNonEmpty = 0
-            var i = 0; while( i < 4 ) {
+            var i = 0; while( i < numChildren ) {
                children( i ) match {
                   case n: RightInnerNonEmpty =>
                      numNonEmpty += 1
