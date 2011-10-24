@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-trait QueryShape[ D <: Dim ] {
+trait QueryShape[ D <: Dim[ D ]] {
    def overlapArea( q: D#QuadType ) : Long
    def area : Long
 

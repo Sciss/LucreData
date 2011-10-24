@@ -45,7 +45,7 @@ object DeterministicSkipQuadtree {
       t
    }
 
-   private final class TreeImpl[ A ]( quad: Quad2D, _skipGap: Int, val pointView: A => Point2DLike )
+   private final class TreeImpl[ A ]( val quad: Quad2D, _skipGap: Int, val pointView: A => Point2DLike )
    extends impl.SkipQuadtreeImpl[ A ] {
       tree =>
 
@@ -414,6 +414,9 @@ object DeterministicSkipQuadtree {
          override def toString = shortString + " : children = [" +
             child(0).shortString + ", " + child(1).shortString + ", " + child(2).shortString + ", " +
             child(3).shortString + "]"
+
+         final def prevOption: Option[ QNode ] = Option( prev )
+         final def nextOption: Option[ QNode ] = Option( next )
       }
 
       /**

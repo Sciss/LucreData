@@ -43,7 +43,7 @@ object RandomizedSkipQuadtree {
 //   private object TreeImpl {
 //      def apply[ V ]( quad: Quad2D ) = new TreeImpl[ V ]( quad )
 //   }
-   private final class TreeImpl[ A ]( quad: Quad2D, val pointView: A => Point2DLike )
+   private final class TreeImpl[ A ]( val quad: Quad2D, val pointView: A => Point2DLike )
    extends impl.SkipQuadtreeImpl[ A ] {
       val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
@@ -273,6 +273,9 @@ object RandomizedSkipQuadtree {
                   q
             }
          }
+
+         def prevOption: Option[ QNode ] = Option( prev )
+         def nextOption: Option[ QNode ] = Option( next )
       }
    }
 

@@ -34,12 +34,12 @@ import de.sciss.collection.geom.{Dim, DistanceMeasure, QueryShape}
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipOctree[ D <: Dim, A ] extends MSet[ A ] {
+trait SkipOctree[ D <: Dim[ D ], A ] extends MSet[ A ] {
    def headTree: QNode
    def lastTree: QNode
    def pointView : A => D#PointType // PointLike[ D ] // PointView[ A ]
 
-   def quad : D#QuadType = headTree.quad // Quad[ D ] = headTree.quad
+   def quad : D#QuadType // = headTree.quad // Quad[ D ] = headTree.quad
 
    def numLevels : Int
 
@@ -105,8 +105,8 @@ trait SkipOctree[ D <: Dim, A ] extends MSet[ A ] {
    trait QNode extends QNonEmpty {
       def quad: D#QuadType // Quad[ D ]
       def child( idx: Int ) : Q
-      final def prevOption: Option[ QNode ] = Option( prev )
-      final def nextOption: Option[ QNode ] = Option( next )
+      /* final */ def prevOption: Option[ QNode ] // = Option( prev )
+      /* final */ def nextOption: Option[ QNode ] // = Option( next )
 
       // XXX todo: how can we make this implementation private?
       /* protected[SkipOctree] */ def prev: QNode

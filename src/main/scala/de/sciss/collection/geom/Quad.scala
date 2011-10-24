@@ -1,6 +1,6 @@
 package de.sciss.collection.geom
 
-trait Quad[ D <: Dim ] /* extends RectangleLike[ D ] */ {
+trait Quad[ D <: Dim[ D ]] /* extends RectangleLike[ D ] */ {
    def cx: Int
    def cy: Int
    def extent: Int
@@ -22,7 +22,7 @@ trait Quad[ D <: Dim ] /* extends RectangleLike[ D ] */ {
 
    def area : Long
 
-   def overlapArea( q: D#QuadType ) : Long
+   def overlapArea( quad: D#QuadType ) : Long
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.
@@ -52,20 +52,20 @@ trait Quad[ D <: Dim ] /* extends RectangleLike[ D ] */ {
    def maxDistanceSq( point: D#PointType ) : Long
 
    /**
-    * Determines the quadrant index of a point `a`.
+    * Determines the quadrant index of a point `point`.
     *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
+    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `point` lies
     *          outside of this quad.
     */
-   def indexOf( a: D#PointType ) : Int
+   def indexOf( point: D#PointType ) : Int
 
    /**
-    * Determines the quadrant index of another internal quad `aq`.
+    * Determines the quadrant index of another internal quad `inner`.
     *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `aq` lies
+    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `inner` lies
     *          outside of this quad.
     */
-   def indexOf( aq: D#QuadType ) : Int
+   def indexOf( inner: D#QuadType ) : Int
 
 //   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: PointLike[ D ]) : Quad[ D ]
 }
