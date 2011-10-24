@@ -26,7 +26,7 @@
 package de.sciss.collection.mutable
 
 import collection.mutable.{Set => MSet}
-import de.sciss.collection.geom.{Dim, DistanceMeasure, QueryShape2D}
+import de.sciss.collection.geom.{Dim, DistanceMeasure, QueryShape}
 
 /**
  * A `SkipOctree` is a multi-dimensional data structure that
@@ -65,7 +65,7 @@ trait SkipOctree[ D <: Dim, A ] extends MSet[ A ] {
     */
    def update( elem: A ) : Option[ A ]
 
-   def rangeQuery( qs: QueryShape2D ) : Iterator[ A ]
+   def rangeQuery( qs: QueryShape[ D ]) : Iterator[ A ]
 
    /**
     * Reports the nearest neighbor entry with respect to
