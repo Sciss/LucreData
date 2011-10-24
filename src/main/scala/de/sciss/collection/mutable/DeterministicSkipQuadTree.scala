@@ -27,7 +27,7 @@ package de.sciss.collection
 package mutable
 
 import annotation.{switch, tailrec}
-import geom.{Point2D, Point2DLike, Quad2D}
+import geom.{Dim, Point2D, Point2DLike, Quad2D}
 
 /**
  * XXX TODO:
@@ -46,7 +46,7 @@ object DeterministicSkipQuadtree {
    }
 
    private final class TreeImpl[ A ]( val quad: Quad2D, _skipGap: Int, val pointView: A => Point2DLike )
-   extends impl.SkipQuadtreeImpl[ A ] {
+   extends impl.SkipOctreeImpl[ Dim.Two, A ] {
       tree =>
 
       val totalOrder = TotalOrder()

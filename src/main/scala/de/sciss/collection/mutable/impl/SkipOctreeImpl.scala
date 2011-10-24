@@ -28,7 +28,7 @@ package impl
 
 import annotation.tailrec
 import collection.mutable.{PriorityQueue, Queue => MQueue}
-import de.sciss.collection.geom.{Quad, Dim, QueryShape, DistanceMeasure}
+import de.sciss.collection.geom.{Dim, QueryShape, DistanceMeasure}
 
 trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
    // ---- map support ----
@@ -181,10 +181,10 @@ trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
                return
             }
             val tup  = stabbing.dequeue()
-            val ns   = tup._1                         // stabbing node
+            val ns   = tup._1                            // stabbing node
             val as   = tup._2
-//            val nc   = ns.rangeQueryRight( as, qs )   // critical node
-            val nc   = rangeQueryRight( ns, as, qs )   // critical node
+//            val nc   = ns.rangeQueryRight( as, qs )    // critical node
+            val nc   = rangeQueryRight( ns, as, qs )     // critical node
             var i = 0; while( i < 4 ) {
                nc.child( i ) match {
                   case cl: QLeaf =>
@@ -193,9 +193,9 @@ trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
                      val q    = cn.quad
                      val ao   = qs.overlapArea( q )
                      if( ao > 0 ) {
-                        if( ao < q.area ) {           // stabbing
+                        if( ao < q.area ) {              // stabbing
                            stabbing += cn -> ao
-                        } else {                      // in
+                        } else {                         // in
                            in += cn
                         }
                      }
@@ -210,7 +210,7 @@ trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
             case n: QNode =>
                var i = 0; while( i < 4 ) {
                   n.child( i ) match {
-                     case ne: QNonEmpty => in += ne // sucky `enqueue` creates intermediate Seq because of varargs
+                     case ne: QNonEmpty => in += ne   // sucky `enqueue` creates intermediate Seq because of varargs
                      case _ =>
                   }
                i += 1 }

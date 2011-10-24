@@ -27,7 +27,7 @@ package de.sciss.collection
 package mutable
 
 import collection.mutable.{Stack => MStack}
-import geom.{Quad2D, Point2DLike}
+import geom.{Dim, Quad2D, Point2DLike}
 
 object RandomizedSkipQuadtree {
    def empty[ A ]( quad: Quad2D )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] = new TreeImpl[ A ]( quad, view )
@@ -44,7 +44,7 @@ object RandomizedSkipQuadtree {
 //      def apply[ V ]( quad: Quad2D ) = new TreeImpl[ V ]( quad )
 //   }
    private final class TreeImpl[ A ]( val quad: Quad2D, val pointView: A => Point2DLike )
-   extends impl.SkipQuadtreeImpl[ A ] {
+   extends impl.SkipOctreeImpl[ Dim.Two, A ] {
       val headTree         = new Node( quad, null, null )
       private var tailVar  = headTree
 
