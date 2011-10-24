@@ -42,7 +42,7 @@ trait DistanceMeasure[ D <: Dim[ D ]] {
    /**
     * Calculates the distance between two points.
     */
-   def distance( a: D#PointType, b: D#PointType ) : Long
+   def distance( a: D#Point, b: D#Point ) : Long
 
    /**
     * Calculates the minimum distance between a point and
@@ -51,7 +51,7 @@ trait DistanceMeasure[ D <: Dim[ D ]] {
     * is closest to the point `a`, if `a` lies outside of `b`,
     * or zero, if `a` lies within `b`.
     */
-   def minDistance( a: D#PointType, b: D#QuadType ) : Long
+   def minDistance( a: D#Point, b: D#Quad ) : Long
 
    /**
     * Calculates the maximum distance between a point and
@@ -60,7 +60,7 @@ trait DistanceMeasure[ D <: Dim[ D ]] {
     * is furthest to the point `a`, no matter whether `a`
     * is contained in `b` or not.
     */
-   def maxDistance( a: D#PointType, b: D#QuadType ) : Long
+   def maxDistance( a: D#Point, b: D#Quad ) : Long
 
    /**
     * Applies a filter to this measure by constraining distances
@@ -71,7 +71,7 @@ trait DistanceMeasure[ D <: Dim[ D ]] {
     * This behaviour extends to the `minDistance` and `maxDistance`
     * methods.
     */
-   def clip( quad: D#QuadType ) : DistanceMeasure[ D ]
+   def clip( quad: D#Quad ) : DistanceMeasure[ D ]
 
    /**
     * Composes this distance so that a threshold is applied to

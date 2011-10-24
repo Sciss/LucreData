@@ -53,7 +53,7 @@ trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
       oldLeaf != null
    }
 
-   final def removeAt( point: D#PointType ) : Option[ A ] = {
+   final def removeAt( point: D#Point ) : Option[ A ] = {
       val oldLeaf = removeLeaf( point )
       if( oldLeaf == null ) None else Some( oldLeaf.value )
    }
@@ -70,23 +70,23 @@ trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
       if( l == null ) false else l.value == elem
    }
 
-   final override def isDefinedAt( point: D#PointType ) : Boolean = {
+   final override def isDefinedAt( point: D#Point ) : Boolean = {
       if( !quad.contains( point )) return false
       findLeaf( point ) != null
    }
 
-   final def get( point: D#PointType ) : Option[ A ] = {
+   final def get( point: D#Point ) : Option[ A ] = {
       if( !quad.contains( point )) return None
       val l = findLeaf( point )
       if( l == null ) None else Some( l.value )
    }
 
-   final override def nearestNeighbor( point: D#PointType, metric: DistanceMeasure[ D ]) : A = {
+   final override def nearestNeighbor( point: D#Point, metric: DistanceMeasure[ D ]) : A = {
       val res = nn( point, metric )
       if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
    }
 
-   final def nearestNeighborOption( point: D#PointType, metric: DistanceMeasure[ D ]) : Option[ A ] = {
+   final def nearestNeighborOption( point: D#Point, metric: DistanceMeasure[ D ]) : Option[ A ] = {
       val res = nn( point, metric )
       if( res != null ) Some( res.value ) else None
    }
@@ -115,8 +115,8 @@ trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
    final def rangeQuery( qs: QueryShape[ D ]) : Iterator[ A ] = new RangeQuery( qs )
 
    protected def insertLeaf( elem: A ) : QLeaf
-   protected def removeLeaf( point: D#PointType ) : QLeaf
-   protected def findLeaf( point: D#PointType ) : QLeaf
+   protected def removeLeaf( point: D#Point ) : QLeaf
+   protected def findLeaf( point: D#Point ) : QLeaf
 
    private final class RangeQuery( qs: QueryShape[ D ]) extends Iterator[ A ] {
       val stabbing      = MQueue.empty[ (QNode, Long) ]
@@ -218,7 +218,7 @@ trait SkipOctreeImpl[ D <: Dim[ D ], A ] extends SkipOctree[ D, A ] {
       }
    }
 
-   private def nn( point: D#PointType, metric: DistanceMeasure[ D ]) : QLeaf = {
+   private def nn( point: D#Point, metric: DistanceMeasure[ D ]) : QLeaf = {
       var bestLeaf: QLeaf     = null
       var bestDist            = Long.MaxValue   // all distances here are squared!
       val pri                 = PriorityQueue.empty[ VisitedNode ]

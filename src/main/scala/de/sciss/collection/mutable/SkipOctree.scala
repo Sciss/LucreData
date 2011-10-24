@@ -37,17 +37,17 @@ import de.sciss.collection.geom.{Dim, DistanceMeasure, QueryShape}
 trait SkipOctree[ D <: Dim[ D ], A ] extends MSet[ A ] {
    def headTree: QNode
    def lastTree: QNode
-   def pointView : A => D#PointType // PointLike[ D ] // PointView[ A ]
+   def pointView : A => D#Point // PointLike[ D ] // PointView[ A ]
 
-   def quad : D#QuadType // = headTree.quad // Quad[ D ] = headTree.quad
+   def quad : D#Quad // = headTree.quad // Quad[ D ] = headTree.quad
 
    def numLevels : Int
 
-   def get( point: D#PointType ) : Option[ A ]
+   def get( point: D#Point ) : Option[ A ]
 //   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
-   def isDefinedAt( point: D#PointType ) : Boolean
+   def isDefinedAt( point: D#Point ) : Boolean
 
-   def removeAt( point: D#PointType ) : Option[ A ]
+   def removeAt( point: D#Point ) : Option[ A ]
 
    /**
     * Adds an element to the tree
@@ -85,9 +85,9 @@ trait SkipOctree[ D <: Dim[ D ], A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: D#PointType, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : A
+   def nearestNeighbor( point: D#Point, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : A
 
-   def nearestNeighborOption( point: D#PointType, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : Option[ A ]
+   def nearestNeighborOption( point: D#Point, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored
@@ -103,7 +103,7 @@ trait SkipOctree[ D <: Dim[ D ], A ] extends MSet[ A ] {
       def value: A
    }
    trait QNode extends QNonEmpty {
-      def quad: D#QuadType // Quad[ D ]
+      def quad: D#Quad // Quad[ D ]
       def child( idx: Int ) : Q
       /* final */ def prevOption: Option[ QNode ] // = Option( prev )
       /* final */ def nextOption: Option[ QNode ] // = Option( next )

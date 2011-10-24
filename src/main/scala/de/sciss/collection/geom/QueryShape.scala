@@ -26,7 +26,7 @@
 package de.sciss.collection.geom
 
 trait QueryShape[ D <: Dim[ D ]] {
-   def overlapArea( q: D#QuadType ) : Long
+   def overlapArea( q: D#Quad ) : Long
    def area : Long
 
    /**
@@ -37,5 +37,5 @@ trait QueryShape[ D <: Dim[ D ]] {
     * @return  `true` if this shape contains or partly overlaps
     *          the given point
     */
-   def contains( p: D#PointType ) : Boolean
+   def contains( p: D#Point ) : Boolean
 }
