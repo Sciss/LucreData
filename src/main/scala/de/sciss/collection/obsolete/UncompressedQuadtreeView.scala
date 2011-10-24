@@ -1,5 +1,5 @@
 /*
- *  QuadtreeView.scala
+ *  UncompressedQuadtreeView.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -23,25 +23,24 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection.view
+package de.sciss.collection.obsolete
 
-import java.awt.Dimension
-import de.sciss.collection.geom.Quad2D
+import de.sciss.collection.view.QuadView
 
-abstract class QuadtreeView extends QuadView {
-   def rootQuad : Quad2D
-
-   override def getPreferredSize : Dimension = {
-      val w1   = rootQuad.extent * 2 + 1
-      val in   = getInsets
-      new Dimension( w1 + (in.left + in.right), w1 + (in.top + in.bottom) )
+class UncompressedQuadtreeView( t: Quadtree.Q[ _ ]) extends QuadtreeView {
+   protected def drawTree( h: QuadView.PaintHelper ) {
+      draw( h, t )
    }
 
-   protected def drawTree( h: QuadView.PaintHelper ) : Unit
+   def rootQuad = t.quad
 
-   protected def draw( h: QuadView.PaintHelper ) {
-      val q = rootQuad
-      h.translate( q.extent - q.cx, q.extent - q.cy )
-      drawTree( h )
+   private def draw( h: QuadView.PaintHelper, quad: Quadtree.Q[ _ ]) {
+      quad match {
+         case t: Quadtree.QNode[ _ ]   => List( t.nw, t.ne, t.sw, t.se ).foreach( draw( h, _ ))
+         case _: Quadtree.QEmpty[ _ ]  => h.drawFrame( quad.quad )
+         case l: Quadtree.QLeaf[ _ ]   =>
+            h.drawFrame( quad.quad )
+            h.drawPoint( l.point )
+      }
    }
 }

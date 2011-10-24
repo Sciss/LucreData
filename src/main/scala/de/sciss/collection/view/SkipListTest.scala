@@ -23,13 +23,12 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection
+package de.sciss.collection.view
 
-import mutable.{HASkipList, LLSkipList, SkipList}
 import javax.swing.{JComponent, JLabel, BoxLayout, Box, WindowConstants, JFrame}
 import java.awt.EventQueue
 import collection.immutable.IntMap
-import view.{PDFSupport, HASkipListView, LLSkipListView}
+import de.sciss.collection.mutable.{HASkipList, LLSkipList, SkipList}
 
 object SkipListTest extends App with Runnable {
    val n = 50  // <= 25 to show the same list for the LL implementation!

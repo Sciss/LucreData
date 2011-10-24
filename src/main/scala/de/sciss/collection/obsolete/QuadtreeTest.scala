@@ -23,14 +23,14 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection
+package de.sciss.collection.obsolete
 
-import geom.{DistanceMeasure2D, Point2DLike, Point2D, Quad2D}
-import mutable.{SkipQuadtree, CompressedQuadtree, DeterministicSkipQuadtree, Quadtree, RandomizedSkipQuadtree}
 import scala.collection.breakOut
 import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
-import view.{PDFSupport, SkipQuadtreeView, CompressedQuadtreeView, UncompressedQuadtreeView}
+import de.sciss.collection.mutable.{DeterministicSkipQuadtree, RandomizedSkipQuadtree, SkipQuadtree}
+import de.sciss.collection.geom.{DistanceMeasure2D, Point2DLike, Quad2D, Point2D}
+import de.sciss.collection.view.{PDFSupport, SkipQuadtreeView}
 
 object QuadtreeTest extends App {
    args.headOption match {

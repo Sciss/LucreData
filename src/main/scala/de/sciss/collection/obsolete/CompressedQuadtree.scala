@@ -23,11 +23,10 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection
-package mutable
+package de.sciss.collection.obsolete
 
 import annotation.tailrec
-import geom.{Point2DLike, Quad2D}
+import de.sciss.collection.geom.{Point2DLike, Quad2D}
 
 object CompressedQuadtree {
    def apply[ V ]( quad: Quad2D ) : QNode[ V ] = {

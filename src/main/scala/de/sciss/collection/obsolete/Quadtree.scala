@@ -23,10 +23,9 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection
-package mutable
+package de.sciss.collection.obsolete
 
-import geom.{Point2D, Point2DLike, Quad2D}
+import de.sciss.collection.geom.{Quad2D, Point2D, Point2DLike}
 
 object Quadtree {
    def apply[ V ]( center: Point2D, extent: Int ) : QNode[ V ] = new NodeImpl[ V ]( center, extent )

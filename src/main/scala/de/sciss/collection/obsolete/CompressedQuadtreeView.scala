@@ -23,10 +23,9 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection
-package view
+package de.sciss.collection.obsolete
 
-import mutable.CompressedQuadtree
+import de.sciss.collection.view.QuadView
 
 class CompressedQuadtreeView( t: CompressedQuadtree.QNode[ _ ]) extends QuadView {
    import CompressedQuadtree._
