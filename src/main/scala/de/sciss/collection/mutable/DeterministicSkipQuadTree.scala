@@ -143,7 +143,10 @@ object DeterministicSkipQuadTree {
             //  with q = pi,start = pi+1,end so it takes at most 6
             //  steps by Lemma 5.) Then we go to the same square q
             //  in Qi+1 and insert x."
-            val path = new Array[ Node ]( 6 ) // hmmm... according to what i've seen, the maximum necessary size is 4 ?!
+
+            // hmmm... XXX This is super tricky. the ancestor test suite
+            // takes up to 8 elements. how can be prove the maximum required size?
+            val path = new Array[ Node ]( 9 )
             val q0o  = l.parent.findPN( path, 0 )
             val q0   = if( q0o == null ) { // create new level
                val res = new TopRightNode( tailVar )

@@ -1,7 +1,7 @@
 package de.sciss.collection
 
 import geom.{Point, DistanceMeasure, Quad, PointLike}
-import mutable.{LLSkipList, RandomizedSkipQuadTree, TotalOrder}
+import mutable.{DeterministicSkipQuadTree, LLSkipList, RandomizedSkipQuadTree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 /**
@@ -11,11 +11,12 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
  * }}
  */
 class AncestorSuite extends FeatureSpec with GivenWhenThen {
-   def seed : Long         = 0L // System.currentTimeMillis()
-   val TREE_SIZE           = 100000
-   val MARKER_PERCENTAGE   = 0.2
-   val PRINT_DOT           = false  // true
+   def seed : Long         = 0L        // System.currentTimeMillis()
+   val TREE_SIZE           = 100000    // 150000
+   val MARKER_PERCENTAGE   = 0.2       // 0.5
+   val PRINT_DOT           = false     // true
    val PRINT_ORDERS        = false
+   val USE_DET             = true      // `true` to use deterministic quad-tree, `false` to use randomized tree
 
    abstract class AbstractTree[ A ]( _init: A ) {
       type V <: VertexLike
@@ -27,7 +28,12 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       val preOrder   = TotalOrder( preObserver )
       val postOrder  = TotalOrder( postObserver )
       val root       = newVertex( _init, preOrder.root, postOrder.root )
-      val quad       = RandomizedSkipQuadTree.empty[ V ]( Quad( 0x40000000, 0x40000000, 0x40000000 ))
+      val quad       = Quad( 0x40000000, 0x40000000, 0x40000000 )
+      val t          = if( USE_DET ) {
+         DeterministicSkipQuadTree.empty[ V ]( quad )
+      } else {
+         RandomizedSkipQuadTree.empty[ V ]( quad )
+      }
 
       add( root )
 
@@ -49,7 +55,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          def beforeRelabeling( first: TotalOrder.EntryLike, num: Int ) {
             var e = first
             var i = 0; while( i < num ) {
-               map.get( e ).foreach( quad.remove( _ ))
+               map.get( e ).foreach( t.remove( _ ))
                e = e.next
                i += 1
             }
@@ -57,7 +63,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
          def afterRelabeling( first: TotalOrder.EntryLike, num: Int ) {
             var e = first
             var i = 0; while( i < num ) {
-               map.get( e ).foreach( quad.add( _ ))
+               map.get( e ).foreach( t.add( _ ))
                e = e.next
                i += 1
             }
@@ -67,7 +73,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       protected def add( v: V ) : V = {
          preObserver.map  += v.pre -> v
          postObserver.map += v.post -> v
-         quad += v
+         t += v
          v
       }
    }
@@ -95,7 +101,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
       def validate() {
          when( "the size of the vertices is queried from the quadtree" )
          then( "it should be equal to the number of observed labelings and relabelings" )
-         val qsz = quad.size
+         val qsz = t.size
          assert( qsz == preObserver.map.size,
             "pre-observer size (" + preObserver.map.size + ") is different from quad size (" + qsz + ")" )
          assert( qsz == postObserver.map.size,
@@ -161,7 +167,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          val metric = DistanceMeasure.chebyshev.quadrant( 2 )
          treeSeq.foreach { child => parents.get( child ).foreach { parent =>
             val point = Point( child.x - 1, child.y + 1 ) // make sure we skip the child itself
-            val found = t.quad.nearestNeighborOption( point, metric )
+            val found = t.t.nearestNeighborOption( point, metric )
             assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
          }}
       }
@@ -324,7 +330,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
             val y       = postIso.tag
             val point   = Point( x, y )
 
-            val found = tm.quad.nearestNeighborOption( point, metric ).map( _.value )
+            val found = tm.t.nearestNeighborOption( point, metric ).map( _.value )
             val parent = {
                var p = child; while( !markSet.contains( p.value )) { p = parents( p )}
                p.value
