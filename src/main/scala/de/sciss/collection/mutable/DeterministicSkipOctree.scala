@@ -50,14 +50,13 @@ object DeterministicSkipOctree {
          implicit def maxKey = MaxKey( MaxLeaf )
          if( _skipGap < 2 ) {
             require( _skipGap == 1, "Illegal skipGap value (" + _skipGap + ")" )
-            LLSkipList.empty[ Leaf ]( KeyObserver ) // ( Ordering.ordered[ Leaf ], )
+            LLSkipList.empty[ Leaf ]( KeyObserver )
          } else {
-//            val mf = implicitly[ Manifest[ Leaf ]]
-            HASkipList.empty[ Leaf ]( _skipGap, KeyObserver ) // ( Ordering.ordered[ Leaf ], maxKey, mf )
+            HASkipList.empty[ Leaf ]( _skipGap, KeyObserver )
          }
       } // 2-5 DSL
 
-      private val numChildren = 4
+      private val numChildren: Int = sys.error( "TODO" ) // 4   // YYY
 
       def headTree : QNode = TopLeftNode
       def lastTree : QNode = tailVar
@@ -144,7 +143,8 @@ object DeterministicSkipOctree {
 
             // hmmm... XXX This is super tricky. the ancestor test suite
             // takes up to 8 elements. how can be prove the maximum required size?
-            val path = new Array[ Node ]( 9 )
+            val path = new Array[ Node ]( 9 ) // YYY
+sys.error( "TODO" )
             val q0o  = l.parent.findPN( path, 0 )
             val q0   = if( q0o == null ) { // create new level
                val res = new TopRightNode( tailVar )
@@ -312,7 +312,7 @@ object DeterministicSkipOctree {
          final def union( mq: D#Quad, point2: D#Point ) = {
             val point   = pointView( value )
 //            mq.greatestInteresting( point.x, point.y, 1, point2 )
-sys.error( "TODO" )
+sys.error( "TODO" ) // YYY
          }
 
          final def quadIdxIn( iq: D#Quad ) : Int = iq.indexOf( pointView( value ))
@@ -388,7 +388,7 @@ sys.error( "TODO" )
          final def union( mq: D#Quad, point2: D#Point ) = {
             val q = quad
 //            mq.greatestInteresting( q.left, q.top, q.side, point2 )
-sys.error( "TODO" )
+sys.error( "TODO" ) // YYY
          }
 
          final def quadIdxIn( iq: D#Quad ) : Int = iq.indexOf( quad )
@@ -411,9 +411,9 @@ sys.error( "TODO" )
          def nodeName : String
          final def shortString = nodeName + "(" + quad + ")"
 
-         override def toString = shortString + " : children = [" +
-            child(0).shortString + ", " + child(1).shortString + ", " + child(2).shortString + ", " +
-            child(3).shortString + "]"
+         override def toString = shortString +
+            Seq.tabulate( numChildren )( i => child( i ).shortString )
+               .mkString( " : children = [", ", ", "]" )
 
          final def prevOption: Option[ QNode ] = Option( prev )
          final def nextOption: Option[ QNode ] = Option( next )
@@ -448,12 +448,6 @@ sys.error( "TODO" )
       private sealed trait RightNode extends Node with NonEmpty {
          final val children = Array.fill[ RightChild ]( numChildren )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
-
-//         def parent : RightNode
-//         def parent_=( p: RightNode ) : Unit
-
-         // Child support
-//         final def prevOption = Some( prev: QNode )
 
          def prev : Node
          final def child( idx: Int ) : RightChild = children( idx )
@@ -563,9 +557,6 @@ sys.error( "TODO" )
          final val children = Array.fill[ LeftChild ]( numChildren )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
-         // Child support
-//         final def prevOption = Option.empty[ QNode ]
-
          /**
           * Note that `prev` will not be called as part of this quadtree implementation
           * which smartly distinguishes between left and right nodes. It is merely here
@@ -657,6 +648,7 @@ sys.error( "TODO" )
          private def newLeaf( point: D#Point, value: A ) : Leaf = {
             val l = new LeafImpl( point, value, { l =>
                val lne: LeftNonEmpty = l
+               sys.error( "TODO" ) // YYY
                ((lne.quadIdxIn( quad ): @switch) match {
                   case 0 => startOrder.append() // startOrder.insertAfter( lne )
                   case 1 => children( 0 ) match {
@@ -706,9 +698,7 @@ sys.error( "TODO" )
       }
 
       private sealed trait TopNode extends Node {
-//         final def parent : Node                = null
          final def quad : D#Quad = tree.quad
-//         final def parent_=( n: Node ) : Unit   = unsupportedOp
 
          final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
             val n = next
@@ -757,7 +747,7 @@ sys.error( "TODO" )
                   case _ =>
                }
             i += 1 }
-            if( numNonEmpty == 1 ) {   // gotta remove this node and put remaining non empty element in parent
+            if( numNonEmpty == 1 ) {   // YYY ???   // gotta remove this node and put remaining non empty element in parent
                val myIdx = parent.quad.indexOf( quad )
 //
 //               @tailrec def findLeftParent( n: Node ) : LeftNode = n match {
@@ -843,7 +833,7 @@ sys.error( "TODO" )
                   case _ =>
                }
             i += 1 }
-            if( numNonEmpty == 1 ) {   // gotta remove this node and put remaining non empty element in parent
+            if( numNonEmpty == 1 ) {   // YYY ???   // gotta remove this node and put remaining non empty element in parent
                val myIdx = parent.quad.indexOf( quad )
                parent.children( myIdx ) = lonely
                if( lonely.parent == this ) lonely.parentRight_=( parent )
