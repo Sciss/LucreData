@@ -28,9 +28,9 @@ package de.sciss.collection.obsolete
 import scala.collection.breakOut
 import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
-import de.sciss.collection.mutable.{DeterministicSkipQuadtree, RandomizedSkipQuadtree, SkipQuadtree}
 import de.sciss.collection.geom.{DistanceMeasure2D, Point2DLike, Quad2D, Point2D}
 import de.sciss.collection.view.{PDFSupport, SkipQuadtreeView}
+import de.sciss.collection.mutable.{RandomizedSkipOctree, DeterministicSkipQuadtree, RandomizedSkipQuadtree, SkipQuadtree}
 
 object QuadtreeTest extends App {
    args.headOption match {
@@ -240,7 +240,7 @@ Options:
    }
 
    class Test3 {
-      RandomizedSkipQuadtree.random.setSeed( 0L )
+//      RandomizedSkipQuadtree.random.setSeed( 0L )
 
       val rnd   = new util.Random( 2L )
       def randFill( t: SkipQuadtree[ Point2D ]) {
@@ -260,7 +260,7 @@ Options:
       }
 
       val q = Quad2D( 0x20000000, 0x20000000, 0x20000000 )
-      val t = RandomizedSkipQuadtree.empty[ Point2D ]( q )
+      val t = RandomizedSkipQuadtree.empty[ Point2D ]( q, coin = RandomizedSkipOctree.Coin( 0L ))
       randFill( t )
       t.contains( Point2D(1019607265,594590615))
    }
@@ -326,8 +326,8 @@ Options:
 //         Point2D(1421478041,2034995035), Point2D( 767054239, 757771480), Point2D(1654109098, 412552175), Point2D(1482054540,1464283949)
          )
          val q = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
-         RandomizedSkipQuadtree.random.setSeed( 0L )
-         val t = RandomizedSkipQuadtree[ Point2DLike ]( q )( pts: _* )
+//         RandomizedSkipQuadtree.random.setSeed( 0L )
+         val t = RandomizedSkipQuadtree[ Point2DLike ]( q, coin = RandomizedSkipOctree.Coin( 0L ))( pts: _* )
          // query Point2D(1609162490,1507881173), wrong result Point2D(1598649701,1592263107), correct result Point2D(1657161143,1524021651)
          // query Point2D( 310852551,1213007527), wrong result Point2D( 257112136,1084105610), correct result Point2D( 226535009,1195010500)
          val q1   = Point2D(1609162490,1507881173)

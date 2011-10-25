@@ -1,7 +1,7 @@
 package de.sciss.collection
 
 import geom.{Quad2DLike, DistanceMeasure2D, Point2D, Point2DLike, Quad2D}
-import mutable.{SkipQuadtree, RandomizedSkipQuadtree, DeterministicSkipQuadtree}
+import mutable.{RandomizedSkipOctree, SkipQuadtree, RandomizedSkipQuadtree, DeterministicSkipQuadtree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -26,10 +26,11 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
 //   val quad = Quad2D( 0x20000000, 0x20000000, 0x20000000 )
    val quad          = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
-   if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad ))
+   if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad,
+      coin = RandomizedSkipOctree.Coin( 0L ) ))
    if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadtree.empty[ Point2DLike ]( quad ))
 
-   RandomizedSkipQuadtree.random.setSeed( 0L )
+//   RandomizedSkipQuadtree.random.setSeed( 0L )
 
    def randFill( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
       given( "a randomly filled structure" )
