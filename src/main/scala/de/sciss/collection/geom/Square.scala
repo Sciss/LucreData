@@ -25,24 +25,6 @@
 
 package de.sciss.collection.geom
 
-import annotation.tailrec
-
-/**
- * XXX TODO: not possible to have a side length of 1, which might
- * be(come) a problem.
- */
-object Square {
-   // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
-   @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
-      val gt = a > (b & mask)
-      if( shift == 0 ) {
-         if( gt ) mask >> 1 else mask
-      } else {
-        binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
-      }
-   }
-}
-
 trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with QueryShape[ Space.TwoDim ] {
    /**
     * X coordinate of the square's center
@@ -68,8 +50,6 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with
 }
 
 final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
-   import Square._
-
    def orthant( idx: Int ) : SquareLike = {
       val e = extent >> 1
       idx match {
@@ -270,20 +250,44 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
       gi( a.x, a.y, 1, b )
 
    def greatestInteresting( a: SquareLike, b: Point2DLike ) : SquareLike =
-      gi( a.left, a.top, a.extent << 1, b )  // XXX a.extent << 1 can exceed 31 bit
+      gi( a.left, a.top, a.extent << 1, b )  // a.extent << 1 can exceed 31 bit -- but it seems to work :-/
 
    private def gi( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : SquareLike = {
-      val tlx           = left   // pq.cx - pq.extent
-      val tly           = top    // pq.cy - pq.extent
-      val akx           = aleft - tlx
-      val aky           = atop  - tly
-      val bkx           = b.x - tlx
-      val bky           = b.y - tly
-      // XXX TODO : Tuple3 is not specialized
-      val (x0, x1, x2)  = if( akx <= bkx ) (akx, akx + asize, bkx) else (bkx, bkx + 1, akx )
-      val (y0, y1, y2)  = if( aky <= bky ) (aky, aky + asize, bky) else (bky, bky + 1, aky )
-      val mx            = binSplit( x1, x2 )
-      val my            = binSplit( y1, y2 )
+      val tlx = cx - extent
+      val tly = cy - extent
+      val akx = aleft - tlx
+      val aky = atop - tly
+      val bkx = b.x - tlx
+      val bky = b.y - tly
+
+      var x0 = 0
+      var x1 = 0
+      var x2 = 0
+      if( akx <= bkx ) {
+         x0 = akx
+         x1 = akx + asize
+         x2 = bkx
+      } else {
+         x0 = bkx
+         x1 = bkx + 1
+         x2 = akx
+      }
+      val mx = HyperCube.binSplit( x1, x2 )
+
+      var y0 = 0
+      var y1 = 0
+      var y2 = 0
+      if( aky <= bky ) {
+         y0 = aky
+         y1 = aky + asize
+         y2 = bky
+      } else {
+         y0 = bky
+         y1 = bky + 1
+         y2 = aky
+      }
+      val my = HyperCube.binSplit( y1, y2 )
+
       // that means the x extent is greater (x grid more coarse).
       if( mx <= my ) {
          Square( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )

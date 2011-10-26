@@ -92,11 +92,6 @@ extends CubeLike {
       Cube( cx + dx, cy + dy, cz + dz, e )
    }
 
-//   /**
-//    * The side length is two times the extent.
-//    */
-//   def side : Int    = extent << 1
-
    def contains( point: Point3DLike ) : Boolean = {
       val em1  = extent - 1
       val px   = point.x
@@ -302,28 +297,27 @@ extends CubeLike {
       xpos | ypos | zpos
    }
 
-   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : CubeLike = {
-      sys.error( "TODO" )
-   }
+   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : CubeLike = gi( a.x, a.y, a.z, 1, b )
 
    def greatestInteresting( a: CubeLike, b: Point3DLike ) : CubeLike = {
-      sys.error( "TODO" )
+      val ae = a.extent
+      gi( a.cx - ae, a.cy - ae, a.cz - ae, ae << 1, b )
    }
 
    private def gi( aleft: Int, atop: Int, afront: Int, asize: Int, b: Point3DLike ) : CubeLike = {
-      val tlx           = cx - extent
-      val tly           = cy - extent
-      val tlz           = cz - extent
-      val akx           = aleft  - tlx
-      val aky           = atop   - tly
-      val akz           = afront - tlz
-      val bkx           = b.x - tlx
-      val bky           = b.y - tly
-      val bkz           = b.z - tlz
+      val tlx = cx - extent
+      val tly = cy - extent
+      val tlz = cz - extent
+      val akx = aleft - tlx
+      val aky = atop - tly
+      val akz = afront - tlz
+      val bkx = b.x - tlx
+      val bky = b.y - tly
+      val bkz = b.z - tlz
 
-      var x0   = 0
-      var x1   = 0
-      var x2   = 0
+      var x0 = 0
+      var x1 = 0
+      var x2 = 0
       if( akx <= bkx ) {
          x0 = akx
          x1 = akx + asize
@@ -333,11 +327,11 @@ extends CubeLike {
          x1 = bkx + 1
          x2 = akx
       }
-//      val mx   = binSplit( x1, x2 )
+      val mx = HyperCube.binSplit( x1, x2 )
 
-      var y0   = 0
-      var y1   = 0
-      var y2   = 0
+      var y0 = 0
+      var y1 = 0
+      var y2 = 0
       if( aky <= bky ) {
          y0 = aky
          y1 = aky + asize
@@ -347,11 +341,11 @@ extends CubeLike {
          y1 = bky + 1
          y2 = aky
       }
-//      val my   = binSplit( y1, y2 )
+      val my = HyperCube.binSplit( y1, y2 )
 
-      var z0   = 0
-      var z1   = 0
-      var z2   = 0
+      var z0 = 0
+      var z1 = 0
+      var z2 = 0
       if( akz <= bkz ) {
          z0 = akz
          z1 = akz + asize
@@ -361,14 +355,25 @@ extends CubeLike {
          z1 = bkz + 1
          z2 = akz
       }
-//      val mz   = binSplit( z1, z2 )
+      val mz = HyperCube.binSplit( z1, z2 )
 
-sys.error( "TODO" )
-//      // that means the x extent is greater (x grid more coarse).
-//      if( mx <= my ) {
-//         Square( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
-//      } else {
-//         Square( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
-//      }
+      // that means the x extent is greater (x grid more coarse).
+      if( mx <= my ) {
+         if( mx <= mz ) {
+            val mxs = mx << 1
+            Cube( tlx + (x2 & mx), tly + (y0 & mxs) - mx, tlz + (z0 & mxs) - mx, -mx )
+         } else {
+            val mzs = mz << 1
+            Cube( tlx + (x0 & mzs) - mz, tly + (y0 & mzs) - mz, tlz + (z2 & mz), -mz )
+         }
+      } else {
+         if( my <= mz ) {
+            val mys = my << 1
+            Cube( tlx + (x0 & mys) - my, tly + (y2 & my), tlz + (z0 & mys) - my, -my )
+         } else {
+            val mzs = mz << 1
+            Cube( tlx + (x0 & mzs) - mz, tly + (y0 & mzs) - mz, tlz + (z2 & mz), -mz )
+         }
+      }
    }
 }

@@ -11,6 +11,7 @@ object Space {
 
       final def bigGtZero( num: Long ) : Boolean = num > 0
       final def bigGt( a: Long, b: Long ) : Boolean = a > b
+      final def bigOrdering : Ordering[ Long ] = Ordering.Long
    }
    object TwoDim extends TwoDim
 
@@ -20,12 +21,13 @@ object Space {
       type BigNum          = BigInt
 
       final val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
-      final val dim        = 2
+      final val dim        = 3
 
       val bigZero          = BigInt( 0 )
 
       final def bigGtZero( num: BigInt ) : Boolean = num > bigZero
       final def bigGt( a: BigInt, b: BigInt ) : Boolean = a > b
+      final def bigOrdering : Ordering[ BigInt ] = Ordering.BigInt
    }
    object ThreeDim extends ThreeDim
 
@@ -52,7 +54,7 @@ sealed trait Space[ Self <: Space[ Self ]] {
    /**
     * The point in the space
     */
-   type Point // <: PointLike[ Self ]
+   type Point <: PointLike[ Self ]
 
    /**
     * The square or hypercube in the space.
@@ -86,4 +88,9 @@ sealed trait Space[ Self <: Space[ Self ]] {
     * Returns `true` if `a` is greater than `b`, `false` otherwise
     */
    def bigGt( a: Self#BigNum, b: Self#BigNum ) : Boolean
+
+   /**
+    * An ordering for the `BigNum` type.
+    */
+   def bigOrdering: Ordering[ Self#BigNum ]
 }

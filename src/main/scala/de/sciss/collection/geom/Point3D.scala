@@ -1,6 +1,6 @@
 package de.sciss.collection.geom
 
-trait Point3DLike /* extends PointLike[ Space.ThreeDim ] */ {
+trait Point3DLike extends PointLike[ Space.ThreeDim ] {
    def x: Int
    def y: Int
    def z: Int
@@ -10,12 +10,12 @@ trait Point3DLike /* extends PointLike[ Space.ThreeDim ] */ {
 //   final override def right   = x
 //   final override def bottom  = y
 
-//   def distanceSq( that: Point3DLike ) : BigInt = {
-//      val dx = that.x.toLong - x.toLong
-//      val dy = that.y.toLong - y.toLong
-//      val dz = that.z.toLong - z.toLong
-//      BigInt( dx * dx + dy * dy ) + dz * dz   // NNN number overflow possible
-//   }
+   def distanceSq( that: Point3DLike ) : BigInt = {
+      val dx = that.x.toLong - x.toLong
+      val dy = that.y.toLong - y.toLong
+      val dz = that.z.toLong - z.toLong
+      BigInt( dx * dx + dy * dy ) + BigInt( dz * dz )
+   }
 
    // ---- QueryShape ----
 //   final def overlapArea( q: Cube ) : Long = if( q.contains( this )) 1L else 0L

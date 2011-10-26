@@ -1,5 +1,28 @@
 package de.sciss.collection.geom
 
+import annotation.tailrec
+
+object HyperCube {
+   /**
+    * A helper method which efficiently calculates the unique integer in an interval [a, b] which has
+    * the maximum number of trailing zeros in its binary representation (a and b are integers > 0).
+    * This is used by the `HyperCube` implementations to find the greatest interesting square for
+    * two given children.
+    *
+    * Thanks to Rex Kerr and Daniel Sobral
+    * ( http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits )
+    */
+   def binSplit( a: Int, b: Int ): Int = binSplitRec( a, b, 0xFFFF0000, 8 )
+
+   @tailrec private def binSplitRec( a: Int, b: Int, mask: Int, shift: Int ): Int = {
+      val gt = a > (b & mask)
+      if( shift == 0 ) {
+         if( gt ) mask >> 1 else mask
+      } else {
+         binSplitRec( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
+      }
+   }
+}
 trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
 //   def extent: Int
 
