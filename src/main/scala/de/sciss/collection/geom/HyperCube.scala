@@ -1,9 +1,9 @@
 package de.sciss.collection.geom
 
-trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
+trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
 //   def extent: Int
 
-   def orthant( idx: Int ) : D#Quad
+   def orthant( idx: Int ) : D#HyperCube
 
    /**
     * The side length is two times the extent.
@@ -16,11 +16,11 @@ trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * Checks whether a given quad is fully contained in this quad.
     * This is also the case if their bounds full match.
     */
-   def contains( quad: D#Quad ) : Boolean
+   def contains( quad: D#HyperCube ) : Boolean
 
    def area : D#BigNum
 
-   def overlapArea( quad: D#Quad ) : D#BigNum
+   def overlapArea( quad: D#HyperCube ) : D#BigNum
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.
@@ -63,17 +63,17 @@ trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `inner` lies
     *          outside of this quad.
     */
-   def indexOf( inner: D#Quad ) : Int
+   def indexOf( inner: D#HyperCube ) : Int
 
    /**
     * Calculates the greatest interesting quad inside this quad which
     * contains both points `a` and `b`, and they occupy distinct quadrants.
     */
-   def greatestInteresting( a: D#Point, b: D#Point ) : D#Quad
+   def greatestInteresting( a: D#Point, b: D#Point ) : D#HyperCube
 
    /**
     * Calculates the greatest interesting quad inside this quad which
     * contains both quad `a` and point `b`, and they occupy distinct quadrants.
     */
-   def greatestInteresting( a: D#Quad, b: D#Point ) : D#Quad
+   def greatestInteresting( a: D#HyperCube, b: D#Point ) : D#HyperCube
 }

@@ -3,7 +3,7 @@ package de.sciss.collection.geom
 object Space {
    sealed trait TwoDim extends Space[ TwoDim ] {
       type Point           = Point2DLike
-      type Quad            = Quad2DLike
+      type HyperCube       = Quad2DLike
       type BigNum          = Long
 
       final val maxPoint   = Point2D( Int.MaxValue, Int.MaxValue )
@@ -16,7 +16,7 @@ object Space {
 
    sealed trait ThreeDim extends Space[ ThreeDim ] {
       type Point           = Point3DLike
-      type Quad            = Quad3DLike
+      type HyperCube       = Quad3DLike
       type BigNum          = BigInt
 
       final val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
@@ -46,7 +46,7 @@ sealed trait Space[ Self <: Space[ Self ]] {
    /**
     * The square or hypercube in the space.
     */
-   type Quad  <: QuadLike[ Self ]
+   type HyperCube <: de.sciss.collection.geom.HyperCube[ Self ]
 
    /**
     * Represents larger values from multiplications

@@ -51,7 +51,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * is closest to the point `a`, if `a` lies outside of `b`,
     * or zero, if `a` lies within `b`.
     */
-   def minDistance( a: D#Point, b: D#Quad ) : Long
+   def minDistance( a: D#Point, b: D#HyperCube ) : Long
 
    /**
     * Calculates the maximum distance between a point and
@@ -60,7 +60,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * is furthest to the point `a`, no matter whether `a`
     * is contained in `b` or not.
     */
-   def maxDistance( a: D#Point, b: D#Quad ) : Long
+   def maxDistance( a: D#Point, b: D#HyperCube ) : Long
 
    /**
     * Applies a filter to this measure by constraining distances
@@ -71,7 +71,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * This behaviour extends to the `minDistance` and `maxDistance`
     * methods.
     */
-   def clip( quad: D#Quad ) : DistanceMeasure[ D ]
+   def clip( quad: D#HyperCube ) : DistanceMeasure[ D ]
 
    /**
     * Composes this distance so that a threshold is applied to

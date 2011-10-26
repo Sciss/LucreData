@@ -57,18 +57,18 @@ object RandomizedSkipOctree {
       def toss() : Boolean
    }
 
-   def empty[ D <: Space[ D ], A ]( space: D, quad: D#Quad, coin: Coin = Coin() )
+   def empty[ D <: Space[ D ], A ]( space: D, quad: D#HyperCube, coin: Coin = Coin() )
                                   ( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
       new TreeImpl[ D, A ]( space, quad, coin, view )
 
-   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, quad: D#Quad, coin: Coin = Coin() )
+   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, quad: D#HyperCube, coin: Coin = Coin() )
                                              ( xs: A* ) : SkipOctree[ D, A ] = {
       val t = empty[ D, A ]( space, quad, coin )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#Quad, coin: Coin,
+   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#HyperCube, coin: Coin,
                                                        val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
       val numQuadChildren = 1 << space.dim
@@ -176,7 +176,7 @@ object RandomizedSkipOctree {
 
       private final case class Leaf( value: A ) extends NonEmpty with QLeaf
 
-      private final class Node( val quad: D#Quad, var parent: Node, val prev: Node,
+      private final class Node( val quad: D#HyperCube, var parent: Node, val prev: Node,
                                 val children: Array[ Child ] = new Array[ Child ]( numQuadChildren ))
       extends NonEmpty with QNode {
          var next: Node = null;
@@ -214,7 +214,7 @@ object RandomizedSkipOctree {
             }
          }
 
-         def findSameSquare( iq: D#Quad ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
+         def findSameSquare( iq: D#HyperCube ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
 
          def remove( point: D#Point ) : Leaf = {
             val qidx = quad.indexOf( point )

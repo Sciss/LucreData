@@ -57,7 +57,7 @@ package de.sciss.collection.geom
  * - 6 (binary 110) - left-bottom-back
  * - 7 (binary 111) - right-bottom-back
  */
-trait Quad3DLike extends QuadLike[ Space.ThreeDim ] {
+trait Quad3DLike extends HyperCube[ Space.ThreeDim ] {
    def cx: Int
    def cy: Int
    def cz: Int

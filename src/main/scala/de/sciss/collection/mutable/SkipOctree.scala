@@ -41,7 +41,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
    def lastTree: QNode
    def pointView : A => D#Point // PointLike[ D ] // PointView[ A ]
 
-   def quad : D#Quad // = headTree.quad // Quad[ D ] = headTree.quad
+   def quad : D#HyperCube // = headTree.quad // Quad[ D ] = headTree.quad
 
    def numLevels : Int
 
@@ -112,7 +112,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
       def value: A
    }
    trait QNode extends QNonEmpty {
-      def quad: D#Quad // Quad[ D ]
+      def quad: D#HyperCube // Quad[ D ]
       def child( idx: Int ) : Q
       /* final */ def prevOption: Option[ QNode ] // = Option( prev )
       /* final */ def nextOption: Option[ QNode ] // = Option( next )

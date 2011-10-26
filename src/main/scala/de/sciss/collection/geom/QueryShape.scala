@@ -26,7 +26,7 @@
 package de.sciss.collection.geom
 
 trait QueryShape[ D <: Space[ D ]] {
-   def overlapArea( q: D#Quad ) : D#BigNum
+   def overlapArea( q: D#HyperCube ) : D#BigNum
 //   def area : Long
 
    /**

@@ -30,17 +30,17 @@ import annotation.{switch, tailrec}
 import geom.Space
 
 object DeterministicSkipOctree {
-   def empty[ D <: Space[ D ], A ]( space: D, quad: D#Quad, skipGap: Int = 2 )
+   def empty[ D <: Space[ D ], A ]( space: D, quad: D#HyperCube, skipGap: Int = 2 )
                                 ( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
       new TreeImpl[ D, A ]( space, quad, skipGap, view )
 
-   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, quad: D#Quad, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
+   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, quad: D#HyperCube, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
       val t = empty[ D, A ]( space, quad, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#Quad, _skipGap: Int, val pointView: A => D#Point )
+   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#HyperCube, _skipGap: Int, val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
       tree =>
 
@@ -223,13 +223,13 @@ object DeterministicSkipOctree {
           * square and the given point will be placed in
           * separated quadrants of this resulting square.
           */
-         def union( mq: D#Quad, point: D#Point ) : D#Quad
+         def union( mq: D#HyperCube, point: D#Point ) : D#HyperCube
 
          /**
           * Queries the quadrant index for this (leaf's or node's) square
           * with respect to a given outer square `iq`.
           */
-         def quadIdxIn( iq: D#Quad ) : Int
+         def quadIdxIn( iq: D#HyperCube ) : Int
       }
 
       /**
@@ -308,12 +308,12 @@ object DeterministicSkipOctree {
           */
          final def compare( that: Leaf ) : Int = order.compare( that.order )
 
-         final def union( mq: D#Quad, point2: D#Point ) = {
+         final def union( mq: D#HyperCube, point2: D#Point ) = {
             val point   = pointView( value )
             mq.greatestInteresting( point, point2 )
          }
 
-         final def quadIdxIn( iq: D#Quad ) : Int = iq.indexOf( pointView( value ))
+         final def quadIdxIn( iq: D#HyperCube ) : Int = iq.indexOf( pointView( value ))
 
          /**
           * For a leaf (which does not have a subtree),
@@ -368,7 +368,7 @@ object DeterministicSkipOctree {
          /**
           * Returns the square covered by this node
           */
-         def quad: D#Quad
+         def quad: D#HyperCube
 
          /**
           * Returns the corresponding interesting
@@ -383,12 +383,12 @@ object DeterministicSkipOctree {
           */
          def next_=( n: RightNode ) : Unit
 
-         final def union( mq: D#Quad, point2: D#Point ) = {
+         final def union( mq: D#HyperCube, point2: D#Point ) = {
             val q = quad
             mq.greatestInteresting( q, point2 )
          }
 
-         final def quadIdxIn( iq: D#Quad ) : Int = iq.indexOf( quad )
+         final def quadIdxIn( iq: D#HyperCube ) : Int = iq.indexOf( quad )
 
          /**
           * The reverse process of `findP0`: Finds the lowest
@@ -512,7 +512,7 @@ object DeterministicSkipOctree {
           * sub-node whose parent is this node, and whose predecessor
           * in the lower quadtree is given.
           */
-         @inline private def newNode( prev: Node, iq: D#Quad ) : InnerRightNode = new InnerRightNode( this, prev, iq )
+         @inline private def newNode( prev: Node, iq: D#HyperCube ) : InnerRightNode = new InnerRightNode( this, prev, iq )
 
          final def removeImmediateLeaf( leaf: Leaf ) {
             var qidx = 0; while( qidx < numQuadChildren ) {
@@ -689,13 +689,13 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
           * sub-node whose parent is this node, and which should be
           * ordered according to its position in this node.
           */
-         @inline private def newNode( iq: D#Quad ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
+         @inline private def newNode( iq: D#HyperCube ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
             insets( n, quad.indexOf( n.quad ))  // n.quadIdxIn( quad )
          })
       }
 
       private sealed trait TopNode extends Node {
-         final def quad : D#Quad = tree.quad
+         final def quad : D#HyperCube = tree.quad
 
          final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
             val n = next
@@ -716,7 +716,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
          def nodeName = "top-left"
       }
 
-      private final class InnerLeftNode( var parent: LeftNode, val quad: D#Quad, _ins: LeftNode => (InOrder, InOrder) )
+      private final class InnerLeftNode( var parent: LeftNode, val quad: D#HyperCube, _ins: LeftNode => (InOrder, InOrder) )
       extends LeftNode with InnerNode with LeftInnerNonEmpty {
          val (startOrder, stopOrder) = _ins( this )
 
@@ -802,7 +802,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      private final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: D#Quad )
+      private final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: D#HyperCube )
       extends RightNode with InnerNode with RightInnerNonEmpty {
          prev.next = this
 //assert( prev.quad == quad )
