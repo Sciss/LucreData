@@ -66,6 +66,7 @@ object Quad2D {
 trait Quad2DLike extends QuadLike[ Space.TwoDim ] with Rectangle2DLike {
    def cx: Int
    def cy: Int
+   def extent: Int
 
 //   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike
 }

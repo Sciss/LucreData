@@ -1,7 +1,7 @@
 package de.sciss.collection.geom
 
 trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
-   def extent: Int
+//   def extent: Int
 
    def quadrant( idx: Int ) : D#Quad // Quad[ D ]
 
