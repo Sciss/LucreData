@@ -35,6 +35,8 @@ import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
  * as range requires and nearest neighbour search.
  */
 trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
+   def space: D
+
    def headTree: QNode
    def lastTree: QNode
    def pointView : A => D#Point // PointLike[ D ] // PointView[ A ]

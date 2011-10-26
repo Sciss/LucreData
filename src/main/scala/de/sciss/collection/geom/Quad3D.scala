@@ -102,9 +102,11 @@ extends Quad3DLike {
       sys.error( "TODO" )
    }
 
-   def area : Long = {
-      val sd = side.toLong
-      sd * sd * sd   // NNN potential number overflow
+   def area : BigInt = {
+      val s    = side
+      val sd   = s.toLong
+      val ssq  = BigInt( sd * sd )
+      BigInt( sd * sd ) * BigInt( s )
    }
 
    def overlapArea( q: Quad3DLike ) : Long = {

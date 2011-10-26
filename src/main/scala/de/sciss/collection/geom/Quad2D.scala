@@ -316,7 +316,7 @@ final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
       gi( a.x, a.y, 1, b )
 
    def greatestInteresting( a: Quad2DLike, b: Point2DLike ) : Quad2DLike =
-      gi( a.left, a.top, a.side, b )
+      gi( a.left, a.top, a.extent << 1, b )  // XXX a.extent << 1 can exceed 31 bit
 
    private def gi( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike = {
       val tlx           = left   // pq.cx - pq.extent

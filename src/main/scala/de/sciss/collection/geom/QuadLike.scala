@@ -8,7 +8,7 @@ trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
    /**
     * The side length is two times the extent.
     */
-   def side : Int //   = extent << 1
+//   def side : Int //   = extent << 1
 
    def contains( point: D#Point ) : Boolean
 
@@ -18,7 +18,7 @@ trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     */
    def contains( quad: D#Quad ) : Boolean
 
-   def area : Long
+   def area : D#BigNum
 
    def overlapArea( quad: D#Quad ) : Long
 

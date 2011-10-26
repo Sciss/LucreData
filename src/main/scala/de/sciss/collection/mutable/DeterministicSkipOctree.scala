@@ -40,7 +40,7 @@ object DeterministicSkipOctree {
       t
    }
 
-   private final class TreeImpl[ D <: Space[ D ], A ]( space: D, val quad: D#Quad, _skipGap: Int, val pointView: A => D#Point )
+   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#Quad, _skipGap: Int, val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
       tree =>
 

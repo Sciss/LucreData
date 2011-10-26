@@ -4,18 +4,28 @@ object Space {
    sealed trait TwoDim extends Space[ TwoDim ] {
       type Point           = Point2DLike
       type Quad            = Quad2DLike
+      type BigNum          = Long
 
       final val maxPoint   = Point2D( Int.MaxValue, Int.MaxValue )
       final val dim        = 2
+
+      final def bigGtZero( num: Long ) : Boolean = num > 0
+      final def bigGt( a: Long, b: Long ) : Boolean = a > b
    }
    object TwoDim extends TwoDim
 
    sealed trait ThreeDim extends Space[ ThreeDim ] {
       type Point           = Point3DLike
       type Quad            = Quad3DLike
+      type BigNum          = BigInt
 
       final val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
       final val dim        = 2
+
+      private val bigZero  = BigInt( 0 )
+
+      final def bigGtZero( num: BigInt ) : Boolean = num > bigZero
+      final def bigGt( a: BigInt, b: BigInt ) : Boolean = a > b
    }
    object ThreeDim extends ThreeDim
 }
@@ -32,10 +42,17 @@ sealed trait Space[ Self <: Space[ Self ]] {
     * The point in the space
     */
    type Point <: PointLike[ Self ]
+
    /**
     * The square or hypercube in the space.
     */
    type Quad  <: QuadLike[ Self ]
+
+   /**
+    * Represents larger values from multiplications
+    * (e.g. areas, squared distances).
+    */
+   @specialized( Int, Long ) type BigNum
 
    /**
     * Given that the space is limited, this represents the farthest
@@ -48,4 +65,14 @@ sealed trait Space[ Self <: Space[ Self ]] {
     * The number of dimensions in the space.
     */
    def dim : Int
+
+   /**
+    * Returns `true` if `num` is greater than zero, `false` otherwise
+    */
+   def bigGtZero( num: Self#BigNum ) : Boolean
+
+   /**
+    * Returns `true` if `a` is greater than `b`, `false` otherwise
+    */
+   def bigGt( a: Self#BigNum, b: Self#BigNum ) : Boolean
 }

@@ -119,7 +119,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
    protected def findLeaf( point: D#Point ) : QLeaf
 
    private final class RangeQuery( qs: QueryShape[ D ]) extends Iterator[ A ] {
-      val stabbing      = MQueue.empty[ (QNode, Long) ]
+      val stabbing      = MQueue.empty[ (QNode, D#BigNum) ]
       val in            = MQueue.empty[ QNonEmpty ]
       var current : A   = _
       var hasNext       = true
@@ -127,7 +127,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       stabbing += headTree -> qs.overlapArea( headTree.quad )
       findNextValue()
 
-      def rangeQueryLeft( node: QNode, area: Long, qs: QueryShape[ D ]) : QNode = {
+      def rangeQueryLeft( node: QNode, area: D#BigNum, qs: QueryShape[ D ]) : QNode = {
          var i = 0; while( i < 4 ) {
             node.child( i ) match {
                case n2: QNode =>
@@ -146,7 +146,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
          node
       }
 
-      def rangeQueryRight( node: QNode, area: Long, qs: QueryShape[ D ]) : QNode = {
+      def rangeQueryRight( node: QNode, area: D#BigNum, qs: QueryShape[ D ]) : QNode = {
          var i = 0; while( i < 4 ) {
             node.child( i ) match {
                case n2: QNode =>
@@ -192,8 +192,8 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                   case cn: QNode =>
                      val q    = cn.quad
                      val ao   = qs.overlapArea( q )
-                     if( ao > 0 ) {
-                        if( ao < q.area ) {              // stabbing
+                     if( space.bigGtZero( ao )) {
+                        if( space.bigGt( q.area, ao )) { // ao < q.area  // stabbing
                            stabbing += cn -> ao
                         } else {                         // in
                            in += cn

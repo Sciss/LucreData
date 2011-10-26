@@ -68,7 +68,7 @@ object RandomizedSkipOctree {
       t
    }
 
-   private final class TreeImpl[ D <: Space[ D ], A ]( space: D, val quad: D#Quad, coin: Coin,
+   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#Quad, coin: Coin,
                                                        val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
       val numQuadChildren = 1 << space.dim
