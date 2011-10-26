@@ -40,9 +40,14 @@ package de.sciss.collection.geom
  */
 trait DistanceMeasure[ D <: Space[ D ]] {
    /**
+    * A value which will never be exceeded by the measure
+    */
+   def maxValue : D#BigNum
+
+   /**
     * Calculates the distance between two points.
     */
-   def distance( a: D#Point, b: D#Point ) : Long
+   def distance( a: D#Point, b: D#Point ) : D#BigNum
 
    /**
     * Calculates the minimum distance between a point and
@@ -51,7 +56,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * is closest to the point `a`, if `a` lies outside of `b`,
     * or zero, if `a` lies within `b`.
     */
-   def minDistance( a: D#Point, b: D#HyperCube ) : Long
+   def minDistance( a: D#Point, b: D#HyperCube ) : D#BigNum
 
    /**
     * Calculates the maximum distance between a point and
@@ -60,7 +65,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * is furthest to the point `a`, no matter whether `a`
     * is contained in `b` or not.
     */
-   def maxDistance( a: D#Point, b: D#HyperCube ) : Long
+   def maxDistance( a: D#Point, b: D#HyperCube ) : D#BigNum
 
    /**
     * Applies a filter to this measure by constraining distances
@@ -89,7 +94,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * `euclideanSq` is used, and points within a radius of 4 should
     * be approximated, a threshold of `4 * 4 = 16` must be chosen!
     */
-   def approximate( thresh: Long ) : DistanceMeasure[ D ]
+   def approximate( thresh: D#BigNum ) : DistanceMeasure[ D ]
 
    def orthant( idx: Int ) : DistanceMeasure[ D ]
 }

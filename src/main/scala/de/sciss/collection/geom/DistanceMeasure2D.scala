@@ -168,6 +168,7 @@ object DistanceMeasure2D {
    }
 
    private sealed trait DistanceMeasure2D extends DistanceMeasure[ Space.TwoDim ] {
+      final def maxValue = Long.MaxValue
       final def clip( quad: SquareLike ) : DistanceMeasure[ Space.TwoDim ] = new Clip( this, quad )
       final def approximate( thresh: Long ) : DistanceMeasure[ Space.TwoDim ] = new Approximate( this, thresh )
       final def orthant( idx: Int ) : DistanceMeasure[ Space.TwoDim ] = (idx: @switch) match {

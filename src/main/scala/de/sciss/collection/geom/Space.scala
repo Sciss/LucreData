@@ -9,9 +9,10 @@ object Space {
       final val maxPoint   = Point2D( Int.MaxValue, Int.MaxValue )
       final val dim        = 2
 
-      final def bigGtZero( num: Long ) : Boolean = num > 0
+      final val bigZero    = 0L
       final def bigGt( a: Long, b: Long ) : Boolean = a > b
       final def bigOrdering : Ordering[ Long ] = Ordering.Long
+      final def bigCompare( a: Long, b: Long ) : Int = if( a < b ) -1 else if( a > b ) 1 else 0
    }
    object TwoDim extends TwoDim
 
@@ -23,11 +24,10 @@ object Space {
       final val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
       final val dim        = 3
 
-      val bigZero          = BigInt( 0 )
-
-      final def bigGtZero( num: BigInt ) : Boolean = num > bigZero
+      final val bigZero    = BigInt( 0 )
       final def bigGt( a: BigInt, b: BigInt ) : Boolean = a > b
       final def bigOrdering : Ordering[ BigInt ] = Ordering.BigInt
+      final def bigCompare( a: BigInt, b: BigInt ) : Int = a compare b
    }
    object ThreeDim extends ThreeDim
 
@@ -79,15 +79,25 @@ sealed trait Space[ Self <: Space[ Self ]] {
     */
    def dim : Int
 
+//   /**
+//    * Returns `true` if `num` is greater than zero, `false` otherwise
+//    */
+//   def bigGtZero( num: Self#BigNum ) : Boolean
+
    /**
-    * Returns `true` if `num` is greater than zero, `false` otherwise
+    * The zero value for `BigNum`
     */
-   def bigGtZero( num: Self#BigNum ) : Boolean
+   def bigZero : Self#BigNum
 
    /**
     * Returns `true` if `a` is greater than `b`, `false` otherwise
     */
    def bigGt( a: Self#BigNum, b: Self#BigNum ) : Boolean
+
+   /**
+    * Compares `a` to `b`. Returns `-1` if `a < b`, `0` if `a == b`, and `1` if `a > b`
+    */
+   def bigCompare( a: Self#BigNum, b: Self#BigNum ) : Int
 
    /**
     * An ordering for the `BigNum` type.
