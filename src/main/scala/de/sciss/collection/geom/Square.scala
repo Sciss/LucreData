@@ -154,75 +154,36 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    def maxDistance( point: Point2DLike ) : Double = math.sqrt( maxDistanceSq( point ))
 
    /**
-    * The squared (euclidean) distance of the closest of the hyperCube's corners
-    * to the point, if the point is outside the hyperCube,
-    * or `0L`, if the point is contained
+    * The squared (euclidean) distance of the closest of the square's corners
+    * or sides to the point, if the point is outside the square,
+    * or zero, if the point is contained
     */
    def minDistanceSq( point: Point2DLike ) : Long = {
-      val px   = point.x
-      val py   = point.y
-      val l    = left
-      val t    = top
-      if( px < l ) {
-         val dx   = l.toLong - px.toLong // (l - px).toLong
-         val dxs  = dx * dx
-         if( py < t ) {
-            val dy = t.toLong - py.toLong // (t - py).toLong
-            return dxs + dy * dy
-         }
-         val b = bottom
-         if( py > b ) {
-            val dy = py.toLong - b.toLong // (py - b).toLong
-            return dxs + dy * dy
-         }
-         return dxs
+      val ax   = point.x
+      val ay   = point.y
+      val em1  = extent - 1
+
+      val dx   = if( ax < cx ) {
+         val xmin = cx - extent
+         if( ax < xmin ) xmin - ax else 0
+      } else {
+         val xmax = cx + em1
+         if( ax > xmax ) ax - xmax else 0
       }
-      val r = right
-      if( px > r ) {
-         val dx   = px.toLong - r.toLong // (px - r).toLong
-         val dxs  = dx * dx
-         if( py < t ) {
-            val dy = t.toLong - py.toLong // (t - py).toLong
-            return dxs + dy * dy
-         }
-         val b = bottom
-         if( py > b ) {
-            val dy = py.toLong - b.toLong // (py - b).toLong
-            return dxs + dy * dy
-         }
-         return dxs
+
+      val dy   = if( ay < cy ) {
+         val ymin = cy - extent
+         if( ay < ymin ) ymin - ay else 0
+      } else {
+         val ymax = cy + em1
+         if( ay > ymax ) ay - ymax else 0
       }
-      if( py < t ) {
-         val dy   = t.toLong - py.toLong // (t - py).toLong
-         val dys  = dy * dy
-         if( px < l ) {
-            val dx = l.toLong - px.toLong // (l - px).toLong
-            return dx * dx + dys
-         }
-         val r = right
-         if( px > r ) {
-            val dx = px.toLong - r.toLong // (px - r).toLong
-            return dx * dx + dys
-         }
-         return dys
+
+      if( dx == 0 && dy == 0 ) 0L else {
+         val dxl = dx.toLong
+         val dyl = dy.toLong
+         dxl * dxl + dyl * dyl
       }
-      val b = bottom
-      if( py > b ) {
-         val dy   = py.toLong - b.toLong // (py - b).toLong
-         val dys  = dy * dy
-         if( px < l ) {
-            val dx = l.toLong - px.toLong // (l - px).toLong
-            return dx * dx + dys
-         }
-         val r = right
-         if( px > r ) {
-            val dx = px.toLong - r.toLong // (px - r).toLong
-            return dx * dx + dys
-         }
-         return dys
-      }
-      // if we get here, the point is inside the hyperCube
-      0L
    }
 
    /**

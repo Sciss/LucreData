@@ -160,73 +160,47 @@ extends CubeLike {
       math.sqrt( maxDistanceSq( point ).toDouble )
    }
 
-
+   /**
+    * The squared (euclidean) distance of the closest of the cube's corners
+    * or sides to the point, if the point is outside the cube,
+    * or zero, if the point is contained
+    */
    def minDistanceSq( point: Point3DLike ) : BigInt = {
-//      val px   = point.x
-//      val py   = point.y
-//      val l    = left
-//      val t    = top
-//      if( px < l ) {
-//         val dx   = l.toLong - px.toLong // (l - px).toLong
-//         val dxs  = dx * dx
-//         if( py < t ) {
-//            val dy = t.toLong - py.toLong // (t - py).toLong
-//            return dxs + dy * dy
-//         }
-//         val b = bottom
-//         if( py > b ) {
-//            val dy = py.toLong - b.toLong // (py - b).toLong
-//            return dxs + dy * dy
-//         }
-//         return dxs
-//      }
-//      val r = right
-//      if( px > r ) {
-//         val dx   = px.toLong - r.toLong // (px - r).toLong
-//         val dxs  = dx * dx
-//         if( py < t ) {
-//            val dy = t.toLong - py.toLong // (t - py).toLong
-//            return dxs + dy * dy
-//         }
-//         val b = bottom
-//         if( py > b ) {
-//            val dy = py.toLong - b.toLong // (py - b).toLong
-//            return dxs + dy * dy
-//         }
-//         return dxs
-//      }
-//      if( py < t ) {
-//         val dy   = t.toLong - py.toLong // (t - py).toLong
-//         val dys  = dy * dy
-//         if( px < l ) {
-//            val dx = l.toLong - px.toLong // (l - px).toLong
-//            return dx * dx + dys
-//         }
-//         val r = right
-//         if( px > r ) {
-//            val dx = px.toLong - r.toLong // (px - r).toLong
-//            return dx * dx + dys
-//         }
-//         return dys
-//      }
-//      val b = bottom
-//      if( py > b ) {
-//         val dy   = py.toLong - b.toLong // (py - b).toLong
-//         val dys  = dy * dy
-//         if( px < l ) {
-//            val dx = l.toLong - px.toLong // (l - px).toLong
-//            return dx * dx + dys
-//         }
-//         val r = right
-//         if( px > r ) {
-//            val dx = px.toLong - r.toLong // (px - r).toLong
-//            return dx * dx + dys
-//         }
-//         return dys
-//      }
-//      // if we get here, the point is inside the hyperCube
-//      0L
-      sys.error( "TODO" )
+      val ax   = point.x
+      val ay   = point.y
+      val az   = point.z
+      val em1  = extent - 1
+
+      val dx   = if( ax < cx ) {
+         val xmin = cx - extent
+         if( ax < xmin ) xmin - ax else 0
+      } else {
+         val xmax = cx + em1
+         if( ax > xmax ) ax - xmax else 0
+      }
+
+      val dy   = if( ay < cy ) {
+         val ymin = cy - extent
+         if( ay < ymin ) ymin - ay else 0
+      } else {
+         val ymax = cy + em1
+         if( ay > ymax ) ay - ymax else 0
+      }
+
+      val dz   = if( az < cz ) {
+         val zmin = cz - extent
+         if( az < zmin ) zmin - az else 0
+      } else {
+         val zmax = cz + em1
+         if( az > zmax ) az - zmax else 0
+      }
+
+      if( dx == 0 && dy == 0 && dz == 0 ) bigZero else {
+         val dxl = dx.toLong
+         val dyl = dy.toLong
+         val dzl = dz.toLong
+         BigInt( dxl * dxl + dyl * dyl ) + BigInt( dzl * dzl )
+      }
    }
 
    def maxDistanceSq( point: Point3DLike ) : BigInt = {
@@ -257,13 +231,28 @@ extends CubeLike {
    }
 
    def indexOf( a: Point3DLike ) : Int = {
-      val ax = a.x
-      val ay = a.y
-      val az = a.z
+      val ax   = a.x
+      val ay   = a.y
+      val az   = a.z
+      val em1  = extent - 1
 
-      val xpos = if( ax < cx ) 0 else 1
-      val ypos = if( ay < cy ) 0 else 2
-      val zpos = if( az < cz ) 0 else 4
+      val xpos = if( ax < cx ) {
+         if( ax >= cx - extent ) 0 else return -1
+      } else {
+         if( ax <= cx + em1 ) 1 else return -1
+      }
+
+      val ypos = if( ay < cy ) {
+         if( ay >= cy - extent ) 0 else return -1
+      } else {
+         if( ay <= cy + em1 ) 2 else return -1
+      }
+
+      val zpos = if( az < cz ) {
+         if( az >= cz - extent ) 0 else return -1
+      } else {
+         if( az <= cz + em1 ) 4 else return -1
+      }
 
       xpos | ypos | zpos
    }

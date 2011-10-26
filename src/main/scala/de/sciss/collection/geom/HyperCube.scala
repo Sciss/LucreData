@@ -36,7 +36,7 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
 
    /**
     * The squared euclidean distance of the
-    * closest of the hyper-cube's corners to the point, if the point is outside the hyper-cube,
+    * closest of the hyper-cube's corners or sides to the point, if the point is outside the hyper-cube,
     * or zero, if the point is contained
     */
    def minDistanceSq( point: D#Point ) : D#BigNum
