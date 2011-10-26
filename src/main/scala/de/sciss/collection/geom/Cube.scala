@@ -58,15 +58,31 @@ package de.sciss.collection.geom
  * - 7 (binary 111) - right-bottom-back
  */
 trait CubeLike extends HyperCube[ Space.ThreeDim ] with QueryShape[ Space.ThreeDim ] {
+   /**
+    * X coordinate of the cube's center
+    */
    def cx: Int
+
+   /**
+    * Y coordinate of the cube's center
+    */
    def cy: Int
+
+   /**
+    * Z coordinate of the cube's center
+    */
    def cz: Int
+
+   /**
+    * The extent is the half side length of the cube
+    */
    def extent: Int
 }
 
 final case class Cube( cx: Int, cy: Int, cz: Int, extent: Int )
 extends CubeLike {
-//   import Cube._
+
+   import Space.ThreeDim.bigZero
 
    def orthant( idx: Int ) : CubeLike = {
       val e    = extent >> 1
@@ -76,46 +92,74 @@ extends CubeLike {
       Cube( cx + dx, cy + dy, cz + dz, e )
    }
 
-   /**
-    * The side length is two times the extent.
-    */
-   def side : Int    = extent << 1
+//   /**
+//    * The side length is two times the extent.
+//    */
+//   def side : Int    = extent << 1
 
    def contains( point: Point3DLike ) : Boolean = {
-      val px = point.x
-      val py = point.y
-      val pz = point.z
-      sys.error( "TODO" )
-//      (left <= px) && (right >= px) && (top <= py) && (bottom >= py) && ...
+      val em1  = extent - 1
+      val px   = point.x
+      val py   = point.y
+      val pz   = point.z
+
+      (cx - extent <= px) && (cx + em1 >= px) &&
+      (cy - extent <= py) && (cy + em1 >= py) &&
+      (cz - extent <= pz) && (cz + em1 >= pz)
    }
 
    def contains( cube: CubeLike ) : Boolean = {
-//      hyperCube.left >= left && hyperCube.top >= top && hyperCube.right <= right && hyperCube.bottom <= bottom
-      sys.error( "TODO" )
+      val bcx  = cube.cx
+      val bcy  = cube.cy
+      val bcz  = cube.cz
+      val be   = cube.extent
+      val bem1 = be - 1
+      val em1  = extent - 1
+
+      (bcx - be >= cx - extent) && (bcx + bem1 <= cx + em1) &&
+      (bcy - be >= cy - extent) && (bcy + bem1 <= cy + em1) &&
+      (bcz - be >= cz - extent) && (bcz + bem1 <= cz + em1)
    }
 
    def area : BigInt = {
-      val s    = side
-      val sd   = s.toLong
-      val ssq  = BigInt( sd * sd )
-      BigInt( sd * sd ) * BigInt( s )
+      val s    = extent.toLong << 1
+      BigInt( s * s ) * BigInt( s )
    }
 
-   def overlapArea( q: CubeLike ) : BigInt = {
-      sys.error( "TODO" )
-//      val l = math.max( q.left, left ).toLong
-//      val r = math.min( q.right, right ).toLong
-//      val w = r - l + 1 // (r - l).toLong + 1
-//      if( w <= 0L ) return 0L
-//      val t = math.max( q.top, top ).toLong
-//      val b = math.min( q.bottom, bottom ).toLong
-//      val h = b - t + 1 // (b - t).toLong + 1
-//      if( h <= 0L ) return 0L
-//      w * h
+   def overlapArea( b: CubeLike ) : BigInt = {
+      val bcx  = b.cx
+      val bcy  = b.cy
+      val bcz  = b.cz
+      val be   = b.extent
+      val bem1 = be - 1
+      val em1  = extent - 1
+
+      val xmin = math.max( cx - extent, bcx - be   ).toLong
+      val xmax = math.min( cx + em1,    bcx + bem1 ).toLong
+      val dx   = xmax - xmin + 1
+      if( dx <= 0L ) return bigZero
+
+      val ymin = math.max( cy - extent, bcy - be   ).toLong
+      val ymax = math.min( cy + em1,    bcy + bem1 ).toLong
+      val dy   = ymax - ymin + 1
+      if( dy <= 0L ) return bigZero
+
+      val zmin = math.max( cz - extent, bcz - be   ).toLong
+      val zmax = math.min( cz + em1,    bcz + bem1 ).toLong
+      val dz   = zmax - zmin + 1
+      if( dz <= 0L ) return bigZero
+
+      BigInt( dx * dy ) * BigInt( dz )
    }
 
-   def minDistance( point: Point3DLike ) : Double = sys.error( "TODO" ) // math.pow( minDistanceSq( point ), 1.0/3 )
-   def maxDistance( point: Point3DLike ) : Double = sys.error( "TODO" ) // math.pow( maxDistanceSq( point ), 1.0/3 )
+   def minDistance( point: Point3DLike ) : Double = {
+      math.sqrt( minDistanceSq( point ).toDouble ) // or use this: http://www.merriampark.com/bigsqrt.htm ?
+   }
+
+   def maxDistance( point: Point3DLike ) : Double = {
+      math.sqrt( maxDistanceSq( point ).toDouble )
+   }
+
 
    def minDistanceSq( point: Point3DLike ) : BigInt = {
 //      val px   = point.x
@@ -213,26 +257,29 @@ extends CubeLike {
    }
 
    def indexOf( a: Point3DLike ) : Int = {
-      sys.error( "TODO" )
-//      val ax   = a.x
-//      val ay   = a.y
-//      if( ay < cy ) {      // north
-//         if( ax >= cx ) {  // east
-//            if( right >= ax && top <= ay ) 0 else -1   // ne
-//         } else {             // west
-//            if( left <= ax && top <= ay ) 1 else -2   // nw
-//         }
-//      } else {                // south
-//         if( ax < cx ) {   // west
-//            if( left <= ax && bottom >= ay ) 2 else -3   // sw
-//         } else {             // east
-//            if( right >= ax && bottom >= ay ) 3 else -4   // se
-//         }
-//      }
+      val ax = a.x
+      val ay = a.y
+      val az = a.z
+
+      val xpos = if( ax < cx ) 0 else 1
+      val ypos = if( ay < cy ) 0 else 2
+      val zpos = if( az < cz ) 0 else 4
+
+      xpos | ypos | zpos
    }
 
-   def indexOf( aq: CubeLike ) : Int = {
-      sys.error( "TODO" )
+   def indexOf( b: CubeLike ) : Int = {
+      val bcx  = b.cx
+      val bcy  = b.cy
+      val bcz  = b.cz
+      val be   = b.extent
+      val bem1 = be - 1
+      val em1  = extent - 1
+
+//      val xpos = if( bcx < cx ) {
+//         if( (bcx - be >= cx - extent) && (bcx + bem1 <= cx)
+//      }
+
 //      val atop = aq.top
 //      if( atop < cy ) {       // north
 //         if( top <= atop && aq.bottom <= cy ) {
@@ -253,9 +300,14 @@ extends CubeLike {
 //            }
 //         } else -1
 //      }
+      sys.error( "TODO" )
    }
 
-   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : CubeLike = sys.error( "TODO" )
+   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : CubeLike = {
+      sys.error( "TODO" )
+   }
 
-   def greatestInteresting( a: CubeLike, b: Point3DLike ) : CubeLike = sys.error( "TODO" )
+   def greatestInteresting( a: CubeLike, b: Point3DLike ) : CubeLike = {
+      sys.error( "TODO" )
+   }
 }

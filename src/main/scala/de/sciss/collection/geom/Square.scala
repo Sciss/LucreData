@@ -44,8 +44,19 @@ object Square {
 }
 
 trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with QueryShape[ Space.TwoDim ] {
+   /**
+    * X coordinate of the square's center
+    */
    def cx: Int
+
+   /**
+    * Y coordinate of the square's center
+    */
    def cy: Int
+
+   /**
+    * The extent is the half side length of the square
+    */
    def extent: Int
 
    def top : Int
@@ -278,19 +289,19 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    def indexOf( aq: SquareLike ) : Int = {
       val atop = aq.top
       if( atop < cy ) {       // north
-         if( top <= atop && aq.bottom <= cy ) {
+         if( top <= atop && aq.bottom < cy ) {
             val aleft = aq.left
             if( aleft >= cx ) {  // east
                if( right >= aq.right ) 0 else -1  // ne
             } else {             // west
-               if( left <= aleft && aq.right <= cx ) 1 else -1  // nw
+               if( left <= aleft && aq.right < cx ) 1 else -1  // nw
             }
          } else -1
       } else {                // south
          if( bottom >= aq.bottom && atop >= cy ) {
             val aleft = aq.left
             if( aleft < cx ) {   // west
-               if( left <= aleft && aq.right <= cx ) 2 else -1   // sw
+               if( left <= aleft && aq.right < cx ) 2 else -1   // sw
             } else {             // east
                if( right >= aq.right ) 3 else -1    // se
             }

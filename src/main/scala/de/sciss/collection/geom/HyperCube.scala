@@ -35,14 +35,14 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
    def maxDistance( point: D#Point ) : Double
 
    /**
-    * The 'squared' (to the power of the dimension) euclidean distance of the
+    * The squared euclidean distance of the
     * closest of the hyper-cube's corners to the point, if the point is outside the hyper-cube,
     * or zero, if the point is contained
     */
    def minDistanceSq( point: D#Point ) : D#BigNum
 
    /**
-    * Calculates the maximum 'squared' (to the power of the dimension) euclidean
+    * Calculates the maximum squared euclidean
     * distance to a point in the euclidean metric.
     * This is the distance (pow space) to the corner which is the furthest from
     * the `point`, no matter if it lies within the hyper-cube or not.

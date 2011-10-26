@@ -22,7 +22,7 @@ object Space {
       final val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
       final val dim        = 2
 
-      private val bigZero  = BigInt( 0 )
+      val bigZero          = BigInt( 0 )
 
       final def bigGtZero( num: BigInt ) : Boolean = num > bigZero
       final def bigGt( a: BigInt, b: BigInt ) : Boolean = a > b
