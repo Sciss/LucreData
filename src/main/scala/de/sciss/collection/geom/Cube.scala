@@ -309,4 +309,66 @@ extends CubeLike {
    def greatestInteresting( a: CubeLike, b: Point3DLike ) : CubeLike = {
       sys.error( "TODO" )
    }
+
+   private def gi( aleft: Int, atop: Int, afront: Int, asize: Int, b: Point3DLike ) : CubeLike = {
+      val tlx           = cx - extent
+      val tly           = cy - extent
+      val tlz           = cz - extent
+      val akx           = aleft  - tlx
+      val aky           = atop   - tly
+      val akz           = afront - tlz
+      val bkx           = b.x - tlx
+      val bky           = b.y - tly
+      val bkz           = b.z - tlz
+
+      var x0   = 0
+      var x1   = 0
+      var x2   = 0
+      if( akx <= bkx ) {
+         x0 = akx
+         x1 = akx + asize
+         x2 = bkx
+      } else {
+         x0 = bkx
+         x1 = bkx + 1
+         x2 = akx
+      }
+//      val mx   = binSplit( x1, x2 )
+
+      var y0   = 0
+      var y1   = 0
+      var y2   = 0
+      if( aky <= bky ) {
+         y0 = aky
+         y1 = aky + asize
+         y2 = bky
+      } else {
+         y0 = bky
+         y1 = bky + 1
+         y2 = aky
+      }
+//      val my   = binSplit( y1, y2 )
+
+      var z0   = 0
+      var z1   = 0
+      var z2   = 0
+      if( akz <= bkz ) {
+         z0 = akz
+         z1 = akz + asize
+         z2 = bkz
+      } else {
+         z0 = bkz
+         z1 = bkz + 1
+         z2 = akz
+      }
+//      val mz   = binSplit( z1, z2 )
+
+sys.error( "TODO" )
+//      // that means the x extent is greater (x grid more coarse).
+//      if( mx <= my ) {
+//         Square( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
+//      } else {
+//         Square( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
+//      }
+   }
 }
