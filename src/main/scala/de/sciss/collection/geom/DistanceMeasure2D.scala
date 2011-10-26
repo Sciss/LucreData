@@ -35,8 +35,8 @@ object DistanceMeasure2D {
     */
    val euclideanSq : DistanceMeasure[ Space.TwoDim ] = new DistanceMeasure2D {
       def distance( a: Point2DLike, b: Point2DLike ) = b.distanceSq( a )
-      def minDistance( a: Point2DLike, b: Quad2DLike ) = b.minDistanceSq( a )
-      def maxDistance( a: Point2DLike, b: Quad2DLike ) = b.maxDistanceSq( a )
+      def minDistance( a: Point2DLike, b: SquareLike ) = b.minDistanceSq( a )
+      def maxDistance( a: Point2DLike, b: SquareLike ) = b.maxDistanceSq( a )
    }
 
    /**
@@ -55,15 +55,15 @@ object DistanceMeasure2D {
       protected final def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
    }
 
-   private class Clip( underlying: DistanceMeasure2D, quad: Quad2DLike ) extends DistanceMeasure2D {
+   private class Clip( underlying: DistanceMeasure2D, quad: SquareLike ) extends DistanceMeasure2D {
       def distance( a: Point2DLike, b: Point2DLike )   = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
-      def minDistance( a: Point2DLike, b: Quad2DLike )     = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
-      def maxDistance( a: Point2DLike, b: Quad2DLike )     = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
+      def minDistance( a: Point2DLike, b: SquareLike )     = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
+      def maxDistance( a: Point2DLike, b: SquareLike )     = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
    }
 
    private class Approximate( underlying: DistanceMeasure2D, thresh: Long ) extends DistanceMeasure2D {
-      def minDistance( a: Point2DLike, b: Quad2DLike ) = underlying.minDistance( a, b )
-      def maxDistance( a: Point2DLike, b: Quad2DLike ) = underlying.maxDistance( a, b )
+      def minDistance( a: Point2DLike, b: SquareLike ) = underlying.minDistance( a, b )
+      def maxDistance( a: Point2DLike, b: SquareLike ) = underlying.maxDistance( a, b )
       def distance( a: Point2DLike, b: Point2DLike ) = {
          val res = b.distanceSq( a )
          if( res > thresh ) res else 0L
@@ -74,10 +74,10 @@ object DistanceMeasure2D {
       def distance( a: Point2DLike, b: Point2DLike ) =
          if( b.x <= a.x && b.y >= a.y ) underlying.distance( a, b ) else Long.MaxValue
 
-      def minDistance( p: Point2DLike, q: Quad2DLike ) =
+      def minDistance( p: Point2DLike, q: SquareLike ) =
          if( p.x >= q.left && p.y <= q.bottom ) underlying.minDistance( p, q ) else Long.MaxValue
 
-      def maxDistance( p: Point2DLike, q: Quad2DLike ) =
+      def maxDistance( p: Point2DLike, q: SquareLike ) =
          if( q.right <= p.x && q.top >= p.y ) underlying.maxDistance( p, q ) else Long.MaxValue
    }
 
@@ -89,7 +89,7 @@ object DistanceMeasure2D {
          val dy = math.abs( a.y.toLong - b.y.toLong )
          apply( dx, dy )
       }
-      def minDistance( a: Point2DLike, q: Quad2DLike ) : Long = {
+      def minDistance( a: Point2DLike, q: SquareLike ) : Long = {
          val px   = a.x
          val py   = a.y
          val l    = q.left
@@ -144,7 +144,7 @@ object DistanceMeasure2D {
          apply( dx, dy )
       }
 
-      def maxDistance( a: Point2DLike, q: Quad2DLike ) : Long = {
+      def maxDistance( a: Point2DLike, q: SquareLike ) : Long = {
          val px = a.x
          val py = a.y
          if( px < q.cx ) {
@@ -168,7 +168,7 @@ object DistanceMeasure2D {
    }
 
    private sealed trait DistanceMeasure2D extends DistanceMeasure[ Space.TwoDim ] {
-      final def clip( quad: Quad2DLike ) : DistanceMeasure[ Space.TwoDim ] = new Clip( this, quad )
+      final def clip( quad: SquareLike ) : DistanceMeasure[ Space.TwoDim ] = new Clip( this, quad )
       final def approximate( thresh: Long ) : DistanceMeasure[ Space.TwoDim ] = new Approximate( this, thresh )
       final def quadrant( idx: Int ) : DistanceMeasure[ Space.TwoDim ] = (idx: @switch) match {
          case 0 => sys.error( "TODO" )

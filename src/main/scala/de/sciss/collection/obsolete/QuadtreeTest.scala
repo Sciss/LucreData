@@ -28,7 +28,7 @@ package de.sciss.collection.obsolete
 import scala.collection.breakOut
 import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
-import de.sciss.collection.geom.{DistanceMeasure2D, Point2DLike, Quad2D, Point2D}
+import de.sciss.collection.geom.{DistanceMeasure2D, Point2DLike, Square, Point2D}
 import de.sciss.collection.view.{PDFSupport, SkipQuadtreeView}
 import de.sciss.collection.mutable.{RandomizedSkipOctree, DeterministicSkipQuadtree, RandomizedSkipQuadtree, SkipQuadtree}
 
@@ -71,7 +71,7 @@ Options:
          Point2D( 272, 496 ),
          Point2D( 300, 460 )
       )
-      lazy val quad0 = Quad2D( center.x, center.y, extent )
+      lazy val quad0 = Square( center.x, center.y, extent )
 
       if( doRun ) EventQueue.invokeLater( this )
 
@@ -100,7 +100,7 @@ Options:
          val t    = Quadtree.fromMap( center, extent, map )
          val v    = new UncompressedQuadtreeView( t )
 
-         val ct   = CompressedQuadtree.fromMap( Quad2D( center.x, center.y, extent ), map )
+         val ct   = CompressedQuadtree.fromMap( Square( center.x, center.y, extent ), map )
          val cv   = new CompressedQuadtreeView( ct )
 
          Seq( v, cv )
@@ -117,7 +117,7 @@ Options:
 //            Point2D( 200, 312 ) -> ()
 //         )
 
-//         val ct   = CompressedQuadtree.fromMap( Quad2D( center.x, center.y, extent ), map )
+//         val ct   = CompressedQuadtree.fromMap( Square( center.x, center.y, extent ), map )
 //         val cv   = new CompressedQuadtreeView( ct )
 //         Seq( cv )
 
@@ -259,7 +259,7 @@ Options:
          }
       }
 
-      val q = Quad2D( 0x20000000, 0x20000000, 0x20000000 )
+      val q = Square( 0x20000000, 0x20000000, 0x20000000 )
       val t = RandomizedSkipQuadtree.empty[ Point2D ]( q, coin = RandomizedSkipOctree.Coin( 0L ))
       randFill( t )
       t.contains( Point2D(1019607265,594590615))
@@ -325,7 +325,7 @@ Options:
 //         Point2D(1703353676, 654327672), Point2D( 358552122,1659067704), Point2D( 428924369,1298587004), Point2D( 989676324,1685033435),
 //         Point2D(1421478041,2034995035), Point2D( 767054239, 757771480), Point2D(1654109098, 412552175), Point2D(1482054540,1464283949)
          )
-         val q = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
+         val q = Square( 0x40000000, 0x40000000, 0x40000000 )
 //         RandomizedSkipQuadtree.random.setSeed( 0L )
          val t = RandomizedSkipQuadtree[ Point2DLike ]( q, coin = RandomizedSkipOctree.Coin( 0L ))( pts: _* )
          // query Point2D(1609162490,1507881173), wrong result Point2D(1598649701,1592263107), correct result Point2D(1657161143,1524021651)
@@ -360,7 +360,7 @@ Options:
          Point2D(  5955764,  200745736)
       )
       val query   = Point2D(1599145891,-1341955486)
-      val quad    = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
+      val quad    = Square( 0x40000000, 0x40000000, 0x40000000 )
       val t       = RandomizedSkipQuadtree[ Point2D ]( quad )( pts: _* )
       val res     = t.nearestNeighbor( query, DistanceMeasure2D.euclideanSq )
       println( res + " - " + res.distanceSq( query ))

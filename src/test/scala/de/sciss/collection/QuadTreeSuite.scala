@@ -1,6 +1,6 @@
 package de.sciss.collection
 
-import geom.{Quad2DLike, DistanceMeasure2D, Point2D, Point2DLike, Quad2D}
+import geom.{SquareLike, DistanceMeasure2D, Point2D, Point2DLike, Square}
 import mutable.{RandomizedSkipOctree, SkipQuadtree, RandomizedSkipQuadtree, DeterministicSkipQuadtree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
@@ -24,8 +24,8 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
    val rnd           = new util.Random( 0L ) // ( 12L )
 
-//   val quad = Quad2D( 0x20000000, 0x20000000, 0x20000000 )
-   val quad          = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
+//   val quad = Square( 0x20000000, 0x20000000, 0x20000000 )
+   val quad          = Square( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad,
       coin = RandomizedSkipOctree.Coin( 0L ) ))
    if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadtree.empty[ Point2DLike ]( quad ))
@@ -54,7 +54,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       then( "they should be consistent with the underlying algorithm" )
       val q = t.quad
       var h = t.lastTree
-      var currUnlinkedQuads   = Set.empty[ Quad2DLike ]
+      var currUnlinkedQuads   = Set.empty[ SquareLike ]
       var currPoints          = Set.empty[ Point2DLike ]
       var prevs = 0
       do {
@@ -153,7 +153,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyRangeSearch( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
       when( "the quadtree is range searched" )
-      val qs = Seq.fill( n2 )( Quad2D( rnd.nextInt( 0x7FFFFFFF ) - 0x40000000,
+      val qs = Seq.fill( n2 )( Square( rnd.nextInt( 0x7FFFFFFF ) - 0x40000000,
                                      rnd.nextInt( 0x7FFFFFFF ) - 0x40000000, rnd.nextInt( 0x40000000 )))
       val rangesT = qs.map( q => t.rangeQuery( q ).toSet )
       val ks      = m // keySet

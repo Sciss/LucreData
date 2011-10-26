@@ -25,7 +25,7 @@
 
 package de.sciss.collection.obsolete
 
-import de.sciss.collection.geom.{Quad2D, Point2D, Point2DLike}
+import de.sciss.collection.geom.{Square, Point2D, Point2DLike}
 
 object Quadtree {
    def apply[ V ]( center: Point2D, extent: Int ) : QNode[ V ] = new NodeImpl[ V ]( center, extent )
@@ -38,7 +38,7 @@ object Quadtree {
    sealed trait Q[ V ] {
       def center: Point2D
       def extent: Int
-      def quad = Quad2D( center.x, center.y, extent )
+      def quad = Square( center.x, center.y, extent )
    }
    final case class QEmpty[ V ]( center: Point2D, extent: Int ) extends Q[ V ]
    final case class QLeaf[ V ]( center: Point2D, extent: Int, point: Point2DLike, value: V ) extends Q[ V ]

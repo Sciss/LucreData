@@ -1,13 +1,14 @@
 package de.sciss.collection.geom
 
-trait Point2DLike extends /* PointLike[ Space.TwoDim ] with */ Rectangle2DLike {
+trait Point2DLike extends /* PointLike[ Space.TwoDim ] with RectangleLike */ {
    def x: Int
    def y: Int
 
    final def left             = x
    final def top              = y
-   final override def right   = x
-   final override def bottom  = y
+//   final override def right   = x
+//   final override def bottom  = y
+
 //   final def width            = 1
 //   final def height           = 1
 
@@ -17,9 +18,9 @@ trait Point2DLike extends /* PointLike[ Space.TwoDim ] with */ Rectangle2DLike {
       dx * dx + dy * dy
    }
 
-   // ---- QueryShape2D ----
-   final def overlapArea( q: Quad2DLike ) : Long = if( q.contains( this )) 1L else 0L
-   final def area : Long = 1L
+//   // ---- QueryShape2D ----
+//   final def overlapArea( q: SquareLike ) : Long = if( q.contains( this )) 1L else 0L
+//   final def area : Long = 1L
 
    /**
     * Queries the overlap of this shape with a given

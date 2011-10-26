@@ -26,7 +26,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{Space, Quad2D, Point2DLike}
+import geom.{Space, Square, Point2DLike}
 
 /**
  * A thin factory for a 2D octree aka quadtree.
@@ -34,10 +34,10 @@ import geom.{Space, Quad2D, Point2DLike}
 object RandomizedSkipQuadtree {
    import RandomizedSkipOctree.Coin
 
-   def empty[ A ]( quad: Quad2D, coin: Coin = Coin() )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] =
+   def empty[ A ]( quad: Square, coin: Coin = Coin() )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] =
       RandomizedSkipOctree.empty[ Space.TwoDim, A ]( Space.TwoDim, quad, coin ) // new TreeImpl[ A ]( quad, view )
 
-   def apply[ A <% Point2DLike ]( quad: Quad2D, coin: Coin = Coin() )( xs: A* ) : SkipQuadtree[ A ] = {
+   def apply[ A <% Point2DLike ]( quad: Square, coin: Coin = Coin() )( xs: A* ) : SkipQuadtree[ A ] = {
       val t = empty[ A ]( quad, coin )
       xs.foreach( t.+=( _ ))
       t

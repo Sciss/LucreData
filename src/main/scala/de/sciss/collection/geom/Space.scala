@@ -3,7 +3,7 @@ package de.sciss.collection.geom
 object Space {
    sealed trait TwoDim extends Space[ TwoDim ] {
       type Point           = Point2DLike
-      type HyperCube       = Quad2DLike
+      type HyperCube       = SquareLike
       type BigNum          = Long
 
       final val maxPoint   = Point2D( Int.MaxValue, Int.MaxValue )

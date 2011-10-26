@@ -25,15 +25,15 @@
 
 package de.sciss.collection.obsolete
 
-import de.sciss.collection.geom.{Quad2DLike, Point2DLike}
+import de.sciss.collection.geom.{SquareLike, Point2DLike}
 
 object CompressedQuadtree {
-   def apply[ V ]( quad: Quad2DLike ) : QNode[ V ] = {
+   def apply[ V ]( quad: SquareLike ) : QNode[ V ] = {
       val quads = new Array[ Q[ V ]]( 4 )
       QNode[ V ]( quad )( quads )
    }
 
-   def fromMap[ V ]( quad: Quad2DLike, m: Map[ Point2DLike, V ]) : QNode[ V ] = {
+   def fromMap[ V ]( quad: SquareLike, m: Map[ Point2DLike, V ]) : QNode[ V ] = {
       val t = QNode[ V ]( quad )()
       m.foreach {
          case (point, value) =>
@@ -46,7 +46,7 @@ object CompressedQuadtree {
    case object QEmpty extends Q[ Nothing ]
    final case class QLeaf[ V ]( point: Point2DLike, value: V ) extends Q[ V ]
 
-   final case class QNode[ V ]( quad: Quad2DLike )( quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
+   final case class QNode[ V ]( quad: SquareLike )( quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
    extends Q[ V ] {
       // fix null squares
       {

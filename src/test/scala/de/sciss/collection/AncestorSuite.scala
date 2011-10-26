@@ -1,6 +1,6 @@
 package de.sciss.collection
 
-import geom.{DistanceMeasure2D, Point2D, Quad2D, Point2DLike}
+import geom.{DistanceMeasure2D, Point2D, Square, Point2DLike}
 import mutable.{DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
@@ -28,7 +28,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       val preOrder   = TotalOrder( preObserver )
       val postOrder  = TotalOrder( postObserver )
       val root       = newVertex( _init, preOrder.root, postOrder.root )
-      val quad       = Quad2D( 0x40000000, 0x40000000, 0x40000000 )
+      val quad       = Square( 0x40000000, 0x40000000, 0x40000000 )
       val t          = if( USE_DET ) {
          DeterministicSkipQuadtree.empty[ V ]( quad )
       } else {

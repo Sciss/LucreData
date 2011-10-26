@@ -51,7 +51,7 @@ import annotation.tailrec
  * XXX TODO: not possible to have a side length of 1, which might
  * be(come) a problem.
  */
-object Quad2D {
+object Square {
    // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
    @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
       val gt = a > (b & mask)
@@ -63,24 +63,29 @@ object Quad2D {
    }
 }
 
-trait Quad2DLike extends HyperCube[ Space.TwoDim ] with Rectangle2DLike {
+trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with QueryShape[ Space.TwoDim ] {
    def cx: Int
    def cy: Int
    def extent: Int
 
-//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike
+   def top : Int
+   def left : Int
+   def right : Int
+   def bottom : Int
+
+//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : SquareLike
 }
 
-final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
-   import Quad2D._
+final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
+   import Square._
 
-   def orthant( idx: Int ) : Quad2DLike = {
+   def orthant( idx: Int ) : SquareLike = {
       val e = extent >> 1
       idx match {
-         case 0 => Quad2D( cx + e, cy - e, e ) // ne
-         case 1 => Quad2D( cx - e, cy - e, e ) // nw
-         case 2 => Quad2D( cx - e, cy + e, e ) // sw
-         case 3 => Quad2D( cx + e, cy + e, e ) // se
+         case 0 => Square( cx + e, cy - e, e ) // ne
+         case 1 => Square( cx - e, cy - e, e ) // nw
+         case 2 => Square( cx - e, cy + e, e ) // sw
+         case 3 => Square( cx + e, cy + e, e ) // se
          case _ => throw new IllegalArgumentException( idx.toString )
       }
    }
@@ -125,7 +130,7 @@ final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
     * Checks whether a given quad is fully contained in this quad.
     * This is also the case if their bounds full match.
     */
-   def contains( quad: Quad2DLike ) : Boolean =
+   def contains( quad: SquareLike ) : Boolean =
       quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
 
    def area : Long = {
@@ -133,7 +138,7 @@ final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
       sd * sd
    }
 
-   def overlapArea( q: Quad2DLike ) : Long = {
+   def overlapArea( q: SquareLike ) : Long = {
       val l = math.max( q.left, left ).toLong
       val r = math.min( q.right, right ).toLong
       val w = r - l + 1 // (r - l).toLong + 1
@@ -290,7 +295,7 @@ final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
     * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `aq` lies
     *          outside of this quad.
     */
-   def indexOf( aq: Quad2DLike ) : Int = {
+   def indexOf( aq: SquareLike ) : Int = {
       val atop = aq.top
       if( atop < cy ) {       // north
          if( top <= atop && aq.bottom <= cy ) {
@@ -313,13 +318,13 @@ final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
       }
    }
 
-   def greatestInteresting( a: Point2DLike, b: Point2DLike ) : Quad2DLike =
+   def greatestInteresting( a: Point2DLike, b: Point2DLike ) : SquareLike =
       gi( a.x, a.y, 1, b )
 
-   def greatestInteresting( a: Quad2DLike, b: Point2DLike ) : Quad2DLike =
+   def greatestInteresting( a: SquareLike, b: Point2DLike ) : SquareLike =
       gi( a.left, a.top, a.extent << 1, b )  // XXX a.extent << 1 can exceed 31 bit
 
-   private def gi( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : Quad2DLike = {
+   private def gi( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : SquareLike = {
       val tlx           = left   // pq.cx - pq.extent
       val tly           = top    // pq.cy - pq.extent
       val akx           = aleft - tlx
@@ -333,9 +338,9 @@ final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
       val my            = binSplit( y1, y2 )
       // that means the x extent is greater (x grid more coarse).
       if( mx <= my ) {
-         Quad2D( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
+         Square( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
       } else {
-         Quad2D( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
+         Square( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
       }
    }
 }

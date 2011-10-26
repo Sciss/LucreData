@@ -83,7 +83,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     * Note: There is a potential numeric overflow if the
     * squared distance of the query point towards the
     * furthest corner of the tree's root quad exceeds 63 bits.
-    * For a root `Quad2D( 0x40000000, 0x40000000, 0x40000000 )`, this
+    * For a root `Square( 0x40000000, 0x40000000, 0x40000000 )`, this
     * happens for example for any point going more towards north-west
     * than `Point2DLike( -1572067139, -1572067139 )`.
     *

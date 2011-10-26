@@ -30,7 +30,7 @@ import java.awt.{Color, FlowLayout, EventQueue, BorderLayout}
 import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import mutable.{SkipQuadtree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
 import javax.swing.{JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
-import geom.{Quad2DLike, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Point2DLike, Quad2D}
+import geom.{SquareLike, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Point2DLike, Square}
 
 object InteractiveSkipQuadtreeView extends App with Runnable {
    val seed = 0L
@@ -65,8 +65,8 @@ extends JPanel( new BorderLayout() ) {
    private val rnd = new util.Random( seed )
 
    val t    = mode match {
-      case Randomized      => RandomizedSkipQuadtree.empty[    Point2DLike ]( Quad2D( 256, 256, 256 ))
-      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Quad2D( 256, 256, 256 ))
+      case Randomized      => RandomizedSkipQuadtree.empty[    Point2DLike ]( Square( 256, 256, 256 ))
+      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( 256, 256, 256 ))
    }
    val slv  = new SkipQuadtreeView( t )
    private val in = slv.getInsets
@@ -99,11 +99,11 @@ extends JPanel( new BorderLayout() ) {
       }
    }
 
-   private def tryQuad2D( fun: Quad2D => Unit ) {
+   private def tryQuad2D( fun: Square => Unit ) {
       try {
          val ext = ggExt.getText.toInt
          require( ext > 0 )
-         val q = Quad2D( ggX.getText.toInt, ggY.getText.toInt, ext )
+         val q = Square( ggX.getText.toInt, ggY.getText.toInt, ext )
          fun( q )
       } catch {
          case n: NumberFormatException =>
@@ -327,7 +327,7 @@ extends JPanel( new BorderLayout() ) {
    def verifyConsistency( t: SkipQuadtree[ Point2DLike ]) {
       val q = t.quad
       var h = t.lastTree
-      var currUnlinkedQuad2Ds   = Set.empty[ Quad2DLike ]
+      var currUnlinkedQuad2Ds   = Set.empty[ SquareLike ]
       var currPoints          = Set.empty[ Point2DLike ]
       var prevs = 0
       do {
