@@ -52,7 +52,7 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
    /**
     * Determines the orthant index of a point `point`.
     *
-    * @return  the index of the orthant (beginning at 0), or (-index - 1) if `point` lies
+    * @return  the index of the orthant (beginning at 0), or -1 if `point` lies
     *          outside of this hyper-cube.
     */
    def indexOf( point: D#Point ) : Int
@@ -60,7 +60,7 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
    /**
     * Determines the orthant index of another internal hyper-cube `inner`.
     *
-    * @return  the index of the orthant (beginning at 0), or (-index - 1) if `inner` lies
+    * @return  the index of the orthant (beginning at 0), or -1 if `inner` lies
     *          outside of this hyper-cube.
     */
    def indexOf( inner: D#HyperCube ) : Int

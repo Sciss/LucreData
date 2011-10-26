@@ -259,7 +259,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    /**
     * Determines the quadrant index of a point `a`.
     *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
+    * @return  the index of the quadrant (beginning at 0), or -1 if `a` lies
     *          outside of this hyperCube.
     */
    def indexOf( a: Point2DLike ) : Int = {
@@ -269,13 +269,13 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
          if( ax >= cx ) {  // east
             if( right >= ax && top <= ay ) 0 else -1   // ne
          } else {             // west
-            if( left <= ax && top <= ay ) 1 else -2   // nw
+            if( left <= ax && top <= ay ) 1 else -1 // -2   // nw
          }
       } else {                // south
          if( ax < cx ) {   // west
-            if( left <= ax && bottom >= ay ) 2 else -3   // sw
+            if( left <= ax && bottom >= ay ) 2 else -1 // -3   // sw
          } else {             // east
-            if( right >= ax && bottom >= ay ) 3 else -4   // se
+            if( right >= ax && bottom >= ay ) 3 else -1 // -4   // se
          }
       }
    }
@@ -283,7 +283,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    /**
     * Determines the quadrant index of another internal hyperCube `aq`.
     *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `aq` lies
+    * @return  the index of the quadrant (beginning at 0), or -1 if `aq` lies
     *          outside of this hyperCube.
     */
    def indexOf( aq: SquareLike ) : Int = {

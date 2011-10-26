@@ -276,31 +276,32 @@ extends CubeLike {
       val bem1 = be - 1
       val em1  = extent - 1
 
-//      val xpos = if( bcx < cx ) {
-//         if( (bcx - be >= cx - extent) && (bcx + bem1 <= cx)
-//      }
+      val bxmin   = bcx - be
+      val bxmax   = bcx + bem1
+      val xpos = if( bcx < cx ) {   // left?
+         // not particular elegant to return in an assignment, but well, it's allowed :)
+         if( (bxmin >= cx - extent) && (bxmax < cx) ) 0 else return -1
+      } else { // right?
+         if( (bxmin >= cx) && (bxmax <= cx + em1) ) 1 else return -1
+      }
 
-//      val atop = aq.top
-//      if( atop < cy ) {       // north
-//         if( top <= atop && aq.bottom <= cy ) {
-//            val aleft = aq.left
-//            if( aleft >= cx ) {  // east
-//               if( right >= aq.right ) 0 else -1  // ne
-//            } else {             // west
-//               if( left <= aleft && aq.right <= cx ) 1 else -1  // nw
-//            }
-//         } else -1
-//      } else {                // south
-//         if( bottom >= aq.bottom && atop >= cy ) {
-//            val aleft = aq.left
-//            if( aleft < cx ) {   // west
-//               if( left <= aleft && aq.right <= cx ) 2 else -1   // sw
-//            } else {             // east
-//               if( right >= aq.right ) 3 else -1    // se
-//            }
-//         } else -1
-//      }
-      sys.error( "TODO" )
+      val bymin   = bcy - be
+      val bymax   = bcy + bem1
+      val ypos = if( bcy < cy ) {   // top?
+         if( (bymin >= cy - extent) && (bymax < cy) ) 0 else return -1
+      } else { // bottom?
+         if( (bymin >= cy) && (bymax <= cy + em1) ) 2 else return -1
+      }
+
+      val bzmin   = bcz - be
+      val bzmax   = bcz + bem1
+      val zpos = if( bcz < cz ) {   // front?
+         if( (bzmin >= cz - extent) && (bzmax < cz) ) 0 else return -1
+      } else { // back?
+         if( (bzmin >= cz) && (bzmax <= cz + em1) ) 2 else return -1
+      }
+
+      xpos | ypos | zpos
    }
 
    def greatestInteresting( a: Point3DLike, b: Point3DLike ) : CubeLike = {
