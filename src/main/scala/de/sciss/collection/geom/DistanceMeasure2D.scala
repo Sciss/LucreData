@@ -170,7 +170,7 @@ object DistanceMeasure2D {
    private sealed trait DistanceMeasure2D extends DistanceMeasure[ Space.TwoDim ] {
       final def clip( quad: SquareLike ) : DistanceMeasure[ Space.TwoDim ] = new Clip( this, quad )
       final def approximate( thresh: Long ) : DistanceMeasure[ Space.TwoDim ] = new Approximate( this, thresh )
-      final def quadrant( idx: Int ) : DistanceMeasure[ Space.TwoDim ] = (idx: @switch) match {
+      final def orthant( idx: Int ) : DistanceMeasure[ Space.TwoDim ] = (idx: @switch) match {
          case 0 => sys.error( "TODO" )
          case 1 => sys.error( "TODO" )
          case 2 => new SouthWest( this )

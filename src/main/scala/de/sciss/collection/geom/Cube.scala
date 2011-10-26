@@ -76,28 +76,6 @@ extends CubeLike {
       Cube( cx + dx, cy + dy, cz + dz, e )
    }
 
-//   def top : Int     = cy - extent
-//   def left : Int    = cx - extent
-//
-//   /**
-//    * The bottom is defined as the center y coordinate plus
-//    * the extent minus one, it thus designed the 'last pixel'
-//    * still inside the quad. This was changed from the previous
-//    * definition of 'cy + extent' to be able to use the full
-//    * 31 bit signed int space for a quad without resorting
-//    * to long conversion.
-//    */
-//   override def bottom : Int  = cy + (extent - 1)
-//   /**
-//    * The right is defined as the center x coordinate plus
-//    * the extent minus one, it thus designed the 'last pixel'
-//    * still inside the quad. This was changed from the previous
-//    * definition of 'cx + extent' to be able to use the full
-//    * 31 bit signed int space for a quad without resorting
-//    * to long conversion.
-//    */
-//   override def right : Int   = cx + (extent - 1)
-
    /**
     * The side length is two times the extent.
     */
@@ -111,8 +89,8 @@ extends CubeLike {
 //      (left <= px) && (right >= px) && (top <= py) && (bottom >= py) && ...
    }
 
-   def contains( quad: CubeLike ) : Boolean = {
-//      quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
+   def contains( cube: CubeLike ) : Boolean = {
+//      hyperCube.left >= left && hyperCube.top >= top && hyperCube.right <= right && hyperCube.bottom <= bottom
       sys.error( "TODO" )
    }
 
@@ -202,7 +180,7 @@ extends CubeLike {
 //         }
 //         return dys
 //      }
-//      // if we get here, the point is inside the quad
+//      // if we get here, the point is inside the hyperCube
 //      0L
       sys.error( "TODO" )
    }

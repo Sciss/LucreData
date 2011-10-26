@@ -57,22 +57,22 @@ object RandomizedSkipOctree {
       def toss() : Boolean
    }
 
-   def empty[ D <: Space[ D ], A ]( space: D, quad: D#HyperCube, coin: Coin = Coin() )
+   def empty[ D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, coin: Coin = Coin() )
                                   ( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
-      new TreeImpl[ D, A ]( space, quad, coin, view )
+      new TreeImpl[ D, A ]( space, hyperCube, coin, view )
 
-   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, quad: D#HyperCube, coin: Coin = Coin() )
+   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, hyperCube: D#HyperCube, coin: Coin = Coin() )
                                              ( xs: A* ) : SkipOctree[ D, A ] = {
-      val t = empty[ D, A ]( space, quad, coin )
+      val t = empty[ D, A ]( space, hyperCube, coin )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#HyperCube, coin: Coin,
+   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val hyperCube: D#HyperCube, coin: Coin,
                                                        val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
-      val numQuadChildren = 1 << space.dim
-      private val headNode = new Node( quad, null, null )
+      val numOrthants = 1 << space.dim
+      private val headNode = new Node( hyperCube, null, null )
       private var tailVar  = headNode
 
       def headTree: QNode  = headNode
@@ -82,7 +82,7 @@ object RandomizedSkipOctree {
 
       protected def insertLeaf( value: A ) : QLeaf = {
          val point = pointView( value )
-         require( quad.contains( point ), point.toString + " lies out of root square " + quad )
+         require( hyperCube.contains( point ), point.toString + " lies out of root hyper-cube " + hyperCube )
 
          val ns      = MStack.empty[ Node ]
          tailVar.findP0( point, ns )
@@ -98,7 +98,7 @@ object RandomizedSkipOctree {
                cn &= coin.toss()
             }
             while( cn ) {
-               n        = new Node( quad, null, tailVar )
+               n        = new Node( hyperCube, null, tailVar )
                pr       = n.insert( point, value, pr )
                tailVar  = n
                cn      &= coin.toss()
@@ -113,7 +113,7 @@ object RandomizedSkipOctree {
       }
 
       protected def removeLeaf( point: D#Point ) : QLeaf = {
-         if( !quad.contains( point )) {
+         if( !hyperCube.contains( point )) {
 //println( "wooops " + point )
             return null
          }
@@ -131,7 +131,7 @@ object RandomizedSkipOctree {
 
          def prepareNext() {
             while( true ) {
-               while( idx >= numQuadChildren ) {
+               while( idx >= numOrthants ) {
                   if( stack.isEmpty ) {
                      hasNext = false
                      return
@@ -176,14 +176,14 @@ object RandomizedSkipOctree {
 
       private final case class Leaf( value: A ) extends NonEmpty with QLeaf
 
-      private final class Node( val quad: D#HyperCube, var parent: Node, val prev: Node,
-                                val children: Array[ Child ] = new Array[ Child ]( numQuadChildren ))
+      private final class Node( val hyperCube: D#HyperCube, var parent: Node, val prev: Node,
+                                val children: Array[ Child ] = new Array[ Child ]( numOrthants ))
       extends NonEmpty with QNode {
          var next: Node = null;
 
-         // fix null squares and link
+         // fix null hyper-cubes and link
          {
-            var i = 0; while( i < numQuadChildren ) {
+            var i = 0; while( i < numOrthants ) {
                if( children( i ) == null ) children( i ) = Empty
             i += 1 }
 
@@ -193,9 +193,9 @@ object RandomizedSkipOctree {
          def child( idx: Int ) : Child = children( idx )
 
          def findP0( point: D#Point, ns: MStack[ Node ]) /* : Leaf = */ {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
-               case n: Node if( n.quad.contains( point )) => n.findP0( point, ns )
+               case n: Node if( n.hyperCube.contains( point )) => n.findP0( point, ns )
 //               case l: Leaf if( prev == null && l.point == point ) =>
 //                  ns.push( this )
 //                  l
@@ -206,25 +206,25 @@ object RandomizedSkipOctree {
          }
 
          def findLeaf( point: D#Point ) : Leaf = {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
-               case n: Node if( n.quad.contains( point )) => n.findLeaf( point )
+               case n: Node if( n.hyperCube.contains( point )) => n.findLeaf( point )
                case l: Leaf if( pointView( l.value ) == point ) => l
                case _ => if( prev == null ) null else prev.findLeaf( point )
             }
          }
 
-         def findSameSquare( iq: D#HyperCube ) : Node = if( quad == iq ) this else parent.findSameSquare( iq )
+         def findSameHyperCube( iq: D#HyperCube ) : Node = if( hyperCube == iq ) this else parent.findSameHyperCube( iq )
 
          def remove( point: D#Point ) : Leaf = {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
-               case n: Node if( n.quad.contains( point )) => n.remove( point )
+               case n: Node if( n.hyperCube.contains( point )) => n.remove( point )
                case l: Leaf if( pointView( l.value ) == point ) =>
                   children( qidx ) = Empty
                   var lonely: NonEmpty = null
                   var numNonEmpty = 0
-                  var i = 0; while( i < numQuadChildren ) {
+                  var i = 0; while( i < numOrthants ) {
                      children( i ) match {
                         case n: NonEmpty =>
                            numNonEmpty += 1
@@ -234,7 +234,7 @@ object RandomizedSkipOctree {
                   i += 1 }
                   if( numNonEmpty == 1 && parent != null ) {   // gotta remove this node and put remaining non empty element in parent
                      if( prev != null ) prev.next = null       // note: since remove is called from Qn to Q0, there is no this.next !
-                     val myIdx = parent.quad.indexOf( quad )
+                     val myIdx = parent.hyperCube.indexOf( hyperCube )
                      parent.children( myIdx ) = lonely
                      lonely match {
                         case n: Node => n.parent = parent
@@ -256,7 +256,7 @@ object RandomizedSkipOctree {
           * updates its value accordingly.
           */
          def update( point: D#Point, value: A ) {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
                case l: Leaf if( pointView( l.value ) == point ) => children( qidx ) = Leaf( value )
                case _ =>
@@ -264,7 +264,7 @@ object RandomizedSkipOctree {
          }
 
          def insert( point: D#Point, value: A, prevP: Node ) : Node = {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             val l    = Leaf( value )
             children( qidx ) match {
                case Empty =>
@@ -272,18 +272,18 @@ object RandomizedSkipOctree {
                   this
 
                case t: Node =>
-                  val tq      = t.quad
+                  val tq      = t.hyperCube
 //                  assert( !tq.contains( point ))
 //                  val te      = tq.extent
-//                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq.cx - te, tq.cy - te, te << 1, point )
-                  val iq      = quad.orthant( qidx ).greatestInteresting( tq, point )
-                  val iquads  = new Array[ Child ]( numQuadChildren )
+//                  val iq      = hyperCube.quadrant( qidx ).greatestInteresting( tq.cx - te, tq.cy - te, te << 1, point )
+                  val iq      = hyperCube.orthant( qidx ).greatestInteresting( tq, point )
+                  val ichildren  = new Array[ Child ]( numOrthants )
                   val tidx    = iq.indexOf( tq )
-                  iquads( tidx ) = t
+                  ichildren( tidx ) = t
                   val pidx    = iq.indexOf( point )
-                  iquads( pidx ) = l
-                  val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
-                  val q       = new Node( iq, this, qpred, iquads )
+                  ichildren( pidx ) = l
+                  val qpred   = if( prevP == null ) null else prevP.findSameHyperCube( iq )
+                  val q       = new Node( iq, this, qpred, ichildren )
                   t.parent    = q
                   children( qidx ) = q
                   q
@@ -291,14 +291,14 @@ object RandomizedSkipOctree {
                case l2: Leaf =>
 //                  assert( point != point2 )
                   val point2  = pointView( l2.value )
-                  val iq      = quad.orthant( qidx ).greatestInteresting( point2, point )
-                  val iquads  = new Array[ Child ]( numQuadChildren )
+                  val iq      = hyperCube.orthant( qidx ).greatestInteresting( point2, point )
+                  val ichildren  = new Array[ Child ]( numOrthants )
                   val lidx    = iq.indexOf( point2 )
-                  iquads( lidx ) = l2
+                  ichildren( lidx ) = l2
                   val pidx    = iq.indexOf( point )
-                  iquads( pidx ) = l
-                  val qpred   = if( prevP == null ) null else prevP.findSameSquare( iq )
-                  val q       = new Node( iq, this, qpred, iquads )
+                  ichildren( pidx ) = l
+                  val qpred   = if( prevP == null ) null else prevP.findSameHyperCube( iq )
+                  val q       = new Node( iq, this, qpred, ichildren )
                   children( qidx ) = q
                   q
             }

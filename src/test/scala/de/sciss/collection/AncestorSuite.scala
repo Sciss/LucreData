@@ -16,7 +16,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
    val MARKER_PERCENTAGE   = 0.2       // 0.5
    val PRINT_DOT           = false     // true
    val PRINT_ORDERS        = false
-   val USE_DET             = true      // `true` to use deterministic quad-tree, `false` to use randomized tree
+   val USE_DET             = true      // `true` to use deterministic hyperCube-tree, `false` to use randomized tree
 
    abstract class AbstractTree[ A ]( _init: A ) {
       type V <: VertexLike
@@ -164,7 +164,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          // is south west (2))
          when( "each vertex is asked for its parent node through NN search in the quadtree" )
          then( "the results should be identical to an independently maintained map" )
-         val metric = DistanceMeasure2D.chebyshev.quadrant( 2 )
+         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
          treeSeq.foreach { child => parents.get( child ).foreach { parent =>
             val point = Point2D( child.x - 1, child.y + 1 ) // make sure we skip the child itself
             val found = t.t.nearestNeighborOption( point, metric )
@@ -314,9 +314,9 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
          then( "the results should be identical to those obtained from independent brute force" )
 
-         val metric = DistanceMeasure2D.chebyshev.quadrant( 2 )
+         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
          treeSeq.foreach { child =>
-//            val iso = tm.quad.isomorphicQuery { vm =>
+//            val iso = tm.hyperCube.isomorphicQuery { vm =>
 //               val v = markMap2( vm )
 //               val res = child.orient( v )
 //               res

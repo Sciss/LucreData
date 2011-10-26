@@ -39,18 +39,18 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
 
    def headTree: QNode
    def lastTree: QNode
-   def pointView : A => D#Point // PointLike[ D ] // PointView[ A ]
+   def pointView : A => D#Point
 
-   def quad : D#HyperCube // = headTree.quad // Quad[ D ] = headTree.quad
+   def hyperCube : D#HyperCube
 
    def numLevels : Int
 
    /**
-    * The number of quadrants in each quad. This is equal
+    * The number of orthants in each hyperCube. This is equal
     * to `1 << numDimensions` and gives the upper bound
     * of the index to `QNode.child()`.
     */
-   def numQuadChildren : Int
+   def numOrthants : Int
 
    def get( point: D#Point ) : Option[ A ]
 //   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
@@ -82,7 +82,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     *
     * Note: There is a potential numeric overflow if the
     * squared distance of the query point towards the
-    * furthest corner of the tree's root quad exceeds 63 bits.
+    * furthest corner of the tree's root hyper-cube exceeds 63 bits.
     * For a root `Square( 0x40000000, 0x40000000, 0x40000000 )`, this
     * happens for example for any point going more towards north-west
     * than `Point2DLike( -1572067139, -1572067139 )`.
@@ -100,8 +100,8 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
 
    /**
     * An `Iterator` which iterates over the points stored
-    * in the quadtree, using an in-order traversal directed
-    * by the quadrant indices of the nodes of the tree
+    * in the octree, using an in-order traversal directed
+    * by the orthant indices of the nodes of the tree
     */
    def iterator : Iterator[ A ]
 
@@ -112,7 +112,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
       def value: A
    }
    trait QNode extends QNonEmpty {
-      def quad: D#HyperCube // Quad[ D ]
+      def hyperCube: D#HyperCube
       def child( idx: Int ) : Q
       /* final */ def prevOption: Option[ QNode ] // = Option( prev )
       /* final */ def nextOption: Option[ QNode ] // = Option( next )

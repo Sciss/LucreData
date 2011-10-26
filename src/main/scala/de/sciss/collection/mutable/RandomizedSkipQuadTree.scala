@@ -35,7 +35,7 @@ object RandomizedSkipQuadtree {
    import RandomizedSkipOctree.Coin
 
    def empty[ A ]( quad: Square, coin: Coin = Coin() )( implicit view: A => Point2DLike ) : SkipQuadtree[ A ] =
-      RandomizedSkipOctree.empty[ Space.TwoDim, A ]( Space.TwoDim, quad, coin ) // new TreeImpl[ A ]( quad, view )
+      RandomizedSkipOctree.empty[ Space.TwoDim, A ]( Space.TwoDim, quad, coin ) // new TreeImpl[ A ]( hyperCube, view )
 
    def apply[ A <% Point2DLike ]( quad: Square, coin: Coin = Coin() )( xs: A* ) : SkipQuadtree[ A ] = {
       val t = empty[ A ]( quad, coin )

@@ -65,18 +65,18 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
 
    final override def contains( elem: A ) : Boolean = {
       val point = pointView( elem )
-      if( !quad.contains( point )) return false
+      if( !hyperCube.contains( point )) return false
       val l = findLeaf( point )
       if( l == null ) false else l.value == elem
    }
 
    final override def isDefinedAt( point: D#Point ) : Boolean = {
-      if( !quad.contains( point )) return false
+      if( !hyperCube.contains( point )) return false
       findLeaf( point ) != null
    }
 
    final def get( point: D#Point ) : Option[ A ] = {
-      if( !quad.contains( point )) return None
+      if( !hyperCube.contains( point )) return None
       val l = findLeaf( point )
       if( l == null ) None else Some( l.value )
    }
@@ -124,14 +124,14 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       var current : A   = _
       var hasNext       = true
 
-      stabbing += headTree -> qs.overlapArea( headTree.quad )
+      stabbing += headTree -> qs.overlapArea( headTree.hyperCube )
       findNextValue()
 
       def rangeQueryLeft( node: QNode, area: D#BigNum, qs: QueryShape[ D ]) : QNode = {
          var i = 0; while( i < 4 ) {
             node.child( i ) match {
                case n2: QNode =>
-                  val a2 = qs.overlapArea( n2.quad )
+                  val a2 = qs.overlapArea( n2.hyperCube )
                   if( a2 == area ) {
                      val next = node.next
                      if( next != null ) {
@@ -150,7 +150,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
          var i = 0; while( i < 4 ) {
             node.child( i ) match {
                case n2: QNode =>
-                  val a2 = qs.overlapArea( n2.quad )
+                  val a2 = qs.overlapArea( n2.hyperCube )
                   if( a2 == area ) {
                      val next = node.next
                      if( next != null ) {
@@ -190,7 +190,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                   case cl: QLeaf =>
                      if( qs.contains( pointView( cl.value ))) in += cl
                   case cn: QNode =>
-                     val q    = cn.quad
+                     val q    = cn.hyperCube
                      val ao   = qs.overlapArea( q )
                      if( space.bigGtZero( ao )) {
                         if( space.bigGt( q.area, ao )) { // ao < q.area  // stabbing
@@ -259,7 +259,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                   }
 
                case c: QNode =>
-                  val cq            = c.quad
+                  val cq            = c.hyperCube
                   val cMinDist      = metric.minDistance( point, cq )
                   if( cMinDist <= rmax ) {   // otherwise we're out already
                      val cMaxDist   = metric.maxDistance( point, cq )
@@ -283,11 +283,11 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
 
          // Otherwise find corresponding node in highest level, and descend
          var dn   = acceptedChildren( 0 ).n
-         val qdn  = dn.quad
+         val qdn  = dn.hyperCube
          var succ = n0.next
          while( succ != null ) {
             succ.child( accept1Idx ) match {
-               case dn2: QNode if( dn2.quad == qdn ) =>
+               case dn2: QNode if( dn2.hyperCube == qdn ) =>
                   dn    = dn2
                   succ  = succ.next
                case _ =>

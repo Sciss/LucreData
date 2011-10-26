@@ -79,18 +79,18 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    /**
     * The bottom is defined as the center y coordinate plus
     * the extent minus one, it thus designed the 'last pixel'
-    * still inside the quad. This was changed from the previous
+    * still inside the hyperCube. This was changed from the previous
     * definition of 'cy + extent' to be able to use the full
-    * 31 bit signed int space for a quad without resorting
+    * 31 bit signed int space for a hyperCube without resorting
     * to long conversion.
     */
    override def bottom : Int  = cy + (extent - 1)
    /**
     * The right is defined as the center x coordinate plus
     * the extent minus one, it thus designed the 'last pixel'
-    * still inside the quad. This was changed from the previous
+    * still inside the hyperCube. This was changed from the previous
     * definition of 'cx + extent' to be able to use the full
-    * 31 bit signed int space for a quad without resorting
+    * 31 bit signed int space for a hyperCube without resorting
     * to long conversion.
     */
    override def right : Int   = cx + (extent - 1)
@@ -107,7 +107,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    }
 
    /**
-    * Checks whether a given quad is fully contained in this quad.
+    * Checks whether a given hyperCube is fully contained in this hyperCube.
     * This is also the case if their bounds full match.
     */
    def contains( quad: SquareLike ) : Boolean =
@@ -143,8 +143,8 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    def maxDistance( point: Point2DLike ) : Double = math.sqrt( maxDistanceSq( point ))
 
    /**
-    * The squared (euclidean) distance of the closest of the quad's corners
-    * to the point, if the point is outside the quad,
+    * The squared (euclidean) distance of the closest of the hyperCube's corners
+    * to the point, if the point is outside the hyperCube,
     * or `0L`, if the point is contained
     */
    def minDistanceSq( point: Point2DLike ) : Long = {
@@ -210,14 +210,14 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
          }
          return dys
       }
-      // if we get here, the point is inside the quad
+      // if we get here, the point is inside the hyperCube
       0L
    }
 
    /**
     * Calculates the maximum squared distance to a point in the euclidean metric.
     * This is the distance (squared) to the corner which is the furthest from
-    * the `point`, no matter if it lies within the quad or not.
+    * the `point`, no matter if it lies within the hyperCube or not.
     */
    def maxDistanceSq( point: Point2DLike ) : Long = {
       val px   = point.x
@@ -249,7 +249,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
     * Determines the quadrant index of a point `a`.
     *
     * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `a` lies
-    *          outside of this quad.
+    *          outside of this hyperCube.
     */
    def indexOf( a: Point2DLike ) : Int = {
       val ax   = a.x
@@ -270,10 +270,10 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    }
 
    /**
-    * Determines the quadrant index of another internal quad `aq`.
+    * Determines the quadrant index of another internal hyperCube `aq`.
     *
     * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `aq` lies
-    *          outside of this quad.
+    *          outside of this hyperCube.
     */
    def indexOf( aq: SquareLike ) : Int = {
       val atop = aq.top

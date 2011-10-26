@@ -24,7 +24,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
    val rnd           = new util.Random( 0L ) // ( 12L )
 
-//   val quad = Square( 0x20000000, 0x20000000, 0x20000000 )
+//   val hyperCube = Square( 0x20000000, 0x20000000, 0x20000000 )
    val quad          = Square( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad,
       coin = RandomizedSkipOctree.Coin( 0L ) ))
@@ -52,13 +52,13 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
    def verifyConsistency( t: SkipQuadtree[ Point2DLike ]) {
       when( "the internals of the structure are checked" )
       then( "they should be consistent with the underlying algorithm" )
-      val q = t.quad
+      val q = t.hyperCube
       var h = t.lastTree
       var currUnlinkedQuads   = Set.empty[ SquareLike ]
       var currPoints          = Set.empty[ Point2DLike ]
       var prevs = 0
       do {
-         assert( h.quad == q, "Root level quad is " + h.quad + " while it should be " + q + " in level n - " + prevs )
+         assert( h.hyperCube == q, "Root level quad is " + h.hyperCube + " while it should be " + q + " in level n - " + prevs )
          val nextUnlinkedQuads   = currUnlinkedQuads
          val nextPoints          = currPoints
          currUnlinkedQuads       = Set.empty
@@ -69,20 +69,20 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
             var i = 0; while( i < 4 ) {
                n.child( i ) match {
                   case c: t.QNode =>
-                     val nq = n.quad.orthant( i )
-                     val cq = c.quad
+                     val nq = n.hyperCube.orthant( i )
+                     val cq = c.hyperCube
                      assert( nq.contains( cq ), "Child has invalid quad (" + cq + "), expected: " + nq + assertInfo )
                      c.nextOption match {
                         case Some( next ) =>
                            assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
-                           assert( next.quad == cq, "Next quad does not match (" + cq + " vs. " + next.quad + ")" + assertInfo )
+                           assert( next.hyperCube == cq, "Next quad does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
                         case None =>
                            assert( !nextUnlinkedQuads.contains( cq ), "Double missing link for " + cq + assertInfo )
                      }
                      c.prevOption match {
                         case Some( prev ) =>
                            assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + assertInfo )
-                           assert( prev.quad == cq, "Next quad do not match (" + cq + " vs. " + prev.quad + ")" + assertInfo )
+                           assert( prev.hyperCube == cq, "Next quad do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
                         case None => currUnlinkedQuads += cq
                      }
                      checkChildren( c, depth + 1 )
@@ -169,7 +169,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       when( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( Point2D( rnd.nextInt(), rnd.nextInt() ))
       // tricky: this guarantees that there are no 63 bit overflows,
-      // while still allowing points outside the root quad to enter the test
+      // while still allowing points outside the root hyperCube to enter the test
       val ps = ps0.filter( p => {
          val dx = if( p.x < quad.cx ) quad.right.toLong - p.x else p.x - quad.left
          val dy = if( p.y < quad.cy ) quad.bottom.toLong - p.y else p.y - quad.top

@@ -13,14 +13,14 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
    def contains( point: D#Point ) : Boolean
 
    /**
-    * Checks whether a given quad is fully contained in this quad.
+    * Checks whether a given hyper-cube is fully contained in this hyper-cube.
     * This is also the case if their bounds full match.
     */
-   def contains( quad: D#HyperCube ) : Boolean
+   def contains( hyperCube: D#HyperCube ) : Boolean
 
    def area : D#BigNum
 
-   def overlapArea( quad: D#HyperCube ) : D#BigNum
+   def overlapArea( hyperCube: D#HyperCube ) : D#BigNum
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.
@@ -36,8 +36,8 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
 
    /**
     * The 'squared' (to the power of the dimension) euclidean distance of the
-    * closest of the quad's corners to the point, if the point is outside the quad,
-    * or `0L`, if the point is contained
+    * closest of the hyper-cube's corners to the point, if the point is outside the hyper-cube,
+    * or zero, if the point is contained
     */
    def minDistanceSq( point: D#Point ) : D#BigNum
 
@@ -45,35 +45,35 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * Calculates the maximum 'squared' (to the power of the dimension) euclidean
     * distance to a point in the euclidean metric.
     * This is the distance (pow space) to the corner which is the furthest from
-    * the `point`, no matter if it lies within the quad or not.
+    * the `point`, no matter if it lies within the hyper-cube or not.
     */
    def maxDistanceSq( point: D#Point ) : D#BigNum
 
    /**
-    * Determines the quadrant index of a point `point`.
+    * Determines the orthant index of a point `point`.
     *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `point` lies
-    *          outside of this quad.
+    * @return  the index of the orthant (beginning at 0), or (-index - 1) if `point` lies
+    *          outside of this hyper-cube.
     */
    def indexOf( point: D#Point ) : Int
 
    /**
-    * Determines the quadrant index of another internal quad `inner`.
+    * Determines the orthant index of another internal hyper-cube `inner`.
     *
-    * @return  the index of the quadrant (beginning at 0), or (-index - 1) if `inner` lies
-    *          outside of this quad.
+    * @return  the index of the orthant (beginning at 0), or (-index - 1) if `inner` lies
+    *          outside of this hyper-cube.
     */
    def indexOf( inner: D#HyperCube ) : Int
 
    /**
-    * Calculates the greatest interesting quad inside this quad which
-    * contains both points `a` and `b`, and they occupy distinct quadrants.
+    * Calculates the greatest interesting hyper-cube inside this hyper-cube which
+    * contains both points `a` and `b`, and they occupy distinct orthants.
     */
    def greatestInteresting( a: D#Point, b: D#Point ) : D#HyperCube
 
    /**
-    * Calculates the greatest interesting quad inside this quad which
-    * contains both quad `a` and point `b`, and they occupy distinct quadrants.
+    * Calculates the greatest interesting hyper-cube inside this hyper-cube which
+    * contains both hyper-cube `a` and point `b`, and they occupy distinct orthants.
     */
    def greatestInteresting( a: D#HyperCube, b: D#Point ) : D#HyperCube
 }

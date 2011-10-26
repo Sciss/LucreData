@@ -46,8 +46,8 @@ trait DistanceMeasure[ D <: Space[ D ]] {
 
    /**
     * Calculates the minimum distance between a point and
-    * any possible point of a given quad. In the euclidean
-    * case, this is the distance to the quad `b`'s corner that
+    * any possible point of a given hyper-cube. In the euclidean
+    * case, this is the distance to the hyper-cube `b`'s corner that
     * is closest to the point `a`, if `a` lies outside of `b`,
     * or zero, if `a` lies within `b`.
     */
@@ -55,8 +55,8 @@ trait DistanceMeasure[ D <: Space[ D ]] {
 
    /**
     * Calculates the maximum distance between a point and
-    * any possible point of a given quad. In the euclidean
-    * case, this is the distance to the quad `b`'s corner that
+    * any possible point of a given hyper-cube. In the euclidean
+    * case, this is the distance to the hyper-cube `b`'s corner that
     * is furthest to the point `a`, no matter whether `a`
     * is contained in `b` or not.
     */
@@ -66,12 +66,12 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * Applies a filter to this measure by constraining distances
     * to objects `b` which lie within the given `Square`. That
     * is, if for example `distance( a, b )` is called, first it
-    * is checked if `b` is within `quad`. If so, the underlying
+    * is checked if `b` is within `hyperCube`. If so, the underlying
     * measure is calculated, otherwise, `Long.MaxValue` is returned.
     * This behaviour extends to the `minDistance` and `maxDistance`
     * methods.
     */
-   def clip( quad: D#HyperCube ) : DistanceMeasure[ D ]
+   def clip( hyperCube: D#HyperCube ) : DistanceMeasure[ D ]
 
    /**
     * Composes this distance so that a threshold is applied to
@@ -91,5 +91,5 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     */
    def approximate( thresh: Long ) : DistanceMeasure[ D ]
 
-   def quadrant( idx: Int ) : DistanceMeasure[ D ]
+   def orthant( idx: Int ) : DistanceMeasure[ D ]
 }

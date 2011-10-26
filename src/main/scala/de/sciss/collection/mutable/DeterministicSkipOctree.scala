@@ -30,21 +30,21 @@ import annotation.{switch, tailrec}
 import geom.Space
 
 object DeterministicSkipOctree {
-   def empty[ D <: Space[ D ], A ]( space: D, quad: D#HyperCube, skipGap: Int = 2 )
+   def empty[ D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
                                 ( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
-      new TreeImpl[ D, A ]( space, quad, skipGap, view )
+      new TreeImpl[ D, A ]( space, hyperCube, skipGap, view )
 
-   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, quad: D#HyperCube, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
-      val t = empty[ D, A ]( space, quad, skipGap )
+   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ D, A ] = {
+      val t = empty[ D, A ]( space, hyperCube, skipGap )
       xs.foreach( t.+=( _ ))
       t
    }
 
-   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val quad: D#HyperCube, _skipGap: Int, val pointView: A => D#Point )
+   private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val hyperCube: D#HyperCube, _skipGap: Int, val pointView: A => D#Point )
    extends impl.SkipOctreeImpl[ D, A ] {
       tree =>
 
-      val numQuadChildren: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
+      val numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
       val totalOrder = TotalOrder()
       private var tailVar: TopNode = TopLeftNode
       private val skipList: SkipList[ Leaf ] = {
@@ -69,7 +69,7 @@ object DeterministicSkipOctree {
 
       protected def insertLeaf( elem: A ) : QLeaf = {
          val point   = pointView( elem )
-         require( quad.contains( point ), point.toString + " lies out of root square " + quad )
+         require( hyperCube.contains( point ), point.toString + " lies out of root hyper-cube " + hyperCube )
 
          val p0      = tailVar.findP0( point )
          val oldLeaf = p0.findImmediateLeaf( point )
@@ -84,7 +84,7 @@ object DeterministicSkipOctree {
       }
 
       protected def removeLeaf( point: D#Point ) : QLeaf = {
-         if( !quad.contains( point )) return null
+         if( !hyperCube.contains( point )) return null
 
          // "To insert or delete a point y into or from S, we first search the
          // quadtree structure to locate y in each Qi ..."
@@ -151,7 +151,7 @@ object DeterministicSkipOctree {
                res
             } else q0o
             q0.insert( l, path )
-//          path.find( _.quad == p1.quad ) ...
+//          path.find( _.hyperCube == p1.hyperCube ) ...
          }
 
          def keyDown( l: Leaf ) {
@@ -171,7 +171,7 @@ object DeterministicSkipOctree {
 
       /**
        * A child is an object that can be
-       * stored in a quadrant of a node.
+       * stored in a orthant of a node.
        */
       private sealed trait Child extends Q {
          def shortString : String
@@ -201,7 +201,7 @@ object DeterministicSkipOctree {
       private sealed trait RightChild extends Child
 
       /**
-       * A dummy object indicating a vacant quadrant in a node.
+       * A dummy object indicating a vacant orthant in a node.
        */
       private case object Empty extends LeftChild with RightChild with QEmpty {
          def shortString = "empty"
@@ -209,27 +209,27 @@ object DeterministicSkipOctree {
       }
 
       /**
-       * An object denoting a filled quadrant of a node.
+       * An object denoting a filled orthant of a node.
        * This is either a leaf or another node. This trait
        * supports the operations of calculating the greatest
-       * interesting square with regard to another point,
+       * interesting hyper-cube with regard to another point,
        * as well as determining its position within an
-       * encompassing quad.
+       * encompassing hyper-cube.
        */
       private sealed trait NonEmpty extends Child {
          /**
-          * Computes the greatest interesting square within
-          * a given quadrant `mq` so that this (leaf's or node's)
-          * square and the given point will be placed in
-          * separated quadrants of this resulting square.
+          * Computes the greatest interesting hyper-cube within
+          * a given hyper-cube `mq` so that this (leaf's or node's)
+          * hyper-cube and the given point will be placed in
+          * separated orthants of this resulting hyper-cube.
           */
          def union( mq: D#HyperCube, point: D#Point ) : D#HyperCube
 
          /**
-          * Queries the quadrant index for this (leaf's or node's) square
-          * with respect to a given outer square `iq`.
+          * Queries the orthant index for this (leaf's or node's) hyper-cube
+          * with respect to a given outer hyper-cube `iq`.
           */
-         def quadIdxIn( iq: D#HyperCube ) : Int
+         def orthantIndexIn( iq: D#HyperCube ) : Int
       }
 
       /**
@@ -276,13 +276,13 @@ object DeterministicSkipOctree {
       }
 
       /**
-       * A leaf in the quadtree, carrying a map entry
+       * A leaf in the octree, carrying a map entry
        * in the form of a point and associated value.
        * Note that a single instance of a leaf is used
-       * across the levels of the quadtree! That means
+       * across the levels of the octree! That means
        * that multiple child pointers may go to the
        * same leaf, while the parent of a leaf always
-       * points into the highest level quadtree that
+       * points into the highest level octree that
        * the leaf resides in, according to the skiplist.
        */
       private sealed trait Leaf extends LeftInnerNonEmpty with RightInnerNonEmpty with Ordered[ Leaf ] with QLeaf {
@@ -302,7 +302,7 @@ object DeterministicSkipOctree {
          /**
           * Leafs are ordered by the tree's in-order traversal,
           * where the quadrants I+II and III+IV can be thought
-          * of as dummy nodes to binarize the quadtree. That is
+          * of as dummy nodes to binarize the octree. That is
           * to say, in a node, the child order corresponds to
           * their quadrant indices (I < II < III < IV).
           */
@@ -313,7 +313,7 @@ object DeterministicSkipOctree {
             mq.greatestInteresting( point, point2 )
          }
 
-         final def quadIdxIn( iq: D#HyperCube ) : Int = iq.indexOf( pointView( value ))
+         final def orthantIndexIn( iq: D#HyperCube ) : Int = iq.indexOf( pointView( value ))
 
          /**
           * For a leaf (which does not have a subtree),
@@ -331,19 +331,19 @@ object DeterministicSkipOctree {
       }
 
       /**
-       * Nodes are defined by a quad area as well as a list of children,
+       * Nodes are defined by a hyperCube area as well as a list of children,
        * as well as a pointer `next` to the corresponding node in the
        * next highest tree. A `Node` also provides various search methods.
        */
       private sealed trait Node extends NonEmpty with QNode {
          /**
           * Returns the child for a given
-          * quadrant index
+          * orthant index
           */
          def child( idx: Int ) : Child
 
          /**
-          * Finds to smallest interesting square
+          * Finds to smallest interesting hyper-cube
           * in Q0, containing a given point. This method
           * traverses downwards into its children, or,
           * if the "bottom" has been reached, tries to
@@ -366,33 +366,33 @@ object DeterministicSkipOctree {
 //         def findLeaf( point: D#PointType ) : Leaf
 
          /**
-          * Returns the square covered by this node
+          * Returns the hyper-cube covered by this node
           */
-         def quad: D#HyperCube
+         def hyperCube: D#HyperCube
 
          /**
           * Returns the corresponding interesting
-          * square in Qi+1, or `null` if no such
-          * square exists.
+          * node in Qi+1, or `null` if no such
+          * node exists.
           */
          def next: RightNode
 
          /**
           * Sets the corresponding interesting
-          * square in Qi+1.
+          * node in Qi+1.
           */
          def next_=( n: RightNode ) : Unit
 
          final def union( mq: D#HyperCube, point2: D#Point ) = {
-            val q = quad
+            val q = hyperCube
             mq.greatestInteresting( q, point2 )
          }
 
-         final def quadIdxIn( iq: D#HyperCube ) : Int = iq.indexOf( quad )
+         final def orthantIndexIn( iq: D#HyperCube ) : Int = iq.indexOf( hyperCube )
 
          /**
           * The reverse process of `findP0`: Finds the lowest
-          * common ancestor interesting square of this node
+          * common ancestor interesting node of this node
           * which is also contained in Qi+1. Returns this node
           * in Qi+1, or null if no such node exists.
           */
@@ -406,10 +406,10 @@ object DeterministicSkipOctree {
          protected def leafRemoved() : Unit
 
          def nodeName : String
-         final def shortString = nodeName + "(" + quad + ")"
+         final def shortString = nodeName + "(" + hyperCube + ")"
 
          override def toString = shortString +
-            Seq.tabulate( numQuadChildren )( i => child( i ).shortString )
+            Seq.tabulate( numOrthants )( i => child( i ).shortString )
                .mkString( " : children = [", ", ", "]" )
 
          final def prevOption: Option[ QNode ] = Option( prev )
@@ -443,16 +443,16 @@ object DeterministicSkipOctree {
        * `prev` method.
        */
       private sealed trait RightNode extends Node with NonEmpty {
-         final val children = Array.fill[ RightChild ]( numQuadChildren )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ RightChild ]( numOrthants )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          def prev : Node
          final def child( idx: Int ) : RightChild = children( idx )
 
          final def findP0( point: D#Point ) : LeftNode = {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
-               case n: Node if( n.quad.contains( point )) => n.findP0( point )
+               case n: Node if( n.hyperCube.contains( point )) => n.findP0( point )
                case _ => prev.findP0( point )
             }
          }
@@ -467,7 +467,7 @@ object DeterministicSkipOctree {
           * If the result of insertion is a new child node
           * below this node, this intermediate node will
           * be connected to Qi by looking for the corresponding
-          * quad in the given search path that led here
+          * hyper-cube in the given search path that led here
           * (i.e. that was constructed in `findPN`).
           *
           * This method also sets the parent of the leaf
@@ -475,7 +475,7 @@ object DeterministicSkipOctree {
           */
          final def insert( leaf: Leaf, path: Array[ Node ]) {
             val point   = pointView( leaf.value )
-            val qidx    = quad.indexOf( point )
+            val qidx    = hyperCube.indexOf( point )
             val c       = children
             c( qidx ) match {
                case Empty =>
@@ -483,12 +483,12 @@ object DeterministicSkipOctree {
                   c( qidx )   = leaf
 
                case old: RightInnerNonEmpty =>
-                  val qn2     = old.union( quad.orthant( qidx ), point )
+                  val qn2     = old.union( hyperCube.orthant( qidx ), point )
                   // find the corresponding node in the lower tree
-                  var pathIdx = 0; while( path( pathIdx ).quad != qn2 ) pathIdx += 1
+                  var pathIdx = 0; while( path( pathIdx ).hyperCube != qn2 ) pathIdx += 1
                   val n2      = newNode( path( pathIdx ), qn2 )
                   val c2      = n2.children
-                  val oidx    = old.quadIdxIn( qn2 )
+                  val oidx    = old.orthantIndexIn( qn2 )
                   c2( oidx )  = old
                   // This is a tricky bit! And a reason
                   // why should eventually try to do without
@@ -499,7 +499,7 @@ object DeterministicSkipOctree {
                   // and if so, adjust the parent to point
                   // to the new intermediate node `ne`!
                   if( old.parent == this ) old.parentRight_=( n2 )
-                  val lidx    = leaf.quadIdxIn( qn2 )
+                  val lidx    = leaf.orthantIndexIn( qn2 )
                   c2( lidx )  = leaf
                   leaf.parent = n2
                   c( qidx )   = n2
@@ -510,12 +510,12 @@ object DeterministicSkipOctree {
          /*
           * Instantiates an appropriate
           * sub-node whose parent is this node, and whose predecessor
-          * in the lower quadtree is given.
+          * in the lower octree is given.
           */
          @inline private def newNode( prev: Node, iq: D#HyperCube ) : InnerRightNode = new InnerRightNode( this, prev, iq )
 
          final def removeImmediateLeaf( leaf: Leaf ) {
-            var qidx = 0; while( qidx < numQuadChildren ) {
+            var qidx = 0; while( qidx < numOrthants ) {
                if( children( qidx ) == leaf ) {
                   children( qidx ) = Empty
                   var newParent  = prev
@@ -524,7 +524,7 @@ object DeterministicSkipOctree {
                      newParent.child( pidx ) match {
                         case sn: Node =>
                            newParent   = sn
-                           pidx        = leaf.quadIdxIn( sn.quad )
+                           pidx        = leaf.orthantIndexIn( sn.hyperCube )
                         case sl: Leaf =>
                            assert( sl == leaf, "Internal error - diverging leaves : " + leaf + " versus " + sl )
                            leafRemoved()
@@ -551,11 +551,11 @@ object DeterministicSkipOctree {
           * -- they are instances of `LeftChild` and thus support
           * order intervals.
           */
-         final val children = Array.fill[ LeftChild ]( numQuadChildren )( Empty ) // XXX is apply faster?
+         final val children = Array.fill[ LeftChild ]( numOrthants )( Empty ) // XXX is apply faster?
          final var next : RightNode = null
 
          /**
-          * Note that `prev` will not be called as part of this quadtree implementation
+          * Note that `prev` will not be called as part of this octree implementation
           * which smartly distinguishes between left and right nodes. It is merely here
           * to satisfy the `QNode` interface of `SkipOctree`.
           */
@@ -564,9 +564,9 @@ object DeterministicSkipOctree {
          final def child( idx: Int ) : Child = children( idx )
 
          final def findP0( point: D#Point ) : LeftNode = {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             child( qidx ) match {
-               case n: Node if( n.quad.contains( point )) => n.findP0( point )
+               case n: Node if( n.hyperCube.contains( point )) => n.findP0( point )
                case _ => this
             }
          }
@@ -579,7 +579,7 @@ object DeterministicSkipOctree {
           *          `point`, or `null` if no such leaf exists.
           */
          final def findImmediateLeaf( point: D#Point ) : Leaf = {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             child( qidx ) match {
                case l: Leaf if( pointView( l.value ) == point ) => l
                case _ => null
@@ -587,7 +587,7 @@ object DeterministicSkipOctree {
          }
 
          final def removeImmediateLeaf( leaf: Leaf ) {
-            var qidx = 0; while( qidx < numQuadChildren ) {
+            var qidx = 0; while( qidx < numOrthants ) {
                if( children( qidx ) == leaf ) {
                   children( qidx ) = Empty
                   leafRemoved()
@@ -599,7 +599,7 @@ object DeterministicSkipOctree {
          }
 
          final def insert( point: D#Point, value: A ) : Leaf = {
-            val qidx = quad.indexOf( point )
+            val qidx = hyperCube.indexOf( point )
             val c    = children
             c( qidx ) match {
                case Empty =>
@@ -610,15 +610,15 @@ object DeterministicSkipOctree {
 //                  l.value     = value
 //                  l
                case old: LeftInnerNonEmpty =>
-                  val qn2     = old.union( quad.orthant( qidx ), point )
-//val tmp = quadInQuad( quad, qn2 )
+                  val qn2     = old.union( hyperCube.orthant( qidx ), point )
+//val tmp = quadInQuad( hyperCube, qn2 )
 //if( tmp == -1 ) {
-//   println( "Ouch! " + qn2 + " not in " + quad )
-//   old.union( quad.quadrant( qidx ), point )
+//   println( "Ouch! " + qn2 + " not in " + hyperCube )
+//   old.union( hyperCube.quadrant( qidx ), point )
 //}
                   val n2      = newNode( qn2 )
                   val c2      = n2.children
-                  val oidx    = old.quadIdxIn( qn2 )
+                  val oidx    = old.orthantIndexIn( qn2 )
                   c2( oidx )  = old
                   // This is a tricky bit! And a reason
                   // why should eventually try to do without
@@ -630,7 +630,7 @@ object DeterministicSkipOctree {
                   // to the new intermediate node `ne`!
                   if( old.parent == this ) old.parentLeft_=( n2 )
                   val leaf    = n2.newLeaf( point, value )
-                  val lidx    = leaf.quadIdxIn( qn2 )
+                  val lidx    = leaf.orthantIndexIn( qn2 )
                   c2( lidx )  = leaf
                   c( qidx )   = n2
                   leaf
@@ -645,8 +645,8 @@ object DeterministicSkipOctree {
          private def newLeaf( point: D#Point, value: A ) : Leaf = {
             val l = new LeafImpl( point, value, { l =>
                val lne: LeftNonEmpty = l
-if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
-               ((lne.quadIdxIn( quad ): @switch) match {
+if( numOrthants != 4 ) sys.error( "TODO" ) // YYY
+               ((lne.orthantIndexIn( hyperCube ): @switch) match {
                   case 0 => startOrder.append() // startOrder.insertAfter( lne )
                   case 1 => children( 0 ) match {
                      case n2: LeftNonEmpty => n2.stopOrder.append() // n2.stopOrder.insertAfter( l )
@@ -672,7 +672,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
             }
          }
          @tailrec private def insetStop( n: LeftNode, idx: Int ) : InOrder = {
-            if( idx == numQuadChildren ) {
+            if( idx == numOrthants ) {
                stopOrder.prepend() // stopOrder.insertBefore( n )
             } else children( idx ) match {
                case n2: LeftNonEmpty => n2.stopOrder.append() // n2.stopOrder.insertAfter( n )
@@ -690,12 +690,12 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
           * ordered according to its position in this node.
           */
          @inline private def newNode( iq: D#HyperCube ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
-            insets( n, quad.indexOf( n.quad ))  // n.quadIdxIn( quad )
+            insets( n, hyperCube.indexOf( n.hyperCube ))
          })
       }
 
       private sealed trait TopNode extends Node {
-         final def quad : D#HyperCube = tree.quad
+         final def hyperCube : D#HyperCube = tree.hyperCube
 
          final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
             val n = next
@@ -716,7 +716,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
          def nodeName = "top-left"
       }
 
-      private final class InnerLeftNode( var parent: LeftNode, val quad: D#HyperCube, _ins: LeftNode => (InOrder, InOrder) )
+      private final class InnerLeftNode( var parent: LeftNode, val hyperCube: D#HyperCube, _ins: LeftNode => (InOrder, InOrder) )
       extends LeftNode with InnerNode with LeftInnerNonEmpty {
          val (startOrder, stopOrder) = _ins( this )
 
@@ -736,7 +736,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
          protected def leafRemoved() {
             var lonely: LeftInnerNonEmpty = null
             var numNonEmpty = 0
-            var i = 0; while( i < numQuadChildren ) {
+            var i = 0; while( i < numOrthants ) {
                children( i ) match {
                   case n: LeftInnerNonEmpty =>
                      numNonEmpty += 1
@@ -745,7 +745,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
                }
             i += 1 }
             if( numNonEmpty == 1 ) {   // YYY ???   // gotta remove this node and put remaining non empty element in parent
-               val myIdx = parent.quad.indexOf( quad )
+               val myIdx = parent.hyperCube.indexOf( hyperCube )
 //
 //               @tailrec def findLeftParent( n: Node ) : LeftNode = n match {
 //                  case ln: LeftNode    => ln
@@ -779,7 +779,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
          protected def leafRemoved() {
             if( next != null ) return
 
-            var i = 0; while( i < numQuadChildren ) {
+            var i = 0; while( i < numOrthants ) {
                children( i ) match {
                   case _: RightInnerNonEmpty => return   // node not empty, abort the check
                   case _ =>
@@ -802,10 +802,10 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
       /**
        * Note that this instantiation sets the `prev`'s `next` field to this new node.
        */
-      private final class InnerRightNode( var parent: RightNode, val prev: Node, val quad: D#HyperCube )
+      private final class InnerRightNode( var parent: RightNode, val prev: Node, val hyperCube: D#HyperCube )
       extends RightNode with InnerNode with RightInnerNonEmpty {
          prev.next = this
-//assert( prev.quad == quad )
+//assert( prev.hyperCube == hyperCube )
 
          def nodeName = "inner-right"
 
@@ -822,7 +822,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
          protected def leafRemoved() {
             var lonely: RightInnerNonEmpty = null
             var numNonEmpty = 0
-            var i = 0; while( i < numQuadChildren ) {
+            var i = 0; while( i < numOrthants ) {
                children( i ) match {
                   case n: RightInnerNonEmpty =>
                      numNonEmpty += 1
@@ -831,7 +831,7 @@ if( numQuadChildren != 4 ) sys.error( "TODO" ) // YYY
                }
             i += 1 }
             if( numNonEmpty == 1 ) {   // YYY ???   // gotta remove this node and put remaining non empty element in parent
-               val myIdx = parent.quad.indexOf( quad )
+               val myIdx = parent.hyperCube.indexOf( hyperCube )
                parent.children( myIdx ) = lonely
                if( lonely.parent == this ) lonely.parentRight_=( parent )
                dispose()

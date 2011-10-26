@@ -42,7 +42,7 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
    }
 
    private def setPrefSz( lvl: Int ) {
-      val w1   = ((t.quad.extent.toLong << 1) * scale + 0.5).toInt + 1
+      val w1   = ((t.hyperCube.extent.toLong << 1) * scale + 0.5).toInt + 1
       val in   = getInsets
       setPreferredSize( new Dimension( ((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom) ))
    }
@@ -53,7 +53,7 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
 
    protected def draw( h: QuadView.PaintHelper ) {
       var n = t.headTree
-      val q = t.quad
+      val q = t.hyperCube
       val dx = ((q.extent.toLong << 1) * scale + 0.5).toInt + 16
       h.scale= scale
       while( n != null ) {
@@ -67,7 +67,7 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
       quad match {
          case n: t.QNode =>
             for( idx <- 0 until 4 ) {
-               h.drawFrame( n.quad.orthant( idx ), gridColor )
+               h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
                draw( h, n.child( idx ))
             }
          case _: t.QEmpty =>

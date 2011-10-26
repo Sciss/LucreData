@@ -189,7 +189,7 @@ extends JPanel( new BorderLayout() ) {
    }
    combo( "All Quad2Drants", "North East", "North West", "South West", "South East" ) { i =>
       if( i > 0 ) {
-         distFilter = _.quadrant( i - 1 )
+         distFilter = _.orthant( i - 1 )
       } else {
          distFilter = identity
       }
@@ -325,13 +325,13 @@ extends JPanel( new BorderLayout() ) {
 //removePoints( 4 )
 
    def verifyConsistency( t: SkipQuadtree[ Point2DLike ]) {
-      val q = t.quad
+      val q = t.hyperCube
       var h = t.lastTree
       var currUnlinkedQuad2Ds   = Set.empty[ SquareLike ]
       var currPoints          = Set.empty[ Point2DLike ]
       var prevs = 0
       do {
-         assert( h.quad == q, "Root level quad is " + h.quad + " while it should be " + q + " in level n - " + prevs )
+         assert( h.hyperCube == q, "Root level quad is " + h.hyperCube + " while it should be " + q + " in level n - " + prevs )
          val nextUnlinkedQuad2Ds   = currUnlinkedQuad2Ds
          val nextPoints          = currPoints
          currUnlinkedQuad2Ds       = Set.empty
@@ -342,20 +342,20 @@ extends JPanel( new BorderLayout() ) {
             var i = 0; while( i < 4 ) {
                n.child( i ) match {
                   case c: t.QNode =>
-                     val nq = n.quad.orthant( i )
-                     val cq = c.quad
+                     val nq = n.hyperCube.orthant( i )
+                     val cq = c.hyperCube
                      assert( nq.contains( cq ), "Child has invalid quad (" + cq + "), expected: " + nq + assertInfo )
                      c.nextOption match {
                         case Some( next ) =>
                            assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
-                           assert( next.quad == cq, "Next quad does not match (" + cq + " vs. " + next.quad + ")" + assertInfo )
+                           assert( next.hyperCube == cq, "Next quad does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
                         case None =>
                            assert( !nextUnlinkedQuad2Ds.contains( cq ), "Double missing link for " + cq + assertInfo )
                      }
                      c.prevOption match {
                         case Some( prev ) =>
                            assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + assertInfo )
-                           assert( prev.quad == cq, "Next quad do not match (" + cq + " vs. " + prev.quad + ")" + assertInfo )
+                           assert( prev.hyperCube == cq, "Next quad do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
                         case None => currUnlinkedQuad2Ds += cq
                      }
                      checkChildren( c, depth + 1 )
