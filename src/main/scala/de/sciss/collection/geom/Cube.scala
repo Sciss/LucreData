@@ -203,31 +203,40 @@ extends CubeLike {
       }
    }
 
+   /**
+    * Calculates the maximum squared euclidean
+    * distance to a point in the euclidean metric.
+    * This is the distance (squared) to the corner which is the furthest from
+    * the `point`, no matter if it lies within the hyper-cube or not.
+    */
    def maxDistanceSq( point: Point3DLike ) : BigInt = {
-//      val px   = point.x
-//      val py   = point.y
-//      if( px < cx ) {
-//         val dx   = right.toLong - px.toLong // (right - px).toLong
-//         val dxs  = dx * dx
-//         if( py < cy ) {   // bottom right is furthest
-//            val dy   = bottom.toLong - py.toLong // (bottom - py).toLong
-//            dxs + dy * dy
-//         } else {          // top right is furthest
-//            val dy   = py.toLong - top.toLong // (py - top).toLong
-//            dxs + dy * dy
-//         }
-//      } else {
-//         val dx   = px.toLong - left.toLong // (px - left).toLong
-//         val dxs  = dx * dx
-//         if( py < cy ) {   // bottom left is furthest
-//            val dy   = bottom.toLong - py.toLong // (bottom - py).toLong
-//            dxs + dy * dy
-//         } else {          // top left is furthest
-//            val dy   = py.toLong - top.toLong // (py - top).toLong
-//            dxs + dy * dy
-//         }
-//      }
-      sys.error( "TODO" )
+      val ax   = point.x
+      val ay   = point.y
+      val az   = point.z
+      val em1  = extent - 1
+      val axl  = ax.toLong
+      val ayl  = ay.toLong
+      val azl  = az.toLong
+
+      val dx   = if( ax < cx ) {
+         (cx + em1).toLong - axl
+      } else {
+         axl - (cx - extent).toLong
+      }
+
+      val dy   = if( ay < cy ) {
+         (cy + em1).toLong - ayl
+      } else {
+         ayl - (cy - extent).toLong
+      }
+
+      val dz   = if( az < cz ) {
+         (cz + em1).toLong - azl
+      } else {
+         azl - (cz - extent).toLong
+      }
+
+      BigInt( dx * dx + dy * dy ) + BigInt( dz * dz )
    }
 
    def indexOf( a: Point3DLike ) : Int = {

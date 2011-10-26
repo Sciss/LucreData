@@ -28,6 +28,17 @@ object Space {
       final def bigGt( a: BigInt, b: BigInt ) : Boolean = a > b
    }
    object ThreeDim extends ThreeDim
+
+//   /**
+//    * Space for arbitrary number of dimensions.
+//    *
+//    * @param   dim   the number of dimensions, which must be in the interval [2, 32]
+//    */
+//   final case class NDim( dim: Int ) extends Space[ NDim ] {
+//      require( dim >= 2 && dim <= 32, "Illegal number of dimensions (" + dim + "). Must be between 2 and 32" )
+//
+//
+//   }
 }
 
 /**

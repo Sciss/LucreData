@@ -90,18 +90,18 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    /**
     * The bottom is defined as the center y coordinate plus
     * the extent minus one, it thus designed the 'last pixel'
-    * still inside the hyperCube. This was changed from the previous
+    * still inside the square. This was changed from the previous
     * definition of 'cy + extent' to be able to use the full
-    * 31 bit signed int space for a hyperCube without resorting
+    * 31 bit signed int space for a square without resorting
     * to long conversion.
     */
    override def bottom : Int  = cy + (extent - 1)
    /**
     * The right is defined as the center x coordinate plus
     * the extent minus one, it thus designed the 'last pixel'
-    * still inside the hyperCube. This was changed from the previous
+    * still inside the square. This was changed from the previous
     * definition of 'cx + extent' to be able to use the full
-    * 31 bit signed int space for a hyperCube without resorting
+    * 31 bit signed int space for a square without resorting
     * to long conversion.
     */
    override def right : Int   = cx + (extent - 1)
@@ -118,7 +118,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    }
 
    /**
-    * Checks whether a given hyperCube is fully contained in this hyperCube.
+    * Checks whether a given square is fully contained in this square.
     * This is also the case if their bounds full match.
     */
    def contains( quad: SquareLike ) : Boolean =
@@ -189,39 +189,35 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    /**
     * Calculates the maximum squared distance to a point in the euclidean metric.
     * This is the distance (squared) to the corner which is the furthest from
-    * the `point`, no matter if it lies within the hyperCube or not.
+    * the `point`, no matter if it lies within the square or not.
     */
    def maxDistanceSq( point: Point2DLike ) : Long = {
-      val px   = point.x
-      val py   = point.y
-      if( px < cx ) {
-         val dx   = right.toLong - px.toLong // (right - px).toLong
-         val dxs  = dx * dx
-         if( py < cy ) {   // bottom right is furthest
-            val dy   = bottom.toLong - py.toLong // (bottom - py).toLong
-            dxs + dy * dy
-         } else {          // top right is furthest
-            val dy   = py.toLong - top.toLong // (py - top).toLong
-            dxs + dy * dy
-         }
+      val ax   = point.x
+      val ay   = point.y
+      val em1  = extent - 1
+      val axl  = ax.toLong
+      val ayl  = ay.toLong
+
+      val dx   = if( ax < cx ) {
+         (cx + em1).toLong - axl
       } else {
-         val dx   = px.toLong - left.toLong // (px - left).toLong
-         val dxs  = dx * dx
-         if( py < cy ) {   // bottom left is furthest
-            val dy   = bottom.toLong - py.toLong // (bottom - py).toLong
-            dxs + dy * dy
-         } else {          // top left is furthest
-            val dy   = py.toLong - top.toLong // (py - top).toLong
-            dxs + dy * dy
-         }
+         axl - (cx - extent).toLong
       }
+
+      val dy   = if( ay < cy ) {
+         (cy + em1).toLong - ayl
+      } else {
+         ayl - (cy - extent).toLong
+      }
+
+      dx * dx + dy * dy
    }
 
    /**
     * Determines the quadrant index of a point `a`.
     *
     * @return  the index of the quadrant (beginning at 0), or -1 if `a` lies
-    *          outside of this hyperCube.
+    *          outside of this square.
     */
    def indexOf( a: Point2DLike ) : Int = {
       val ax   = a.x
@@ -242,10 +238,10 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    }
 
    /**
-    * Determines the quadrant index of another internal hyperCube `aq`.
+    * Determines the quadrant index of another internal square `aq`.
     *
     * @return  the index of the quadrant (beginning at 0), or -1 if `aq` lies
-    *          outside of this hyperCube.
+    *          outside of this square.
     */
    def indexOf( aq: SquareLike ) : Int = {
       val atop = aq.top
