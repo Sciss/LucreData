@@ -66,7 +66,7 @@ object CompressedQuadtree {
                if( tq.contains( point )) {
                   t.insert( point, value )
                } else {
-                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq, point )
+                  val iq      = quad.orthant( qidx ).greatestInteresting( tq, point )
                   val iquads  = new Array[ Q[ V ]]( 4 )
                   val tidx    = iq.indexOf( tq )
                   iquads( tidx ) = t
@@ -82,7 +82,7 @@ object CompressedQuadtree {
                quadrants of q."
              */
             case l @ QLeaf( point2, value2 ) =>
-               val iq      = quad.quadrant( qidx ).greatestInteresting ( point2, point )
+               val iq      = quad.orthant( qidx ).greatestInteresting ( point2, point )
                val iquads  = new Array[ Q[ V ]]( 4 )
                val lidx    = iq.indexOf( point2 )
                iquads( lidx ) = l

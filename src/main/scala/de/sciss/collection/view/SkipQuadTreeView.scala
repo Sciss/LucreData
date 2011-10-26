@@ -67,7 +67,7 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
       quad match {
          case n: t.QNode =>
             for( idx <- 0 until 4 ) {
-               h.drawFrame( n.quad.quadrant( idx ), gridColor )
+               h.drawFrame( n.quad.orthant( idx ), gridColor )
                draw( h, n.child( idx ))
             }
          case _: t.QEmpty =>

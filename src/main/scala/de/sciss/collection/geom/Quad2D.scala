@@ -74,7 +74,7 @@ trait Quad2DLike extends QuadLike[ Space.TwoDim ] with Rectangle2DLike {
 final case class Quad2D( cx: Int, cy: Int, extent: Int ) extends Quad2DLike {
    import Quad2D._
 
-   def quadrant( idx: Int ) : Quad2DLike = {
+   def orthant( idx: Int ) : Quad2DLike = {
       val e = extent >> 1
       idx match {
          case 0 => Quad2D( cx + e, cy - e, e ) // ne

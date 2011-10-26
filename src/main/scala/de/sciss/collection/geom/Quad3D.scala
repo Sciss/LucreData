@@ -26,40 +26,54 @@
 package de.sciss.collection.geom
 
 /**
- * XXX TODO: not possible to have a side length of 1, which might
- * be(come) a problem.
+ * A three dimensional cube.
+ *
+ * Wikipedia: "Usually, the octant with all three positive coordinates is
+ * referred to as the first octant. There is no generally used naming
+ * convention for the other seven octants."
+ *
+ * However the article suggests (given that we count from zero):
+ * - 0 (binary 000) - top-front-left
+ * - 1 (binary 001) - top-back-right
+ * - 2 (binary 010) - top-back-left
+ * - 3 (binary 011) - top-front-left
+ * - 4 (binary 100) - bottom-front-left
+ * - 5 (binary 101) - bottom-back-left
+ * - 6 (binary 110) - bottom-back-right
+ * - 7 (binary 111) - bottom-front-right
+ *
+ * Obviously there is no clear connection between the orientation
+ * and the binary representation. We thus prefer to chose the
+ * the octants numbering in a binary fashion, assigning bit 0
+ * to the x-axis, bit 1 to the y-axis, and bit 2 to
+ * the z-axis, where top-front-left is 000, hence:
+ *
+ * - 0 (binary 000) - left-top-front
+ * - 1 (binary 001) - right-top-front
+ * - 2 (binary 010) - left-bottom-front
+ * - 3 (binary 011) - right-bottom-front
+ * - 4 (binary 100) - left-top-back
+ * - 5 (binary 101) - right-top-back
+ * - 6 (binary 110) - left-bottom-back
+ * - 7 (binary 111) - right-bottom-back
  */
-//object Quad3D {
-//   // http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits
-//   @tailrec private def binSplit( a: Int, b: Int, mask: Int = 0xFFFF0000, shift: Int = 8 ): Int = {
-//      val gt = a > (b & mask)
-//      if( shift == 0 ) {
-//         if( gt ) mask >> 1 else mask
-//      } else {
-//        binSplit( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
-//      }
-//   }
-//}
 trait Quad3DLike extends QuadLike[ Space.ThreeDim ] {
    def cx: Int
    def cy: Int
    def cz: Int
+   def extent: Int
 }
 
 final case class Quad3D( cx: Int, cy: Int, cz: Int, extent: Int )
 extends Quad3DLike {
 //   import Quad3D._
 
-   def quadrant( idx: Int ) : Quad3DLike = {
-      sys.error( "TODO" )
-//      val e = extent >> 1
-//      idx match {
-//         case 0 => Quad3D( cx + e, cy - e, e ) // ne
-//         case 1 => Quad3D( cx - e, cy - e, e ) // nw
-//         case 2 => Quad3D( cx - e, cy + e, e ) // sw
-//         case 3 => Quad3D( cx + e, cy + e, e ) // se
-//         case _ => throw new IllegalArgumentException( idx.toString )
-//      }
+   def orthant( idx: Int ) : Quad3DLike = {
+      val e    = extent >> 1
+      val dx   = if( (idx & 1) == 0 ) -e else e
+      val dy   = if( (idx & 2) == 0 ) -e else e
+      val dz   = if( (idx & 4) == 0 ) -e else e
+      Quad3D( cx + dx, cy + dy, cz + dz, e )
    }
 
 //   def top : Int     = cy - extent
@@ -109,7 +123,7 @@ extends Quad3DLike {
       BigInt( sd * sd ) * BigInt( s )
    }
 
-   def overlapArea( q: Quad3DLike ) : Long = {
+   def overlapArea( q: Quad3DLike ) : BigInt = {
       sys.error( "TODO" )
 //      val l = math.max( q.left, left ).toLong
 //      val r = math.min( q.right, right ).toLong
@@ -122,10 +136,10 @@ extends Quad3DLike {
 //      w * h
    }
 
-   def minDistance( point: Point3DLike ) : Double = math.pow( minDistanceSq( point ), 1.0/3 )
-   def maxDistance( point: Point3DLike ) : Double = math.pow( maxDistanceSq( point ), 1.0/3 )
+   def minDistance( point: Point3DLike ) : Double = sys.error( "TODO" ) // math.pow( minDistanceSq( point ), 1.0/3 )
+   def maxDistance( point: Point3DLike ) : Double = sys.error( "TODO" ) // math.pow( maxDistanceSq( point ), 1.0/3 )
 
-   def minDistanceSq( point: Point3DLike ) : Long = {
+   def minDistanceSq( point: Point3DLike ) : BigInt = {
 //      val px   = point.x
 //      val py   = point.y
 //      val l    = left
@@ -193,7 +207,7 @@ extends Quad3DLike {
       sys.error( "TODO" )
    }
 
-   def maxDistanceSq( point: Point3DLike ) : Long = {
+   def maxDistanceSq( point: Point3DLike ) : BigInt = {
 //      val px   = point.x
 //      val py   = point.y
 //      if( px < cx ) {

@@ -40,7 +40,7 @@ class CompressedQuadtreeView( t: CompressedQuadtree.QNode[ _ ]) extends QuadView
       quad match {
          case t: QNode[ _ ] =>
             for( idx <- 0 until 4 ) {
-               h.drawFrame( t.quad.quadrant( idx ))
+               h.drawFrame( t.quad.orthant( idx ))
                draw( h, t.child( idx ))
             }
          case QEmpty =>

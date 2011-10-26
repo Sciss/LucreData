@@ -342,7 +342,7 @@ extends JPanel( new BorderLayout() ) {
             var i = 0; while( i < 4 ) {
                n.child( i ) match {
                   case c: t.QNode =>
-                     val nq = n.quad.quadrant( i )
+                     val nq = n.quad.orthant( i )
                      val cq = c.quad
                      assert( nq.contains( cq ), "Child has invalid quad (" + cq + "), expected: " + nq + assertInfo )
                      c.nextOption match {

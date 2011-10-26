@@ -276,7 +276,7 @@ object RandomizedSkipOctree {
 //                  assert( !tq.contains( point ))
 //                  val te      = tq.extent
 //                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq.cx - te, tq.cy - te, te << 1, point )
-                  val iq      = quad.quadrant( qidx ).greatestInteresting( tq, point )
+                  val iq      = quad.orthant( qidx ).greatestInteresting( tq, point )
                   val iquads  = new Array[ Child ]( numQuadChildren )
                   val tidx    = iq.indexOf( tq )
                   iquads( tidx ) = t
@@ -291,7 +291,7 @@ object RandomizedSkipOctree {
                case l2: Leaf =>
 //                  assert( point != point2 )
                   val point2  = pointView( l2.value )
-                  val iq      = quad.quadrant( qidx ).greatestInteresting( point2, point )
+                  val iq      = quad.orthant( qidx ).greatestInteresting( point2, point )
                   val iquads  = new Array[ Child ]( numQuadChildren )
                   val lidx    = iq.indexOf( point2 )
                   iquads( lidx ) = l2

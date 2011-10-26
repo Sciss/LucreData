@@ -3,7 +3,7 @@ package de.sciss.collection.geom
 trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
 //   def extent: Int
 
-   def quadrant( idx: Int ) : D#Quad // Quad[ D ]
+   def orthant( idx: Int ) : D#Quad
 
    /**
     * The side length is two times the extent.
@@ -20,7 +20,7 @@ trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
 
    def area : D#BigNum
 
-   def overlapArea( quad: D#Quad ) : Long
+   def overlapArea( quad: D#Quad ) : D#BigNum
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.
@@ -39,7 +39,7 @@ trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * closest of the quad's corners to the point, if the point is outside the quad,
     * or `0L`, if the point is contained
     */
-   def minDistanceSq( point: D#Point ) : Long
+   def minDistanceSq( point: D#Point ) : D#BigNum
 
    /**
     * Calculates the maximum 'squared' (to the power of the dimension) euclidean
@@ -47,7 +47,7 @@ trait QuadLike[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * This is the distance (pow space) to the corner which is the furthest from
     * the `point`, no matter if it lies within the quad or not.
     */
-   def maxDistanceSq( point: D#Point ) : Long
+   def maxDistanceSq( point: D#Point ) : D#BigNum
 
    /**
     * Determines the quadrant index of a point `point`.

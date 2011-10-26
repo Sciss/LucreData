@@ -483,7 +483,7 @@ object DeterministicSkipOctree {
                   c( qidx )   = leaf
 
                case old: RightInnerNonEmpty =>
-                  val qn2     = old.union( quad.quadrant( qidx ), point )
+                  val qn2     = old.union( quad.orthant( qidx ), point )
                   // find the corresponding node in the lower tree
                   var pathIdx = 0; while( path( pathIdx ).quad != qn2 ) pathIdx += 1
                   val n2      = newNode( path( pathIdx ), qn2 )
@@ -610,7 +610,7 @@ object DeterministicSkipOctree {
 //                  l.value     = value
 //                  l
                case old: LeftInnerNonEmpty =>
-                  val qn2     = old.union( quad.quadrant( qidx ), point )
+                  val qn2     = old.union( quad.orthant( qidx ), point )
 //val tmp = quadInQuad( quad, qn2 )
 //if( tmp == -1 ) {
 //   println( "Ouch! " + qn2 + " not in " + quad )
