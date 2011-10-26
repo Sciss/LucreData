@@ -41,7 +41,7 @@ sealed trait Space[ Self <: Space[ Self ]] {
    /**
     * The point in the space
     */
-   type Point <: PointLike[ Self ]
+   type Point // <: PointLike[ Self ]
 
    /**
     * The square or hypercube in the space.
