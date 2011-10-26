@@ -18,7 +18,7 @@ trait Point3DLike /* extends PointLike[ Space.ThreeDim ] */ {
 //   }
 
    // ---- QueryShape ----
-//   final def overlapArea( q: Quad3D ) : Long = if( q.contains( this )) 1L else 0L
+//   final def overlapArea( q: Cube ) : Long = if( q.contains( this )) 1L else 0L
 //   final def area : Long = 1L
 
    /**

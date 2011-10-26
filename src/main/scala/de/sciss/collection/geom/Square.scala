@@ -27,26 +27,6 @@ package de.sciss.collection.geom
 
 import annotation.tailrec
 
-//final case class Circle( cx: Int, cy: Int, radius: Int ) extends QueryShape2D {
-////   import QueryShape2D._
-//
-//   def contains( p: Point2D ) : Boolean = {
-//      val dx   = cx.toLong - p.x.toLong // (cx - p.x).toLong
-//      val dy   = cy.toLong - p.y.toLong // (cy - p.y).toLong
-//      val rd   = radius.toLong
-//      dx * dx + dy * dy < rd * rd
-//   }
-//
-//   /*
-//    * (cf. http://paulbourke.net/geometry/sphereline/)
-//    */
-//   def overlapArea( q: Quad ) : Long = error( "TODO" )
-//   def area : Long = {
-//      val rd = radius.toLong
-//      (math.Pi * (rd * rd) + 0.5).toLong
-//   }
-//}
-
 /**
  * XXX TODO: not possible to have a side length of 1, which might
  * be(come) a problem.

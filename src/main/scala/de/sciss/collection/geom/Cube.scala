@@ -57,23 +57,23 @@ package de.sciss.collection.geom
  * - 6 (binary 110) - left-bottom-back
  * - 7 (binary 111) - right-bottom-back
  */
-trait Quad3DLike extends HyperCube[ Space.ThreeDim ] {
+trait CubeLike extends HyperCube[ Space.ThreeDim ] with QueryShape[ Space.ThreeDim ] {
    def cx: Int
    def cy: Int
    def cz: Int
    def extent: Int
 }
 
-final case class Quad3D( cx: Int, cy: Int, cz: Int, extent: Int )
-extends Quad3DLike {
-//   import Quad3D._
+final case class Cube( cx: Int, cy: Int, cz: Int, extent: Int )
+extends CubeLike {
+//   import Cube._
 
-   def orthant( idx: Int ) : Quad3DLike = {
+   def orthant( idx: Int ) : CubeLike = {
       val e    = extent >> 1
       val dx   = if( (idx & 1) == 0 ) -e else e
       val dy   = if( (idx & 2) == 0 ) -e else e
       val dz   = if( (idx & 4) == 0 ) -e else e
-      Quad3D( cx + dx, cy + dy, cz + dz, e )
+      Cube( cx + dx, cy + dy, cz + dz, e )
    }
 
 //   def top : Int     = cy - extent
@@ -111,7 +111,7 @@ extends Quad3DLike {
 //      (left <= px) && (right >= px) && (top <= py) && (bottom >= py) && ...
    }
 
-   def contains( quad: Quad3DLike ) : Boolean = {
+   def contains( quad: CubeLike ) : Boolean = {
 //      quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
       sys.error( "TODO" )
    }
@@ -123,7 +123,7 @@ extends Quad3DLike {
       BigInt( sd * sd ) * BigInt( s )
    }
 
-   def overlapArea( q: Quad3DLike ) : BigInt = {
+   def overlapArea( q: CubeLike ) : BigInt = {
       sys.error( "TODO" )
 //      val l = math.max( q.left, left ).toLong
 //      val r = math.min( q.right, right ).toLong
@@ -253,7 +253,7 @@ extends Quad3DLike {
 //      }
    }
 
-   def indexOf( aq: Quad3DLike ) : Int = {
+   def indexOf( aq: CubeLike ) : Int = {
       sys.error( "TODO" )
 //      val atop = aq.top
 //      if( atop < cy ) {       // north
@@ -277,7 +277,7 @@ extends Quad3DLike {
 //      }
    }
 
-   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : Quad3DLike = sys.error( "TODO" )
+   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : CubeLike = sys.error( "TODO" )
 
-   def greatestInteresting( a: Quad3DLike, b: Point3DLike ) : Quad3DLike = sys.error( "TODO" )
+   def greatestInteresting( a: CubeLike, b: Point3DLike ) : CubeLike = sys.error( "TODO" )
 }

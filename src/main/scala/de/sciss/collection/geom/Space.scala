@@ -16,7 +16,7 @@ object Space {
 
    sealed trait ThreeDim extends Space[ ThreeDim ] {
       type Point           = Point3DLike
-      type HyperCube       = Quad3DLike
+      type HyperCube       = CubeLike
       type BigNum          = BigInt
 
       final val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
