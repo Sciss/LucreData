@@ -66,7 +66,7 @@ extends JPanel( new BorderLayout() ) {
 
    val t    = mode match {
       case Randomized      => RandomizedSkipQuadtree.empty[    Point2DLike ]( Square( 256, 256, 256 ))
-      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( 256, 256, 256 ))
+      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( 256, 256, 256 ), skipGap = 1 )
    }
    val slv  = new SkipQuadtreeView( t )
    private val in = slv.getInsets

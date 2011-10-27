@@ -1,7 +1,7 @@
 package de.sciss.collection
 
 import geom.{DistanceMeasure2D, Point2D, Square, Point2DLike}
-import mutable.{DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
+import mutable.{RandomizedSkipOctree, DeterministicSkipOctree, DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 /**
@@ -11,12 +11,12 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
  * }}
  */
 class AncestorSuite extends FeatureSpec with GivenWhenThen {
-   def seed : Long         = 0L        // System.currentTimeMillis()
+   def seed : Long         = 12345L
    val TREE_SIZE           = 100000    // 150000
    val MARKER_PERCENTAGE   = 0.2       // 0.5
    val PRINT_DOT           = false     // true
    val PRINT_ORDERS        = false
-   val USE_DET             = true      // `true` to use deterministic hyperCube-tree, `false` to use randomized tree
+   val USE_DET             = true      // `true` to use deterministic octree, `false` to use randomized tree
 
    abstract class AbstractTree[ A ]( _init: A ) {
       type V <: VertexLike
@@ -32,7 +32,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       val t          = if( USE_DET ) {
          DeterministicSkipQuadtree.empty[ V ]( quad )
       } else {
-         RandomizedSkipQuadtree.empty[ V ]( quad )
+         RandomizedSkipQuadtree.empty[ V ]( quad, coin = RandomizedSkipOctree.Coin( 67890L ))
       }
 
       add( root )

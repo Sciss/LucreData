@@ -16,18 +16,18 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = true
    val RANGE_SEARCH  = true
-   val NN_SEARCH     = true
-   val REMOVAL       = true
+   val NN_SEARCH     = false
+   val REMOVAL       = false
 
    val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
-   val rnd           = new util.Random( 0L ) // ( 12L )
+   val rnd           = new util.Random( 43210L ) // ( 12L )
 
 //   val hyperCube = Square( 0x20000000, 0x20000000, 0x20000000 )
    val quad          = Square( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad,
-      coin = RandomizedSkipOctree.Coin( 0L ) ))
+      coin = RandomizedSkipOctree.Coin( 98765L ) ))
    if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadtree.empty[ Point2DLike ]( quad ))
 
 //   RandomizedSkipQuadtree.random.setSeed( 0L )
@@ -191,6 +191,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
          info( "are tried and expected behaviour verified" )
 
          scenario( "Consistency is verified on a randomly filled structure" ) {
+            val time1 = System.currentTimeMillis()
             val t  = tf // ( None )
             val m  = MSet.empty[ Point2DLike ]
             randFill( t, m )
@@ -243,6 +244,9 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
             if( NN_SEARCH ) verifyNN( t, m )
             if( REMOVAL ) verifyAddRemoveAll( t, m )
+
+            val time2 = System.currentTimeMillis()
+            println( "For " + name + " the tests took " + TestUtil.formatSeconds( (time2 - time1) * 0.001 ))
          }
       }
    }

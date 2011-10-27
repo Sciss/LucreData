@@ -45,6 +45,7 @@ object DeterministicSkipOctree {
       tree =>
 
       val numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
+//      private val maxStepsPerLevel = skipList.maxGap << 1   // corresponds to Lemma 5 in the Eppstein et al. paper
       val totalOrder = TotalOrder()
       private var tailVar: TopNode = TopLeftNode
       private val skipList: SkipList[ Leaf ] = {
@@ -140,21 +141,15 @@ object DeterministicSkipOctree {
             //  steps by Lemma 5.) Then we go to the same square q
             //  in Qi+1 and insert x."
 
-            // hmmm... XXX This is super tricky. the ancestor test suite
-            // takes up to 8 elements. how can be prove the maximum required size?
-            // HINT: the number of 6 in the paper is given by the
-            // gap-size of the skip list!! thus, if here we use
-            // a 2-5 skip-list instead of a 1-3 skip this, this may
-            // be the answer to why we have maximum 9 steps here and not 6!
-            val path = new Array[ Node ]( 9 ) // YYY
+//            val path = new Array[ Node ]( maxStepsPerLevel )
 
-            val q0o  = l.parent.findPN( path, 0 )
-            val q0   = if( q0o == null ) { // create new level
+            val pNext0  = l.parent.findPN // ( path, 0 )
+            val pNext   = if( pNext0 == null ) { // create new level
                val res = new TopRightNode( tailVar )
                tailVar = res
                res
-            } else q0o
-            q0.insert( l, path )
+            } else pNext0
+            pNext.insert( l ) // , path )
 //          path.find( _.hyperCube == p1.hyperCube ) ...
          }
 
@@ -400,7 +395,8 @@ object DeterministicSkipOctree {
           * which is also contained in Qi+1. Returns this node
           * in Qi+1, or null if no such node exists.
           */
-         def findPN( path: Array[ Node ], pathSize: Int ) : RightNode
+//         def findPN( path: Array[ Node ], pathSize: Int ) : RightNode
+         def findPN : RightNode
 
          /**
           * Called when a leaf has been removed from the node.
@@ -432,12 +428,16 @@ object DeterministicSkipOctree {
        * Utility trait which elements the rightward search `findPN`.
        */
       private sealed trait InnerNode extends Node with InnerNonEmpty {
-         final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
+//         final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
+//            val n = next
+//            if( n != null ) n else {
+//               path( pathSize ) = this
+//               parent.findPN( path, pathSize + 1 )
+//            }
+//         }
+         final def findPN : RightNode = {
             val n = next
-            if( n != null ) n else {
-               path( pathSize ) = this
-               parent.findPN( path, pathSize + 1 )
-            }
+            if( n != null ) n else parent.findPN
          }
       }
 
@@ -464,9 +464,7 @@ object DeterministicSkipOctree {
          /**
           * Promotes a leaf that exists in Qi-1 to this
           * tree, by inserting it into this node which
-          * is its interesting node in Qi (XXX are we
-          * sure there cannot be any intermediate
-          * descendants from here?).
+          * is its interesting node in Qi.
           *
           * If the result of insertion is a new child node
           * below this node, this intermediate node will
@@ -477,7 +475,7 @@ object DeterministicSkipOctree {
           * This method also sets the parent of the leaf
           * accordingly.
           */
-         final def insert( leaf: Leaf, path: Array[ Node ]) {
+         final def insert( leaf: Leaf /*, path: Array[ Node ] */) {
             val point   = pointView( leaf.value )
             val qidx    = hyperCube.indexOf( point )
             val c       = children
@@ -489,8 +487,15 @@ object DeterministicSkipOctree {
                case old: RightInnerNonEmpty =>
                   val qn2     = old.union( hyperCube.orthant( qidx ), point )
                   // find the corresponding node in the lower tree
-                  var pathIdx = 0; while( path( pathIdx ).hyperCube != qn2 ) pathIdx += 1
-                  val n2      = newNode( path( pathIdx ), qn2 )
+//                  var pathIdx = 0; while( path( pathIdx ).hyperCube != qn2 ) pathIdx += 1
+//                  val n2      = newNode( path( pathIdx ), qn2 )
+                  var pPrev   = prev
+                  while( pPrev.hyperCube != qn2 ) pPrev = pPrev.child( leaf.orthantIndexIn( pPrev.hyperCube )) match {
+                     case n: Node => n
+                     case _ => sys.error( "Internal error -- structural problem. No node leading to leaf" )
+                  }
+                  val n2      = newNode( pPrev, qn2 )
+
                   val c2      = n2.children
                   val oidx    = old.orthantIndexIn( qn2 )
                   c2( oidx )  = old
@@ -698,13 +703,14 @@ if( numOrthants != 4 ) sys.error( "TODO" ) // YYY
       private sealed trait TopNode extends Node {
          final def hyperCube : D#HyperCube = tree.hyperCube
 
-         final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
-            val n = next
-            if( n != null ) n else {
-               path( pathSize ) = this
-               null
-            }
-         }
+//         final def findPN( path: Array[ Node ], pathSize: Int ) : RightNode = {
+//            val n = next
+//            if( n != null ) n else {
+//               path( pathSize ) = this
+//               null
+//            }
+//         }
+         final def findPN : RightNode = next
       }
 
       private object TopLeftNode extends LeftNode with TopNode {
