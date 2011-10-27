@@ -163,12 +163,6 @@ object RandomizedSkipOctree {
          }
       }
 
-//      def rangeQuery( qs: QueryShape2D ) : Iterator[ A ] = new RangeQuery( qs )
-
-      private final class VisitedNode( val n: Node, val minDist: Long /* , maxDist: Long */) extends Ordered[ VisitedNode ] {
-         def compare( that: VisitedNode ) = -(minDist.compareTo( that.minDist ))
-      }
-
       private sealed trait Child extends Q
       private case object Empty extends Child with QEmpty
 

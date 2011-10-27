@@ -30,6 +30,10 @@ import annotation.tailrec
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure}
 
+//object SkipOctreeImpl {
+//   var RANGE_LEFT    = 0
+//   var RANGE_RIGHT   = 0
+//}
 trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
    // ---- map support ----
 
@@ -93,7 +97,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
 
    final override def isEmpty : Boolean = {
       val n = headTree
-      var i = 0; while( i < 4 ) {
+      var i = 0; while( i < numOrthants ) {
          n.child( i ) match {
             case e: QEmpty =>
             case _ => return false
@@ -128,7 +132,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       findNextValue()
 
       def rangeQueryLeft( node: QNode, area: D#BigNum, qs: QueryShape[ D ]) : QNode = {
-         var i = 0; while( i < 4 ) {
+         var i = 0; while( i < numOrthants ) {
             node.child( i ) match {
                case n2: QNode =>
                   val a2 = qs.overlapArea( n2.hyperCube )
@@ -147,7 +151,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       }
 
       def rangeQueryRight( node: QNode, area: D#BigNum, qs: QueryShape[ D ]) : QNode = {
-         var i = 0; while( i < 4 ) {
+         var i = 0; while( i < numOrthants ) {
             node.child( i ) match {
                case n2: QNode =>
                   val a2 = qs.overlapArea( n2.hyperCube )
@@ -185,7 +189,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
             val as   = tup._2
 //            val nc   = ns.rangeQueryRight( as, qs )    // critical node
             val nc   = rangeQueryRight( ns, as, qs )     // critical node
-            var i = 0; while( i < 4 ) {
+            var i = 0; while( i < numOrthants ) {
                nc.child( i ) match {
                   case cl: QLeaf =>
                      if( qs.contains( pointView( cl.value ))) in += cl
@@ -208,7 +212,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                current = l.value
                return
             case n: QNode =>
-               var i = 0; while( i < 4 ) {
+               var i = 0; while( i < numOrthants ) {
                   n.child( i ) match {
                      case ne: QNonEmpty => in += ne   // sucky `enqueue` creates intermediate Seq because of varargs
                      case _ =>
@@ -222,7 +226,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       var bestLeaf: QLeaf     = null
       var bestDist            = metric.maxValue // Long.MaxValue   // all distances here are squared!
       val pri                 = PriorityQueue.empty[ VisitedNode ]
-      val acceptedChildren    = new Array[ VisitedNode ]( 4 )
+      val acceptedChildren    = new Array[ VisitedNode ]( numOrthants )
       var numAcceptedChildren = 0
       var rmax                = metric.maxValue // Long.MaxValue
 //         val abortSq    = {
@@ -245,7 +249,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
          numAcceptedChildren = 0
          var accept1Idx = 0
          val oldRMax1 = rmax
-         var i = 0; while( i < 4 ) {
+         var i = 0; while( i < numOrthants ) {
             n0.child( i ) match {
                case l: QLeaf =>
                   val ldist = metric.distance( point, pointView( l.value ))

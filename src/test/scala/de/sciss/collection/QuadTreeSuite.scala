@@ -22,13 +22,21 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
    val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
-   val rnd           = new util.Random( 43210L ) // ( 12L )
+   val RND_SEED      = 43210L
+
+   val rnd           = new util.Random()
 
 //   val hyperCube = Square( 0x20000000, 0x20000000, 0x20000000 )
    val quad          = Square( 0x40000000, 0x40000000, 0x40000000 )
-   if( RANDOMIZED )     withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad,
-      coin = RandomizedSkipOctree.Coin( 98765L ) ))
-   if( DETERMINISTIC )  withTree( "deterministic", DeterministicSkipQuadtree.empty[ Point2DLike ]( quad ))
+   if( RANDOMIZED ) {
+      rnd.setSeed( RND_SEED )
+      withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad,
+         coin = RandomizedSkipOctree.Coin( 98765L ) ))
+   }
+   if( DETERMINISTIC ) {
+      rnd.setSeed( RND_SEED )
+      withTree( "deterministic", DeterministicSkipQuadtree.empty[ Point2DLike ]( quad ))
+   }
 
 //   RandomizedSkipQuadtree.random.setSeed( 0L )
 
