@@ -680,17 +680,14 @@ if( numOrthants != 4 ) sys.error( "TODO" ) // YYY
             }
          }
 
-         @inline private def insets( n: LeftNode, nidx: Int ) : (InOrder, InOrder) = {
-            (insetStart( n, nidx ), insetStop( n, nidx ))
-         }
-
          /*
           * Instantiates an appropriate
           * sub-node whose parent is this node, and which should be
           * ordered according to its position in this node.
           */
          @inline private def newNode( iq: D#HyperCube ) : InnerLeftNode = new InnerLeftNode( this, iq, { n =>
-            insets( n, hyperCube.indexOf( n.hyperCube ))
+            val nidx = hyperCube.indexOf( n.hyperCube )
+            (insetStart( n, nidx ), insetStop( n, nidx ))
          })
       }
 
