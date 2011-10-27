@@ -10,7 +10,11 @@ object Space {
       final val dim        = 2
 
       final val bigZero    = 0L
+      final def bigGtZero( a: Long ) : Boolean = a > 0
+      final def bigGeqZero( a: Long ) : Boolean = a >= 0
+      final def bigLeqZero( a: Long ) : Boolean = a <= 0
       final def bigGt( a: Long, b: Long ) : Boolean = a > b
+      final def bigGeq( a: Long, b: Long ) : Boolean = a >= b
       final def bigOrdering : Ordering[ Long ] = Ordering.Long
       final def bigCompare( a: Long, b: Long ) : Int = if( a < b ) -1 else if( a > b ) 1 else 0
    }
@@ -25,7 +29,11 @@ object Space {
       final val dim        = 3
 
       final val bigZero    = BigInt( 0 )
+      final def bigGtZero( a: BigInt ) : Boolean = a > bigZero
+      final def bigGeqZero( a: BigInt ) : Boolean = a >= bigZero
+      final def bigLeqZero( a: BigInt ) : Boolean = a <= bigZero
       final def bigGt( a: BigInt, b: BigInt ) : Boolean = a > b
+      final def bigGeq( a: BigInt, b: BigInt ) : Boolean = a >= b
       final def bigOrdering : Ordering[ BigInt ] = Ordering.BigInt
       final def bigCompare( a: BigInt, b: BigInt ) : Int = a compare b
    }
@@ -90,9 +98,29 @@ sealed trait Space[ Self <: Space[ Self ]] {
    def bigZero : Self#BigNum
 
    /**
+    * Returns whether `a` is greater than zero
+    */
+   def bigGtZero( a: Self#BigNum ) : Boolean
+
+   /**
+    * Returns whether `a` is greater than or equal to zero
+    */
+   def bigGeqZero( a: Self#BigNum ) : Boolean
+
+   /**
+    * Returns whether `a` is less than or equal to zero
+    */
+   def bigLeqZero( a: Self#BigNum ) : Boolean
+
+   /**
     * Returns `true` if `a` is greater than `b`, `false` otherwise
     */
    def bigGt( a: Self#BigNum, b: Self#BigNum ) : Boolean
+
+   /**
+    * Returns `true` if `a` is greater than or equal to `b`, `false` otherwise
+    */
+   def bigGeq( a: Self#BigNum, b: Self#BigNum ) : Boolean
 
    /**
     * Compares `a` to `b`. Returns `-1` if `a < b`, `0` if `a == b`, and `1` if `a > b`

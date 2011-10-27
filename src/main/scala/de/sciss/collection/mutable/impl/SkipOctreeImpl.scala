@@ -192,7 +192,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                   case cn: QNode =>
                      val q    = cn.hyperCube
                      val ao   = qs.overlapArea( q )
-                     if( space.bigGt( ao, space.bigZero )) {
+                     if( space.bigGtZero( ao )) {
                         if( space.bigGt( q.area, ao )) { // ao < q.area  // stabbing
                            stabbing += cn -> ao
                         } else {                         // in
@@ -261,7 +261,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                case c: QNode =>
                   val cq            = c.hyperCube
                   val cMinDist      = metric.minDistance( point, cq )
-                  if( !space.bigGt( cMinDist, rmax )) {   // otherwise we're out already
+                  if( space.bigGeq( rmax, cMinDist )) {   // otherwise we're out already
                      val cMaxDist   = metric.maxDistance( point, cq )
                      if( space.bigGt( rmax, cMaxDist )) {
 //println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
@@ -303,7 +303,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       var n0 = headTree
       while( true ) {
          findNNTail( n0 )
-         if( !space.bigGt( bestDist, space.bigZero )) return bestLeaf
+         if( space.bigLeqZero( bestDist )) return bestLeaf
          var i = 0; while( i < numAcceptedChildren ) {
             pri += acceptedChildren( i )
          i += 1 }
