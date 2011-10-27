@@ -142,6 +142,10 @@ object DeterministicSkipOctree {
 
             // hmmm... XXX This is super tricky. the ancestor test suite
             // takes up to 8 elements. how can be prove the maximum required size?
+            // HINT: the number of 6 in the paper is given by the
+            // gap-size of the skip list!! thus, if here we use
+            // a 2-5 skip-list instead of a 1-3 skip this, this may
+            // be the answer to why we have maximum 9 steps here and not 6!
             val path = new Array[ Node ]( 9 ) // YYY
 
             val q0o  = l.parent.findPN( path, 0 )
