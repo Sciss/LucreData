@@ -15,8 +15,8 @@ import collection.mutable.{Set => MSet}
 class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = false
    val DETERMINISTIC = true
-   val RANGE_SEARCH  = true
-   val NN_SEARCH     = true
+   val RANGE_SEARCH  = false
+   val NN_SEARCH     = false
    val REMOVAL       = true     // not yet supported by Deterministic
 
    val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed

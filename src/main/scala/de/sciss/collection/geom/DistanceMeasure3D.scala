@@ -1,42 +1,42 @@
-///*
-// *  DistanceMeasure3D.scala
-// *  (TreeTests)
-// *
-// *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
-// *
-// *  This software is free software; you can redistribute it and/or
-// *  modify it under the terms of the GNU General Public License
-// *  as published by the Free Software Foundation; either
-// *  version 2, june 1991 of the License, or (at your option) any later version.
-// *
-// *  This software is distributed in the hope that it will be useful,
-// *  but WITHOUT ANY WARRANTY; without even the implied warranty of
-// *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
-// *  General Public License for more details.
-// *
-// *  You should have received a copy of the GNU General Public
-// *  License (gpl.txt) along with this software; if not, write to the Free Software
-// *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-// *
-// *
-// *  For further information, please contact Hanns Holger Rutz at
-// *  contact@sciss.de
-// */
-//
-//package de.sciss.collection.geom
-//
-//object DistanceMeasure3D {
-//   /**
-//    * A measure that uses the euclidean squared distance
-//    * which is faster than the euclidean distance as the square root
-//    * does not need to be taken.
-//    */
-//   val euclideanSq : DistanceMeasure[ Space.TwoDim ] = new DistanceMeasure3D {
-//      def distance( a: Point3DLike, b: Point3DLike ) = b.distanceSq( a )
-//      def minDistance( a: Point3DLike, b: CubeLike ) = b.minDistanceSq( a )
-//      def maxDistance( a: Point3DLike, b: CubeLike ) = b.maxDistanceSq( a )
-//   }
-//
+/*
+*  DistanceMeasure3D.scala
+*  (TreeTests)
+*
+*  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+*
+*  This software is free software; you can redistribute it and/or
+*  modify it under the terms of the GNU General Public License
+*  as published by the Free Software Foundation; either
+*  version 2, june 1991 of the License, or (at your option) any later version.
+*
+*  This software is distributed in the hope that it will be useful,
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public
+*  License (gpl.txt) along with this software; if not, write to the Free Software
+*  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*
+*
+*  For further information, please contact Hanns Holger Rutz at
+*  contact@sciss.de
+*/
+
+package de.sciss.collection.geom
+
+object DistanceMeasure3D {
+   /**
+    * A measure that uses the euclidean squared distance
+    * which is faster than the euclidean distance as the square root
+    * does not need to be taken.
+    */
+   val euclideanSq : DistanceMeasure[ Space.ThreeDim ] = new DistanceMeasure3D {
+      def distance( a: Point3DLike, b: Point3DLike ) = b.distanceSq( a )
+      def minDistance( a: Point3DLike, b: CubeLike ) = b.minDistanceSq( a )
+      def maxDistance( a: Point3DLike, b: CubeLike ) = b.maxDistanceSq( a )
+   }
+
 //   /**
 //    * A chebychev distance measure, based on the maximum of the absolute
 //    * distances across all dimensions.
@@ -52,7 +52,7 @@
 //   val vehsybehc : DistanceMeasure[ Space.TwoDim ] = new ChebyshevLikeDistanceMeasure {
 //      protected final def apply( dx: Long, dy: Long, dz: Long ) : Long = math.min( math.min( dx, dy ), dz )
 //   }
-//
+
 //   private class Clip( underlying: DistanceMeasure3D, cube: CubeLike ) extends DistanceMeasure3D {
 //      def distance( a: Point3DLike, b: Point3DLike ) = if( cube.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
 //      def minDistance( a: Point3DLike, b: CubeLike ) = if( cube.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
@@ -164,16 +164,18 @@
 //         }
 //      }
 //   }
-//
-//   private sealed trait DistanceMeasure3D extends DistanceMeasure[ Space.TwoDim ] {
-//      final def clip( quad: CubeLike ) : DistanceMeasure[ Space.ThreeDim ] = new Clip( this, quad )
-//      final def approximate( thresh: Long ) : DistanceMeasure[ Space.ThreeDim ] = new Approximate( this, thresh )
-////      final def orthant( idx: Int ) : DistanceMeasure[ Space.ThreeDim ] = (idx: @switch) match {
-////         case 0 => sys.error( "TODO" )
-////         case 1 => sys.error( "TODO" )
-////         case 2 => new SouthWest( this )
-////         case 3 => sys.error( "TODO" )
-////         case _ => throw new IllegalArgumentException( "Invalid quadrant index " + idx )
-////      }
-//   }
-//}
+
+   private sealed trait DistanceMeasure3D extends DistanceMeasure[ Space.ThreeDim ] {
+      final val maxValue : BigInt = BigInt( 0x7FFFFFFFFFFFFFFFL ) * BigInt( 0x7FFFFFFFFFFFFFFFL )
+      final def clip( quad: CubeLike ) : DistanceMeasure[ Space.ThreeDim ] = sys.error( "TODO" ) // new Clip( this, quad )
+      final def approximate( thresh: BigInt ) : DistanceMeasure[ Space.ThreeDim ] = sys.error( "TODO" ) // new Approximate( this, thresh )
+      final def orthant( idx: Int ) : DistanceMeasure[ Space.ThreeDim ] = sys.error( "TODO" )
+//      final def orthant( idx: Int ) : DistanceMeasure[ Space.ThreeDim ] = (idx: @switch) match {
+//         case 0 => sys.error( "TODO" )
+//         case 1 => sys.error( "TODO" )
+//         case 2 => new SouthWest( this )
+//         case 3 => sys.error( "TODO" )
+//         case _ => throw new IllegalArgumentException( "Invalid quadrant index " + idx )
+//      }
+   }
+}
