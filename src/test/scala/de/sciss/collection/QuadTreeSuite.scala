@@ -13,11 +13,11 @@ import collection.mutable.{Set => MSet}
  * }}
  */
 class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
-   val RANDOMIZED    = true
+   val RANDOMIZED    = false
    val DETERMINISTIC = true
    val RANGE_SEARCH  = true
-   val NN_SEARCH     = false
-   val REMOVAL       = false
+   val NN_SEARCH     = true
+   val REMOVAL       = true
 
    val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
@@ -30,15 +30,13 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
    val quad          = Square( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED ) {
       rnd.setSeed( RND_SEED )
-      withTree( "randomized",    RandomizedSkipQuadtree.empty[    Point2DLike ]( quad,
-         coin = RandomizedSkipOctree.Coin( 98765L ) ))
+      withTree( "randomized", RandomizedSkipQuadtree.empty[ Point2DLike ]( quad,
+         coin = RandomizedSkipOctree.Coin( 98765L )))
    }
    if( DETERMINISTIC ) {
       rnd.setSeed( RND_SEED )
       withTree( "deterministic", DeterministicSkipQuadtree.empty[ Point2DLike ]( quad ))
    }
-
-//   RandomizedSkipQuadtree.random.setSeed( 0L )
 
    def randFill( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
       given( "a randomly filled structure" )

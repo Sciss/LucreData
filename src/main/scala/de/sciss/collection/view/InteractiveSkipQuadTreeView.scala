@@ -66,7 +66,7 @@ extends JPanel( new BorderLayout() ) {
 
    val t    = mode match {
       case Randomized      => RandomizedSkipQuadtree.empty[    Point2DLike ]( Square( 256, 256, 256 ))
-      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( 256, 256, 256 ), skipGap = 1 )
+      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( 256, 256, 256 ), skipGap = 2 )
    }
    val slv  = new SkipQuadtreeView( t )
    private val in = slv.getInsets
@@ -114,6 +114,7 @@ extends JPanel( new BorderLayout() ) {
    private def but( lb: String )( action: => Unit ) : AbstractButton = {
       val b = new JButton( lb )
       b.putClientProperty( "JButton.buttonType", "bevel" )
+      b.putClientProperty( "JComponent.sizeVariant", "mini" )
       b.setFocusable( false )
       b.addActionListener( new ActionListener {
          def actionPerformed( e: ActionEvent ) {
@@ -127,6 +128,7 @@ extends JPanel( new BorderLayout() ) {
    private def combo( items: String* )( action: Int => Unit ) : JComboBox = {
       val b = new JComboBox( items.toArray[ AnyRef ])
       b.putClientProperty( "JComboBox.isSquare", java.lang.Boolean.TRUE )
+      b.putClientProperty( "JComponent.sizeVariant", "mini" )
       b.setFocusable( false )
       b.addActionListener( new ActionListener {
          def actionPerformed( e: ActionEvent ) {
@@ -141,6 +143,7 @@ extends JPanel( new BorderLayout() ) {
    }
    private def label( text: String ) {
       val l = new JLabel( text, SwingConstants.RIGHT )
+      l.putClientProperty( "JComponent.sizeVariant", "mini" )
       p.add( l )
    }
 
@@ -153,6 +156,10 @@ extends JPanel( new BorderLayout() ) {
      Shift-drag for range query
      Ctrl-click for NN
 """ )
+   }
+
+   but( "Dump" ) {
+      println( t.toList )
    }
 
    p.add( ggX )
