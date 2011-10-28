@@ -58,19 +58,19 @@ object DeterministicSkipOctree {
       tree =>
 
       val numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
-//      val totalOrder = TotalOrder()
+      val totalOrder = TotalOrder()
 
-      val totalOrder = TotalOrder( new TotalOrder.RelabelObserver {
-         def beforeRelabeling( first: TotalOrder.EntryLike, num: Int ) {
-
-var last = first; var i = 1; while( i < num ) { last = last.next; i += 1 }
-println( "BEFORE RELABEL : " + first + " - " + last + " (num = " + num + ")" )
-         }
-         def afterRelabeling( first: TotalOrder.EntryLike, num: Int ) {
-var last = first; var i = 1; while( i < num ) { last = last.next; i += 1 }
-println( "AFTER  RELABEL : " + first + " - " + last + " (num = " + num + ")" )
-         }
-      })
+//      val totalOrder = TotalOrder( new TotalOrder.RelabelObserver {
+//         def beforeRelabeling( first: TotalOrder.EntryLike, num: Int ) {
+//
+//var last = first; var i = 1; while( i < num ) { last = last.next; i += 1 }
+//println( "BEFORE RELABEL : " + first + " - " + last + " (num = " + num + ")" )
+//         }
+//         def afterRelabeling( first: TotalOrder.EntryLike, num: Int ) {
+//var last = first; var i = 1; while( i < num ) { last = last.next; i += 1 }
+//println( "AFTER  RELABEL : " + first + " - " + last + " (num = " + num + ")" )
+//         }
+//      })
 
       private var tailVar: TopNode = TopLeftNode
       private val skipList: SkipList[ Leaf ] = {
@@ -101,16 +101,16 @@ println( "AFTER  RELABEL : " + first + " - " + last + " (num = " + num + ")" )
          val oldLeaf = p0.findImmediateLeaf( point )
          if( oldLeaf == null ) {
             val leaf = p0.insert( point, elem )
-if( leaf.order == totalOrder.max ) {
-   println( "Ouch!" )
-}
-try {
+//if( leaf.order == totalOrder.max ) {
+//   println( "Ouch!" )
+//}
+//try {
             skipList.add( leaf )
-} catch {
-   case e =>
-      println( "Wappa dappa. leaf.order = " + leaf.order + " (prev =" + leaf.order.prev + ", next =" + leaf.order.next + ")" )
-      throw e
-}
+//} catch {
+//   case e =>
+//      println( "Wappa dappa. leaf.order = " + leaf.order + " (prev =" + leaf.order.prev + ", next =" + leaf.order.next + ")" )
+//      throw e
+//}
          } else {
             oldLeaf.value = elem
          }

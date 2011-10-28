@@ -36,6 +36,7 @@ package de.sciss.collection.mutable
  *
  * The `relabel` method is based on the Python implementation by
  * David Eppstein, as published at http://www.ics.uci.edu/~eppstein/PADS/OrderedSequence.py
+ * however a bug resulting in a relabel size of 1 was fixed.
  *
  * Original note: "Due to rebalancing on the integer tags used to maintain order,
  * the amortized time per insertion in an n-item list is O(log n)."
@@ -302,7 +303,14 @@ sealed trait TotalOrder
          }
 //         val inc = (mask + 1) / num
          val inc = -mask / num
-         if( inc >= thresh ) {   // found rebalanceable range
+
+         // important: we found a corner case where _first is the last
+         // element in the list with a value of 0x7FFFFFFF. in this
+         // case, if the predecessor is smaller in value, the original
+         // algorithm would immediately terminate with num == 1, which
+         // will obviously leave the tag unchanged! thus we must add
+         // the additional condition that num is greater than 1!
+         if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
             observer.beforeRelabeling( first, num )
             var item = first
 //            while( !(item eq last) ) {
