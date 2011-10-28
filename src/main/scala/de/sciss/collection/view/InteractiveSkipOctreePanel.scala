@@ -73,6 +73,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
 
       val view = new SkipQuadtreeView[ Point2DLike ]( tree )
+      def repaint() { view.repaint() }
       val baseDistance = DistanceMeasure2D.euclideanSq
 
       def highlight: Set[ Point2DLike ] = view.highlight
@@ -96,10 +97,11 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
       }
 
-      val view : JComponent = new JLabel( "TODO" )
+      val view = new SkipOctree3DView( tree )
+      def repaint() { view.treeUpdated() }
       val baseDistance = DistanceMeasure3D.euclideanSq
-      def highlight: Set[ Point3DLike ] = Set.empty
-      def highlight_=( points: Set[ Point3DLike ]) {}
+      def highlight: Set[ Point3DLike ] = view.highlight
+      def highlight_=( points: Set[ Point3DLike ]) { view.highlight = points }
    }
 
    sealed trait Mode
@@ -110,7 +112,6 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def tree: SkipOctree[ D, D#Point ]
       def view: JComponent
       final def insets: Insets = view.getInsets
-      final def repaint() { view.repaint() }
       def point( coords: IndexedSeq[ Int ]) : D#Point
       def coords( p: D#Point ) : IndexedSeq[ Int ]
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) : D#HyperCube
@@ -121,6 +122,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       final def pointString( p: D#Point ) : String = coords( p ).mkString( "(", "," , ")" )
       final def newPanel() : InteractiveSkipOctreePanel[ D ] = new InteractiveSkipOctreePanel( this )
       def queryShape( q: D#HyperCube ) : QueryShape[ D ]
+      def repaint() : Unit
    }
 }
 class InteractiveSkipOctreePanel[ D <: Space[ D ]]( val model: InteractiveSkipOctreePanel.Model[ D ])
@@ -143,9 +145,9 @@ extends JPanel( new BorderLayout() ) {
 
    def recalcDistMeasure() { distMeasure = distFilter( model.baseDistance )}
 
-   private val tools   = new JToolBar()
-   private val toolGrp = new ButtonGroup()
-   add( tools, BorderLayout.NORTH )
+//   private val tools   = new JToolBar()
+//   private val toolGrp = new ButtonGroup()
+//   add( tools, BorderLayout.NORTH )
 
    private val ggCoord  = IndexedSeq.fill( t.space.dim )( new JTextField( 3 ))
 
