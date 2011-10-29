@@ -1,11 +1,13 @@
 package de.sciss.collection.view
 
-import javax.swing.{JComponent, BorderFactory}
 import de.sciss.collection.mutable.SkipOctree
-import de.sciss.collection.geom.{Point3DLike, Space}
-import java.awt.{Dimension, Graphics, Color}
-import java.awt.event.{FocusEvent, FocusListener, MouseAdapter, MouseEvent}
 import edu.hendrix.ozark.burch.wireframe.{Composite, Polygon, Model, Point, TransformUtility, Transform, Graphics3D, Vector => Vector3D}
+import de.sciss.collection.geom.{CubeLike, Cube, Point3DLike, Space}
+import annotation.switch
+import javax.swing.event.{AncestorEvent, AncestorListener}
+import javax.swing.{Timer, JComponent, BorderFactory}
+import java.awt.event.{ActionEvent, ActionListener, KeyAdapter, KeyEvent, FocusEvent, FocusListener, MouseAdapter, MouseEvent}
+import java.awt.{BasicStroke, RenderingHints, Graphics2D, Dimension, Graphics, Color}
 
 class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JComponent {
    setBorder( BorderFactory.createEmptyBorder( 4, 4, 4, 4 ))
@@ -13,19 +15,27 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
    setPreferredSize( new Dimension( 512, 256 ))
    setFocusable( true )
 
-   private val RADIUS = 30
+   private val extent   = t.hyperCube.extent
+   private val RADIUS   = 10 // extent
+   private val scale    = 1.25 // 6.0
 
    private var viewT = Transform.IDENTITY
 //   private var projT = Transform.IDENTITY
-   private val projT = TransformUtility.perspectiveProjection( -1, 1, -1, 1, RADIUS - 1, RADIUS + 1 )
+//   private val projT = TransformUtility.perspectiveProjection( -1, 1, -1, 1, RADIUS - 1, RADIUS + 1 )
+   private val projT = TransformUtility.perspectiveProjection( -2, 2, -2, 2, 0, -1 )
 
    private var u: Vector3D = null
    private var v: Vector3D = null
    private var n: Vector3D = null
 
+   private var dx = 0
+   private var dy = 0
+
 //   private var model: Model = Model.EMPTY
 
    var highlight = Set.empty[ Point3DLike ]
+   private val colrGreen = new Color( 0x00, 0xC0, 0x00 )
+   private val strkThick = new BasicStroke( 4f )
 
    def resetPosition() {
       u = Vector3D.create( 0, 1, 0 )
@@ -43,6 +53,30 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
 
    resetPosition()
 
+   private def step() {
+      var newn = n
+      if( dy != 0 ) newn = newn.add( u.scale( 0.002 * dy ))
+      if( dx != 0 ) newn = newn.add( v.scale( 0.002 * dx ))
+      if( newn == n ) return
+      newn = newn.scale( 1.0 / newn.getLength )
+
+      n = newn.scale( 1.0 / newn.getLength )
+      u = u.subtract( u.projectOnto( n ))
+      v = v.subtract( v.projectOnto( n ))
+      computeView()
+   }
+
+   private var showin   = false
+   private var movin    = true
+
+   private val timer    = {
+      val res = new Timer( 40, new ActionListener {
+         def actionPerformed( e: ActionEvent ) { step() }
+      })
+      res.setRepeats( true )
+      res
+   }
+
    addMouseListener { new MouseAdapter {
       override def mousePressed( e: MouseEvent ) {
          requestFocus()
@@ -52,87 +86,165 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
       def focusLost( e: FocusEvent ) { repaint() }
       def focusGained( e: FocusEvent ) { repaint() }
    })
+   addKeyListener( new KeyAdapter {
+      override def keyPressed( e: KeyEvent ) {
+         (e.getKeyCode: @switch) match {
+            case KeyEvent.VK_UP     => dy += 1
+            case KeyEvent.VK_DOWN   => dy -= 1
+            case KeyEvent.VK_LEFT   => dx += 1
+            case KeyEvent.VK_RIGHT  => dx -= 1
+            case KeyEvent.VK_ESCAPE => dx = 0; dy = 0
+            case KeyEvent.VK_SPACE if( showin ) =>
+               movin = !movin
+               if( movin ) timer.restart() else timer.stop()
+            case _ =>
+         }
+      }
+   })
+   addAncestorListener( new AncestorListener {
+      def ancestorAdded( e: AncestorEvent ) {
+         showin = true
+         if( movin ) timer.restart()
+      }
+      def ancestorRemoved( e: AncestorEvent ) {
+         showin = false
+         if( movin ) timer.stop()
+      }
+      def ancestorMoved( e: AncestorEvent ) {}
+   })
 
    def treeUpdated() {
       modelDirty = true
       repaint()
    }
 
-   private var m = Model.EMPTY
+   private var m     = IndexedSeq.empty[ Model ]
+   private var pts   = IndexedSeq.empty[ (Point, Color) ]
 
-   private def resetModel() { m = Model.EMPTY }
+   private def resetModel() {
+      m     = IndexedSeq.empty
+      pts   = IndexedSeq.empty
+   }
 
    private def poly( points: (Int, Int, Int)* ) {
-      val pts = points.map { case (x, y, z) => Point.create( x, y, z )}
+      val pts = points.map { case (x, y, z) =>
+         Point.create( (x - extent) * scale, (y - extent) * scale, (z - extent) * scale )
+      }
       val p = new Polygon( pts.toArray )
-      m = if( m == Model.EMPTY ) p else new Composite( Array[ Model ]( m, p ))
+      m :+= p // (p, colr)
+//      m = if( m == Model.EMPTY ) p else new Composite( Array[ Model ]( m, p ))
    }
+
+   private def point( colr: Color, p: Point3DLike ) {
+      val q = Point.create( (p.x - extent) * scale, (p.y - extent) * scale, (p.z - extent) * scale )
+      pts :+= (q, colr)
+   }
+
+   private val colrGray = new Color( 0, 0, 0, 0x2F )
 
    override def paintComponent( g: Graphics ) {
       super.paintComponent( g )
+      val g2 = g.asInstanceOf[ Graphics2D ]
+      g2.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON )
       g.translate( 4, 4 )
+      val strkOrig = g2.getStroke
       try {
          val g3   = new Graphics3D( g )
          val w    = getWidth - 8
          val h    = getHeight - 8
          g.setColor( getBackground )
          g.fillRect( 0, 0, w, h )
-         g.setColor( getForeground )
          g3.setViewTransform( viewT )
          g3.setProjectionTransform( projT )
-         g3.setViewFrameTransform( Transform.translate( 10, 10, 1 ))
-//               .prepend( Transform.scale( w / 2, -h / 2, 1 ))
-//               .prepend( Transform.translate( 0, h, 0 )))
+         g3.setViewFrameTransform(
+//            Transform.scale( 1, 1, 2 )
+//            .prepend(
+               Transform.translate( extent, extent, 0 )
+//            )
+
+//               .prepend( Transform.scale( 1, 1, 2 ))
+//               .prepend( Transform.translate( 0, 0, 50 ))
+         )
 
          if( modelDirty ) {
             modelDirty = false
             resetModel()
             addChild( t.headTree )
          }
-         m.draw( g3 )
+//         m.draw( g3 )
+         g3.setColor( colrGray )
+         m.foreach( _.draw( g3 ))
 
+         g2.setStroke( strkThick )
+         pts.foreach {
+            case (point, colr) =>
+               g3.setColor( colr )
+               g3.drawLine( point, point )
+         }
+
+         g2.setStroke( strkOrig )
          if( hasFocus ) {
             g.setColor( Color.blue )
             g.drawRect( 0, 0, w - 1, h - 1 )
          }
+
       } finally {
          g.translate( -4, -4 )
       }
    }
 
    private def addChild( ch: t.Q ) {
-//      ch match {
-//         case n: t.QNode =>
-//            for( idx <- 0 until 4 ) {
-//               h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
-//               draw( h, n.child( idx ))
-//            }
-//         case _: t.QEmpty =>
-//         case l: t.QLeaf =>
-//            h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
-//      }
+      ch match {
+         case n: t.QNode =>
+            for( idx <- 0 until t.numOrthants ) {
+               drawFrame( n.hyperCube.orthant( idx ))
+               addChild( n.child( idx ))
+            }
+
+         case l: t.QLeaf =>
+            val p = t.pointView( l.value )
+            point( if( highlight.contains( p )) colrGreen else Color.red, p )
+
+         case _ =>
+      }
    }
 
-//   private def recalcModel() {
-//      val square = new Polygon( Array[ Point ](
-//         Point.create(-1,  1, 0),
-//         Point.create( 1,  1, 0),
-//         Point.create( 1, -1, 0),
-//         Point.create(-1, -1, 0)
-//      ))
-//      val cube = new Composite( Array[ Model ](
-//         square.translate(0, 0,  1),
-//         square.translate(0, 0, -1),
-//         square.rotateX( math.Pi / 2.0).translate(0,  1, 0),
-//         square.rotateX( math.Pi / 2.0).translate(0, -1, 0)
-//      ))
-//      val stack = new Composite( Array[ Model ](
-//         cube.scale(0.4, 0.4, 0.4).translate(0, -0.3, 0),
-//         cube.scale(0.2, 0.2, 0.2).translate(0, 0.3, 0),
-//         cube.scale(0.1, 0.1, 0.1).translate(0, 0.6, 0),
-//         cube.scale(0.2, 0.2, 0.2).translate(0.6, -0.5, 0),
-//         cube.scale(0.1, 0.1, 0.1).translate(0.9, -0.6, 0)
-//      ))
-//      model = stack
-//   }
+   private def drawFrame( c: CubeLike /*, colr: Color */) {
+      poly( // colr,
+         (c.cx - c.extent, c.cy - c.extent, c.cz - c.extent),
+         (c.cx + c.extent, c.cy - c.extent, c.cz - c.extent),
+         (c.cx + c.extent, c.cy + c.extent, c.cz - c.extent),
+         (c.cx - c.extent, c.cy + c.extent, c.cz - c.extent)
+      )
+      poly( // colr,
+         (c.cx - c.extent, c.cy - c.extent, c.cz - c.extent),
+         (c.cx + c.extent, c.cy - c.extent, c.cz - c.extent),
+         (c.cx + c.extent, c.cy - c.extent, c.cz + c.extent),
+         (c.cx - c.extent, c.cy - c.extent, c.cz + c.extent)
+      )
+      poly( // colr,
+         (c.cx - c.extent, c.cy - c.extent, c.cz + c.extent),
+         (c.cx + c.extent, c.cy - c.extent, c.cz + c.extent),
+         (c.cx + c.extent, c.cy + c.extent, c.cz + c.extent),
+         (c.cx - c.extent, c.cy + c.extent, c.cz + c.extent)
+      )
+      poly( // colr,
+         (c.cx - c.extent, c.cy + c.extent, c.cz - c.extent),
+         (c.cx + c.extent, c.cy + c.extent, c.cz - c.extent),
+         (c.cx + c.extent, c.cy + c.extent, c.cz + c.extent),
+         (c.cx - c.extent, c.cy + c.extent, c.cz + c.extent)
+      )
+      poly( // colr,
+         (c.cx - c.extent, c.cy - c.extent, c.cz - c.extent),
+         (c.cx - c.extent, c.cy - c.extent, c.cz + c.extent),
+         (c.cx - c.extent, c.cy + c.extent, c.cz + c.extent),
+         (c.cx - c.extent, c.cy + c.extent, c.cz - c.extent)
+      )
+      poly( // colr,
+         (c.cx + c.extent, c.cy - c.extent, c.cz - c.extent),
+         (c.cx + c.extent, c.cy - c.extent, c.cz + c.extent),
+         (c.cx + c.extent, c.cy + c.extent, c.cz + c.extent),
+         (c.cx + c.extent, c.cy + c.extent, c.cz - c.extent)
+      )
+   }
 }
