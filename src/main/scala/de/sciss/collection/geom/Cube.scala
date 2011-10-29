@@ -291,7 +291,7 @@ extends CubeLike {
       val zpos = if( bcz < cz ) {   // front?
          if( (bzmin >= cz - extent) && (bzmax < cz) ) 0 else return -1
       } else { // back?
-         if( (bzmin >= cz) && (bzmax <= cz + em1) ) 2 else return -1
+         if( (bzmin >= cz) && (bzmax <= cz + em1) ) 4 else return -1
       }
 
       xpos | ypos | zpos

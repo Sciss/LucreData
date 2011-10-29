@@ -302,13 +302,20 @@ extends JPanel( new BorderLayout() ) {
       t --= t.iterator.take( num ).toList
    }
 
-   but( "Remove 1x" )  { removePoints(  1 )}
+   but( "Remove 1x" )  {
+//break
+      removePoints(  1 )
+   }
    but( "Remove 10x" ) { removePoints( 10 )}
 
    space()
 
    but( "Consistency" ) {
       verifyConsistency()
+   }
+
+   private def break {
+      println( "Aqui" )
    }
 
    private val ma = new MouseAdapter {
@@ -386,8 +393,8 @@ extends JPanel( new BorderLayout() ) {
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )
 
-addPoints( 20 )
-removePoints( 14 )
+//addPoints( 20 )
+//removePoints( 14 )
 
    def verifyConsistency() {
       val q = t.hyperCube
