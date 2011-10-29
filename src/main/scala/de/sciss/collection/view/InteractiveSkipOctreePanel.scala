@@ -60,7 +60,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          case Randomized =>
             RandomizedSkipQuadtree.empty[    Point2DLike ]( Square( sz, sz, sz ))
          case Deterministic =>
-            DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( sz, sz, sz ))
+            DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( sz, sz, sz ), skipGap = 1 )
       }
 
       def queryShape( sq: SquareLike ) = sq
@@ -85,7 +85,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          case Randomized =>
             RandomizedSkipOctree.empty[ Space.ThreeDim, Point3DLike ]( Space.ThreeDim, Cube( sz, sz, sz, sz ))
          case Deterministic =>
-            DeterministicSkipOctree.empty[ Space.ThreeDim, Point3DLike ]( Space.ThreeDim, Cube( sz, sz, sz, sz ))
+            DeterministicSkipOctree.empty[ Space.ThreeDim, Point3DLike ]( Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
       }
 
       def queryShape( c: CubeLike ) = c
@@ -385,6 +385,9 @@ extends JPanel( new BorderLayout() ) {
    private def status( str: String ) { ggStatus.setText( str )}
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )
+
+addPoints( 20 )
+removePoints( 14 )
 
    def verifyConsistency() {
       val q = t.hyperCube
