@@ -1,6 +1,6 @@
 package de.sciss.collection
 
-import geom.{QueryShape, Point3D, DistanceMeasure, Space, Point3DLike, Cube}
+import geom.{DistanceMeasure3D, QueryShape, Point3D, DistanceMeasure, Space, Point3DLike, Cube}
 import mutable.{RandomizedSkipOctree, SkipOctree, DeterministicSkipOctree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
@@ -179,6 +179,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          (dy * dy + dz * dz > 0L)
    }
 
+   val euclideanDist3D = DistanceMeasure3D.euclideanSq
+
    def verifyNN[ D <: Space[ D ]]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
                                    pointFilter: D#Point => Boolean, euclideanDist: DistanceMeasure[ D ]) {
       when( "the quadtree is searched for nearest neighbours" )
@@ -210,8 +212,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
             verifyContainsNot[ Space.ThreeDim ]( t, m, pointFun3D )
 
             if( RANGE_SEARCH ) verifyRangeSearch[ Space.ThreeDim, (Int, Int, Int) ]( t, m, queryFun3D, sortFun3D )
-if( NN_SEARCH ) println( "WARNING: NN test not yet implemented" )
-//            if( NN_SEARCH ) verifyNN( t, m )
+            if( NN_SEARCH ) verifyNN[ Space.ThreeDim ]( t, m, pointFun3D, pointFilter3D, euclideanDist3D )
             if( REMOVAL ) verifyAddRemoveAll[ Space.ThreeDim ]( t, m )
          }
       }
