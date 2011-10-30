@@ -15,11 +15,11 @@ import collection.mutable.{Set => MSet}
 class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = false
    val DETERMINISTIC = true
-   val RANGE_SEARCH  = false
-   val NN_SEARCH     = false
-   val REMOVAL       = true     // not yet supported by Deterministic
+   val RANGE_SEARCH  = true
+   val NN_SEARCH     = true
+   val REMOVAL       = true
 
-   val n             = 0x09 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )
@@ -40,6 +40,9 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
       for( i <- 0 until n ) {
          val k = pointFun( 0x7FFFFFFF )
+//if( i == 8 ) {
+//   println( "froopi" )
+//}
          t += k
          m += k
       }
@@ -62,12 +65,13 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          def checkChildren( n: t.QNode, depth: Int ) {
             def assertInfo = " in level n-" + prevs + " / depth " + depth
 
-            var i = 0; while( i < 4 ) {
+            var i = 0; while( i < t.numOrthants ) {
                n.child( i ) match {
                   case c: t.QNode =>
                      val nq = n.hyperCube.orthant( i )
                      val cq = c.hyperCube
                      assert( nq.contains( cq ), "Child has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
+                     assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
                      c.nextOption match {
                         case Some( next ) =>
                            assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
