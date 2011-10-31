@@ -154,7 +154,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 
    private def randomlyFilledTree( n: Int = TREE_SIZE ) = new {
       given( "a randomly filled tree, corresponding node orders and their quadtree" )
-      val t       = new FullTree( () )
+      val t       = new FullTree( 0 )
       val (treeSeq, parents) = {
          val rnd        = new util.Random( seed )
          var treeSeq    = IndexedSeq( t.root )
@@ -166,7 +166,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                val ref     = treeSeq( rnd.nextInt( i ))
                val retro   = rnd.nextDouble()
                if( retro <= RETRO_CHILD_PERCENTAGE ) {
-                  val child = t.insertRetroChild( ref, () )
+                  val child = t.insertRetroChild( ref, i )
                   treeSeq :+= child
                   parents += child -> ref
                   val oldChildren = children.getOrElse( ref, Set.empty )
@@ -174,7 +174,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                   oldChildren.foreach { c2 => parents += c2 -> child }  // update parent for old children
                   children += child -> oldChildren
                } else if( retro <= (RETRO_CHILD_PERCENTAGE + RETRO_PARENT_PERCENTAGE) ) {
-                  val parent = t.insertRetroParent( ref, () )
+                  val parent = t.insertRetroParent( ref, i )
                   treeSeq :+= parent
                   val oldParentO = parents.get( ref )
                   parents += ref -> parent   // overwrites previous entry
@@ -183,7 +183,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                      children += oldParent -> (children.getOrElse( oldParent, Set.empty) - ref + parent) // replace child
                   }
                } else { // regular child
-                  val child = t.insertChild( ref, () )
+                  val child = t.insertChild( ref, i )
                   treeSeq :+= child
                   parents += child -> ref
                   children += ref -> (children.getOrElse( ref, Set.empty) + child)
@@ -251,12 +251,13 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          given( "a randomly filled tree, corresponding node orders and their quadtree" )
          given( "a random marking of a subset of the vertices" )
 
-         val t       = new FullTree( 0 )
+         val gagaism = randomlyFilledTree()
+         import gagaism._
+
          type V      = t.Vertex
          val tm      = new MarkTree( 0 )
          val rnd     = new util.Random( seed )
-         var treeSeq = IndexedSeq[ V ]( t.root )
-         var parents    = Map.empty[ V, V ]
+
          val mPreList   = {
             implicit val m    = MaxKey( tm.preOrder.max )
             val res = LLSkipList.empty[ tm.preOrder.Entry ] // ( ord, m )
@@ -276,31 +277,21 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          var postTagValueMap  = Map( tm.postOrder.root -> 0 )
          var markSet          = Set( 0 )
 
-         for( i <- 1 to TREE_SIZE ) {
-            try {
-               val parent  = treeSeq( rnd.nextInt( i ))
-               val child   = t.insertChild( parent, i )
-               treeSeq :+= child
-               parents += child -> parent
-               if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
+         treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
+            if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
 
-                  val cmPreSucc = mPreList.isomorphicQuery( preTagIsoMap.get( _ ).map( _.compare( child.pre )).getOrElse( 1 ))
-                  val cmPre = cmPreSucc.prepend()
-                  mPreList.add( cmPre )
-                  val cmPostSucc = mPostList.isomorphicQuery( postTagIsoMap.get( _ ).map( _.compare( child.post )).getOrElse( 1 ))
-                  val cmPost = cmPostSucc.prepend()
-                  mPostList.add( cmPost )
-                  preTagIsoMap += cmPre -> child.pre
-                  postTagIsoMap += cmPost -> child.post
-                  preTagValueMap += cmPre -> i
-                  postTagValueMap += cmPost -> i
-                  tm.add( new tm.Vertex( i, cmPre, cmPost, child.version ))
-                  markSet += i
-               }
-            } catch {
-               case e =>
-                  println( "(for i = " + i + ")" )
-                  throw e
+               val cmPreSucc = mPreList.isomorphicQuery( preTagIsoMap.get( _ ).map( _.compare( child.pre )).getOrElse( 1 ))
+               val cmPre = cmPreSucc.prepend()
+               mPreList.add( cmPre )
+               val cmPostSucc = mPostList.isomorphicQuery( postTagIsoMap.get( _ ).map( _.compare( child.post )).getOrElse( 1 ))
+               val cmPost = cmPostSucc.prepend()
+               mPostList.add( cmPost )
+               preTagIsoMap += cmPre -> child.pre
+               postTagIsoMap += cmPost -> child.post
+               preTagValueMap += cmPre -> i
+               postTagValueMap += cmPost -> i
+               tm.add( new tm.Vertex( i, cmPre, cmPost, child.version ))
+               markSet += i
             }
          }
 
