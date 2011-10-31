@@ -197,7 +197,8 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                      val q    = cn.hyperCube
                      val ao   = qs.overlapArea( q )
                      if( space.bigGtZero( ao )) {
-                        if( space.bigGt( q.area, ao )) { // ao < q.area  // stabbing
+//                        if( space.bigGt( q.area, ao )) { ... }
+                        if( qs.isAreaGreater( q, ao )) {
                            stabbing += cn -> ao
                         } else {                         // in
                            in += cn

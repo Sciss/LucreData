@@ -46,6 +46,23 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with
    def right : Int
    def bottom : Int
 
+   def area : Long
+
+   /**
+    * The squared euclidean distance of the
+    * closest of the hyper-cube's corners or sides to the point, if the point is outside the hyper-cube,
+    * or zero, if the point is contained
+    */
+   def minDistanceSq( point: Point2DLike ) : Long
+
+   /**
+    * Calculates the maximum squared euclidean
+    * distance to a point in the euclidean metric.
+    * This is the distance (pow space) to the corner which is the furthest from
+    * the `point`, no matter if it lies within the hyper-cube or not.
+    */
+   def maxDistanceSq( point: Point2DLike ) : Long
+
 //   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : SquareLike
 }
 
@@ -109,6 +126,8 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
       sd * sd
    }
 
+   // -- QueryShape --
+
    def overlapArea( q: SquareLike ) : Long = {
       val l = math.max( q.left, left ).toLong
       val r = math.min( q.right, right ).toLong
@@ -120,6 +139,8 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
       if( h <= 0L ) return 0L
       w * h
    }
+
+   def isAreaGreater( a: SquareLike, b: Long ) : Boolean = a.area > b
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.

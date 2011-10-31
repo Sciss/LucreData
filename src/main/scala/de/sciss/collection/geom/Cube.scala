@@ -77,6 +77,23 @@ trait CubeLike extends HyperCube[ Space.ThreeDim ] with QueryShape[ Space.ThreeD
     * The extent is the half side length of the cube
     */
    def extent: Int
+
+   def area: BigInt
+
+   /**
+    * The squared euclidean distance of the
+    * closest of the hyper-cube's corners or sides to the point, if the point is outside the hyper-cube,
+    * or zero, if the point is contained
+    */
+   def minDistanceSq( point: Point3DLike ) : BigInt
+
+   /**
+    * Calculates the maximum squared euclidean
+    * distance to a point in the euclidean metric.
+    * This is the distance (pow space) to the corner which is the furthest from
+    * the `point`, no matter if it lies within the hyper-cube or not.
+    */
+   def maxDistanceSq( point: Point3DLike ) : BigInt
 }
 
 final case class Cube( cx: Int, cy: Int, cz: Int, extent: Int )
@@ -121,6 +138,8 @@ extends CubeLike {
       BigInt( s * s ) * BigInt( s )
    }
 
+   // -- QueryShape --
+
    def overlapArea( b: CubeLike ) : BigInt = {
       val bcx  = b.cx
       val bcy  = b.cy
@@ -146,6 +165,8 @@ extends CubeLike {
 
       BigInt( dx * dy ) * BigInt( dz )
    }
+
+   def isAreaGreater( a: CubeLike, b: BigInt ) : Boolean = a.area > b
 
    def minDistance( point: Point3DLike ) : Double = {
       math.sqrt( minDistanceSq( point ).toDouble ) // or use this: http://www.merriampark.com/bigsqrt.htm ?
