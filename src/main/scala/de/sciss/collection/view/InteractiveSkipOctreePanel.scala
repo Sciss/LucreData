@@ -1,5 +1,5 @@
 /*
- *  InteractiveSkipQuadtreeView.scala
+ *  InteractiveSkipOctreePanel.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -28,7 +28,7 @@ package view
 
 import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import mutable.{DeterministicSkipOctree, RandomizedSkipOctree, SkipOctree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
-import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
+import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import geom.{DistanceMeasure3D, Point3D, CubeLike, QueryShape, Cube, Point3DLike, SquareLike, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Point2DLike, Square}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 
@@ -49,7 +49,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-//      PDFSupport.addMenu[ SkipQuadtreeView[ Point2DLike ]]( f, iv.slv :: Nil, _.adjustPreferredSize )
+      model.addPDFSupport( f )
       f.setVisible( true )
    }
 
@@ -101,6 +101,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
             h.g2.fillRect( q.left, q.top, side, side )
          }
       }
+
+      def addPDFSupport( f: JFrame ) {
+         PDFSupport.addMenu[ SkipQuadtreeView[ Point2DLike ]]( f, view :: Nil, _.adjustPreferredSize() )
+      }
    }
 
    private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim ] {
@@ -133,6 +137,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       )
 
       var rangeHyperCube = Option.empty[ CubeLike ]
+
+      def addPDFSupport( f: JFrame ) {
+         PDFSupport.addMenu[ JComponent ]( f, view :: Nil, _ => () )
+      }
    }
 
    sealed trait Mode
@@ -161,6 +169,8 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          view.addMouseListener( ma )
          view.addMouseMotionListener( ma )
       }
+
+      def addPDFSupport( f: JFrame ) : Unit
    }
 }
 class InteractiveSkipOctreePanel[ D <: Space[ D ]]( val model: InteractiveSkipOctreePanel.Model[ D ])

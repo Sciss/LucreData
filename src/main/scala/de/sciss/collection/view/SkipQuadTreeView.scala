@@ -47,7 +47,7 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
       setPreferredSize( new Dimension( ((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom) ))
    }
 
-   def adjustPreferredSize {
+   def adjustPreferredSize() {
       setPrefSz( t.numLevels )
    }
 

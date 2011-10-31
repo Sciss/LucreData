@@ -1,5 +1,5 @@
 /*
- *  Quad.scala
+ *  Square.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with QueryShape[ Long, Space.TwoDim ] {
+trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.TwoDim ] {
    /**
     * X coordinate of the square's center
     */
