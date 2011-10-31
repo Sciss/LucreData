@@ -16,7 +16,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val TREE_SIZE              = 100000    // 150000
    val MARKER_PERCENTAGE      = 0.2       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1
-   val RETRO_PARENT_PERCENTAGE= 0.0       // not yet implemented
+   val RETRO_PARENT_PERCENTAGE= 0.1
    val PRINT_DOT              = false     // true
    val PRINT_ORDERS           = false
    val USE_DET                = true      // `true` to use deterministic octree, `false` to use randomized tree
@@ -163,27 +163,30 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 
          for( i <- 1 to n ) {
             try {
-               val parent  = treeSeq( rnd.nextInt( i ))
+               val ref     = treeSeq( rnd.nextInt( i ))
                val retro   = rnd.nextDouble()
                if( retro <= RETRO_CHILD_PERCENTAGE ) {
-                  val child = t.insertRetroChild( parent, () )
+                  val child = t.insertRetroChild( ref, () )
                   treeSeq :+= child
-                  parents += child -> parent
-                  val oldChildren = children.getOrElse( parent, Set.empty )
-                  children += parent -> Set( child )  // only child (overwrite previous entries for parent)
+                  parents += child -> ref
+                  val oldChildren = children.getOrElse( ref, Set.empty )
+                  children += ref -> Set( child )  // only child (overwrite previous entries for parent)
                   oldChildren.foreach { c2 => parents += c2 -> child }  // update parent for old children
                   children += child -> oldChildren
                } else if( retro <= (RETRO_CHILD_PERCENTAGE + RETRO_PARENT_PERCENTAGE) ) {
-sys.error( "TODO" )
-//                  val child = t.insertRetroParent( parent, () )
-//                  treeSeq :+= child
-//                  parents += child -> parent
-//                  children += parent -> (children.getOrElse( parent, Set.empty) + child)
+                  val parent = t.insertRetroParent( ref, () )
+                  treeSeq :+= parent
+                  val oldParentO = parents.get( ref )
+                  parents += ref -> parent   // overwrites previous entry
+                  children += parent -> Set( ref )
+                  oldParentO.foreach { oldParent =>
+                     children += oldParent -> (children.getOrElse( oldParent, Set.empty) - ref + parent) // replace child
+                  }
                } else { // regular child
-                  val child = t.insertChild( parent, () )
+                  val child = t.insertChild( ref, () )
                   treeSeq :+= child
-                  parents += child -> parent
-                  children += parent -> (children.getOrElse( parent, Set.empty) + child)
+                  parents += child -> ref
+                  children += ref -> (children.getOrElse( ref, Set.empty) + child)
                }
             } catch {
                case e =>
