@@ -44,7 +44,7 @@ object DistanceMeasure3D {
     * distances across the first two dimensions. The 3rd dimension is ignored!
     * This is, strictly speaking, only a semi metric.
     */
-   val vehsybehc : DistanceMeasure[ Long, Space.ThreeDim ] = VehsybehcXY
+   val vehsybehcXY : DistanceMeasure[ Long, Space.ThreeDim ] = VehsybehcXY
 
    private object EuclideanSq extends ImplBigInt {
       override def toString = "DistanceMeasure3D.euclideanSq"

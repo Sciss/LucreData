@@ -26,11 +26,11 @@
 package de.sciss.collection
 package view
 
-import java.awt.event.{ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import mutable.{DeterministicSkipOctree, RandomizedSkipOctree, SkipOctree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, ButtonGroup, JToolBar, JTextField, JButton, JFrame, JPanel}
 import geom.{DistanceMeasure3D, Point3D, CubeLike, QueryShape, Cube, Point3DLike, SquareLike, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Point2DLike, Square}
+import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 
 object InteractiveSkipOctreePanel extends App with Runnable {
    val seed = 0L
@@ -72,12 +72,35 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          case IndexedSeq( x, y ) => Square( x, y, ext )
       }
 
-      val view = new SkipQuadtreeView[ Point2DLike ]( tree )
+      val view = {
+         val res = new SkipQuadtreeView[ Point2DLike ]( tree )
+         res.topPainter = Some( topPaint _ )
+         res
+      }
       def repaint() { view.repaint() }
-      val baseDistance = DistanceMeasure2D.euclideanSq
+//      val baseDistance = DistanceMeasure2D.euclideanSq
 
       def highlight: Set[ Point2DLike ] = view.highlight
       def highlight_=( points: Set[ Point2DLike ]) { view highlight = points }
+
+      val distanceMeasures = IndexedSeq(
+         "Euclidean" -> DistanceMeasure2D.euclideanSq,
+         "Maximum" -> DistanceMeasure2D.chebyshev,
+         "Minimum" -> DistanceMeasure2D.vehsybehc
+      )
+
+      var rangeHyperCube = Option.empty[ SquareLike ]
+
+      private val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
+      private def topPaint( h: QuadView.PaintHelper ) {
+         rangeHyperCube.foreach { q =>
+            h.g2.setColor( Color.blue )
+            val side = q.extent << 1
+            h.g2.drawRect( q.left, q.top, side, side )
+            h.g2.setColor( colrTrns )
+            h.g2.fillRect( q.left, q.top, side, side )
+         }
+      }
    }
 
    private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim ] {
@@ -99,9 +122,17 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
       val view = new SkipOctree3DView( tree )
       def repaint() { view.treeUpdated() }
-      val baseDistance = DistanceMeasure3D.euclideanSq
+//      val baseDistance = DistanceMeasure3D.euclideanSq
       def highlight: Set[ Point3DLike ] = view.highlight
       def highlight_=( points: Set[ Point3DLike ]) { view.highlight = points }
+
+      val distanceMeasures = IndexedSeq(
+         "Euclidean" -> DistanceMeasure3D.euclideanSq,
+         "MaximumXY" -> DistanceMeasure3D.chebyshevXY,
+         "MinimumXY" -> DistanceMeasure3D.vehsybehcXY
+      )
+
+      var rangeHyperCube = Option.empty[ CubeLike ]
    }
 
    sealed trait Mode
@@ -115,14 +146,21 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def point( coords: IndexedSeq[ Int ]) : D#Point
       def coords( p: D#Point ) : IndexedSeq[ Int ]
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) : D#HyperCube
-      def baseDistance: DistanceMeasure[ _, D ]
-//      def distanceFilter: DistanceMeasure[ D ] => DistanceMeasure[ D ]
+//      def baseDistance: DistanceMeasure[ _, D ]
+      def distanceMeasures: IndexedSeq[ (String, DistanceMeasure[ _, D ])]
       def highlight: Set[ D#Point ]
       def highlight_=( points: Set[ D#Point ]) : Unit
       final def pointString( p: D#Point ) : String = coords( p ).mkString( "(", "," , ")" )
       final def newPanel() : InteractiveSkipOctreePanel[ D ] = new InteractiveSkipOctreePanel( this )
       def queryShape( q: D#HyperCube ) : QueryShape[ _, D ]
       def repaint() : Unit
+      def rangeHyperCube : Option[ D#HyperCube ]
+      def rangeHyperCube_=( q: Option[ D#HyperCube ]) : Unit
+
+      final def addMouseAdapter( ma: MouseListener with MouseMotionListener ) {
+         view.addMouseListener( ma )
+         view.addMouseMotionListener( ma )
+      }
    }
 }
 class InteractiveSkipOctreePanel[ D <: Space[ D ]]( val model: InteractiveSkipOctreePanel.Model[ D ])
@@ -132,27 +170,16 @@ extends JPanel( new BorderLayout() ) {
    val t = model.tree
    private val rnd = new util.Random( seed )
 
-//   val t    = mode match {
-//      case Randomized      => RandomizedSkipQuadtree.empty[    Point2DLike ]( Square( 256, 256, 256 ))
-//      case Deterministic   => DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( 256, 256, 256 ), skipGap = 2 )
-//   }
-//   val slv  = new SkipQuadtreeView( t )
    private val in = model.insets
 
-//   private var baseDist : DistanceMeasure[ Space.TwoDim ] = DistanceMeasure2D.euclideanSq
-   private val distFilter : DistanceMeasure[ _, D ] => DistanceMeasure[ _, D ] = identity
-   private var distMeasure : DistanceMeasure[ _, D ] = model.baseDistance
+   private var distFilter : DistanceMeasure[ _, D ] => DistanceMeasure[ _, D ] = identity
+   private var baseDistance = model.distanceMeasures( 0 )._2
+   private var distMeasure : DistanceMeasure[ _, D ] = baseDistance
 
-   def recalcDistMeasure() { distMeasure = distFilter( model.baseDistance )}
-
-//   private val tools   = new JToolBar()
-//   private val toolGrp = new ButtonGroup()
-//   add( tools, BorderLayout.NORTH )
+   def recalcDistMeasure() { distMeasure = distFilter( baseDistance )}
 
    private val ggCoord  = IndexedSeq.fill( t.space.dim )( new JTextField( 3 ))
 
-//   private val ggX   = new JTextField( 3 )
-//   private val ggY   = new JTextField( 3 )
    private val ggExt = new JTextField( 3 )
 
    private def updateNum( coords: Seq[ Int ]) {
@@ -259,21 +286,19 @@ extends JPanel( new BorderLayout() ) {
       status( rangeString( set ))
    }}
 
-//   combo( "Euclidean", "Maximum", "Minimum" ) { i => baseDist = i match {
-//         case 0 => DistanceMeasure2D.euclideanSq
-//         case 1 => DistanceMeasure2D.chebyshev
-//         case 2 => DistanceMeasure2D.vehsybehc
-//      }
-//      recalcDistMeasure()
-//   }
-//   combo( "All Orthants", "North East", "North West", "South West", "South East" ) { i =>
-//      if( i > 0 ) {
-//         distFilter = _.orthant( i - 1 )
-//      } else {
-//         distFilter = identity
-//      }
-//      recalcDistMeasure()
-//   }
+   combo( model.distanceMeasures.map( _._1 ): _* ) { i =>
+      baseDistance = model.distanceMeasures( i )._2
+      recalcDistMeasure()
+   }
+
+   combo( ("All Orthants" +: Seq.tabulate( t.numOrthants )( i => (i + 1).toString )): _* ) { i =>
+      if( i > 0 ) {
+         distFilter = _.orthant( i - 1 )
+      } else {
+         distFilter = identity
+      }
+      recalcDistMeasure()
+   }
 
    but( "NN" )( findNN() )
 
@@ -314,29 +339,14 @@ extends JPanel( new BorderLayout() ) {
       verifyConsistency()
    }
 
-   private def break {
-      println( "Aqui" )
-   }
-
    private val ma = new MouseAdapter {
       var drag = Option.empty[ (MouseEvent, Option[ MouseEvent ])]
-
-      val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
-      val topPointer = (h: QuadView.PaintHelper) => {
-//         tryQuad2D { q =>
-//            h.g2.setColor( Color.blue )
-//            h.g2.drawRect( q.left, q.top, q.side, q.side )
-//            h.g2.setColor( colrTrns )
-//            h.g2.fillRect( q.left, q.top, q.side, q.side )
-//         }
-      }
 
       override def mouseDragged( e: MouseEvent ) {
          drag match {
             case Some( (m1, None) ) =>
                val dist = e.getPoint.distance( m1.getPoint )
                if( dist > 4 ) {
-//                  slv.topPainter = Some( topPointer )
                   drag( m1, e )
                }
             case Some( (m1, Some( _ ))) => drag( m1, e )
@@ -345,22 +355,23 @@ extends JPanel( new BorderLayout() ) {
       }
 
       def drag( m1: MouseEvent, m2: MouseEvent ) {
-//         drag = Some( m1 -> Some( m2 ))
-//         val ext = math.max( math.abs( m1.getPoint.x - m2.getPoint.x ),
-//                             math.abs( m1.getPoint.y - m2.getPoint.y ))
-//         ggExt.setText( ext.toString )
-//         tryQuad2D { q =>
-//            val set = t.rangeQuery( q ).toSet
-//            slv.highlight = set
-//            slv.repaint()
-//            status( rangeString( set.take( 3 )))
-//         }
+         drag = Some( m1 -> Some( m2 ))
+         val ext = math.max( math.abs( m1.getPoint.x - m2.getPoint.x ),
+                             math.abs( m1.getPoint.y - m2.getPoint.y ))
+         ggExt.setText( ext.toString )
+         tryHyperCube { q =>
+            model.rangeHyperCube = Some( q )
+            val set = t.rangeQuery( model.queryShape( q )).toSet
+            model.highlight = set
+            model.repaint()
+            status( rangeString( set.take( 3 )))
+         }
       }
 
       override def mouseReleased( e: MouseEvent ) {
          drag match {
             case Some( (_, Some( _ ))) =>
-//               model.topPainter = None
+               model.rangeHyperCube = None
                model.repaint()
             case _ =>
          }
@@ -370,7 +381,7 @@ extends JPanel( new BorderLayout() ) {
       override def mousePressed( e: MouseEvent ) {
          val x = e.getX - in.left
          val y = e.getY - in.top
-//         updateNum( x, y )
+         updateNum( Seq( x, y ))
          if( e.isControlDown ) {
             findNN()
             model.repaint()
@@ -383,8 +394,7 @@ extends JPanel( new BorderLayout() ) {
          }
       }
    }
-//   model.addMouseListener( ma )
-//   model.addMouseMotionListener( ma )
+   model.addMouseAdapter( ma )
 
    add( model.view, BorderLayout.CENTER )
    private val ggStatus = new JTextField( 16 )
