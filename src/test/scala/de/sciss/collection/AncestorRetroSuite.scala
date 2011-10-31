@@ -1,8 +1,9 @@
 package de.sciss.collection
 
-import geom.{Cube, Point3DLike, Space, DistanceMeasure2D, Point2D, Square, Point2DLike}
-import mutable.{RandomizedSkipOctree, DeterministicSkipOctree, DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
+import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
+import mutable.{RandomizedSkipOctree, DeterministicSkipOctree, LLSkipList, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
+import annotation.tailrec
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -11,12 +12,14 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
-   def seed : Long         = 12345L
-   val TREE_SIZE           = 100000    // 150000
-   val MARKER_PERCENTAGE   = 0.2       // 0.5
-   val PRINT_DOT           = false     // true
-   val PRINT_ORDERS        = false
-   val USE_DET             = true      // `true` to use deterministic octree, `false` to use randomized tree
+   def seed : Long            = 12345L
+   val TREE_SIZE              = 100000    // 150000
+   val MARKER_PERCENTAGE      = 0.2       // 0.5
+   val RETRO_CHILD_PERCENTAGE = 0.1
+   val RETRO_PARENT_PERCENTAGE= 0.0       // not yet implemented
+   val PRINT_DOT              = false     // true
+   val PRINT_ORDERS           = false
+   val USE_DET                = true      // `true` to use deterministic octree, `false` to use randomized tree
 
    abstract class AbstractTree[ A ]( _init: A ) {
       type V <: VertexLike
@@ -99,13 +102,29 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          new Vertex( value, pre, post, version )
 
       def insertChild( parent: Vertex, value : A ) : Vertex = {
-         val cPre    = parent.preTail.prepend() // insertBefore( () )
-         val cPost   = parent.post.prepend() // insertBefore( () )
+         val pre  = parent.preTail.prepend() // insertBefore( () )
+         val post = parent.post.prepend() // insertBefore( () )
 
 if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + value + " ; pre compare = " +
-   parent.pre.compare( cPre ) + "; post compare = " + parent.post.compare( cPost ))
+   parent.pre.compare( pre ) + "; post compare = " + parent.post.compare( post ))
 
-         add( newVertex( value, cPre, cPost, nextVersion() ))
+         addNewVertex( value, pre, post )
+      }
+
+      def insertRetroChild( parent: Vertex, value : A ) : Vertex = {
+         val pre  = parent.pre.append()
+         val post = parent.post.prepend()
+         addNewVertex( value, pre, post )
+      }
+
+      def insertRetroParent( child: Vertex, value : A ) : Vertex = {
+         val pre  = child.pre.prepend()
+         val post = child.post.append()
+         addNewVertex( value, pre, post )
+      }
+
+      private def addNewVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : Vertex = {
+         add( newVertex( value, pre, post, nextVersion() ))
       }
 
       def validate() {
@@ -137,16 +156,35 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
       given( "a randomly filled tree, corresponding node orders and their quadtree" )
       val t       = new FullTree( () )
       val (treeSeq, parents) = {
-         val rnd     = new util.Random( seed )
-         var treeSeq = IndexedSeq( t.root )
-         var parents = Map.empty[ t.Vertex, t.Vertex ]
+         val rnd        = new util.Random( seed )
+         var treeSeq    = IndexedSeq( t.root )
+         var parents    = Map.empty[ t.Vertex, t.Vertex ]
+         var children   = Map.empty[ t.Vertex, Set[ t.Vertex ]]
 
          for( i <- 1 to n ) {
             try {
                val parent  = treeSeq( rnd.nextInt( i ))
-               val child   = t.insertChild( parent, () )
-               treeSeq :+= child
-               parents += child -> parent
+               val retro   = rnd.nextDouble()
+               if( retro <= RETRO_CHILD_PERCENTAGE ) {
+                  val child = t.insertRetroChild( parent, () )
+                  treeSeq :+= child
+                  parents += child -> parent
+                  val oldChildren = children.getOrElse( parent, Set.empty )
+                  children += parent -> Set( child )  // only child (overwrite previous entries for parent)
+                  oldChildren.foreach { c2 => parents += c2 -> child }  // update parent for old children
+                  children += child -> oldChildren
+               } else if( retro <= (RETRO_CHILD_PERCENTAGE + RETRO_PARENT_PERCENTAGE) ) {
+sys.error( "TODO" )
+//                  val child = t.insertRetroParent( parent, () )
+//                  treeSeq :+= child
+//                  parents += child -> parent
+//                  children += parent -> (children.getOrElse( parent, Set.empty) + child)
+               } else { // regular child
+                  val child = t.insertChild( parent, () )
+                  treeSeq :+= child
+                  parents += child -> parent
+                  children += parent -> (children.getOrElse( parent, Set.empty) + child)
+               }
             } catch {
                case e =>
                   println( "(for i = " + i + ")" )
@@ -169,19 +207,34 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 //         val (t, treeSeq, parents) = randomlyFilledTree()
          t.validate()
 
-         // ancestor: left in pre-order, right in post-order
-         // (thus, when pre-order is horizontally stored,
-         // and post-order vertically, the quadrant is
-         // is south west (2))
+         // If a valid ancestor is defined by being left of the query in
+         // the pre-order, and right of the query in the post-order,
+         // and by having a version smaller than or equal to query version,
+         // then, given that the pre-order is horizontally stored,
+         // and the post-order is vertically stored, and the version is stored in the z-axis,
+         // we can express this by constraining the search to the orthant
+         // index binary 010 = 2. From the candidates we need
+         // to find the one that is closest in the pre- or post-order. This
+         // is expressed by a XY chebychev distance measure.
          when( "each vertex is asked for its parent node through NN search in the quadtree" )
          then( "the results should be identical to an independently maintained map" )
-         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
-// XXX TODO
-//         treeSeq.foreach { child => parents.get( child ).foreach { parent =>
-//            val point = Point2D( child.x - 1, child.y + 1 ) // make sure we skip the child itself
-//            val found = t.t.nearestNeighborOption( point, metric )
-//            assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
-//         }}
+         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+
+         @tailrec def testChild( version: Int, child: t.V ) {
+            parents.get( child ) match {
+               case None =>
+
+               case Some( parent ) if( parent.version <= version ) =>
+                  val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
+                  val found = t.t.nearestNeighborOption( point, metric )
+                  assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
+
+               case Some( parent ) =>
+                  testChild( version, parent )   // skip too new retro versions
+            }
+         }
+
+         treeSeq.foreach { child => testChild( child.version, child )}
       }
    }
 
@@ -196,7 +249,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          given( "a random marking of a subset of the vertices" )
 
          val t       = new FullTree( 0 )
-         type V = t.Vertex
+         type V      = t.Vertex
          val tm      = new MarkTree( 0 )
          val rnd     = new util.Random( seed )
          var treeSeq = IndexedSeq[ V ]( t.root )
@@ -283,11 +336,11 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
             println( sb.toString() )
          }
 
-         when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
-         then( "the results should be identical to those obtained from independent brute force" )
-
-         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
 // XXX TODO
+//         when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
+//         then( "the results should be identical to those obtained from independent brute force" )
+//
+//         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
 //         treeSeq.foreach { child =>
 //            val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare( child.pre  )).getOrElse( 1 )}
 //            val postIso = mPostList.isomorphicQuery { e => postTagIsoMap.get( e ).map( _.compare( child.post )).getOrElse( 1 )}

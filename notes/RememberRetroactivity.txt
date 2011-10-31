@@ -1,0 +1,37 @@
+// def insertChild( parent: Version )( child: Version ) : VersionTreeOrder = {
+// val preRec = preOrder.insertChild( parent.preRec, child )
+// val postRec = postOrder.insertChild( parent.postRec, child )
+// (preRec, postRec)
+// }
+//
+// def insertRetroParent( child: Version )( parent: Version ) : VersionTreeOrder = {
+// val preRec = preOrder.insertRetroParent( child.preRec, parent )
+// val postRec = postOrder.insertRetroParent( child.postRec, parent )
+// (preRec, postRec)
+// }
+//
+// def insertRetroChild( parent: Version )( child: Version ) : VersionTreeOrder = {
+// val preRec = preOrder.insertRetroChild( parent.preRec, child )
+// val postRec = postOrder.insertRetroChild( parent.postRec, child )
+// (preRec, postRec)
+// }
+
+============ where preorder
+
+   def insertRetroParent( child: Rec, parent: T ) : Rec = {
+      val pred = child.moveLeft
+      insertAfter( pred, pred.v, parent )
+   }
+
+   def insertRetroChild( parent: Rec, child: T ) : Rec =
+      insertAfter( parent, parent.v, child )
+
+
+============ and postorder
+
+   def insertRetroParent( child: Rec, parent: T ) : Rec =
+      insertAfter( child, child.v, parent )
+
+   def insertRetroChild( parent: Rec, child: T ) : Rec =
+      insertChild( parent, child ) // i.e. insertAfter( parent.pred, ... )
+
