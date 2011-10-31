@@ -74,7 +74,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     */
    def update( elem: A ) : Option[ A ]
 
-   def rangeQuery( qs: QueryShape[ D ]) : Iterator[ A ]
+   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) : Iterator[ A ]
 
    /**
     * Reports the nearest neighbor entry with respect to
@@ -94,9 +94,9 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor( point: D#Point, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : A
+   def nearestNeighbor[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : A
 
-   def nearestNeighborOption( point: D#Point, metric: DistanceMeasure[ D ] /* = DistanceMeasure.euclideanSq */) : Option[ A ]
+   def nearestNeighborOption[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored

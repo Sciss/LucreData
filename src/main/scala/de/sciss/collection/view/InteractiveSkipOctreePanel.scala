@@ -115,13 +115,13 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def point( coords: IndexedSeq[ Int ]) : D#Point
       def coords( p: D#Point ) : IndexedSeq[ Int ]
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) : D#HyperCube
-      def baseDistance: DistanceMeasure[ D ]
+      def baseDistance: DistanceMeasure[ _, D ]
 //      def distanceFilter: DistanceMeasure[ D ] => DistanceMeasure[ D ]
       def highlight: Set[ D#Point ]
       def highlight_=( points: Set[ D#Point ]) : Unit
       final def pointString( p: D#Point ) : String = coords( p ).mkString( "(", "," , ")" )
       final def newPanel() : InteractiveSkipOctreePanel[ D ] = new InteractiveSkipOctreePanel( this )
-      def queryShape( q: D#HyperCube ) : QueryShape[ D ]
+      def queryShape( q: D#HyperCube ) : QueryShape[ _, D ]
       def repaint() : Unit
    }
 }
@@ -140,8 +140,8 @@ extends JPanel( new BorderLayout() ) {
    private val in = model.insets
 
 //   private var baseDist : DistanceMeasure[ Space.TwoDim ] = DistanceMeasure2D.euclideanSq
-   private val distFilter : DistanceMeasure[ D ] => DistanceMeasure[ D ] = identity
-   private var distMeasure : DistanceMeasure[ D ] = model.baseDistance
+   private val distFilter : DistanceMeasure[ _, D ] => DistanceMeasure[ _, D ] = identity
+   private var distMeasure : DistanceMeasure[ _, D ] = model.baseDistance
 
    def recalcDistMeasure() { distMeasure = distFilter( model.baseDistance )}
 

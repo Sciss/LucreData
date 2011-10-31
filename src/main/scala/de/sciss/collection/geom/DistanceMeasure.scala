@@ -38,16 +38,27 @@ package de.sciss.collection.geom
  * the square root of the distances, while still preserving
  * the ordering between the possible results.
  */
-trait DistanceMeasure[ D <: Space[ D ]] {
+trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
    /**
     * A value which will never be exceeded by the measure
     */
-   def maxValue : D#BigNum
+   def maxValue : M
+
+//   /**
+//    * A value which will never be undercut by the measure
+//    */
+//   def minValue : M
+
+   def isMeasureGreater( a: M, b: M ) : Boolean
+
+   def compareMeasure( a: M, b: M ) : Int
+
+   def isMeasureZero( m: M ) : Boolean
 
    /**
     * Calculates the distance between two points.
     */
-   def distance( a: D#Point, b: D#Point ) : D#BigNum
+   def distance( a: D#Point, b: D#Point ) : M
 
    /**
     * Calculates the minimum distance between a point and
@@ -56,7 +67,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * is closest to the point `a`, if `a` lies outside of `b`,
     * or zero, if `a` lies within `b`.
     */
-   def minDistance( a: D#Point, b: D#HyperCube ) : D#BigNum
+   def minDistance( a: D#Point, b: D#HyperCube ) : M
 
    /**
     * Calculates the maximum distance between a point and
@@ -65,7 +76,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * is furthest to the point `a`, no matter whether `a`
     * is contained in `b` or not.
     */
-   def maxDistance( a: D#Point, b: D#HyperCube ) : D#BigNum
+   def maxDistance( a: D#Point, b: D#HyperCube ) : M
 
    /**
     * Applies a filter to this measure by constraining distances
@@ -76,7 +87,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * This behaviour extends to the `minDistance` and `maxDistance`
     * methods.
     */
-   def clip( hyperCube: D#HyperCube ) : DistanceMeasure[ D ]
+   def clip( hyperCube: D#HyperCube ) : DistanceMeasure[ M, D ]
 
    /**
     * Composes this distance so that a threshold is applied to
@@ -94,7 +105,7 @@ trait DistanceMeasure[ D <: Space[ D ]] {
     * `euclideanSq` is used, and points within a radius of 4 should
     * be approximated, a threshold of `4 * 4 = 16` must be chosen!
     */
-   def approximate( thresh: D#BigNum ) : DistanceMeasure[ D ]
+   def approximate( thresh: M ) : DistanceMeasure[ M, D ]
 
-   def orthant( idx: Int ) : DistanceMeasure[ D ]
+   def orthant( idx: Int ) : DistanceMeasure[ M, D ]
 }

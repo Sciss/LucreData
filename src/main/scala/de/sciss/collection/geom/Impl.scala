@@ -33,35 +33,46 @@ object DistanceMeasure2D {
     * which is faster than the euclidean distance as the square root
     * does not need to be taken.
     */
-   val euclideanSq : DistanceMeasure[ Space.TwoDim ] = new DistanceMeasure2D {
-      def distance( a: Point2DLike, b: Point2DLike ) = b.distanceSq( a )
-      def minDistance( a: Point2DLike, b: SquareLike ) = b.minDistanceSq( a )
-      def maxDistance( a: Point2DLike, b: SquareLike ) = b.maxDistanceSq( a )
-   }
+   val euclideanSq : DistanceMeasure[ Long, Space.TwoDim ] = new EuclideanSq
 
    /**
     * A chebychev distance measure, based on the maximum of the absolute
     * distances across all dimensions.
     */
-   val chebyshev : DistanceMeasure[ Space.TwoDim ] = new ChebyshevLikeDistanceMeasure {
-      protected final def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
-   }
+   val chebyshev : DistanceMeasure[ Long, Space.TwoDim ] = new Chebyshev
 
    /**
     * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
     * distances across all dimensions. This is, strictly speaking, only a semi metric.
     */
-   val vehsybehc : DistanceMeasure[ Space.TwoDim ] = new ChebyshevLikeDistanceMeasure {
-      protected final def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
+   val vehsybehc : DistanceMeasure[ Long, Space.TwoDim ] = new Vehsybehc
+
+   private final class Chebyshev extends ChebyshevLike {
+      override def toString = "DistanceMeasure2D.chebyshev"
+      protected def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
    }
 
-   private class Clip( underlying: DistanceMeasure2D, quad: SquareLike ) extends DistanceMeasure2D {
+   private final class Vehsybehc extends ChebyshevLike {
+      override def toString = "DistanceMeasure2D.vehsybehc"
+      protected def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
+   }
+
+   private final class EuclideanSq extends Impl {
+      override def toString = "DistanceMeasure2D.euclideanSq"
+      def distance( a: Point2DLike, b: Point2DLike ) = b.distanceSq( a )
+      def minDistance( a: Point2DLike, b: SquareLike ) = b.minDistanceSq( a )
+      def maxDistance( a: Point2DLike, b: SquareLike ) = b.maxDistanceSq( a )
+   }
+
+   private final class Clip( underlying: Impl, quad: SquareLike ) extends Impl {
+      override def toString = underlying.toString + ".clip(" + quad + ")"
       def distance( a: Point2DLike, b: Point2DLike )   = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
-      def minDistance( a: Point2DLike, b: SquareLike )     = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
-      def maxDistance( a: Point2DLike, b: SquareLike )     = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
+      def minDistance( a: Point2DLike, b: SquareLike ) = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
+      def maxDistance( a: Point2DLike, b: SquareLike ) = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
    }
 
-   private class Approximate( underlying: DistanceMeasure2D, thresh: Long ) extends DistanceMeasure2D {
+   private final class Approximate( underlying: Impl, thresh: Long ) extends Impl {
+      override def toString = underlying.toString + ".approximate(" + thresh + ")"
       def minDistance( a: Point2DLike, b: SquareLike ) = underlying.minDistance( a, b )
       def maxDistance( a: Point2DLike, b: SquareLike ) = underlying.maxDistance( a, b )
       def distance( a: Point2DLike, b: Point2DLike ) = {
@@ -70,7 +81,7 @@ object DistanceMeasure2D {
       }
    }
 
-   private class SouthWest( underlying: DistanceMeasure2D ) extends DistanceMeasure2D {
+   private final class SouthWest( underlying: Impl ) extends Impl {
       def distance( a: Point2DLike, b: Point2DLike ) =
          if( b.x <= a.x && b.y >= a.y ) underlying.distance( a, b ) else Long.MaxValue
 
@@ -81,7 +92,7 @@ object DistanceMeasure2D {
          if( q.right <= p.x && q.top >= p.y ) underlying.maxDistance( p, q ) else Long.MaxValue
    }
 
-   private sealed trait ChebyshevLikeDistanceMeasure extends DistanceMeasure2D {
+   private sealed trait ChebyshevLike extends Impl {
       protected def apply( dx: Long, dy: Long ) : Long
 
       def distance( a: Point2DLike, b: Point2DLike ) = {
@@ -167,11 +178,15 @@ object DistanceMeasure2D {
       }
    }
 
-   private sealed trait DistanceMeasure2D extends DistanceMeasure[ Space.TwoDim ] {
-      final def maxValue = Long.MaxValue
-      final def clip( quad: SquareLike ) : DistanceMeasure[ Space.TwoDim ] = new Clip( this, quad )
-      final def approximate( thresh: Long ) : DistanceMeasure[ Space.TwoDim ] = new Approximate( this, thresh )
-      final def orthant( idx: Int ) : DistanceMeasure[ Space.TwoDim ] = (idx: @switch) match {
+   private sealed trait Impl extends DistanceMeasure[ Long, Space.TwoDim ] {
+      final def maxValue : Long = Long.MaxValue
+      final def isMeasureZero( m: Long ) : Boolean = m == 0L
+      final def isMeasureGreater( a: Long, b: Long ) : Boolean = a > b
+      final def compareMeasure( a: Long, b: Long ) : Int = if( a > b ) 1 else if( a < b ) -1 else 0
+
+      final def clip( quad: SquareLike ) : DistanceMeasure[ Long, Space.TwoDim ] = new Clip( this, quad )
+      final def approximate( thresh: Long ) : DistanceMeasure[ Long, Space.TwoDim ] = new Approximate( this, thresh )
+      final def orthant( idx: Int ) : DistanceMeasure[ Long, Space.TwoDim ] = (idx: @switch) match {
          case 0 => sys.error( "TODO" )
          case 1 => sys.error( "TODO" )
          case 2 => new SouthWest( this )

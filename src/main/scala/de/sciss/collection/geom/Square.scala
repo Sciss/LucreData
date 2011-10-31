@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with QueryShape[ Space.TwoDim ] {
+trait SquareLike extends HyperCube[ Space.TwoDim ] /* with RectangleLike */ with QueryShape[ Long, Space.TwoDim ] {
    /**
     * X coordinate of the square's center
     */
@@ -141,6 +141,8 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
    }
 
    def isAreaGreater( a: SquareLike, b: Long ) : Boolean = a.area > b
+
+   def isAreaNonEmpty( area: Long ) : Boolean = area > 0L
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.

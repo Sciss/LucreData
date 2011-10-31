@@ -57,7 +57,7 @@ package de.sciss.collection.geom
  * - 6 (binary 110) - left-bottom-back
  * - 7 (binary 111) - right-bottom-back
  */
-trait CubeLike extends HyperCube[ Space.ThreeDim ] with QueryShape[ Space.ThreeDim ] {
+trait CubeLike extends HyperCube[ Space.ThreeDim ] with QueryShape[ BigInt, Space.ThreeDim ] {
    /**
     * X coordinate of the cube's center
     */
@@ -167,6 +167,8 @@ extends CubeLike {
    }
 
    def isAreaGreater( a: CubeLike, b: BigInt ) : Boolean = a.area > b
+
+   def isAreaNonEmpty( area: BigInt ) : Boolean = area > bigZero
 
    def minDistance( point: Point3DLike ) : Double = {
       math.sqrt( minDistanceSq( point ).toDouble ) // or use this: http://www.merriampark.com/bigsqrt.htm ?

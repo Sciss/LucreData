@@ -85,13 +85,13 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       if( l == null ) None else Some( l.value )
    }
 
-   final override def nearestNeighbor( point: D#Point, metric: DistanceMeasure[ D ]) : A = {
-      val res = nn( point, metric )
+   final override def nearestNeighbor[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : A = {
+      val res = new NN( point, metric ).find
       if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
    }
 
-   final def nearestNeighborOption( point: D#Point, metric: DistanceMeasure[ D ]) : Option[ A ] = {
-      val res = nn( point, metric )
+   final def nearestNeighborOption[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : Option[ A ] = {
+      val res = new NN( point, metric ).find
       if( res != null ) Some( res.value ) else None
    }
 
@@ -116,14 +116,14 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       i
    }
 
-   final def rangeQuery( qs: QueryShape[ D ]) : Iterator[ A ] = new RangeQuery( qs )
+   final def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) : Iterator[ A ] = new RangeQuery( qs )
 
    protected def insertLeaf( elem: A ) : QLeaf
    protected def removeLeaf( point: D#Point ) : QLeaf
    protected def findLeaf( point: D#Point ) : QLeaf
 
-   private final class RangeQuery( qs: QueryShape[ D ]) extends Iterator[ A ] {
-      val stabbing      = MQueue.empty[ (QNode, D#BigNum) ]
+   private final class RangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) extends Iterator[ A ] {
+      val stabbing      = MQueue.empty[ (QNode, Area) ]
       val in            = MQueue.empty[ QNonEmpty ]
       var current : A   = _
       var hasNext       = true
@@ -131,7 +131,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       stabbing += headTree -> qs.overlapArea( headTree.hyperCube )
       findNextValue()
 
-      def rangeQueryLeft( node: QNode, area: D#BigNum, qs: QueryShape[ D ]) : QNode = {
+      def rangeQueryLeft( node: QNode, area: Area, qs: QueryShape[ Area, D ]) : QNode = {
          var i = 0; while( i < numOrthants ) {
             node.child( i ) match {
                case n2: QNode =>
@@ -150,7 +150,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
          node
       }
 
-      def rangeQueryRight( node: QNode, area: D#BigNum, qs: QueryShape[ D ]) : QNode = {
+      def rangeQueryRight( node: QNode, area: Area, qs: QueryShape[ Area, D ]) : QNode = {
          var i = 0; while( i < numOrthants ) {
             node.child( i ) match {
                case n2: QNode =>
@@ -196,7 +196,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                   case cn: QNode =>
                      val q    = cn.hyperCube
                      val ao   = qs.overlapArea( q )
-                     if( space.bigGtZero( ao )) {
+                     if( qs.isAreaNonEmpty( ao )) {
 //                        if( space.bigGt( q.area, ao )) { ... }
                         if( qs.isAreaGreater( q, ao )) {
                            stabbing += cn -> ao
@@ -223,21 +223,18 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       }
    }
 
-   private def nn( point: D#Point, metric: DistanceMeasure[ D ]) : QLeaf = {
-      var bestLeaf: QLeaf     = null
-      var bestDist            = metric.maxValue // Long.MaxValue   // all distances here are squared!
-      val pri                 = PriorityQueue.empty[ VisitedNode ]
-      val acceptedChildren    = new Array[ VisitedNode ]( numOrthants )
-      var numAcceptedChildren = 0
-      var rmax                = metric.maxValue // Long.MaxValue
-//         val abortSq    = {
-//            val al = abort.toLong
-//            al * al
-//         }
+   private final class NN[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) {
+      private var bestLeaf: QLeaf     = null
+      private var bestDist            = metric.maxValue // Long.MaxValue   // all distances here are squared!
+      private val pri                 = PriorityQueue.empty[ VisitedNode ]
+      private val acceptedChildren    = new Array[ VisitedNode ]( numOrthants )
+      private var numAcceptedChildren = 0
+      private var rmax                = metric.maxValue // Long.MaxValue
 
       def recheckRMax {
          var j = 0; while( j < numAcceptedChildren ) {
-            if( space.bigGt( acceptedChildren( j ).minDist, rmax )) {  // immediately kick it out
+//            if( space.bigGt( acceptedChildren( j ).minDist, rmax )) { ... }
+            if( metric.isMeasureGreater( acceptedChildren( j ).minDist, rmax )) {  // immediately kick it out
                numAcceptedChildren -= 1
                var k = j; while( k < numAcceptedChildren ) {
                   acceptedChildren( k ) = acceptedChildren( k + 1 )
@@ -254,10 +251,12 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
             n0.child( i ) match {
                case l: QLeaf =>
                   val ldist = metric.distance( point, pointView( l.value ))
-                  if( space.bigGt( bestDist, ldist )) {
+//                  if( space.bigGt( bestDist, ldist )) { ... }
+                  if( metric.isMeasureGreater( bestDist, ldist )) {
                      bestDist = ldist
                      bestLeaf = l
-                     if( space.bigGt( rmax, bestDist )) {
+//                     if( space.bigGt( rmax, bestDist )) { ... }
+                     if( metric.isMeasureGreater( rmax, bestDist )) {
 //println( "      : leaf " + l.point + " - " + bestDist )
                         rmax = bestDist
                      }
@@ -266,9 +265,11 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                case c: QNode =>
                   val cq            = c.hyperCube
                   val cMinDist      = metric.minDistance( point, cq )
-                  if( space.bigGeq( rmax, cMinDist )) {   // otherwise we're out already
+//                  if( space.bigGeq( rmax, cMinDist )) { ... }
+                  if( !metric.isMeasureGreater( cMinDist, rmax )) {   // otherwise we're out already
                      val cMaxDist   = metric.maxDistance( point, cq )
-                     if( space.bigGt( rmax, cMaxDist )) {
+//                     if( space.bigGt( rmax, cMaxDist )) { ... }
+                     if( metric.isMeasureGreater( rmax, cMaxDist )) {
 //println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
                         rmax = cMaxDist
                      }
@@ -305,27 +306,32 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
          findNNTail( dn )
       }
 
-      var n0 = headTree
-      while( true ) {
-         findNNTail( n0 )
-         if( space.bigLeqZero( bestDist )) return bestLeaf
-         var i = 0; while( i < numAcceptedChildren ) {
-            pri += acceptedChildren( i )
-         i += 1 }
-         var vis: VisitedNode = null
-         do {
-            if( pri.isEmpty ) {
-               return bestLeaf
-            } else {
-               vis = pri.dequeue()
-            }
-         } while( space.bigGt( vis.minDist, rmax ))
-         n0 = vis.n
+      def find : QLeaf = {
+         var n0 = headTree
+         while( true ) {
+            findNNTail( n0 )
+//            if( space.bigLeqZero( bestDist )) return bestLeaf
+//            if( bestDist == metric.minValue ) return bestLeaf
+            if( metric.isMeasureZero( bestDist )) return bestLeaf
+            var i = 0; while( i < numAcceptedChildren ) {
+               pri += acceptedChildren( i )
+            i += 1 }
+            var vis: VisitedNode = null
+            do {
+               if( pri.isEmpty ) {
+                  return bestLeaf
+               } else {
+                  vis = pri.dequeue()
+               }
+//            while( space.bigGt( vis.minDist, rmax ))
+            } while( metric.isMeasureGreater( vis.minDist, rmax ))
+            n0 = vis.n
+         }
+         sys.error( "never here" )
       }
-      sys.error( "never here" )
-   }
 
-   private final class VisitedNode( val n: QNode, val minDist: D#BigNum ) extends Ordered[ VisitedNode ] {
-      def compare( that: VisitedNode ) = space.bigCompare( that.minDist, minDist )
+      private final class VisitedNode( val n: QNode, val minDist: M ) extends Ordered[ VisitedNode ] {
+         def compare( that: VisitedNode ) = metric.compareMeasure( that.minDist, minDist )
+      }
    }
 }
