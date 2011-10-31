@@ -123,52 +123,70 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
    protected def findLeaf( point: D#Point ) : QLeaf
 
    private final class RangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) extends Iterator[ A ] {
-      val stabbing      = MQueue.empty[ (QNode, Area) ]
+      val stabbing      = MQueue.empty[ (QNode, Area) ]  // Tuple2 is specialized for Long, too!
       val in            = MQueue.empty[ QNonEmpty ]
-      var current : A   = _
-      var hasNext       = true
+      var current : A   = _      // overwritten by initial run of `findNextValue`
+      var hasNext       = true   // eventually set to `false` by `findNextValue`
 
       stabbing += headTree -> qs.overlapArea( headTree.hyperCube )
       findNextValue()
 
-      def rangeQueryLeft( node: QNode, area: Area, qs: QueryShape[ Area, D ]) : QNode = {
+      // search downwards:
+      // "At each square q ∈ Qi we either go to a child square in Qi
+      // that covers the same area of R ∪ A as p does, if such a child
+      // square exists, or jump to the next level q ∈ Qi−1."
+      @tailrec def findEquiStabbingTail( node: QNode, area: Area ) : QNode = {
+         var pi = node
          var i = 0; while( i < numOrthants ) {
-            node.child( i ) match {
-               case n2: QNode =>
-                  val a2 = qs.overlapArea( n2.hyperCube )
+            pi.child( i ) match {
+               case pic: QNode =>
+                  val a2 = qs.overlapArea( pic.hyperCube )
                   if( a2 == area ) {
-                     val next = node.next
-                     if( next != null ) {
-                        rangeQueryLeft( next, area, qs )
-                     } else {
-                        rangeQueryLeft( n2, a2, qs )
-                     }
+                     pi = pic
+                     i  = 0   // start over in child
+                  } else {
+                     i += 1
                   }
-               case _ =>
+               case _ => i += 1
             }
-         i += 1 }
-         node
+         }
+         // ... or jump to the next (previous) level
+         val prev = pi.prev
+         if( prev == null ) pi else findEquiStabbingTail( prev, area )
       }
 
-      def rangeQueryRight( node: QNode, area: Area, qs: QueryShape[ Area, D ]) : QNode = {
-         var i = 0; while( i < numOrthants ) {
-            node.child( i ) match {
-               case n2: QNode =>
-                  val a2 = qs.overlapArea( n2.hyperCube )
-                  if( a2 == area ) {
-                     val next = node.next
-                     if( next != null ) {
-                        rangeQueryRight( next, area, qs )
-                     } else {
-                        rangeQueryLeft( n2, a2, qs )
-                     }
+      // the movement from Q0 to Qj
+      // "assuming that p is not critical in Q0, we promote to Qj where Qj is the highest
+      // level in which p is not a critical square"
+      //
+      // definition of critical square:
+      // "a stabbing node of Qi whose child nodes are either not stabbing, or still
+      // stabbing but cover less volume of R than p does."
+      // ; bzw. umgedreht: eine unkritische node ist eine, in der es mindestens eine stabbing node
+      // mit derselben ueberlappungsflaeche gibt!
+      //
+      // definition stabbing: 0 < overlap-area < area-of-p
+      def findHighestUncritical( p0: QNode, area: Area ) : QNode = {
+         var pi         = p0.next
+         if( pi == null ) return p0
+         var uncritical = p0
+         var i = 0
+         while( i < numOrthants ) {
+            pi.child( i ) match {
+               case ci: QNode =>
+                  val a2 = qs.overlapArea( ci.hyperCube )
+                  if( a2 == area ) {   // that means node is uncritical
+                     uncritical  = pi
+                     pi          = pi.next
+                     if( pi == null ) return uncritical
+                     i           = 0   // restart in next level
+                  } else {
+                     i          += 1
                   }
-               case _ =>
+               case _ => i += 1
             }
-         i += 1 }
-         // at this point, we know `this` is critical
-         val prev = node.prev
-         if( prev != null ) prev else node
+         }
+         uncritical
       }
 
       def next() : A = {
@@ -178,7 +196,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
          res
       }
 
-      def findNextValue() : Unit = while( true ) {
+      def findNextValue() { while( true ) {
          if( in.isEmpty ) {
             if( stabbing.isEmpty ) {
                hasNext = false
@@ -186,9 +204,10 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
             }
             val tup  = stabbing.dequeue()
             val ns   = tup._1                            // stabbing node
-            val as   = tup._2
-//            val nc   = ns.rangeQueryRight( as, qs )    // critical node
-            val nc   = rangeQueryRight( ns, as, qs )     // critical node
+            val as   = tup._2                            // overlapping area with query shape
+            val hi   = findHighestUncritical( ns, as )   // find highest uncritical hyper-cube of the stabbing node
+            val nc   = findEquiStabbingTail( hi, as )    // now traverse towards Q0 to find the critical square
+
             var i = 0; while( i < numOrthants ) {
                nc.child( i ) match {
                   case cl: QLeaf =>
@@ -196,11 +215,13 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                   case cn: QNode =>
                      val q    = cn.hyperCube
                      val ao   = qs.overlapArea( q )
-                     if( qs.isAreaNonEmpty( ao )) {
-//                        if( space.bigGt( q.area, ao )) { ... }
-                        if( qs.isAreaGreater( q, ao )) {
+                     // test for stabbing or inclusion:
+                     // inclusion: overlap-area == area-of-p
+                     // stabbing: 0 < overlap-area < area-of-p
+                     if( qs.isAreaNonEmpty( ao )) {      // q is _not_ out
+                        if( qs.isAreaGreater( q, ao )) { // q is stabbing
                            stabbing += cn -> ao
-                        } else {                         // in
+                        } else {                         // q is in
                            in += cn
                         }
                      }
@@ -220,7 +241,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
                   }
                i += 1 }
          }
-      }
+      }}
    }
 
    private final class NN[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) {

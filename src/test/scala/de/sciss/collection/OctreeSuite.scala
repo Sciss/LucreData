@@ -15,7 +15,7 @@ import collection.mutable.{Set => MSet}
 class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val RANDOMIZED    = true
    val DETERMINISTIC = true
-   val RANGE_SEARCH  = false     // this passes but is obviously broken -- takes incredibly long time
+   val RANGE_SEARCH  = true     // this passes but is obviously broken -- takes incredibly long time
    val NN_SEARCH     = true
    val REMOVAL       = true
 
@@ -206,6 +206,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          scenario( "Consistency is verified on a randomly filled structure" ) {
             val t  = tf // ( None )
             val m  = MSet.empty[ Point3DLike ]
+            val time1 = System.currentTimeMillis()
 
             randFill[ Space.ThreeDim ]( t, m, pointFun3D )
             verifyConsistency[ Space.ThreeDim ]( t )
@@ -215,6 +216,9 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
             if( RANGE_SEARCH ) verifyRangeSearch[ BigInt, Space.ThreeDim, (Int, Int, Int) ]( t, m, queryFun3D, sortFun3D )
             if( NN_SEARCH ) verifyNN[ BigInt, Space.ThreeDim ]( t, m, pointFun3D, pointFilter3D, euclideanDist3D )
             if( REMOVAL ) verifyAddRemoveAll[ Space.ThreeDim ]( t, m )
+
+            val time2 = System.currentTimeMillis()
+            println( "For " + name + " the tests took " + TestUtil.formatSeconds( (time2 - time1) * 0.001 ))
          }
       }
    }
