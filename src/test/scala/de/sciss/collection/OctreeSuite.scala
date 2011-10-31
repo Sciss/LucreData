@@ -13,9 +13,9 @@ import collection.mutable.{Set => MSet}
  * }}
  */
 class OctreeSuite extends FeatureSpec with GivenWhenThen {
-   val RANDOMIZED    = false
+   val RANDOMIZED    = true
    val DETERMINISTIC = true
-   val RANGE_SEARCH  = true
+   val RANGE_SEARCH  = false     // this passes but is obviously broken -- takes incredibly long time
    val NN_SEARCH     = true
    val REMOVAL       = true
 
