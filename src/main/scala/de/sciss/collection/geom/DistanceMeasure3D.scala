@@ -37,10 +37,14 @@ object DistanceMeasure3D {
     * A chebychev distance measure, based on the maximum of the absolute
     * distances across the first two dimensions. The 3rd dimension is ignored!
     */
-   val chebyshevXY : DistanceMeasure[ Long, Space.ThreeDim ] = new ChebyshevXYLikeDistanceMeasure {
-      override def toString = "DistanceMeasure3D.chebyshevXY"
-      protected final def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
-   }
+   val chebyshevXY : DistanceMeasure[ Long, Space.ThreeDim ] = ChebyshevXY
+
+   /**
+    * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
+    * distances across the first two dimensions. The 3rd dimension is ignored!
+    * This is, strictly speaking, only a semi metric.
+    */
+   val vehsybehc : DistanceMeasure[ Long, Space.ThreeDim ] = VehsybehcXY
 
    private object EuclideanSq extends ImplBigInt {
       override def toString = "DistanceMeasure3D.euclideanSq"
@@ -130,7 +134,17 @@ object DistanceMeasure3D {
    private final class OrthantLong( protected val underlying: DistanceMeasure[ Long, Space.ThreeDim ], protected val idx: Int )
    extends OrthantLike[ Long ] with ImplLong
 
-   private sealed trait ChebyshevXYLikeDistanceMeasure extends ImplLong {
+   private object ChebyshevXY extends ChebyshevXYLike {
+      override def toString = "DistanceMeasure3D.chebyshevXY"
+      protected def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
+   }
+
+   private object VehsybehcXY extends ChebyshevXYLike {
+      override def toString = "DistanceMeasure3D.vehsybehcXY"
+      protected def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
+   }
+
+   private sealed trait ChebyshevXYLike extends ImplLong {
       protected def apply( dx: Long, dy: Long ) : Long
 
       def distance( a: Point3DLike, b: Point3DLike ) : Long = {

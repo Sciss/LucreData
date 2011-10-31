@@ -13,7 +13,7 @@ import collection.mutable.{Set => MSet}
  * }}
  */
 class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
-   val RANDOMIZED    = false
+   val RANDOMIZED    = true
    val DETERMINISTIC = true
    val RANGE_SEARCH  = true
    val NN_SEARCH     = true

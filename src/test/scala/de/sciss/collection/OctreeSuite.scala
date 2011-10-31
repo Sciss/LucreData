@@ -154,9 +154,9 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val sortFun3D = (p: Point3DLike) => (p.x, p.y, p.z)
 
-   def verifyRangeSearch[ D <: Space[ D ], S : Ordering ]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ],
-                                                queryFun: (Int, Int, Int) => QueryShape[ D ],
-                                                sortFun: D#Point => S ) {
+   def verifyRangeSearch[ A, D <: Space[ D ], S : Ordering ]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ],
+                          queryFun: (Int, Int, Int) => QueryShape[ A, D ],
+                          sortFun: D#Point => S ) {
       when( "the octree is range searched" )
       val qs = Seq.fill( n2 )( queryFun( 0x7FFFFFFF, 0x40000000, 0x40000000 ))
       val rangesT = qs.map( q => t.rangeQuery( q ).toSet )
@@ -181,8 +181,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val euclideanDist3D = DistanceMeasure3D.euclideanSq
 
-   def verifyNN[ D <: Space[ D ]]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
-                                   pointFilter: D#Point => Boolean, euclideanDist: DistanceMeasure[ D ]) {
+   def verifyNN[ @specialized( Long ) M : Ordering, D <: Space[ D ]]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
+                                   pointFilter: D#Point => Boolean, euclideanDist: DistanceMeasure[ M, D ]) {
       when( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( pointFun( 0xFFFFFFFF ))
       // tricky: this guarantees that there are no 63 bit overflows,
@@ -190,7 +190,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       val ps = ps0.filter( pointFilter )
       val nnT: Map[ D#Point, D#Point ] = ps.map( p => p -> t.nearestNeighbor( p, euclideanDist ))( breakOut )
       val ks   = m // .keySet
-      val nnM: Map[ D#Point, D#Point ] = ps.map( p => p -> ks.minBy( _.distanceSq( p ))( t.space.bigOrdering ))( breakOut )
+//      val nnM: Map[ D#Point, D#Point ] = ps.map( p => p -> ks.minBy( _.distanceSq( p ))( t.space.bigOrdering ))( breakOut )
+      val nnM: Map[ D#Point, D#Point ] = ps.map( p => p -> ks.minBy( p2 => euclideanDist.distance( p2, p )))( breakOut )
       then( "the results should match brute force with the corresponding set" )
       assert( nnT == nnM, {
          (nnT.collect { case (q, v) if( nnM( q ) != v ) => (q, v, nnM( q ))}).take( 10 ).toString()
@@ -211,8 +212,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
             verifyElems[ Space.ThreeDim ]( t, m )
             verifyContainsNot[ Space.ThreeDim ]( t, m, pointFun3D )
 
-            if( RANGE_SEARCH ) verifyRangeSearch[ Space.ThreeDim, (Int, Int, Int) ]( t, m, queryFun3D, sortFun3D )
-            if( NN_SEARCH ) verifyNN[ Space.ThreeDim ]( t, m, pointFun3D, pointFilter3D, euclideanDist3D )
+            if( RANGE_SEARCH ) verifyRangeSearch[ BigInt, Space.ThreeDim, (Int, Int, Int) ]( t, m, queryFun3D, sortFun3D )
+            if( NN_SEARCH ) verifyNN[ BigInt, Space.ThreeDim ]( t, m, pointFun3D, pointFilter3D, euclideanDist3D )
             if( REMOVAL ) verifyAddRemoveAll[ Space.ThreeDim ]( t, m )
          }
       }
