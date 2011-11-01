@@ -24,25 +24,24 @@
  */
 
 package de.sciss.collection
-package mutable
+package txn
 
-import collection.generic.CanBuildFrom
-import collection.mutable.{Builder => MBuilder, Set => MSet, SetBuilder => MSetBuilder, SetLike => MSetLike}
+import concurrent.stm.InTxn
 
 object SkipList {
-   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ]): SkipList[ A ] = LLSkipList.empty[ A ]
+   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ]): SkipList[ A ] = sys.error( "TODO" ) // LLSkipList.empty[ A ]
 
-   private type CC[ A ] = SkipList[ A ]
-   private type Coll = CC[ _ ]
-
-   implicit def canBuildFrom[ A : Ordering : MaxKey ] : CanBuildFrom[ Coll, A, CC[ A ]] = new SkipListCanBuildFrom
-
-   private class SkipListCanBuildFrom[ A : Ordering : MaxKey ] extends CanBuildFrom[ Coll, A, CC[ A ]] {
-      def apply( from: Coll ) = newBuilder[ A ]
-      def apply() = newBuilder[ A ]
-   }
-
-   def newBuilder[ A : Ordering : MaxKey ]: MBuilder[ A, CC[ A ]] = new MSetBuilder( empty[ A ])
+//   private type CC[ A ] = SkipList[ A ]
+//   private type Coll = CC[ _ ]
+//
+//   implicit def canBuildFrom[ A : Ordering : MaxKey ] : CanBuildFrom[ Coll, A, CC[ A ]] = new SkipListCanBuildFrom
+//
+//   private class SkipListCanBuildFrom[ A : Ordering : MaxKey ] extends CanBuildFrom[ Coll, A, CC[ A ]] {
+//      def apply( from: Coll ) = newBuilder[ A ]
+//      def apply() = newBuilder[ A ]
+//   }
+//
+//   def newBuilder[ A : Ordering : MaxKey ]: MBuilder[ A, CC[ A ]] = new MSetBuilder( empty[ A ])
 
    /**
     * A trait for observing the promotion and demotion of a key
@@ -53,28 +52,21 @@ object SkipList {
        * Notifies the observer that a given key
        * is promoted to a higher (more sparse) level
        */
-      def keyUp( key : A ) : Unit
+      def keyUp( key : A )( implicit tx: InTxn ) : Unit
       /**
        * Notifies the observer that a given key
        * is demoted to a lower (more dense) level
        */
-      def keyDown( key : A ) : Unit
+      def keyDown( key : A )( implicit tx: InTxn ) : Unit
    }
 
    object NoKeyObserver extends KeyObserver[ Any ] {
-      def keyUp( key : Any ) {}
-      def keyDown( key : Any ) {}
+      def keyUp( key : Any )( implicit tx: InTxn ) {}
+      def keyDown( key : Any )( implicit tx: InTxn ) {}
    }
 }
-// XXX java.lang.NullPointerException at scala.tools.nsc.typechecker.Namers$Namer.enterSym(Namers.scala:404)
-// bra bra bra. fucking scala specialization -- completely failed project
-trait SkipList[ /* @specialized( Int, Long ) */ A ]
-extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] {
-
-   /**
-    * Needs to be overridden in subclasses.
-    */
-   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
+trait SkipList[ @specialized( Int, Long ) A ] {
+//   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
 
    /**
     * Searches for the Branch of a given key.
@@ -82,7 +74,7 @@ extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] {
     * @param   v  the key to search for
     * @return  `true` if the key is in the list, `false` otherwise
     */
-   def contains( v: A ) : Boolean
+   def contains( v: A )( implicit tx: InTxn ) : Boolean
 
 //   /**
 //    * Finds the nearest item equal or greater
@@ -100,7 +92,7 @@ extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] {
 //    *
 //    * @return  the nearest item, or the maximum item
 //    */
-//   def isomorphicQuery( compare: A => Int ) : A
+//   def isomorphicQuery( compare: A => Int )( implicit tx: InTxn ) : A
 
    /**
     * Inserts a new key into the list.
@@ -109,18 +101,24 @@ extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] {
     * @return  `true` if the key was successfully inserted,
     *          `false` if a node with the given key already existed
     */
-   def add( v: A ) : Boolean
+   def add( v: A )( implicit tx: InTxn ) : Boolean
+
+   // ---- stuff lost from collection.mutable.Set ----
+
+   def remove( v: A )( implicit tx: InTxn ) : Boolean
+   def +=( elem: A )( implicit tx: InTxn ) : this.type
+   def -=( elem: A )( implicit tx: InTxn ) : this.type
 
    /**
     * The number of levels in the skip list.
     */
-   def height : Int
+   def height( implicit tx: InTxn ) : Int
 
    /**
     * The number of keys in the skip list (size of the bottom level).
     * This operation may take up to O(n) time, depending on the implementation.
     */
-   def size : Int
+   def size( implicit tx: InTxn ) : Int
 
    /**
     * The 'maximum' key. In the ordering of the skip list,

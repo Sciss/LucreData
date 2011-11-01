@@ -9,6 +9,7 @@ scalaVersion := "2.9.1"
 resolvers += "itextpdf.com" at "http://maven.itextpdf.com"
 
 libraryDependencies ++= Seq(
+   "org.scala-tools" %% "scala-stm" % "0.3",
    "de.sciss" % "prefuse" % "0.20",
    "com.itextpdf" % "itextpdf" % "5.1.1",
    "org.scalatest" %% "scalatest" % "1.6.1" % "test"

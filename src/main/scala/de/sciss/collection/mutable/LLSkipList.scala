@@ -76,6 +76,9 @@ object LLSkipList {
       def top : Node[ A ] = hd.down
       def minGap : Int = 1
 
+      def maxGap : Int = (minGap << 1) + 1
+      def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
+
       class NodeImpl extends Node[ A ] {
          var key: A = _
          var right: NodeImpl = _
@@ -310,6 +313,6 @@ object LLSkipList {
       }
    }
 }
-trait LLSkipList[ /* @specialized( Int, Long ) */ A ] extends SkipList[ A ] {
+sealed trait LLSkipList[ /* @specialized( Int, Long ) */ A ] extends SkipList[ A ] {
    def top : LLSkipList.Node[ A ]
 }
