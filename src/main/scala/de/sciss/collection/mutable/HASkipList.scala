@@ -38,9 +38,9 @@ import annotation.tailrec
 object HASkipList {
 //   def empty[ @specialized( Int, Long ) B : Manifest, A ]( minGap: Int = 1, key: A => B, maxKey: B ) : HASkipList[ A ] =
 //      new Impl[ B, A ]( minGap, key maxKey )
-   def empty[ A : Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty()
+   def empty[ A : de.sciss.collection.Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty()
    def empty[ A ]( minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = SkipList.NoKeyObserver )
-                 ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
+                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
       require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
       new Impl( maxKey.value, minGap, keyObserver )
    }
@@ -54,7 +54,7 @@ object HASkipList {
 
    private final class Impl[ /* @specialized( Int, Long ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
-      ( implicit mf: Manifest[ A ], val ordering: Ordering[ A ])
+      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ])
    extends HASkipList[ A ] {
       private val arrMaxSz = maxGap + 1
       private val arrMid   = maxGap >> 1
@@ -67,9 +67,10 @@ object HASkipList {
 
       private def leafSizeSum( n: Node[ _ ]) : Int = {
          var res = 0
-         var i = 0; while( i < n.size ) {
+         val sz = n.size
+         var i = 0; while( i < sz ) {
             val dn = n.down( i )
-            if( dn.isBottom ) return n.size
+            if( dn.isBottom ) return sz
             res += leafSizeSum( dn )
             i += 1
          }
@@ -286,11 +287,10 @@ object HASkipList {
 //println( "----6 merge right" )  // OK
                      val idx2 = idx1 + 1
                      // overwrite x.key, but keep x.down
-                     keyCopy(  b, idx1, b, idx,  b.size - idx1 )
-                     downCopy( b, idx2, b, idx1, b.size - idx2 )
-//arrc2 = math.max( arrc2, b.size - idx1 )
-//arrc3 = math.max( arrc3, b.size - idx2 )
-                     b.size -= 1
+                     val bsz = b.size
+                     keyCopy(  b, idx1, b, idx,  bsz - idx1 )
+                     downCopy( b, idx2, b, idx1, bsz - idx2 )
+                     b.size  = bsz - 1
                      if( d.isLeaf ) {
                         val ld   = d.asLeaf
                         val lrs  = rightSibling.asLeaf

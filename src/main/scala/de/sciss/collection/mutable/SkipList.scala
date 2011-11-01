@@ -30,19 +30,19 @@ import collection.generic.CanBuildFrom
 import collection.mutable.{Builder => MBuilder, Set => MSet, SetBuilder => MSetBuilder, SetLike => MSetLike}
 
 object SkipList {
-   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ]): SkipList[ A ] = LLSkipList.empty[ A ]
+   def empty[ A ]( implicit ord: de.sciss.collection.Ordering[ A ], m: MaxKey[ A ]): SkipList[ A ] = LLSkipList.empty[ A ]
 
    private type CC[ A ] = SkipList[ A ]
    private type Coll = CC[ _ ]
 
-   implicit def canBuildFrom[ A : Ordering : MaxKey ] : CanBuildFrom[ Coll, A, CC[ A ]] = new SkipListCanBuildFrom
+   implicit def canBuildFrom[ A : de.sciss.collection.Ordering : MaxKey ] : CanBuildFrom[ Coll, A, CC[ A ]] = new SkipListCanBuildFrom
 
-   private class SkipListCanBuildFrom[ A : Ordering : MaxKey ] extends CanBuildFrom[ Coll, A, CC[ A ]] {
+   private class SkipListCanBuildFrom[ A : de.sciss.collection.Ordering : MaxKey ] extends CanBuildFrom[ Coll, A, CC[ A ]] {
       def apply( from: Coll ) = newBuilder[ A ]
       def apply() = newBuilder[ A ]
    }
 
-   def newBuilder[ A : Ordering : MaxKey ]: MBuilder[ A, CC[ A ]] = new MSetBuilder( empty[ A ])
+   def newBuilder[ A : de.sciss.collection.Ordering : MaxKey ]: MBuilder[ A, CC[ A ]] = new MSetBuilder( empty[ A ])
 
    /**
     * A trait for observing the promotion and demotion of a key
@@ -133,7 +133,7 @@ extends MSet[ A ] with MSetLike[ A, SkipList[ A ]] {
    /**
     * The ordering used for the keys of this list.
     */
-   implicit def ordering : Ordering[ A ]
+   implicit def ordering : de.sciss.collection.Ordering[ A ]
 
    /**
     * The minimum gap within elements of each skip level

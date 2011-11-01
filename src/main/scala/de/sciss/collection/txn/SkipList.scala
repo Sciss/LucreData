@@ -29,7 +29,7 @@ package txn
 import concurrent.stm.InTxn
 
 object SkipList {
-   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ]): SkipList[ A ] = sys.error( "TODO" ) // LLSkipList.empty[ A ]
+   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ]): SkipList[ A ] = HASkipList.empty[ A ]
 
 //   private type CC[ A ] = SkipList[ A ]
 //   private type Coll = CC[ _ ]
@@ -47,7 +47,7 @@ object SkipList {
     * A trait for observing the promotion and demotion of a key
     * in the skip list's level hierarchy
     */
-   trait KeyObserver[ /* @specialized( Int, Long ) */ -A ] {
+   trait KeyObserver[ @specialized( Int, Long ) -A ] {
       /**
        * Notifies the observer that a given key
        * is promoted to a higher (more sparse) level
@@ -131,7 +131,7 @@ trait SkipList[ @specialized( Int, Long ) A ] {
    /**
     * The ordering used for the keys of this list.
     */
-   implicit def ordering : Ordering[ A ]
+   implicit def ordering : de.sciss.collection.Ordering[ A ]
 
    /**
     * The minimum gap within elements of each skip level

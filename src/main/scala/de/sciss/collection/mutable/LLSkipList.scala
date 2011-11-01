@@ -35,9 +35,9 @@ package mutable
  * compared to a 2-5 list with horizontal array technique.
  */
 object LLSkipList {
-   def empty[ A : Ordering : MaxKey ] : LLSkipList[ A ] = empty()
+   def empty[ A : de.sciss.collection.Ordering : MaxKey ] : LLSkipList[ A ] = empty()
    def empty[ A ]( keyObserver: SkipList.KeyObserver[ A ] = SkipList.NoKeyObserver )
-                 ( implicit ord: Ordering[ A ], maxKey: MaxKey[ A ]) : LLSkipList[ A ] =
+                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ]) : LLSkipList[ A ] =
       new Impl( maxKey.value, keyObserver )
 
    sealed trait Node[ /* @specialized( Int, Long ) */ A ] {
@@ -48,7 +48,8 @@ object LLSkipList {
       def isTail: Boolean
    }
 
-   private class Impl[ /* @specialized( Int, Long ) */ A ]( val maxKey: A, keyObserver: SkipList.KeyObserver[ A ])( implicit val ordering: Ordering[ A ])
+   private class Impl[ /* @specialized( Int, Long ) */ A ]( val maxKey: A, keyObserver: SkipList.KeyObserver[ A ])
+                                                          ( implicit val ordering: de.sciss.collection.Ordering[ A ])
    extends LLSkipList[ A ] {
       // XXX fucking shit : scala has a specialization bug; we needed to add lazy here when Node was an instance trait of
       // LLSkipList -- now that we have put Node back into the object, the access error is gone again.
@@ -315,4 +316,7 @@ object LLSkipList {
 }
 sealed trait LLSkipList[ /* @specialized( Int, Long ) */ A ] extends SkipList[ A ] {
    def top : LLSkipList.Node[ A ]
+
+   // this should go into SkipList when implemented in HASkipList
+   def isomorphicQuery( compare: A => Int ) : A
 }
