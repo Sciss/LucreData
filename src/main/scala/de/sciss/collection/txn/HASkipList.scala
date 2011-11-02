@@ -191,7 +191,7 @@ object HASkipList {
                   // this is already the case:
 //               n.downArr( idx )  = left
                   n.downArr( i1 )   = right
-                  n.sizeRef()      += 1
+                  n.sizeRef        += 1
                }
 
                // notify observer
@@ -218,13 +218,13 @@ object HASkipList {
             val n             = new Leaf
             n.keyArr( 0 )     = v
             n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
-            n.sizeRef()          = 2
+            n.sizeRef()       = 2
             Head.downNode()   = n
          } else {
             val n             = pn.asLeaf
             keyCopy( n, pidx, n, pidx + 1, n.sizeRef() - pidx )
             n.keyArr( pidx )  = v
-            n.sizeRef()      += 1
+            n.sizeRef        += 1
          }
          // ---- END INSERT ----
          true
