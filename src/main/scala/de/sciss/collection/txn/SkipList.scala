@@ -108,6 +108,13 @@ trait SkipList[ @specialized( Int, Long ) A ] {
    def remove( v: A )( implicit tx: InTxn ) : Boolean
    def +=( elem: A )( implicit tx: InTxn ) : this.type
    def -=( elem: A )( implicit tx: InTxn ) : this.type
+   def isEmpty( implicit tx: InTxn ) : Boolean
+   def notEmpty( implicit tx: InTxn ) : Boolean
+   def iterator( implicit tx: InTxn ) : Iterator[ A ]
+   def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ]
+   def toList( implicit tx: InTxn ) : List[ A ]
+   def toSeq( implicit tx: InTxn ) : Seq[ A ]
+   def toSet( implicit tx: InTxn ) : Set[ A ]
 
    /**
     * The number of levels in the skip list.

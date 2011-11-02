@@ -27,6 +27,8 @@ package de.sciss.collection
 package txn
 
 import concurrent.stm.{Ref, TArray, InTxn}
+import annotation.tailrec
+import collection.mutable.Builder
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -62,6 +64,38 @@ object HASkipList {
       def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
 
       def maxGap : Int = (minGap << 1) + 1
+
+      def isEmpty( implicit tx: InTxn )   = Head.downNode().isBottom
+      def notEmpty( implicit tx: InTxn )  = !isEmpty
+
+      def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ] = {
+         val b = collection.immutable.IndexedSeq.newBuilder[ A ]
+         fillBuilder( b )
+         b.result()
+      }
+
+      def toList( implicit tx: InTxn ) : List[ A ] = {
+         val b = List.newBuilder[ A ]
+         fillBuilder( b )
+         b.result()
+      }
+
+      def toSeq( implicit tx: InTxn ) : Seq[ A ] = {
+         val b = Seq.newBuilder[ A ]
+         fillBuilder( b )
+         b.result()
+      }
+
+      def toSet( implicit tx: InTxn ) : Set[ A ] = {
+         val b = Set.newBuilder[ A ]
+         fillBuilder( b )
+         b.result()
+      }
+
+      private def fillBuilder( b: Builder[ A, _ ])( implicit tx: InTxn ) {
+         val iter = iterator
+         while( iter.hasNext ) b += iter.next()
+      }
 
       private def leafSizeSum( n: Node[ _ ])( implicit tx: InTxn ) : Int = {
          var res = 0
@@ -381,42 +415,55 @@ object HASkipList {
          sys.error( "Never gets here" )
       }
 
-//      def iterator : Iterator[ A ] = new Iterator[ A ] {
-//         var x: Node[ A ]  = _
-//         var idx: Int      = _
-//         val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
+      def iterator( implicit tx: InTxn ) : Iterator[ A ] = {
+         val i = new IteratorImpl
+         i.pushDown( 0, Head )
+         i
+      }
+
+      private final class IteratorImpl extends Iterator[ A ] {
+         private val xRef        = Ref[ Node[ A ]]( null )
+         private val idxRef      = Ref( 0 )
+         private val stackRef    = Ref( collection.immutable.Stack.empty[ (Int, Node[ A ])])
 //         pushDown( 0, Head )
-//
-//         def pushDown( idx0: Int, n: Node[ A ] ) {
-//            var pred = n
-//            var pidx = idx0
-//            var dn   = pred.down( pidx )
-//            while( !dn.isBottom ) {
-//               stack.push( (pidx + 1, pred) )
-//               pred  = dn
-//               pidx  = 0
-//               dn    = pred.down( pidx )
-//            }
-//            x     = pred
-//            idx   = pidx
-//         }
-//
-//         def hasNext : Boolean = !ordering.equiv( x.key( idx ), maxKey )
-//         def next() : A = {
-//            val res = x.key( idx )
-//            idx += 1
-//            if( idx == x.size ) {
-//               @tailrec def findPush {
-//                  if( stack.nonEmpty ) {
-//                     val (i, n) = stack.pop
-//                     if( i < n.size ) pushDown( i, n ) else findPush
-//                  }
-//               }
-//               findPush
-//            }
-//            res
-//         }
-//      }
+
+         def pushDown( idx0: Int, n: Node[ A ])( implicit tx: InTxn ) {
+            var pred    = n
+            var pidx    = idx0
+            var dn      = pred.down( pidx )
+            var stack   = stackRef()
+            while( !dn.isBottom ) {
+               stack = stack.push( (pidx + 1, pred) )
+               pred  = dn
+               pidx  = 0
+               dn    = pred.down( pidx )
+            }
+            xRef()      = pred
+            idxRef()    = pidx
+            stackRef()  = stack
+         }
+
+         def hasNext( implicit tx: InTxn ) : Boolean = !ordering.equiv( xRef().key( idxRef() ), maxKey )
+         def next()( implicit tx: InTxn ) : A = {
+            val idx  = idxRef()
+            val x    = xRef()
+            val res  = x.key( idx )
+            val i1   = idx + 1
+            idxRef() = i1
+            if( i1 == x.size ) {
+               @tailrec def findPush {
+                  val stack = stackRef()
+                  if( stack.nonEmpty ) {
+                     val ((i, n), stackNew) = stack.pop2
+                     stackRef() = stackNew
+                     if( i < n.size ) pushDown( i, n ) else findPush
+                  }
+               }
+               findPush
+            }
+            res
+         }
+      }
 
       private sealed trait NodeImpl extends Node[ A ] {
          override def down( i: Int )( implicit tx: InTxn ) : NodeImpl

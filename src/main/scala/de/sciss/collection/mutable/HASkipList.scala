@@ -401,13 +401,19 @@ object HASkipList {
          sys.error( "Never gets here" )
       }
 
-      def iterator : Iterator[ A ] = new Iterator[ A ] {
-         var x: Node[ A ]  = _
-         var idx: Int      = _
-         val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
-         pushDown( 0, Head )
+      def iterator : Iterator[ A ] = {
+         val i = new IteratorImpl
+         i.pushDown( 0, Head )
+         i
+      }
 
-         def pushDown( idx0: Int, n: Node[ A ] ) {
+      private final class IteratorImpl extends Iterator[ A ] {
+         private var x: Node[ A ]  = _
+         private var idx: Int      = _
+         private val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
+//         pushDown( 0, Head )
+
+         def pushDown( idx0: Int, n: Node[ A ]) {
             var pred = n
             var pidx = idx0
             var dn   = pred.down( pidx )
@@ -494,7 +500,7 @@ object HASkipList {
       }
 
       private final class Branch extends BranchOrLeaf {
-         var downArr = new Array[ NodeImpl ]( arrMaxSz )
+         val downArr = new Array[ NodeImpl ]( arrMaxSz )
          def down( i: Int ) : NodeImpl = downArr( i )
          def split() : NodeImpl = {
             val res     = new Branch
