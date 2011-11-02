@@ -17,7 +17,14 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val OBSERVATION   = true
    val REMOVAL       = true
 
-   val rnd   = new util.Random()
+   // large
+   val NUM1          = 0x040000  // 0x200000
+   val NUM2          = 0x020000  // 0x100000
+
+   // small
+   val NUM3          = 10
+
+   val rnd   = new util.Random( 0L )
 
    withList( "HA-1", (oo, txn) => HASkipList.empty[ Int ]( minGap = 1, keyObserver = oo ))
    withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
@@ -26,9 +33,9 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
 
    def randFill( l: SkipList[ Int ], s: MSet[ Int ]) {
       given( "a randomly filled structure" )
-      val n     = 0x200000
-      for( i <- 0 until n ) {
+      for( i <- 0 until NUM1 ) {
          val x = rnd.nextInt( 0x7FFFFFFF )
+//println( "i = " + i )
          atomic { implicit tx => l.add( x )}
          s.add( x )
       }
@@ -36,18 +43,16 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
 
    def randFill2 : Set[ Int ] = {
       given( "a set of random numbers" )
-      val n     = 0x100000
       var res   = Set.empty[ Int ]
-      for( i <- 0 until n ) {
+      for( i <- 0 until NUM2 ) {
          res += rnd.nextInt() & ~1   // any int except MaxValue
       }
       res
    }
 
    def randFill3 : Set[ Int ] = {
-      val n     = 10
       var res   = Set.empty[ Int ]
-      for( i <- 0 until n ) {
+      for( i <- 0 until NUM3 ) {
          res += rnd.nextInt( 100 )
       }
       given( "a small set of numbers : " + res.mkString( ", " ))

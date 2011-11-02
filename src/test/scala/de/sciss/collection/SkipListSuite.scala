@@ -18,7 +18,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
    val LL            = true
    val HA            = true
 
-   val rnd   = new util.Random()
+   val rnd   = new util.Random( 0L )
 
    if( LL ) withList( "LL",   oo => LLSkipList.empty[ Int ]( oo ))
    if( HA ) withList( "HA-1", oo => HASkipList.empty[ Int ]( minGap = 1, keyObserver = oo ))

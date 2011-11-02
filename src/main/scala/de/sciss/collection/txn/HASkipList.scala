@@ -46,7 +46,7 @@ object HASkipList {
    }
 
    sealed trait Node[ @specialized( Int, Long ) A ] {
-      def size()( implicit tx: InTxn ) : Int
+      def size( implicit tx: InTxn ) : Int
       def key( i: Int )( implicit tx: InTxn ) : A // Int
       def down( i: Int )( implicit tx: InTxn ) : Node[ A ]
       def isBottom : Boolean // = this eq Bottom
@@ -99,7 +99,7 @@ object HASkipList {
 
       private def leafSizeSum( n: Node[ _ ])( implicit tx: InTxn ) : Int = {
          var res = 0
-         val sz = n.size()
+         val sz = n.size
          var i = 0; while( i < sz ) {
             val dn = n.down( i )
             if( dn.isBottom ) return sz
@@ -112,17 +112,29 @@ object HASkipList {
       private def keyCopy( a: BranchOrLeaf, aOff: Int, b: BranchOrLeaf, bOff: Int, num: Int )( implicit tx: InTxn ) {
          val src = a.keyArr
          val dst = b.keyArr
-         var i = 0; while( i < num ) {
-            dst( i + bOff ) = src( i + aOff )
-         i += 1 }
+         if( (src eq dst) && (aOff < bOff) ) {  // back-to-front
+            var i = num - 1; while( i >= 0 ) {
+               dst( i + bOff ) = src( i + aOff )
+            i -= 1 }
+         } else {                               // front-to-back
+            var i = 0; while( i < num ) {
+               dst( i + bOff ) = src( i + aOff )
+            i += 1 }
+         }
       }
 
       private def downCopy( a: Branch, aOff: Int, b: Branch, bOff: Int, num: Int )( implicit tx: InTxn ) {
          val src = a.downArr
          val dst = b.downArr
-         var i = 0; while( i < num ) {
-            dst( i + bOff ) = src( i + aOff )
-         i += 1 }
+         if( (src eq dst) && (aOff < bOff) ) {  // back-to-front
+            var i = num - 1; while( i >= 0 ) {
+               dst( i + bOff ) = src( i + aOff )
+            i -= 1 }
+         } else {                               // front-to-back
+            var i = 0; while( i < num ) {
+               dst( i + bOff ) = src( i + aOff )
+            i += 1 }
+         }
       }
 
       def height( implicit tx: InTxn ) : Int = {
@@ -202,9 +214,10 @@ object HASkipList {
                // we must update the child navigation accordingly,
                // beause it means we are now traversing the right
                // half!
-               if( idx >= left.size ) {
+               val lsz = left.size
+               if( idx >= lsz ) {
                   sn    = right
-                  idx  -= left.size
+                  idx  -= lsz
                }
                // ---- END SPLIT ----
             }
@@ -489,7 +502,7 @@ object HASkipList {
       private sealed trait BranchOrLeaf extends NodeImpl {
          final val keyArr  = TArray.ofDim[ A ]( arrMaxSz )
          final val sizeRef = Ref( 0 )
-         final def size()( implicit tx: InTxn ) = sizeRef()
+         final def size( implicit tx: InTxn ) = sizeRef()
          final def key( i: Int )( implicit tx: InTxn ) : A = keyArr( i )
          final def isBottom   = false
 
@@ -551,7 +564,7 @@ object HASkipList {
          val downNode = Ref[ NodeImpl ]( Bottom )
          def key( i: Int )( implicit tx: InTxn ) : A = maxKey // MAX_KEY
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downNode()
-         def size()( implicit tx: InTxn ) = 1
+         def size( implicit tx: InTxn ) = 1
          val isBottom   = false
 
          override def toString = "Head"
@@ -560,7 +573,7 @@ object HASkipList {
       private object Bottom extends HeadOrBottom {
          def key( i: Int )( implicit tx: InTxn ) : A = notSupported
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = notSupported
-         def size()( implicit tx: InTxn ) = 0
+         def size( implicit tx: InTxn ) = 0
          val isBottom   = true
 
          override def toString = "Bottom"

@@ -162,9 +162,10 @@ object HASkipList {
                // we must update the child navigation accordingly,
                // beause it means we are now traversing the right
                // half!
-               if( idx >= left.size ) {
+               val lsz = left.size
+               if( idx >= lsz ) {
                   sn    = right
-                  idx  -= left.size
+                  idx  -= lsz
                }
                // ---- END SPLIT ----
             }
