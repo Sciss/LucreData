@@ -1,3 +1,6 @@
+package de.sciss.collection
+package obsolete
+
 /*
  *  HASkipList.scala
  *  (TreeTests)
@@ -23,12 +26,11 @@
  *  contact@sciss.de
  */
 
-package de.sciss.collection
-package txn
-
+import concurrent.stm.{Ref, TArray, InTxn}
 import annotation.tailrec
 import collection.mutable.Builder
-import concurrent.stm.{TArray, Ref, InTxn}
+import de.sciss.collection.txn.SkipList
+import de.sciss.collection.MaxKey
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -38,32 +40,33 @@ import concurrent.stm.{TArray, Ref, InTxn}
  * It uses the horizontal array technique with a parameter for k (minimum gap size)
  */
 object HASkipList {
-   def empty[ A : de.sciss.collection.Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty()
-   def empty[ A ]( minGap: Int = 2, keyObserver: txn.SkipList.KeyObserver[ A ] = txn.SkipList.NoKeyObserver )
-                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
+   def empty[ A : de.sciss.collection.Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty[ A ]()
+   def empty[ A ]( minGap: Int = 2, keyObserver: SkipList.KeyObserver[ A ] = SkipList.NoKeyObserver )
+                 ( implicit ord:  de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ],
+                   mf: Manifest[ A ]) : HASkipList[ A ] = {
       require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
       new Impl( maxKey.value, minGap, keyObserver )
    }
 
-   sealed trait Node[ /* @specialized( Int, Long ) */ A ] {
-      def size : Int
-      def key( i: Int ): A // Int
-      def down( i: Int )( implicit tx: InTxn )  : Node[ A ]
+   sealed trait Node[ @specialized( Int, Long ) A ] {
+      def size( implicit tx: InTxn ) : Int
+      def key( i: Int )( implicit tx: InTxn ) : A // Int
+      def down( i: Int )( implicit tx: InTxn ) : Node[ A ]
       def isBottom : Boolean // = this eq Bottom
    }
 
-   private final class Impl[ /* @specialized( Int, Long ) */ A ]
-      ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ A ])
+   private final class Impl[ @specialized( Int, Long ) A ]
+      ( val maxKey: A, val minGap: Int, keyObserver: SkipList.KeyObserver[ A ])
       ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ])
    extends HASkipList[ A ] {
       private val arrMaxSz = maxGap + 1
       private val arrMid   = maxGap >> 1
       private val arrMinSz = minGap + 1
 
-      override def size( implicit tx: InTxn ) : Int = leafSizeSum( Head ) - 1
+      /* override */ def size( implicit tx: InTxn ) : Int = leafSizeSum( Head ) - 1
+      def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
 
       def maxGap : Int = (minGap << 1) + 1
-      def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
 
       def isEmpty( implicit tx: InTxn )   = Head.downNode().isBottom
       def notEmpty( implicit tx: InTxn )  = !isEmpty
@@ -109,12 +112,32 @@ object HASkipList {
          res
       }
 
-      @inline private def keyCopy( a: BranchOrLeaf, aOff: Int, b: BranchOrLeaf, bOff: Int, num: Int ) {
-         System.arraycopy( a.keyArr, aOff, b.keyArr, bOff, num )
+      private def keyCopy( a: BranchOrLeaf, aOff: Int, b: BranchOrLeaf, bOff: Int, num: Int )( implicit tx: InTxn ) {
+         val src = a.keyArr
+         val dst = b.keyArr
+         if( (src eq dst) && (aOff < bOff) ) {  // back-to-front
+            var i = num - 1; while( i >= 0 ) {
+               dst( i + bOff ) = src( i + aOff )
+            i -= 1 }
+         } else {                               // front-to-back
+            var i = 0; while( i < num ) {
+               dst( i + bOff ) = src( i + aOff )
+            i += 1 }
+         }
       }
 
-      @inline private def downCopy( a: Branch, aOff: Int, b: Branch, bOff: Int, num: Int ) {
-         System.arraycopy( a.downArr, aOff, b.downArr, bOff, num )
+      private def downCopy( a: Branch, aOff: Int, b: Branch, bOff: Int, num: Int )( implicit tx: InTxn ) {
+         val src = a.downArr
+         val dst = b.downArr
+         if( (src eq dst) && (aOff < bOff) ) {  // back-to-front
+            var i = num - 1; while( i >= 0 ) {
+               dst( i + bOff ) = src( i + aOff )
+            i -= 1 }
+         } else {                               // front-to-back
+            var i = 0; while( i < num ) {
+               dst( i + bOff ) = src( i + aOff )
+            i += 1 }
+         }
       }
 
       def height( implicit tx: InTxn ) : Int = {
@@ -171,19 +194,19 @@ object HASkipList {
                   n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
                   n.downArr( 0 )    = left
                   n.downArr( 1 )    = right
-                  n.size            = 2
+                  n.sizeRef()          = 2
                   Head.downNode()   = n
                } else {
                   val n             = pn.asBranch
                   val i1            = pidx + 1
-                  keyCopy( n, pidx, n, i1, n.size - pidx )
-                  val num           = n.size - i1
+                  keyCopy( n, pidx, n, i1, n.sizeRef() - pidx )
+                  val num           = n.sizeRef() - i1
                   if( num > 0 ) downCopy( n, i1, n, i1 + 1, num )
                   n.keyArr( pidx )  = splitKey
                   // this is already the case:
 //               n.downArr( idx )  = left
                   n.downArr( i1 )   = right
-                  n.size           += 1
+                  n.sizeRef        += 1
                }
 
                // notify observer
@@ -211,13 +234,13 @@ object HASkipList {
             val n             = new Leaf
             n.keyArr( 0 )     = v
             n.keyArr( 1 )     = maxKey // MAX_KEY // aka right.key( right.size - 1 )
-            n.size            = 2
+            n.sizeRef()       = 2
             Head.downNode()   = n
          } else {
             val n             = pn.asLeaf
-            keyCopy( n, pidx, n, pidx + 1, n.size - pidx )
+            keyCopy( n, pidx, n, pidx + 1, n.sizeRef() - pidx )
             n.keyArr( pidx )  = v
-            n.size           += 1
+            n.sizeRef        += 1
          }
          // ---- END INSERT ----
          true
@@ -233,13 +256,10 @@ object HASkipList {
 
          var lastAbove     = maxKey    // last key at level above, needed to determine if we drop into the last gap
 
-//println()
          while( true ) {
             var idx = 0
             var cmp = ordering.compare( v, x.key( idx ))
             while( cmp > 0 ) {   // find where you drop
-//               xPred = x   // keep track of the previous gap which might be needed for a 'left-merge/borrow'
-//               x     = x.right
                idx  += 1
                cmp   = ordering.compare( v, x.key( idx ))
             }
@@ -247,24 +267,19 @@ object HASkipList {
             val dIsBot  = d.isBottom
             var xKey    = x.key( idx )
 
-//println( "-0 step" )
             if( dIsBot ) {
-//println( "--1 isBottom" )
                val success = if( cmp == 0 ) {
-//println( "---2 key found" )  // OK
                   val idx1 = idx + 1
                   val l    = x.asLeaf
-                  val szl  = l.size
-                  l.size   = szl - 1
+                  val szl  = l.sizeRef()
+                  l.sizeRef() = szl - 1
                   if( idx1 < szl ) { // replace x by its right neighbour
                      keyCopy( l, idx1, l, idx, szl - idx1 )
-//arrc1 = math.max( arrc1, szl - idx1 )
                   } else { // this was the last element.
                      // therefore we just need to have the size decremented.
                      // but also, we need a second pass to remove the key
                      // from previous levels:
                      val prevKey = x.key( idx - 1 )
-//println( "---- last pass replace " + xKey + " by " + prevKey )
                      x = Head.downNode()
                      while( !x.isBottom ) {
                         idx = 0
@@ -291,7 +306,6 @@ object HASkipList {
                   true
 
                } else { // which means the key was not found
-//println( "---3 key not found" )  // OK
                   false
                }
 
@@ -304,10 +318,7 @@ object HASkipList {
                return success
 
             } else if( d.hasMinSize ) {   // we drop into gap G with size minGap
-//println( "--4 drop into minimum gap" )
                if( !ordering.equiv( xKey, lastAbove )) { // if does NOT drop in last gap -> merge or borrow to the right
-//println( "---5 not last gap : merge/borrow right" )  // OK
-//                  val xSucc = x.right // now the gap G is between x and xSucc
                   // if minGap elems in next gap G' (aka xSucc.down.right),
                   // or at bottom level --> merge G and G', by lowering the element
                   // between G and G', that is xSucc
@@ -317,27 +328,25 @@ object HASkipList {
                   xKey              = x.key( idx1 )
                   val rightSibling  = x.down( idx1 ) // .asBranch
                   if( rightSibling.hasMinSize ) {    // i.e. G' has size minGap -- merge
-//println( "----6 merge right" )  // OK
                      val idx2 = idx1 + 1
                      // overwrite x.key, but keep x.down
-                     val bsz = b.size
+                     val bsz = b.sizeRef()
                      keyCopy(  b, idx1, b, idx,  bsz - idx1 )
                      downCopy( b, idx2, b, idx1, bsz - idx2 )
-                     b.size  = bsz - 1
+                     b.sizeRef() = bsz - 1
                      if( d.isLeaf ) {
                         val ld   = d.asLeaf
                         val lrs  = rightSibling.asLeaf
                         keyCopy( lrs, 0, ld, arrMinSz, arrMinSz )
-                        ld.size  = arrMinSz + arrMinSz
+                        ld.sizeRef() = arrMinSz + arrMinSz
                      } else {
                         val bd   = d.asBranch
                         val brs  = rightSibling.asBranch
                         keyCopy(  brs, 0, bd, arrMinSz, arrMinSz )
                         downCopy( brs, 0, bd, arrMinSz, arrMinSz )
-                        bd.size  = arrMinSz + arrMinSz
+                        bd.sizeRef() = arrMinSz + arrMinSz
                      }
                   } else {	   // if >minGap elems in next gap G' -- borrow
-//println( "----7 borrow right" )  // OK
                      val upKey         = rightSibling.key( 0 ) // raise 1st elem in next gap & lower...
                      b.keyArr( idx )   = upKey
                      // ... separator of current+next gap
@@ -345,27 +354,24 @@ object HASkipList {
                         val ld   = d.asLeaf
                         val lrs  = rightSibling.asLeaf
                         ld.keyArr( arrMinSz ) = upKey
-                        ld.size  = arrMinSz + 1
-                        val szm1 = lrs.size - 1
+                        ld.sizeRef() = arrMinSz + 1
+                        val szm1 = lrs.sizeRef() - 1
                         keyCopy( lrs, 1, lrs, 0, szm1 )
-//arrc4 = math.max( arrc4, szm1 )
-                        lrs.size = szm1
+                        lrs.sizeRef() = szm1
                      } else {
                         val bd   = d.asBranch
                         val brs  = rightSibling.asBranch
                         bd.keyArr( arrMinSz )   = upKey
                         bd.downArr( arrMinSz )  = brs.downArr( 0 )
-                        bd.size  = arrMinSz + 1
-                        val szm1 = brs.size - 1
+                        bd.sizeRef() = arrMinSz + 1
+                        val szm1 = brs.sizeRef() - 1
                         keyCopy(  brs, 1, brs, 0, szm1 )
                         downCopy( brs, 1, brs, 0, szm1 )
-//arrc5 = math.max( arrc5, szm1 )
-                        brs.size = szm1
+                        brs.sizeRef() = szm1
                      }
                      keyObserver.keyUp( upKey )
                   }
                } else {    // if DOES drop in last gap --> merge or borrow to the left
-//println( "---8 last gap : merge/borrow left" )
                   val idx1          = idx - 1
                   val leftSibling   = x.down( idx1 )
                   val dnKey         = x.key( idx1 ) // xPred.key
@@ -373,44 +379,35 @@ object HASkipList {
                      keyObserver.keyDown( dnKey )
                      val b = x.asBranch   // XXX this could be factored out and go up one level
                      b.keyArr( idx1 ) = xKey
-                     b.size -= 1
+                     b.sizeRef() -= 1
                      if( leftSibling.isLeaf ) {
                         val lls  = leftSibling.asLeaf
                         val ld   = d.asLeaf
-                        val szld = ld.size
+                        val szld = ld.sizeRef()
                         keyCopy( ld, 0, lls, arrMinSz, szld )
-//arrc6 = math.max( arrc6, szld )
-                        lls.size  = arrMinSz + szld
+                        lls.sizeRef() = arrMinSz + szld
                      } else {
                         val bls = leftSibling.asBranch
                         val bd   = d.asBranch
-                        val szbd = bd.size
+                        val szbd = bd.sizeRef()
                         keyCopy(  bd, 0, bls, arrMinSz, szbd )
                         downCopy( bd, 0, bls, arrMinSz, szbd )
-//arrc7 = math.max( arrc7, szbd )
-                        bls.size  = arrMinSz + szbd
+                        bls.sizeRef() = arrMinSz + szbd
                      }
                      d = leftSibling
 
-
-//                     xPred.right = x.right      // lower separator of previous+current gap
-//                     xPred.key   = xKey
-//                     x           = xPred
                   } else {    // if >minGap elems in previous gap --> borrow
-//println( "----10 borrow left" )
-//                     val dsz     = d.size
                      val lssz1   = leftSibling.size - 1
                      val upKey   = leftSibling.key( lssz1 - 1 )
                      val b       = x.asBranch
                      b.keyArr( idx1 ) = upKey   // raise last elem in previous gap & lower...
-//                     x.down      = tmp.right    // ... separator of previous+current gap
                      if( d.isLeaf ) {
                         val ld            = d.asLeaf
                         val lls           = leftSibling.asLeaf
                         keyCopy( ld, 0, ld, 1, arrMinSz )
                         ld.keyArr( 0 )    = dnKey
-                        ld.size           = arrMinSz + 1
-                        lls.size          = lssz1
+                        ld.sizeRef()         = arrMinSz + 1
+                        lls.sizeRef()        = lssz1
                      } else {
                         val bd            = d.asBranch
                         val bls           = leftSibling.asBranch
@@ -418,8 +415,8 @@ object HASkipList {
                         downCopy( bd, 0, bd, 1, arrMinSz )
                         bd.keyArr( 0 )    = dnKey
                         bd.downArr( 0 )   = bls.downArr( lssz1 )
-                        bd.size           = arrMinSz + 1
-                        bls.size          = lssz1
+                        bd.sizeRef()         = arrMinSz + 1
+                        bls.sizeRef()        = lssz1
                      }
                      keyObserver.keyDown( dnKey )
                      keyObserver.keyUp( upKey )
@@ -434,40 +431,47 @@ object HASkipList {
          sys.error( "Never gets here" )
       }
 
-      def iterator( implicit tx: InTxn ) : Iterator[ A ] = {
+      def iterator( implicit tx: InTxn ) : txn.Iterator[ A ] = {
          val i = new IteratorImpl
          i.pushDown( 0, Head )
          i
       }
 
-      private final class IteratorImpl extends Iterator[ A ] {
-         private var x: Node[ A ]  = _
-         private var idx: Int      = _
-         private val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
+      private final class IteratorImpl extends txn.Iterator[ A ] {
+         private val xRef        = Ref[ Node[ A ]]( null )
+         private val idxRef      = Ref( 0 )
+         private val stackRef    = Ref( collection.immutable.Stack.empty[ (Int, Node[ A ])])
 //         pushDown( 0, Head )
 
          def pushDown( idx0: Int, n: Node[ A ])( implicit tx: InTxn ) {
-            var pred = n
-            var pidx = idx0
-            var dn   = pred.down( pidx )
+            var pred    = n
+            var pidx    = idx0
+            var dn      = pred.down( pidx )
+            var stack   = stackRef()
             while( !dn.isBottom ) {
-               stack.push( (pidx + 1, pred) )
+               stack = stack.push( (pidx + 1, pred) )
                pred  = dn
                pidx  = 0
                dn    = pred.down( pidx )
             }
-            x     = pred
-            idx   = pidx
+            xRef()      = pred
+            idxRef()    = pidx
+            stackRef()  = stack
          }
 
-         def hasNext( implicit tx: InTxn ) : Boolean = !ordering.equiv( x.key( idx ), maxKey )
+         def hasNext( implicit tx: InTxn ) : Boolean = !ordering.equiv( xRef().key( idxRef() ), maxKey )
          def next()( implicit tx: InTxn ) : A = {
-            val res = x.key( idx )
-            idx += 1
-            if( idx == x.size ) {
+            val idx  = idxRef()
+            val x    = xRef()
+            val res  = x.key( idx )
+            val i1   = idx + 1
+            idxRef() = i1
+            if( i1 == x.size ) {
                @tailrec def findPush {
+                  val stack = stackRef()
                   if( stack.nonEmpty ) {
-                     val (i, n) = stack.pop
+                     val ((i, n), stackNew) = stack.pop2
+                     stackRef() = stackNew
                      if( i < n.size ) pushDown( i, n ) else findPush
                   }
                }
@@ -486,108 +490,99 @@ object HASkipList {
           * as a new node. This old node
           * is shrunk to the left hand side
           */
-         def split() : NodeImpl
+         def split()( implicit tx: InTxn ) : NodeImpl
 
          def asBranch : Branch
          def asLeaf : Leaf
          def isLeaf : Boolean
-//         def isBranch : Boolean
 
-         final def hasMaxSize = size == arrMaxSz
-         final def hasMinSize = size == arrMinSz
+         final def hasMaxSize( implicit tx: InTxn ) = size == arrMaxSz
+         final def hasMinSize( implicit tx: InTxn ) = size == arrMinSz
 
-         def isEmpty : Boolean
+         def isEmpty( implicit tx: InTxn ) : Boolean
       }
 
       private sealed trait BranchOrLeaf extends NodeImpl {
-         final val keyArr  = new Array[ A ]( arrMaxSz )
-         final var size    = 0
-         final def key( i: Int ) : A = keyArr( i )
+         final val keyArr  = TArray.ofDim[ A ]( arrMaxSz )
+         final val sizeRef = Ref( 0 )
+         final def size( implicit tx: InTxn ) = sizeRef()
+         final def key( i: Int )( implicit tx: InTxn ) : A = keyArr( i )
          final def isBottom   = false
-//         def isHead     = false
 
-         final def isEmpty = ordering.equiv( keyArr( 0 ), maxKey )
+         final def isEmpty( implicit tx: InTxn ) = ordering.equiv( keyArr( 0 ), maxKey )
 
-         protected final def toString( name: String ) : String =
-            keyArr.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
+//         protected final def toString( name: String ) : String =
+//            keyArr.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
       }
 
       private final class Leaf extends BranchOrLeaf {
-//         var valArr  = new Array[ A ]( arrSize )
-         def down( i: Int )( implicit tx: InTxn )  : NodeImpl = Bottom
-         def split() : NodeImpl = {
+         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = Bottom
+         def split()( implicit tx: InTxn ) : NodeImpl = {
             val res     = new Leaf
             val roff    = arrMid + 1
-            val rsz     = size - roff
+            val rsz     = sizeRef() - roff
             keyCopy( this, roff, res, 0, rsz )
-            res.size    = rsz
-            size        = roff
+            res.sizeRef()  = rsz
+            sizeRef()      = roff
             res
          }
          def asBranch : Branch = notSupported
          def asLeaf : Leaf = this
          def isLeaf : Boolean = true
-//         def isBranch : Boolean = false
 
-         override def toString = toString( "Leaf" )
+         override def toString = "Leaf" // toString( "Leaf" )
       }
 
       private final class Branch extends BranchOrLeaf {
-//         val downArr = Array.fill( arrMaxSz )( Ref[ NodeImpl ]( null ))
          val downArr = TArray.ofDim[ NodeImpl ]( arrMaxSz )
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downArr( i )
-         def split() : NodeImpl = {
+         def split()( implicit tx: InTxn ) : NodeImpl = {
             val res     = new Branch
             val roff    = arrMid + 1
-            val rsz     = size - roff
-//println( "Splitting a branch of size " + size + " so that left will have " + roff + " and right " + rsz )
+            val rsz     = sizeRef() - roff
             keyCopy(  this, roff, res, 0, rsz )
             downCopy( this, roff, res, 0, rsz )
-            res.size    = rsz
-            size        = roff
+            res.sizeRef()  = rsz
+            sizeRef()      = roff
             res
          }
          def asBranch : Branch = this
          def asLeaf : Leaf = notSupported
          def isLeaf : Boolean = false
-//         def isBranch : Boolean = true
 
-         override def toString = toString( "Branch" )
+         override def toString = "Branch" // toString( "Branch" )
       }
 
       private def notSupported = throw new IllegalArgumentException()
 
       private sealed trait HeadOrBottom extends NodeImpl {
-         final def split() : NodeImpl  = notSupported
+         final def split()( implicit tx: InTxn ) : NodeImpl  = notSupported
          final def asBranch : Branch   = notSupported
          final def asLeaf : Leaf       = notSupported
          final def isLeaf : Boolean    = false
-//         final def isBranch : Boolean  = false
-         final def isEmpty = false
+         final def isEmpty( implicit tx: InTxn ) = false
       }
 
       private object Head extends HeadOrBottom {
          val downNode = Ref[ NodeImpl ]( Bottom )
-         def key( i: Int ) : A = maxKey // MAX_KEY
+         def key( i: Int )( implicit tx: InTxn ) : A = maxKey // MAX_KEY
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downNode()
-         val size = 1
+         def size( implicit tx: InTxn ) = 1
          val isBottom   = false
-//         val isHead     = true
 
          override def toString = "Head"
       }
 
       private object Bottom extends HeadOrBottom {
-         def key( i: Int ) : A         = notSupported
+         def key( i: Int )( implicit tx: InTxn ) : A = notSupported
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = notSupported
-         val size = 0
+         def size( implicit tx: InTxn ) = 0
          val isBottom   = true
-//         val isHead     = false
 
          override def toString = "Bottom"
       }
    }
 }
-sealed trait HASkipList[ A ] extends txn.SkipList[ A ] {
+sealed trait HASkipList[ @specialized( Int, Long ) A ] extends SkipList[ A ] {
    def top( implicit tx: InTxn ) : HASkipList.Node[ A ]
 }
