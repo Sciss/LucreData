@@ -178,16 +178,16 @@ object HASkipList {
                // if the parent is `Head`, we insert
                // a new parent with the new split nodes
                // `left` and `right` as children
-               pn = if( pn eq Head ) {
+               if( pn eq Head ) {
                   val bkeys         = new Array[ A ]( 2 )
                   bkeys( 0 )        = splitKey  // left node ends in the split key
                   bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
                   val bdowns        = new Array[ Ref[ NodeImpl ]]( 2 )
                   bdowns( 0 )       = Ref( left )
                   bdowns( 1 )       = Ref( right )
-                  val b             = new Branch( 2, bkeys, bdowns ) // new parent branch
-                  Head.downNode()   = b
-                  b
+                  pn                = new Branch( 2, bkeys, bdowns ) // new parent branch
+                  Head.downNode()   = pn
+
                } else {
                   // parent is not `Head`, but an internal branch.
                   // we must make a copy of this branch with the
@@ -218,11 +218,10 @@ object HASkipList {
                      downCopy( pbOld, rightOff, bdowns, rightOff + 1, num - 1 )
                   }
 
-                  val b   = new Branch( bsz, bkeys, bdowns )
+                  pn = new Branch( bsz, bkeys, bdowns )
                   // make sure to rewrite the down entry
                   // for the parent's parent
-                  ppn.down_=( ppidx, b )
-                  b
+                  ppn.down_=( ppidx, pn )
                }
 
                // notify observer
@@ -234,12 +233,12 @@ object HASkipList {
                // because it means we are now traversing the right
                // half! in any case, we need to assign one of
                // the new split nodes to `sn`
-               val lsz = left.size
-               if( idx < lsz ) {
+               if( idx < arrMinSz ) {
                   sn    = left
                } else {
                   sn    = right
-                  idx  -= lsz
+                  pidx += 1
+                  idx  -= arrMinSz
                }
                // ---- END SPLIT ----
             }
