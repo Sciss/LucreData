@@ -45,26 +45,22 @@ object HASkipList {
       new Impl( maxKey.value, minGap, keyObserver )
    }
 
-   sealed trait Node[ /* @specialized( Int, Long ) */ A ] {
-      def size : Int
-      def key( i: Int ): A // Int
-      def down( i: Int )( implicit tx: InTxn )  : Node[ A ]
-      def isBottom : Boolean // = this eq Bottom
-   }
-
    private final class Impl[ /* @specialized( Int, Long ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ A ])
       ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ])
    extends HASkipList[ A ] {
-      private val arrMaxSz = maxGap + 1
       private val arrMinSz = minGap + 1
+      private val arrMaxSz = arrMinSz << 1   // aka maxGap + 1
 
-      override def size( implicit tx: InTxn ) : Int = leafSizeSum( Head ) - 1
+      override def size( implicit tx: InTxn ) : Int = Head.downNode() match {
+         case BottomImpl  => 0
+         case n: NodeImpl => leafSizeSum( n )
+      }
 
-      def maxGap : Int = (minGap << 1) + 1
+      def maxGap : Int = arrMaxSz - 1  // aka (minGap << 1) + 1
       def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
 
-      def isEmpty( implicit tx: InTxn )   = Head.downNode().isBottom
+      def isEmpty( implicit tx: InTxn )   = Head.downNode() eq BottomImpl
       def notEmpty( implicit tx: InTxn )  = !isEmpty
 
       def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ] = {
@@ -96,23 +92,24 @@ object HASkipList {
          while( iter.hasNext ) b += iter.next()
       }
 
-      private def leafSizeSum( n: Node[ _ ])( implicit tx: InTxn ) : Int = {
-         var res = 0
+      private def leafSizeSum( n: NodeImpl )( implicit tx: InTxn ) : Int = {
          val sz = n.size
-         var i = 0; while( i < sz ) {
-            val dn = n.down( i )
-            if( dn.isBottom ) return sz
-            res += leafSizeSum( dn )
-            i += 1
+         n match {
+            case l: LeafImpl   => sz
+            case b: BranchImpl =>
+               var res = 0
+               var i = 0; while( i < sz ) {
+                  res += leafSizeSum( b.down( i ))
+               i += 1 }
+               res
          }
-         res
       }
 
-      @inline private def keyCopy( a: BranchOrLeaf, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
+      @inline private def keyCopy( a: NodeImpl, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
          System.arraycopy( a.keys, aOff, b, bOff, num )
       }
 
-      @inline private def downCopy( a: Branch, aOff: Int,
+      @inline private def downCopy( a: BranchImpl, aOff: Int,
                                     b: Array[ Ref[ NodeImpl ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
          var i = 0; while( i < num ) {
             b( i + bOff ) = Ref( a.down( i + aOff ))
@@ -120,172 +117,266 @@ object HASkipList {
       }
 
       def height( implicit tx: InTxn ) : Int = {
-         var x: NodeImpl = Head.downNode()
-         var i = 0; while( !x.isBottom ) { x = x.down( 0 ); i += 1 }
-         i
+         @tailrec def step( num: Int, n: NodeImpl ) : Int = n match {
+            case l: LeafImpl   => num
+            case b: BranchImpl => step( num + 1, b )
+         }
+
+         Head.downNode() match {
+            case BottomImpl   => 0
+            case n: NodeImpl  => step( 1, n )
+         }
       }
 
-      def top( implicit tx: InTxn ) : Node[ A ] = Head.downNode()
+      def top( implicit tx: InTxn ) : Child = Head.downNode()
 
 //      def isomorphicQuery( compare: A => Int ) : A = sys.error( "not yet implemented" )
 
       // ---- set support ----
 
       def contains( v: A )( implicit tx: InTxn ) : Boolean = {
-         if( ordering.gteq( v, maxKey )) return false
-         var x: NodeImpl = Head.downNode()
-         while( !x.isBottom ) {
-            var idx = 0
-            var cmp = ordering.compare( v, x.key( idx ))
-            while( cmp > 0 ) {
-               idx += 1
-               cmp  = ordering.compare( v, x.key( idx ))
-            }
-            if( cmp == 0 ) return true
-            x = x.down( idx )
-         }
-         false
+         sys.error( "TODO" )
+//         if( ordering.gteq( v, maxKey )) return false
+//         var x: NodeImpl = Head.downNode()
+//         while( !x.isBottom ) {
+//            var idx = 0
+//            var cmp = ordering.compare( v, x.key( idx ))
+//            while( cmp > 0 ) {
+//               idx += 1
+//               cmp  = ordering.compare( v, x.key( idx ))
+//            }
+//            if( cmp == 0 ) return true
+//            x = x.down( idx )
+//         }
+//         false
       }
 
       override def add( v: A )( implicit tx: InTxn ) : Boolean = {
-         require( ordering.lt( v, maxKey ), "Cannot add key (" + v + ") greater or equal to maxKey" )
-         var sn               = Head.downNode() // the current node we are comparing with
-         var pn: NodeImpl     = Head            // it's parent
-         var ppn: NodeImpl    = null            // and the parent of the parent
-         var ppidx            = 0
-         var pidx             = 0
-         while( !sn.isBottom ) {
-            // find the right-most key which
-            // is greater than or equal to the query key
-            var idx = 0
-            var cmp = ordering.compare( v, sn.key( idx ))
-            while( cmp > 0 ) {
-               idx += 1
-               cmp = ordering.compare( v, sn.key( idx ))
-            }
-            // if we found the key, we
-            // can abort immediately and
-            // return `false` - key already present
-            if( cmp == 0 ) return false
+         Head.downNode() match {
+            case BottomImpl =>
+               val lkeys         = new Array[ A ]( 2 )
+               lkeys( 0 )        = v
+               lkeys( 1 )        = maxKey
+               val l             = new LeafImpl( lkeys )
+               Head.downNode()   = l
+               true
 
-            // if we would go down a full node, we need to split it first
-            if( sn.hasMaxSize ) {
-               // ---- BEGIN SPLIT ----
-               val tup        = sn.split
-               val left       = tup._1
-               val right      = tup._2
-               val splitKey   = left.key( minGap )
-               // if the parent is `Head`, we insert
-               // a new parent with the new split nodes
-               // `left` and `right` as children
-               if( pn eq Head ) {
-                  val bkeys         = new Array[ A ]( 2 )
-                  bkeys( 0 )        = splitKey  // left node ends in the split key
-                  bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
-                  val bdowns        = new Array[ Ref[ NodeImpl ]]( 2 )
-                  bdowns( 0 )       = Ref( left )
-                  bdowns( 1 )       = Ref( right )
-                  pn                = new Branch( bkeys, bdowns ) // new parent branch
-                  Head.downNode()   = pn
-
-               } else {
-                  // parent is not `Head`, but an internal branch.
-                  // we must make a copy of this branch with the
-                  // size increased by one. the new key is `splitKey`
-                  // which gets inserted at the index where we went
-                  // down, `pidx`.
-                  val pbOld         = pn.asBranch
-                  val pbszOld       = pbOld.size
-                  val bsz           = pbszOld + 1
-                  val bkeys         = new Array[ A ]( bsz )
-                  val bdowns        = new Array[ Ref[ NodeImpl ]]( bsz )
-                  // copy entries left to split index
-                  if( pidx > 0 ) {
-                     keyCopy(  pbOld, 0, bkeys,  0, pidx )
-                     downCopy( pbOld, 0, bdowns, 0, pidx )
-                  }
-                  // insert the left split entry
-                  bkeys( pidx )     = splitKey
-                  bdowns( pidx )    = Ref( left )
-                  // copy entries right to split index
-                  val rightOff      = pidx + 1
-                  val num           = pbszOld - pidx
-                  keyCopy( pbOld, pidx, bkeys, rightOff, num )
-                  // while we could copy the right split entry's key,
-                  // the split operation has yielded a new right node
-                  bdowns( rightOff ) = Ref( right )
-                  if( num > 1 ) {
-                     downCopy( pbOld, rightOff, bdowns, rightOff + 1, num - 1 )
-                  }
-
-                  pn = new Branch( bkeys, bdowns )
-                  // make sure to rewrite the down entry
-                  // for the parent's parent
-                  ppn.down_=( ppidx, pn )
-               }
-
-               // notify observer
-               keyObserver.keyUp( splitKey )
-
-               // important: if the current key of the parent
-               // is greater or equal than the splitKey,
-               // we must update the child navigation accordingly,
-               // because it means we are now traversing the right
-               // half! in any case, we need to assign one of
-               // the new split nodes to `sn`
-               if( idx < arrMinSz ) {
-                  sn    = left
-               } else {
-                  sn    = right
-                  pidx += 1
-                  idx  -= arrMinSz
-               }
-               // ---- END SPLIT ----
-            }
-            ppn   = pn
-            ppidx = pidx
-            pn    = sn
-            sn    = sn.down( idx )
-            pidx  = idx
+            case l: LeafImpl   => addLeaf(   v, Head, 0, Head, 0, l )
+            case b: BranchImpl => addBranch( v, Head, 0, Head, 0, b )
          }
+      }
 
-         // now we have reached the leaf level,
-         // and final insertion takes place.
-         // note that actually `sn` is `Bottom`,
-         // and `pn` is the `Leaf` into which
-         // we would like to insert. `pidx` is
-         // the index into which the new entry
-         // is written.
+      /*
+       * Finds the right-most key which
+       * is greater than or equal to the query key.
+       *
+       * @param   v  the key to search for
+       * @param   sn the branch or leaf from which to go down
+       *
+       * @return  the index to go down (a node whose key is greater than `v`),
+        *         or `-1` if `v` was found
+       */
+      @inline private def addFindDown( v: A, n: NodeImpl ) : Int = {
+         @tailrec def step( idx: Int ) : Int = {
+            val cmp = ordering.compare( v, n.key( idx ))
+            if( cmp == 0 ) -1 else if( cmp < 0 ) idx else step( idx + 1 )
+         }
+         step( 0 )
+      }
 
-         // ---- BEGIN INSERT ----
-         // we never insert into `Head`, so in
-         // that case, create a new leaf with
-         // our entry and the max entry.
-         if( pn eq Head ) {
-            val lkeys         = new Array[ A ]( 2 )
-            lkeys( 0 )        = v
-            lkeys( 1 )        = maxKey
-            val l             = new Leaf( lkeys )
-            Head.downNode()   = l
+      private def addLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, l: LeafImpl )
+                         ( implicit tx: InTxn ) : Boolean = {
+         val idx = addFindDown( v, l )
+         if( idx == -1 ) return false
+
+         if( l.hasMaxSize ) {
+            val tup        = l.splitAndInsert( v, idx )
+            val left       = tup._1
+            val right      = tup._2
+            val splitKey   = left.key( minGap )
+            val pNew       = p.insertAfterSplit( pidx, splitKey, left, right )
+            pp.updateDown( ppidx, pNew )
+            keyObserver.keyUp( splitKey )
          } else {
-            val lOld          = pn.asLeaf
-            val lszOld        = lOld.size
-            val lsz           = lszOld + 1
-            val lkeys         = new Array[ A ]( lsz )
-            // copy keys left to the insertion index
-            if( pidx > 0 ) keyCopy( lOld, 0, lkeys, 0, pidx )
-            // put the new value
-            lkeys( pidx )    = v
-            // copy the keys right to the insertion index
-            val num           = lszOld - pidx
-            if( num > 0 ) keyCopy( lOld, pidx, lkeys, pidx + 1, num )
-            val l             = new Leaf( lkeys )
+            val lNew       = l.insert( v, idx )
             // and overwrite down entry in pn's parent
-            ppn.down_=( ppidx, l )
+            p.updateDown( pidx, lNew )
          }
-         // ---- END INSERT ----
          true
       }
+
+      @tailrec private def addBranch( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, b: BranchImpl )
+                                    ( implicit tx: InTxn ) : Boolean = {
+         val idx = addFindDown( v, b )
+         if( idx == -1 ) return false
+
+         var bNew    = b
+         var idxNew  = idx
+         var pNew    = p
+         var pidxNew = pidx
+
+         if( b.hasMaxSize ) {
+            val tup        = b.split
+            val left       = tup._1
+            val right      = tup._2
+            val splitKey   = left.key( minGap )
+            val pbNew      = p.insertAfterSplit( pidx, splitKey, left, right )
+            pNew           = pbNew
+            pp.updateDown( ppidx, pbNew )
+            if( idx < arrMinSz ) {
+               bNew     = left
+            } else {
+               bNew     = right
+               pidxNew += 1
+               idxNew  -= arrMinSz
+            }
+         }
+
+         bNew.down( idxNew ) match {
+            case l: LeafImpl    => addLeaf(   v, pNew, pidxNew, bNew, idxNew, l  )
+            case bc: BranchImpl => addBranch( v, pNew, pidxNew, bNew, idxNew, bc )
+         }
+      }
+
+//      def addXX( v: A )( implicit tx: InTxn ) : Boolean = {
+//         require( ordering.lt( v, maxKey ), "Cannot add key (" + v + ") greater or equal to maxKey" )
+//         var sn               = Head.downNode() // the current node we are comparing with
+//         var pn: NodeImpl     = Head            // it's parent
+//         var ppn: NodeImpl    = null            // and the parent of the parent
+//         var ppidx            = 0
+//         var pidx             = 0
+//         while( !sn.isBottom ) {
+//            // find the right-most key which
+//            // is greater than or equal to the query key
+//            var idx = 0
+//            var cmp = ordering.compare( v, sn.key( idx ))
+//            while( cmp > 0 ) {
+//               idx += 1
+//               cmp = ordering.compare( v, sn.key( idx ))
+//            }
+//            // if we found the key, we
+//            // can abort immediately and
+//            // return `false` - key already present
+//            if( cmp == 0 ) return false
+//
+//            // if we would go down a full node, we need to split it first
+//            if( sn.hasMaxSize ) {
+//               // ---- BEGIN SPLIT ----
+//               val tup        = sn.split
+//               val left       = tup._1
+//               val right      = tup._2
+//               val splitKey   = left.key( minGap )
+//               // if the parent is `Head`, we insert
+//               // a new parent with the new split nodes
+//               // `left` and `right` as children
+//               if( pn eq Head ) {
+//                  val bkeys         = new Array[ A ]( 2 )
+//                  bkeys( 0 )        = splitKey  // left node ends in the split key
+//                  bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
+//                  val bdowns        = new Array[ Ref[ NodeImpl ]]( 2 )
+//                  bdowns( 0 )       = Ref( left )
+//                  bdowns( 1 )       = Ref( right )
+//                  pn                = new Branch( bkeys, bdowns ) // new parent branch
+//                  Head.downNode()   = pn
+//
+//               } else {
+//                  // parent is not `Head`, but an internal branch.
+//                  // we must make a copy of this branch with the
+//                  // size increased by one. the new key is `splitKey`
+//                  // which gets inserted at the index where we went
+//                  // down, `pidx`.
+//                  val pbOld         = pn.asBranch
+//                  val pbszOld       = pbOld.size
+//                  val bsz           = pbszOld + 1
+//                  val bkeys         = new Array[ A ]( bsz )
+//                  val bdowns        = new Array[ Ref[ NodeImpl ]]( bsz )
+//                  // copy entries left to split index
+//                  if( pidx > 0 ) {
+//                     keyCopy(  pbOld, 0, bkeys,  0, pidx )
+//                     downCopy( pbOld, 0, bdowns, 0, pidx )
+//                  }
+//                  // insert the left split entry
+//                  bkeys( pidx )     = splitKey
+//                  bdowns( pidx )    = Ref( left )
+//                  // copy entries right to split index
+//                  val rightOff      = pidx + 1
+//                  val num           = pbszOld - pidx
+//                  keyCopy( pbOld, pidx, bkeys, rightOff, num )
+//                  // while we could copy the right split entry's key,
+//                  // the split operation has yielded a new right node
+//                  bdowns( rightOff ) = Ref( right )
+//                  if( num > 1 ) {
+//                     downCopy( pbOld, rightOff, bdowns, rightOff + 1, num - 1 )
+//                  }
+//
+//                  pn = new Branch( bkeys, bdowns )
+//                  // make sure to rewrite the down entry
+//                  // for the parent's parent
+//                  ppn.down_=( ppidx, pn )
+//               }
+//
+//               // notify observer
+//               keyObserver.keyUp( splitKey )
+//
+//               // important: if the current key of the parent
+//               // is greater or equal than the splitKey,
+//               // we must update the child navigation accordingly,
+//               // because it means we are now traversing the right
+//               // half! in any case, we need to assign one of
+//               // the new split nodes to `sn`
+//               if( idx < arrMinSz ) {
+//                  sn    = left
+//               } else {
+//                  sn    = right
+//                  pidx += 1
+//                  idx  -= arrMinSz
+//               }
+//               // ---- END SPLIT ----
+//            }
+//            ppn   = pn
+//            ppidx = pidx
+//            pn    = sn
+//            sn    = sn.down( idx )
+//            pidx  = idx
+//         }
+//
+//         // now we have reached the leaf level,
+//         // and final insertion takes place.
+//         // note that actually `sn` is `Bottom`,
+//         // and `pn` is the `Leaf` into which
+//         // we would like to insert. `pidx` is
+//         // the index into which the new entry
+//         // is written.
+//
+//         // ---- BEGIN INSERT ----
+//         // we never insert into `Head`, so in
+//         // that case, create a new leaf with
+//         // our entry and the max entry.
+//         if( pn eq Head ) {
+//            val lkeys         = new Array[ A ]( 2 )
+//            lkeys( 0 )        = v
+//            lkeys( 1 )        = maxKey
+//            val l             = new Leaf( lkeys )
+//            Head.downNode()   = l
+//         } else {
+//            val lOld          = pn.asLeaf
+//            val lszOld        = lOld.size
+//            val lsz           = lszOld + 1
+//            val lkeys         = new Array[ A ]( lsz )
+//            // copy keys left to the insertion index
+//            if( pidx > 0 ) keyCopy( lOld, 0, lkeys, 0, pidx )
+//            // put the new value
+//            lkeys( pidx )    = v
+//            // copy the keys right to the insertion index
+//            val num           = lszOld - pidx
+//            if( num > 0 ) keyCopy( lOld, pidx, lkeys, pidx + 1, num )
+//            val l             = new Leaf( lkeys )
+//            // and overwrite down entry in pn's parent
+//            ppn.down_=( ppidx, l )
+//         }
+//         // ---- END INSERT ----
+//         true
+//      }
 
       def +=( elem: A )( implicit tx: InTxn ) : this.type = { add( elem ); this }
       def -=( elem: A )( implicit tx: InTxn ) : this.type = { remove( elem ); this }
@@ -475,79 +566,60 @@ object HASkipList {
       }
 
       def iterator( implicit tx: InTxn ) : Iterator[ A ] = {
-         val i = new IteratorImpl
-         i.pushDown( 0, Head )
-         i
+         sys.error( "TODO" )
+//         val i = new IteratorImpl
+//         i.pushDown( 0, Head )
+//         i
       }
 
-      private final class IteratorImpl extends Iterator[ A ] {
-         private var x: Node[ A ]  = _
-         private var idx: Int      = _
-         private val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
-//         pushDown( 0, Head )
+//      private final class IteratorImpl extends Iterator[ A ] {
+//         private var x: Node       = _
+//         private var idx: Int      = _
+//         private val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
+////         pushDown( 0, Head )
+//
+//         def pushDown( idx0: Int, n: Node )( implicit tx: InTxn ) {
+//            var pred = n
+//            var pidx = idx0
+//            var dn   = pred.down( pidx )
+//            while( !dn.isBottom ) {
+//               stack.push( (pidx + 1, pred) )
+//               pred  = dn
+//               pidx  = 0
+//               dn    = pred.down( pidx )
+//            }
+//            x     = pred
+//            idx   = pidx
+//         }
+//
+//         def hasNext( implicit tx: InTxn ) : Boolean = !ordering.equiv( x.key( idx ), maxKey )
+//         def next()( implicit tx: InTxn ) : A = {
+//            val res = x.key( idx )
+//            idx += 1
+//            if( idx == x.size ) {
+//               @tailrec def findPush {
+//                  if( stack.nonEmpty ) {
+//                     val (i, n) = stack.pop
+//                     if( i < n.size ) pushDown( i, n ) else findPush
+//                  }
+//               }
+//               findPush
+//            }
+//            res
+//         }
+//      }
 
-         def pushDown( idx0: Int, n: Node[ A ])( implicit tx: InTxn ) {
-            var pred = n
-            var pidx = idx0
-            var dn   = pred.down( pidx )
-            while( !dn.isBottom ) {
-               stack.push( (pidx + 1, pred) )
-               pred  = dn
-               pidx  = 0
-               dn    = pred.down( pidx )
-            }
-            x     = pred
-            idx   = pidx
-         }
+      private sealed trait NodeOrBottom extends Child
 
-         def hasNext( implicit tx: InTxn ) : Boolean = !ordering.equiv( x.key( idx ), maxKey )
-         def next()( implicit tx: InTxn ) : A = {
-            val res = x.key( idx )
-            idx += 1
-            if( idx == x.size ) {
-               @tailrec def findPush {
-                  if( stack.nonEmpty ) {
-                     val (i, n) = stack.pop
-                     if( i < n.size ) pushDown( i, n ) else findPush
-                  }
-               }
-               findPush
-            }
-            res
-         }
-      }
-
-      private sealed trait NodeImpl extends Node[ A ] {
-         override def down( i: Int )( implicit tx: InTxn ) : NodeImpl
-         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) : Unit
-
-         /**
-          * Splits the node, and
-          * returns the the tuple (left, right).
-          *
-          * The left hand size will have size
-          * `arrMinSz` (`minGap + 1`), while
-          * the right hand side will have size
-          * the current size minus `arrMinSz`.
-          */
-         def split( implicit tx: InTxn ) : (NodeImpl, NodeImpl)
-
-         def asBranch : Branch
-         def asLeaf : Leaf
-         def isLeaf : Boolean
+      private sealed trait NodeImpl extends Node with NodeOrBottom {
+//         override def down( i: Int )( implicit tx: InTxn ) : NodeImpl
 
          final def hasMaxSize = size == arrMaxSz
          final def hasMinSize = size == arrMinSz
 
-         def isEmpty : Boolean
-      }
-
-      private sealed trait BranchOrLeaf extends NodeImpl {
-//assert( keys.size == size )
          final def size : Int = keys.size
          def keys: Array[ A ]
          final def key( i: Int ) : A = keys( i )
-         final def isBottom   = false
 
          final def isEmpty = ordering.equiv( key( 0 ), maxKey )
 
@@ -555,108 +627,212 @@ object HASkipList {
             keys.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
       }
 
-      private final class Leaf( val keys: Array[ A ])
-      extends BranchOrLeaf {
-         def down( i: Int )( implicit tx: InTxn )  : NodeImpl = Bottom
-         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
+      private final class LeafImpl( val keys: Array[ A ])
+      extends NodeImpl with Leaf {
+//         def down( i: Int )( implicit tx: InTxn )  : NodeImpl = Bottom
+//         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
 
-         def split( implicit tx: InTxn ) : (Leaf, Leaf) = {
-            val lsz     = arrMinSz
+         def insert( v: A, idx: Int ) : LeafImpl = {
+            val lsz     = size + 1
             val lkeys   = new Array[ A ]( lsz )
-            keyCopy( this, 0, lkeys, 0, lsz )
-            val left    = new Leaf( lkeys )
-
-            val rsz     = size - lsz
-            val rkeys   = new Array[ A ]( rsz )
-            keyCopy( this, lsz, rkeys, 0, rsz )
-            val right   = new Leaf( rkeys )
-
-            (left, right)
+            // copy keys left to the insertion index
+            if( idx > 0 ) keyCopy( this, 0, lkeys, 0, idx )
+            // put the new value
+            lkeys( idx ) = v
+            // copy the keys right to the insertion index
+            val idxp1   = idx + 1
+            val numr    = lsz - idxp1
+            if( numr > 0 ) keyCopy( this, idx, lkeys, idxp1, numr )
+            new LeafImpl( lkeys )
          }
-         def asBranch : Branch = notSupported
-         def asLeaf : Leaf = this
-         def isLeaf : Boolean = true
+
+         def splitAndInsert( v: A, idx: Int ) : (LeafImpl, LeafImpl) = {
+            assert( size == arrMaxSz )
+
+            if( idx < arrMinSz ) {  // split and add `v` to left leaf
+               val lsz     = arrMinSz + 1
+               val lkeys   = new Array[ A ]( lsz )
+               if( idx > 0 ) keyCopy( this, 0, lkeys, 0, idx )
+               lkeys( idx ) = v
+               val numr    = arrMinSz - idx
+               if( numr > 0 ) keyCopy( this, idx, lkeys, idx + 1, numr )
+               val left    = new LeafImpl( lkeys )
+
+               val rsz     = arrMinSz
+               val rkeys   = new Array[ A ]( rsz )
+               keyCopy( this, arrMinSz, rkeys, 0, rsz )
+               val right   = new LeafImpl( rkeys )
+
+               (left, right)
+
+            } else {               // split and add `v` to right leaf
+               val lsz     = arrMinSz
+               val lkeys   = new Array[ A ]( lsz )
+               keyCopy( this, 0, lkeys, 0, lsz )
+               val left    = new LeafImpl( lkeys )
+
+               val rsz     = arrMinSz + 1
+               val rkeys   = new Array[ A ]( rsz )
+               val numl    = idx - arrMinSz
+               if( numl > 0 ) keyCopy( this, arrMinSz, rkeys, 0, numl )
+               rkeys( numl ) = v
+               val numr    = arrMinSz - numl
+               if( numr > 0 ) keyCopy( this, idx, rkeys, numl + 1, numr )
+               val right   = new LeafImpl( rkeys )
+
+               (left, right)
+            }
+         }
 
          override def toString = toString( "Leaf" )
       }
 
-      private final class Branch( val keys: Array[ A ], downs: Array[ Ref[ NodeImpl ]])
-      extends BranchOrLeaf {
+      private sealed trait HeadOrBranch {
+         def updateDown( i: Int, n: NodeImpl )( implicit tx: InTxn ) : Unit
+
+         def insertAfterSplit( pidx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
+                             ( implicit tx: InTxn ) : BranchImpl
+      }
+
+      private final class BranchImpl( val keys: Array[ A ], downs: Array[ Ref[ NodeImpl ]])
+      extends NodeImpl with HeadOrBranch with Branch {
          assert( keys.size == downs.size )
 
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downs( i )()
-         def split( implicit tx: InTxn ) : (Branch, Branch) = {
+         def split( implicit tx: InTxn ) : (BranchImpl, BranchImpl) = {
             val lsz     = arrMinSz
             val lkeys   = new Array[ A ]( lsz )
             val ldowns  = new Array[ Ref[ NodeImpl ]]( lsz )
             keyCopy( this, 0, lkeys, 0, lsz )
             downCopy( this, 0, ldowns, 0, lsz )
-            val left    = new Branch( lkeys, ldowns )
+            val left    = new BranchImpl( lkeys, ldowns )
 
             val rsz     = size - lsz
             val rkeys   = new Array[ A ]( rsz )
             val rdowns  = new Array[ Ref[ NodeImpl ]]( rsz )
             keyCopy( this, lsz, rkeys, 0, rsz )
             downCopy( this, lsz, rdowns, 0, rsz )
-            val right   = new Branch( rkeys, rdowns )
+            val right   = new BranchImpl( rkeys, rdowns )
 
             (left, right)
          }
 
-         def asLeaf : Leaf = notSupported
-         def isLeaf : Boolean = false
-         def asBranch : Branch = this
-
-         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
+         def updateDown( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
             downs( i ).set( n )
+         }
+
+         def insertAfterSplit( idx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
+                             ( implicit tx: InTxn ) : BranchImpl = {
+            // we must make a copy of this branch with the
+            // size increased by one. the new key is `splitKey`
+            // which gets inserted at the index where we went
+            // down, `idx`.
+            val bsz           = size + 1
+            val bkeys         = new Array[ A ]( bsz )
+            val bdowns        = new Array[ Ref[ NodeImpl ]]( bsz )
+            // copy entries left to split index
+            if( idx > 0 ) {
+               keyCopy(  this, 0, bkeys,  0, idx )
+               downCopy( this, 0, bdowns, 0, idx )
+            }
+            // insert the left split entry
+            bkeys( idx )     = splitKey
+            bdowns( idx )    = Ref( left )
+            // copy entries right to split index
+            val rightOff      = idx + 1
+            val numr          = bsz - rightOff
+            keyCopy( this, idx, bkeys, rightOff, numr )
+            // while we could copy the right split entry's key,
+            // the split operation has yielded a new right node
+            bdowns( rightOff ) = Ref( right )
+            if( numr > 1 ) {
+               downCopy( this, rightOff, bdowns, rightOff + 1, numr - 1 )
+            }
+
+            new BranchImpl( bkeys, bdowns )
          }
 
          override def toString = toString( "Branch" )
       }
 
-      private def notSupported = throw new IllegalArgumentException()
+//      private def notSupported = throw new IllegalArgumentException()
 
-      private sealed trait HeadOrBottom extends NodeImpl {
-         final def split( implicit tx: InTxn ) : (NodeImpl, NodeImpl)  = notSupported
-         final def asLeaf : Leaf                   = notSupported
-         final def isLeaf : Boolean                = false
-         final def isEmpty                         = false
-         final def asBranch : Branch               = notSupported
-      }
+//      private sealed trait HeadOrBottom extends NodeImpl {
+//         final def asLeaf : Leaf                   = notSupported
+//         final def isLeaf : Boolean                = false
+//         final def isEmpty                         = false
+//         final def asBranch : Branch               = notSupported
+//      }
 
-      // XXX TODO needs to implement BranchLike, so that we can do down_=()
-      private object Head extends HeadOrBottom {
-         val downNode = Ref[ NodeImpl ]( Bottom )
-         def key( i: Int ) : A = {
-            assert( i == 0, "Accessing head with index > 0" )
-            maxKey
-         }
-         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = {
-            assert( i == 0, "Accessing head with index > 0" )
-            downNode()
-         }
-         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
+      private object Head extends HeadOrBranch {
+         val downNode = Ref[ NodeOrBottom ]( BottomImpl )
+//         def key( i: Int ) : A = {
+//            assert( i == 0, "Accessing head with index > 0" )
+//            maxKey
+//         }
+//         def down( i: Int )( implicit tx: InTxn ) : NodeOrBottom = {
+//            assert( i == 0, "Accessing head with index > 0" )
+//            downNode()
+//         }
+         def updateDown( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
             assert( i == 0, "Accessing head with index > 0" )
             downNode.set( n )
          }
-         val size       = 1
-         val isBottom   = false
+//         val size       = 1
+//         val isBottom   = false
+
+         def insertAfterSplit( pidx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
+                             ( implicit tx: InTxn ) : BranchImpl = {
+            assert( pidx == 0 )
+
+            val bkeys         = new Array[ A ]( 2 )
+            bkeys( 0 )        = splitKey  // left node ends in the split key
+            bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
+            val bdowns        = new Array[ Ref[ NodeImpl ]]( 2 )
+            bdowns( 0 )       = Ref( left )
+            bdowns( 1 )       = Ref( right )
+            new BranchImpl( bkeys, bdowns ) // new parent branch
+//            downNode.set( b )
+//            b
+         }
 
          override def toString = "Head"
       }
 
-      private object Bottom extends HeadOrBottom {
-         def key( i: Int ) : A = notSupported
-         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = notSupported
-         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
-         val size = 0
-         val isBottom   = true
-//         val isHead     = false
+//      private object Bottom extends HeadOrBottom {
+//         def key( i: Int ) : A = notSupported
+//         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = notSupported
+//         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
+//         val size = 0
+//         val isBottom   = true
+////         val isHead     = false
+//
+//      }
 
+      private object BottomImpl extends Bottom with NodeOrBottom {
          override def toString = "Bottom"
       }
    }
 }
-sealed trait HASkipList[ A ] extends txn.SkipList[ A ] {
-   def top( implicit tx: InTxn ) : HASkipList.Node[ A ]
+sealed trait HASkipList[ @specialized( Int, Long) A ] extends txn.SkipList[ A ] {
+   def top( implicit tx: InTxn ) : Child // HASkipList.Node[ A ]
+
+   sealed trait Child   // Either Node or Bottom
+
+   sealed trait Node extends Child {
+      def size : Int
+      def key( i: Int ): A
+   }
+
+   sealed trait Branch extends Node {
+      def down( i: Int )( implicit tx: InTxn ) : Node
+   }
+
+   sealed trait Leaf extends Child
+
+   sealed trait Bottom extends Child
+
+//   object Bottom extends Child {
+//      override def toString = "Bottom"
+//   }
 }
