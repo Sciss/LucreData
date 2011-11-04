@@ -171,10 +171,10 @@ object HASkipList {
          if( idx == -1 ) return false
 
          if( l.hasMaxSize ) {
+            val splitKey   = l.key( minGap )
             val tup        = l.splitAndInsert( v, idx )
             val left       = tup._1
             val right      = tup._2
-            val splitKey   = left.key( minGap )
             val pNew       = p.insertAfterSplit( pidx, splitKey, left, right )
             pp.updateDown( ppidx, pNew )
             keyObserver.keyUp( splitKey )
@@ -197,10 +197,10 @@ object HASkipList {
          var pidxNew = pidx
 
          if( b.hasMaxSize ) {
+            val splitKey   = b.key( minGap )
             val tup        = b.split
             val left       = tup._1
             val right      = tup._2
-            val splitKey   = left.key( minGap )
             val pbNew      = p.insertAfterSplit( pidx, splitKey, left, right )
             pNew           = pbNew
             pp.updateDown( ppidx, pbNew )
@@ -547,8 +547,8 @@ object HASkipList {
       }
 
       def iterator( implicit tx: InTxn ) : Iterator[ A ] = {
-         val i = new IteratorImpl( Head.downNode() )
-//         i.pushDown( 0, n )
+         val i = new IteratorImpl
+         i.init()
          i
       }
 
@@ -558,45 +558,57 @@ object HASkipList {
 //         def next()( implicit tx: InTxn ) : A = throw new java.util.NoSuchElementException( "next on " + this )
 //      }
 
-      private final class IteratorImpl( private var x: NodeOrBottom ) extends Iterator[ A ] {
-         private var idx: Int    = _
-         private val stack       = collection.mutable.Stack.empty[ (Int, BranchImpl) ]
+      private final class IteratorImpl extends Iterator[ A ] {
+         private var l: LeafImpl       = null
+         private var nextKey : A       = _
+         private var idx: Int          = 0
+         private val stack             = collection.mutable.Stack.empty[ (BranchImpl, Int) ]
 //         pushDown( 0, Head )
 
-         @tailrec def pushDown()( implicit tx: InTxn ) {
-            x match {
-               case BottomImpl =>
-               case _: LeafImpl =>
+         @tailrec private def pushDown( n: NodeImpl, idx0: Int )( implicit tx: InTxn ) {
+            n match {
+               case l2: LeafImpl =>
+                  l        = l2
+                  idx      = 0
+                  nextKey  = l2.key( 0 )
                case b: BranchImpl =>
-                  stack.push( (idx + 1, b) )
-                  idx = 0
-                  x = b.down( 0 )
-                  pushDown()
+                  stack.push( (b, idx0 + 1) )
+                  pushDown( b.down( idx0 ), 0 )
             }
          }
 
-         def hasNext : Boolean = x ne BottomImpl // !ordering.equiv( x.key( idx ), maxKey )
-         def next() : A = {
-            x match {
-               case BottomImpl => throw new java.util.NoSuchElementException( "next on empty iterator" )
+         def init()( implicit tx: InTxn ) {
+            Head.downNode() match {
                case n: NodeImpl =>
-                  val res = n.key( idx )
-                  idx += 1
-                  if( idx == n.size || ordering.equiv( n.key( idx ), maxKey )) {
-                     @tailrec def popUp() {
-                        if( stack.isEmpty ) {
-                           x = BottomImpl
-                        } else {
-                           val (i, n) = stack.pop()
-                           x     = n
-                           idx   = i
-                           if( i < n.size ) TxnExecutor.defaultAtomic( pushDown()( _ )) else popUp()
-                        }
-                     }
-                     popUp()
-                  }
-                  res
+                  pushDown( n, 0 )
+               case _ =>
             }
+         }
+
+         def hasNext : Boolean = ordering.nequiv( nextKey, maxKey )
+         def next() : A = {
+            if( !hasNext ) throw new java.util.NoSuchElementException( "next on empty iterator" )
+            val res  = nextKey
+            idx     += 1
+            if( idx == l.size || ordering.equiv( l.key( idx ), maxKey )) {
+               @tailrec def popUp() {
+                  if( stack.isEmpty ) {
+                     l        = null
+                     nextKey  = maxKey
+                  } else {
+                     val (b, i) = stack.pop()
+                     if( i < b.size ) {
+                        TxnExecutor.defaultAtomic( pushDown( b, i )( _ ))
+                     } else {
+                        popUp()
+                     }
+                  }
+               }
+               popUp()
+            } else {
+               nextKey = l.key( idx )
+            }
+            res
          }
       }
 
