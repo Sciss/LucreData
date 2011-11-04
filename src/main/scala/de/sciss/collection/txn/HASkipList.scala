@@ -28,7 +28,7 @@ package txn
 
 import annotation.tailrec
 import collection.mutable.Builder
-import concurrent.stm.{TArray, Ref, InTxn}
+import concurrent.stm.{Ref, InTxn}
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -185,7 +185,7 @@ object HASkipList {
                   val bdowns        = new Array[ Ref[ NodeImpl ]]( 2 )
                   bdowns( 0 )       = Ref( left )
                   bdowns( 1 )       = Ref( right )
-                  pn                = new Branch( 2, bkeys, bdowns ) // new parent branch
+                  pn                = new Branch( bkeys, bdowns ) // new parent branch
                   Head.downNode()   = pn
 
                } else {
@@ -218,7 +218,7 @@ object HASkipList {
                      downCopy( pbOld, rightOff, bdowns, rightOff + 1, num - 1 )
                   }
 
-                  pn = new Branch( bsz, bkeys, bdowns )
+                  pn = new Branch( bkeys, bdowns )
                   // make sure to rewrite the down entry
                   // for the parent's parent
                   ppn.down_=( ppidx, pn )
@@ -265,7 +265,7 @@ object HASkipList {
             val lkeys         = new Array[ A ]( 2 )
             lkeys( 0 )        = v
             lkeys( 1 )        = maxKey
-            val l             = new Leaf( 2, lkeys )
+            val l             = new Leaf( lkeys )
             Head.downNode()   = l
          } else {
             val lOld          = pn.asLeaf
@@ -279,7 +279,7 @@ object HASkipList {
             // copy the keys right to the insertion index
             val num           = lszOld - pidx
             if( num > 0 ) keyCopy( lOld, pidx, lkeys, pidx + 1, num )
-            val l             = new Leaf( lsz, lkeys )
+            val l             = new Leaf( lkeys )
             // and overwrite down entry in pn's parent
             ppn.down_=( ppidx, l )
          }
@@ -543,7 +543,8 @@ object HASkipList {
       }
 
       private sealed trait BranchOrLeaf extends NodeImpl {
-assert( keys.size == size )
+//assert( keys.size == size )
+         final def size : Int = keys.size
          def keys: Array[ A ]
          final def key( i: Int ) : A = keys( i )
          final def isBottom   = false
@@ -554,7 +555,7 @@ assert( keys.size == size )
             keys.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
       }
 
-      private final class Leaf( val size: Int, val keys: Array[ A ])
+      private final class Leaf( val keys: Array[ A ])
       extends BranchOrLeaf {
          def down( i: Int )( implicit tx: InTxn )  : NodeImpl = Bottom
          def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
@@ -563,12 +564,12 @@ assert( keys.size == size )
             val lsz     = arrMinSz
             val lkeys   = new Array[ A ]( lsz )
             keyCopy( this, 0, lkeys, 0, lsz )
-            val left    = new Leaf( lsz, lkeys )
+            val left    = new Leaf( lkeys )
 
             val rsz     = size - lsz
             val rkeys   = new Array[ A ]( rsz )
             keyCopy( this, lsz, rkeys, 0, rsz )
-            val right   = new Leaf( rsz, rkeys )
+            val right   = new Leaf( rkeys )
 
             (left, right)
          }
@@ -579,8 +580,10 @@ assert( keys.size == size )
          override def toString = toString( "Leaf" )
       }
 
-      private final class Branch( val size: Int, val keys: Array[ A ], downs: Array[ Ref[ NodeImpl ]])
+      private final class Branch( val keys: Array[ A ], downs: Array[ Ref[ NodeImpl ]])
       extends BranchOrLeaf {
+         assert( keys.size == downs.size )
+
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downs( i )()
          def split( implicit tx: InTxn ) : (Branch, Branch) = {
             val lsz     = arrMinSz
@@ -588,14 +591,14 @@ assert( keys.size == size )
             val ldowns  = new Array[ Ref[ NodeImpl ]]( lsz )
             keyCopy( this, 0, lkeys, 0, lsz )
             downCopy( this, 0, ldowns, 0, lsz )
-            val left    = new Branch( lsz, lkeys, ldowns )
+            val left    = new Branch( lkeys, ldowns )
 
             val rsz     = size - lsz
             val rkeys   = new Array[ A ]( rsz )
             val rdowns  = new Array[ Ref[ NodeImpl ]]( rsz )
             keyCopy( this, lsz, rkeys, 0, rsz )
             downCopy( this, lsz, rdowns, 0, rsz )
-            val right   = new Branch( rsz, rkeys, rdowns )
+            val right   = new Branch( rkeys, rdowns )
 
             (left, right)
          }
