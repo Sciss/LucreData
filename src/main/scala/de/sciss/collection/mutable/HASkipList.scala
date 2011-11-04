@@ -57,7 +57,6 @@ object HASkipList {
       ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ])
    extends HASkipList[ A ] {
       private val arrMaxSz = maxGap + 1
-      private val arrMid   = maxGap >> 1
       private val arrMinSz = minGap + 1
 
       override def size : Int = leafSizeSum( Head ) - 1
@@ -132,7 +131,7 @@ object HASkipList {
                // ---- BEGIN SPLIT ----
                val left       = sn
                val right      = left.split()
-               val splitKey   = left.key( arrMid )
+               val splitKey   = left.key( minGap )
                if( pn eq Head ) {
                   val n             = new Branch
                   n.keyArr( 0 )     = splitKey
@@ -160,7 +159,7 @@ object HASkipList {
                // important: if the current key of the parent
                // is greater or equal than the splitKey,
                // we must update the child navigation accordingly,
-               // beause it means we are now traversing the right
+               // because it means we are now traversing the right
                // half!
                val lsz = left.size
                if( idx >= lsz ) {
@@ -452,14 +451,18 @@ object HASkipList {
           * Splits the node, and
           * returns the right hand side
           * as a new node. This old node
-          * is shrunk to the left hand side
+          * is shrunk to the left hand side.
+          *
+          * The left hand size will have size
+          * `arrMinSz` (`minGap + 1`), while
+          * the right hand side will have size
+          * the current size minus `arrMinSz`.
           */
          def split() : NodeImpl
 
          def asBranch : Branch
          def asLeaf : Leaf
          def isLeaf : Boolean
-//         def isBranch : Boolean
 
          final def hasMaxSize = size == arrMaxSz
          final def hasMinSize = size == arrMinSz
@@ -472,7 +475,6 @@ object HASkipList {
          final var size    = 0
          final def key( i: Int ) : A = keyArr( i )
          final def isBottom   = false
-//         def isHead     = false
 
          final def isEmpty = ordering.equiv( keyArr( 0 ), maxKey )
 
@@ -481,21 +483,18 @@ object HASkipList {
       }
 
       private final class Leaf extends BranchOrLeaf {
-//         var valArr  = new Array[ A ]( arrSize )
          def down( i: Int ) : NodeImpl = Bottom
          def split() : NodeImpl = {
             val res     = new Leaf
-            val roff    = arrMid + 1
-            val rsz     = size - roff
-            keyCopy( this, roff, res, 0, rsz )
+            val rsz     = size - arrMinSz
+            keyCopy( this, arrMinSz, res, 0, rsz )
             res.size    = rsz
-            size        = roff
+            size        = arrMinSz
             res
          }
          def asBranch : Branch = notSupported
          def asLeaf : Leaf = this
          def isLeaf : Boolean = true
-//         def isBranch : Boolean = false
 
          override def toString = toString( "Leaf" )
       }
@@ -505,19 +504,16 @@ object HASkipList {
          def down( i: Int ) : NodeImpl = downArr( i )
          def split() : NodeImpl = {
             val res     = new Branch
-            val roff    = arrMid + 1
-            val rsz     = size - roff
-//println( "Splitting a branch of size " + size + " so that left will have " + roff + " and right " + rsz )
-            keyCopy(  this, roff, res, 0, rsz )
-            downCopy( this, roff, res, 0, rsz )
+            val rsz     = size - arrMinSz
+            keyCopy(  this, arrMinSz, res, 0, rsz )
+            downCopy( this, arrMinSz, res, 0, rsz )
             res.size    = rsz
-            size        = roff
+            size        = arrMinSz
             res
          }
          def asBranch : Branch = this
          def asLeaf : Leaf = notSupported
          def isLeaf : Boolean = false
-//         def isBranch : Boolean = true
 
          override def toString = toString( "Branch" )
       }
