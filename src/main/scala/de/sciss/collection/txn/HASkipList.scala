@@ -108,13 +108,16 @@ object HASkipList {
          res
       }
 
-//      @inline private def keyCopy( a: BranchOrLeaf, aOff: Int, b: BranchOrLeaf, bOff: Int, num: Int ) {
-//         System.arraycopy( a.keyArr, aOff, b.keyArr, bOff, num )
-//      }
-//
-//      @inline private def downCopy( a: Branch, aOff: Int, b: Branch, bOff: Int, num: Int ) {
-//         System.arraycopy( a.downArr, aOff, b.downArr, bOff, num )
-//      }
+      @inline private def keyCopy( a: BranchOrLeaf, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
+         System.arraycopy( a.keys, aOff, b, bOff, num )
+      }
+
+      @inline private def downCopy( a: Branch, aOff: Int,
+                                    b: Array[ Ref[ NodeImpl ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
+         var i = 0; while( i < num ) {
+            b( i + bOff ) = Ref( a.down( i + aOff ))
+         i += 1 }
+      }
 
       def height( implicit tx: InTxn ) : Int = {
          var x: NodeImpl = Head.downNode()
@@ -146,11 +149,11 @@ object HASkipList {
 
       override def add( v: A )( implicit tx: InTxn ) : Boolean = {
          require( ordering.lt( v, maxKey ), "Cannot add key (" + v + ") greater or equal to maxKey" )
-         var sn            = Head.downNode() // the current node we are comparing with
-         var pn: NodeImpl  = Head            // it's parent
-         var ppn: NodeImpl = null            // and the parent of the parent
-         var ppidx   = 0
-         var pidx    = 0
+         var sn               = Head.downNode() // the current node we are comparing with
+         var pn: NodeImpl     = Head            // it's parent
+         var ppn: NodeImpl    = null            // and the parent of the parent
+         var ppidx            = 0
+         var pidx             = 0
          while( !sn.isBottom ) {
             // find the right-most key which
             // is greater than or equal to the query key
@@ -168,22 +171,23 @@ object HASkipList {
             // if we would go down a full node, we need to split it first
             if( sn.hasMaxSize ) {
                // ---- BEGIN SPLIT ----
-               val tup        = sn.split()
+               val tup        = sn.split
                val left       = tup._1
                val right      = tup._2
                val splitKey   = left.key( minGap )
                // if the parent is `Head`, we insert
                // a new parent with the new split nodes
                // `left` and `right` as children
-               if( pn eq Head ) {
+               pn = if( pn eq Head ) {
                   val bkeys         = new Array[ A ]( 2 )
                   bkeys( 0 )        = splitKey  // left node ends in the split key
                   bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
                   val bdowns        = new Array[ Ref[ NodeImpl ]]( 2 )
                   bdowns( 0 )       = Ref( left )
                   bdowns( 1 )       = Ref( right )
-                  val pb            = new Branch( 2, bkeys, bdowns ) // new parent branch
-                  Head.downNode()   = pb
+                  val b             = new Branch( 2, bkeys, bdowns ) // new parent branch
+                  Head.downNode()   = b
+                  b
                } else {
                   // parent is not `Head`, but an internal branch.
                   // we must make a copy of this branch with the
@@ -197,8 +201,8 @@ object HASkipList {
                   val bdowns        = new Array[ Ref[ NodeImpl ]]( bsz )
                   // copy entries left to split index
                   if( pidx > 0 ) {
-                     System.arraycopy( pbOld.keys,  0, bkeys,  0, pidx )
-                     System.arraycopy( pbOld.downs, 0, bdowns, 0, pidx )
+                     keyCopy(  pbOld, 0, bkeys,  0, pidx )
+                     downCopy( pbOld, 0, bdowns, 0, pidx )
                   }
                   // insert the left split entry
                   bkeys( pidx )     = splitKey
@@ -206,20 +210,19 @@ object HASkipList {
                   // copy entries right to split index
                   val rightOff      = pidx + 1
                   val num           = pbszOld - pidx
-                  if( num > 0 ) {
-                     System.arraycopy( pbOld.keys,  pidx, bkeys,  rightOff, num )
-                     // for simplicity we copy also the old down element
-                     // which will be overwritten below
-                     System.arraycopy( pbOld.downs, pidx, bdowns, rightOff, num )
-                  }
+                  keyCopy( pbOld, pidx, bkeys, rightOff, num )
                   // while we could copy the right split entry's key,
                   // the split operation has yielded a new right node
                   bdowns( rightOff ) = Ref( right )
+                  if( num > 1 ) {
+                     downCopy( pbOld, rightOff, bdowns, rightOff + 1, num - 1 )
+                  }
 
                   val b   = new Branch( bsz, bkeys, bdowns )
                   // make sure to rewrite the down entry
                   // for the parent's parent
                   ppn.down_=( ppidx, b )
+                  b
                }
 
                // notify observer
@@ -271,12 +274,12 @@ object HASkipList {
             val lsz           = lszOld + 1
             val lkeys         = new Array[ A ]( lsz )
             // copy keys left to the insertion index
-            if( pidx > 0 ) System.arraycopy( lOld.keys, 0, lkeys, 0, pidx )
+            if( pidx > 0 ) keyCopy( lOld, 0, lkeys, 0, pidx )
             // put the new value
             lkeys( pidx )    = v
             // copy the keys right to the insertion index
             val num           = lszOld - pidx
-            if( num > 0 ) System.arraycopy( lOld.keys, pidx, lkeys, pidx + 1, num )
+            if( num > 0 ) keyCopy( lOld, pidx, lkeys, pidx + 1, num )
             val l             = new Leaf( lsz, lkeys )
             // and overwrite down entry in pn's parent
             ppn.down_=( ppidx, l )
@@ -517,6 +520,7 @@ object HASkipList {
 
       private sealed trait NodeImpl extends Node[ A ] {
          override def down( i: Int )( implicit tx: InTxn ) : NodeImpl
+         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) : Unit
 
          /**
           * Splits the node, and
@@ -527,7 +531,7 @@ object HASkipList {
           * the right hand side will have size
           * the current size minus `arrMinSz`.
           */
-         def split() : (NodeImpl, NodeImpl)
+         def split( implicit tx: InTxn ) : (NodeImpl, NodeImpl)
 
          def asBranch : Branch
          def asLeaf : Leaf
@@ -540,7 +544,8 @@ object HASkipList {
       }
 
       private sealed trait BranchOrLeaf extends NodeImpl {
-         protected def keys: Array[ A ]
+assert( keys.size == size )
+         def keys: Array[ A ]
          final def key( i: Int ) : A = keys( i )
          final def isBottom   = false
 
@@ -553,15 +558,17 @@ object HASkipList {
       private final class Leaf( val size: Int, val keys: Array[ A ])
       extends BranchOrLeaf {
          def down( i: Int )( implicit tx: InTxn )  : NodeImpl = Bottom
-         def split() : (Leaf, Leaf) = {
+         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
+
+         def split( implicit tx: InTxn ) : (Leaf, Leaf) = {
             val lsz     = arrMinSz
             val lkeys   = new Array[ A ]( lsz )
-            System.arraycopy( keys,  0, lkeys,  0, lsz )
+            keyCopy( this, 0, lkeys, 0, lsz )
             val left    = new Leaf( lsz, lkeys )
 
             val rsz     = size - lsz
             val rkeys   = new Array[ A ]( rsz )
-            System.arraycopy( keys, lsz, rkeys, 0, rsz )
+            keyCopy( this, lsz, rkeys, 0, rsz )
             val right   = new Leaf( rsz, rkeys )
 
             (left, right)
@@ -573,29 +580,30 @@ object HASkipList {
          override def toString = toString( "Leaf" )
       }
 
-      private final class Branch( val size: Int, val keys: Array[ A ], val downs: Array[ Ref[ NodeImpl ]])
+      private final class Branch( val size: Int, val keys: Array[ A ], downs: Array[ Ref[ NodeImpl ]])
       extends BranchOrLeaf {
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downs( i )()
-         def split() : (Branch, Branch) = {
+         def split( implicit tx: InTxn ) : (Branch, Branch) = {
             val lsz     = arrMinSz
             val lkeys   = new Array[ A ]( lsz )
             val ldowns  = new Array[ Ref[ NodeImpl ]]( lsz )
-            System.arraycopy( keys,  0, lkeys,  0, lsz )
-            System.arraycopy( downs, 0, ldowns, 0, lsz )
+            keyCopy( this, 0, lkeys, 0, lsz )
+            downCopy( this, 0, ldowns, 0, lsz )
             val left    = new Branch( lsz, lkeys, ldowns )
 
             val rsz     = size - lsz
             val rkeys   = new Array[ A ]( rsz )
             val rdowns  = new Array[ Ref[ NodeImpl ]]( rsz )
-            System.arraycopy( keys,  lsz, rkeys,  0, rsz )
-            System.arraycopy( downs, lsz, rdowns, 0, rsz )
+            keyCopy( this, lsz, rkeys, 0, rsz )
+            downCopy( this, lsz, rdowns, 0, rsz )
             val right   = new Branch( rsz, rkeys, rdowns )
 
             (left, right)
          }
-         def asBranch : Branch = this
+
          def asLeaf : Leaf = notSupported
          def isLeaf : Boolean = false
+         def asBranch : Branch = this
 
          def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
             downs( i ).set( n )
@@ -607,29 +615,38 @@ object HASkipList {
       private def notSupported = throw new IllegalArgumentException()
 
       private sealed trait HeadOrBottom extends NodeImpl {
-         final def split() : NodeImpl  = notSupported
-         final def asBranch : Branch   = notSupported
-         final def asLeaf : Leaf       = notSupported
-         final def isLeaf : Boolean    = false
-//         final def isBranch : Boolean  = false
-         final def isEmpty = false
+         final def split( implicit tx: InTxn ) : (NodeImpl, NodeImpl)  = notSupported
+         final def asLeaf : Leaf                   = notSupported
+         final def isLeaf : Boolean                = false
+         final def isEmpty                         = false
+         final def asBranch : Branch               = notSupported
       }
 
       // XXX TODO needs to implement BranchLike, so that we can do down_=()
       private object Head extends HeadOrBottom {
          val downNode = Ref[ NodeImpl ]( Bottom )
-         def key( i: Int ) : A = maxKey // MAX_KEY
-         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downNode()
-         val size = 1
+         def key( i: Int ) : A = {
+            assert( i == 0, "Accessing head with index > 0" )
+            maxKey
+         }
+         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = {
+            assert( i == 0, "Accessing head with index > 0" )
+            downNode()
+         }
+         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
+            assert( i == 0, "Accessing head with index > 0" )
+            downNode.set( n )
+         }
+         val size       = 1
          val isBottom   = false
-//         val isHead     = true
 
          override def toString = "Head"
       }
 
       private object Bottom extends HeadOrBottom {
-         def key( i: Int ) : A         = notSupported
+         def key( i: Int ) : A = notSupported
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = notSupported
+         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
          val size = 0
          val isBottom   = true
 //         val isHead     = false
