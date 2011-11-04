@@ -28,7 +28,7 @@ package txn
 
 import annotation.tailrec
 import collection.mutable.Builder
-import concurrent.stm.{Ref, InTxn}
+import concurrent.stm.{TxnExecutor, Ref, InTxn}
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -54,7 +54,7 @@ object HASkipList {
 
       override def size( implicit tx: InTxn ) : Int = Head.downNode() match {
          case BottomImpl  => 0
-         case n: NodeImpl => leafSizeSum( n )
+         case n: NodeImpl => leafSizeSum( n ) - 1
       }
 
       def maxGap : Int = arrMaxSz - 1  // aka (minGap << 1) + 1
@@ -63,34 +63,15 @@ object HASkipList {
       def isEmpty( implicit tx: InTxn )   = Head.downNode() eq BottomImpl
       def notEmpty( implicit tx: InTxn )  = !isEmpty
 
-      def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ] = {
-         val b = collection.immutable.IndexedSeq.newBuilder[ A ]
-         fillBuilder( b )
-         b.result()
-      }
+      def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ] = iterator.toIndexedSeq
+      def toList( implicit tx: InTxn ) : List[ A ] = iterator.toList
+      def toSeq( implicit tx: InTxn ) : Seq[ A ] = iterator.toSeq
+      def toSet( implicit tx: InTxn ) : Set[ A ] = iterator.toSet
 
-      def toList( implicit tx: InTxn ) : List[ A ] = {
-         val b = List.newBuilder[ A ]
-         fillBuilder( b )
-         b.result()
-      }
-
-      def toSeq( implicit tx: InTxn ) : Seq[ A ] = {
-         val b = Seq.newBuilder[ A ]
-         fillBuilder( b )
-         b.result()
-      }
-
-      def toSet( implicit tx: InTxn ) : Set[ A ] = {
-         val b = Set.newBuilder[ A ]
-         fillBuilder( b )
-         b.result()
-      }
-
-      private def fillBuilder( b: Builder[ A, _ ])( implicit tx: InTxn ) {
-         val iter = iterator
-         while( iter.hasNext ) b += iter.next()
-      }
+//      private def fillBuilder( b: Builder[ A, _ ])( implicit tx: InTxn ) {
+//         val iter = iterator
+//         while( iter.hasNext ) b += iter.next()
+//      }
 
       private def leafSizeSum( n: NodeImpl )( implicit tx: InTxn ) : Int = {
          val sz = n.size
@@ -135,20 +116,20 @@ object HASkipList {
       // ---- set support ----
 
       def contains( v: A )( implicit tx: InTxn ) : Boolean = {
-         sys.error( "TODO" )
-//         if( ordering.gteq( v, maxKey )) return false
-//         var x: NodeImpl = Head.downNode()
-//         while( !x.isBottom ) {
-//            var idx = 0
-//            var cmp = ordering.compare( v, x.key( idx ))
-//            while( cmp > 0 ) {
-//               idx += 1
-//               cmp  = ordering.compare( v, x.key( idx ))
-//            }
-//            if( cmp == 0 ) return true
-//            x = x.down( idx )
-//         }
-//         false
+         if( ordering.gteq( v, maxKey )) return false
+
+         @tailrec def step( n: NodeImpl ) : Boolean = {
+            val idx = findDown( v, n )
+            if( idx == -1 ) true else n match {
+               case _: LeafImpl   => false
+               case b: BranchImpl => step( b.down( idx ))
+            }
+         }
+
+         Head.downNode() match {
+            case BottomImpl => false
+            case n: NodeImpl => step( n )
+         }
       }
 
       override def add( v: A )( implicit tx: InTxn ) : Boolean = {
@@ -176,7 +157,7 @@ object HASkipList {
        * @return  the index to go down (a node whose key is greater than `v`),
         *         or `-1` if `v` was found
        */
-      @inline private def addFindDown( v: A, n: NodeImpl ) : Int = {
+      @inline private def findDown( v: A, n: NodeImpl ) : Int = {
          @tailrec def step( idx: Int ) : Int = {
             val cmp = ordering.compare( v, n.key( idx ))
             if( cmp == 0 ) -1 else if( cmp < 0 ) idx else step( idx + 1 )
@@ -186,7 +167,7 @@ object HASkipList {
 
       private def addLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, l: LeafImpl )
                          ( implicit tx: InTxn ) : Boolean = {
-         val idx = addFindDown( v, l )
+         val idx = findDown( v, l )
          if( idx == -1 ) return false
 
          if( l.hasMaxSize ) {
@@ -207,7 +188,7 @@ object HASkipList {
 
       @tailrec private def addBranch( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, b: BranchImpl )
                                     ( implicit tx: InTxn ) : Boolean = {
-         val idx = addFindDown( v, b )
+         val idx = findDown( v, b )
          if( idx == -1 ) return false
 
          var bNew    = b
@@ -566,48 +547,58 @@ object HASkipList {
       }
 
       def iterator( implicit tx: InTxn ) : Iterator[ A ] = {
-         sys.error( "TODO" )
-//         val i = new IteratorImpl
-//         i.pushDown( 0, Head )
-//         i
+         val i = new IteratorImpl( Head.downNode() )
+//         i.pushDown( 0, n )
+         i
       }
 
-//      private final class IteratorImpl extends Iterator[ A ] {
-//         private var x: Node       = _
-//         private var idx: Int      = _
-//         private val stack         = collection.mutable.Stack.empty[ (Int, Node[ A ])]
-////         pushDown( 0, Head )
-//
-//         def pushDown( idx0: Int, n: Node )( implicit tx: InTxn ) {
-//            var pred = n
-//            var pidx = idx0
-//            var dn   = pred.down( pidx )
-//            while( !dn.isBottom ) {
-//               stack.push( (pidx + 1, pred) )
-//               pred  = dn
-//               pidx  = 0
-//               dn    = pred.down( pidx )
-//            }
-//            x     = pred
-//            idx   = pidx
-//         }
-//
-//         def hasNext( implicit tx: InTxn ) : Boolean = !ordering.equiv( x.key( idx ), maxKey )
-//         def next()( implicit tx: InTxn ) : A = {
-//            val res = x.key( idx )
-//            idx += 1
-//            if( idx == x.size ) {
-//               @tailrec def findPush {
-//                  if( stack.nonEmpty ) {
-//                     val (i, n) = stack.pop
-//                     if( i < n.size ) pushDown( i, n ) else findPush
-//                  }
-//               }
-//               findPush
-//            }
-//            res
-//         }
+//      private object EmptyIterator extends Iterator[ A ] {
+//         def hasNext( implicit tx: InTxn ) = false
+//         override def toString() = "empty iterator"
+//         def next()( implicit tx: InTxn ) : A = throw new java.util.NoSuchElementException( "next on " + this )
 //      }
+
+      private final class IteratorImpl( private var x: NodeOrBottom ) extends Iterator[ A ] {
+         private var idx: Int    = _
+         private val stack       = collection.mutable.Stack.empty[ (Int, BranchImpl) ]
+//         pushDown( 0, Head )
+
+         @tailrec def pushDown()( implicit tx: InTxn ) {
+            x match {
+               case BottomImpl =>
+               case _: LeafImpl =>
+               case b: BranchImpl =>
+                  stack.push( (idx + 1, b) )
+                  idx = 0
+                  x = b.down( 0 )
+                  pushDown()
+            }
+         }
+
+         def hasNext : Boolean = x ne BottomImpl // !ordering.equiv( x.key( idx ), maxKey )
+         def next() : A = {
+            x match {
+               case BottomImpl => throw new java.util.NoSuchElementException( "next on empty iterator" )
+               case n: NodeImpl =>
+                  val res = n.key( idx )
+                  idx += 1
+                  if( idx == n.size || ordering.equiv( n.key( idx ), maxKey )) {
+                     @tailrec def popUp() {
+                        if( stack.isEmpty ) {
+                           x = BottomImpl
+                        } else {
+                           val (i, n) = stack.pop()
+                           x     = n
+                           idx   = i
+                           if( i < n.size ) TxnExecutor.defaultAtomic( pushDown()( _ )) else popUp()
+                        }
+                     }
+                     popUp()
+                  }
+                  res
+            }
+         }
+      }
 
       private sealed trait NodeOrBottom extends Child
 

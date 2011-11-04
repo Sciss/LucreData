@@ -14,11 +14,11 @@ import concurrent.stm.{Ref, InTxn, TxnExecutor}
  */
 class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
-   val OBSERVATION   = true
+   val OBSERVATION   = false
    val REMOVAL       = false // true
 
    // large
-   val NUM1          = 0x040000  // 0x200000
+   val NUM1          = 4 // 0x040000  // 0x200000
    val NUM2          = 0x020000  // 0x100000
 
    // small
@@ -29,7 +29,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val rnd           = new util.Random( SEED )
 
    withList( "HA-1", (oo, txn) => HASkipList.empty[ Int ]( minGap = 1, keyObserver = oo ))
-   withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
+//   withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
 
    def atomic[ A ]( fun: InTxn => A ) : A = TxnExecutor.defaultAtomic( fun )
 
@@ -37,10 +37,10 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
       given( "a randomly filled structure" )
       for( i <- 0 until NUM1 ) {
          val x = rnd.nextInt( 0x7FFFFFFF )
-//println( "i = " + i + " ; x = " + x )
-//if( i == 15 ) {
-//   println()
-//}
+println( "i = " + i + " ; x = " + x )
+if( i == 3 ) {
+   println()
+}
          atomic { implicit tx => l.add( x )}
          s.add( x )
       }
@@ -66,26 +66,24 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyOrder( l: SkipList[ Int ]) {
       when( "the structure is mapped to its pairwise comparisons" )
-      val result = atomic { implicit tx =>
-         var res  = Set.empty[ Int ]
-         val iter = l.iterator
-         var prev = -2
-         while( iter.hasNext ) {
-            val next  = iter.next()
-            res      += prev compare next
-            prev      = next
-         }
-         res
+      var res  = Set.empty[ Int ]
+      val iter = atomic( l.iterator( _ ))
+      var prev = -2
+      while( iter.hasNext ) {
+         val next  = iter.next()
+         res      += prev compare next
+         prev      = next
       }
+      res
 
       then( "the resulting set should only contain -1" )
-      assert( result == Set( -1 ), result.toString() )
+      assert( res == Set( -1 ), res.toString() )
    }
    def verifyElems( l: SkipList[ Int ], s: MSet[ Int ]) {
       when( "the structure l is compared to an independently maintained set s" )
-//atomic { implicit tx => println( l.toList )}
+atomic { implicit tx => println( l.toList )}
       val onlyInS  = atomic { implicit tx => s.filterNot( l.contains( _ ))}
-      val onlyInL  = atomic { implicit tx => l.toList.filterNot( s.contains( _ ))}
+      val onlyInL  = atomic( l.toList( _ )).filterNot( s.contains( _ ))
       val szL      = atomic { implicit tx => l.size }
       val szS      = s.size
       then( "all elements of s should be contained in l" )

@@ -110,6 +110,7 @@ trait SkipList[ @specialized( Int, Long ) A ] {
    def -=( elem: A )( implicit tx: InTxn ) : this.type
    def isEmpty( implicit tx: InTxn ) : Boolean
    def notEmpty( implicit tx: InTxn ) : Boolean
+
    def iterator( implicit tx: InTxn ) : Iterator[ A ]
    def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ]
    def toList( implicit tx: InTxn ) : List[ A ]

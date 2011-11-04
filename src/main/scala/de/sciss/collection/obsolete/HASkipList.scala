@@ -26,11 +26,11 @@ package obsolete
  *  contact@sciss.de
  */
 
-import concurrent.stm.{Ref, TArray, InTxn}
 import annotation.tailrec
 import collection.mutable.Builder
 import de.sciss.collection.txn.SkipList
 import de.sciss.collection.MaxKey
+import concurrent.stm.{TxnExecutor, Ref, TArray, InTxn}
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -431,13 +431,13 @@ object HASkipList {
          sys.error( "Never gets here" )
       }
 
-      def iterator( implicit tx: InTxn ) : txn.Iterator[ A ] = {
+      def iterator( implicit tx: InTxn ) : Iterator[ A ] = {
          val i = new IteratorImpl
          i.pushDown( 0, Head )
          i
       }
 
-      private final class IteratorImpl extends txn.Iterator[ A ] {
+      private final class IteratorImpl extends Iterator[ A ] {
          private val xRef        = Ref[ Node[ A ]]( null )
          private val idxRef      = Ref( 0 )
          private val stackRef    = Ref( collection.immutable.Stack.empty[ (Int, Node[ A ])])
@@ -459,8 +459,11 @@ object HASkipList {
             stackRef()  = stack
          }
 
-         def hasNext( implicit tx: InTxn ) : Boolean = !ordering.equiv( xRef().key( idxRef() ), maxKey )
-         def next()( implicit tx: InTxn ) : A = {
+         def hasNext : Boolean = TxnExecutor.defaultAtomic( hasNextTxn( _ ))
+         def next() : A = TxnExecutor.defaultAtomic( nextTxn( _ ))
+
+         private def hasNextTxn( implicit tx: InTxn ) : Boolean = !ordering.equiv( xRef().key( idxRef() ), maxKey )
+         private def nextTxn( implicit tx: InTxn ) : A = {
             val idx  = idxRef()
             val x    = xRef()
             val res  = x.key( idx )
