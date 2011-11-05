@@ -127,6 +127,11 @@ l.remove(60);l.remove(20)
       status( l.contains( i ).toString )
       slv.highlight = Map( i -> Color.blue )
    }}
+
+but( "Height" ) {
+   println( l.height )
+}
+
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )
 

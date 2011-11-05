@@ -14,7 +14,7 @@ import concurrent.stm.{Ref, InTxn, TxnExecutor}
  */
 class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
-   val OBSERVATION   = false
+   val OBSERVATION   = true
    val REMOVAL       = false // true
 
    // large
@@ -188,12 +188,13 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
                then( "the height of the list is equal to the maximally promoted key + 1" )
                val maxProm = atomic { implicit tx => obs.allUp().maxBy( _._2 )._2 }
                val h  = atomic { implicit tx => l.height }
+//println( "height = " + h )
                assert( h == maxProm + 1, "Height is reported as " + h + ", while keys were maximally promoted " + maxProm + " times" )
                val sz = s.size + 1 // account for the 'maxKey'
                val minH = math.ceil( math.log( sz ) / math.log( l.maxGap + 1 )).toInt
                val maxH = math.ceil( math.log( sz ) / math.log( l.minGap + 1 )).toInt
-               then( "ceil(log(n+1)/log(maxGap+1)) <= height-1 <= ceil(log(n+1)/log(minGap+1))" )
-               assert( minH <= (h-1) && (h-1) <= maxH, "Not: " + minH + " <= " + (h-1) + " <= " + maxH )
+               then( "ceil(log(n+1)/log(maxGap+1)) <= height <= ceil(log(n+1)/log(minGap+1))" )
+               assert( minH <= h && h <= maxH, "Not: " + minH + " <= " + h + " <= " + maxH )
 
                if( REMOVAL ) {
                   when( "all the elements are removed again" )

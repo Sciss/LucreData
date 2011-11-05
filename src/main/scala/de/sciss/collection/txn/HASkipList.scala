@@ -100,7 +100,7 @@ object HASkipList {
       def height( implicit tx: InTxn ) : Int = {
          @tailrec def step( num: Int, n: NodeImpl ) : Int = n match {
             case l: LeafImpl   => num
-            case b: BranchImpl => step( num + 1, b )
+            case b: BranchImpl => step( num + 1, b.down( 0 ))
          }
 
          Head.downNode() match {
@@ -211,6 +211,7 @@ object HASkipList {
                pidxNew += 1
                idxNew  -= arrMinSz
             }
+            keyObserver.keyUp( splitKey )
          }
 
          bNew.down( idxNew ) match {
