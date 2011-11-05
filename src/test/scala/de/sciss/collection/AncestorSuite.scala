@@ -1,7 +1,7 @@
 package de.sciss.collection
 
 import geom.{DistanceMeasure2D, Point2D, Square, Point2DLike}
-import mutable.{RandomizedSkipOctree, DeterministicSkipOctree, DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
+import mutable.{HASkipList, RandomizedSkipOctree, DeterministicSkipOctree, DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 /**
@@ -17,6 +17,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
    val PRINT_DOT           = false     // true
    val PRINT_ORDERS        = false
    val USE_DET             = true      // `true` to use deterministic octree, `false` to use randomized tree
+   val USE_LL              = true      // doesn't seem to be working with HASkipList yet
 
    abstract class AbstractTree[ A ]( _init: A ) {
       type V <: VertexLike
@@ -203,14 +204,22 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          val mPreList   = {
             implicit val m    = MaxKey( tm.preOrder.max )
 //            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
-            val res = LLSkipList.empty[ tm.preOrder.Entry ] // ( ord, m )
+            val res = if( USE_LL ) {
+               LLSkipList.empty[ tm.preOrder.Entry ]
+            } else {
+               HASkipList.empty[ tm.preOrder.Entry ]
+            }
             res.add( tm.preOrder.root )
             res
          }
          val mPostList = {
             implicit def m    = MaxKey( tm.postOrder.max )
 //            implicit val ord  = Ordering.ordered[ TotalOrder.EntryLike ]
-            val res = LLSkipList.empty[ tm.postOrder.Entry ] // ( ord, m )
+            val res = if( USE_LL ) {
+               LLSkipList.empty[ tm.postOrder.Entry ]
+            } else {
+               HASkipList.empty[ tm.postOrder.Entry ]
+            }
             res.add( tm.postOrder.root )
             res
          }

@@ -112,6 +112,24 @@ object HASkipList {
          false
       }
 
+      def isomorphicQuery( compare: A => Int ) : A = {
+         require( compare( maxKey ) >= 0, "Search key cannot be greater than maxKey" )
+         var x: NodeImpl = Head.downNode
+         if( x.isBottom ) return maxKey
+         while( true ) {
+            var idx = 0
+            var cmp = compare( x.key( idx ))
+            while( cmp > 0 ) {
+               idx += 1
+               cmp  = compare( x.key( idx ))
+            }
+            val dn = x.down( idx )
+            if( cmp == 0 || dn.isBottom ) return x.key( idx )
+            x = dn
+         }
+         sys.error( "Never here" )
+      }
+
       override def add( v: A ) : Boolean = {
          require( ordering.lt( v, maxKey ), "Cannot add key (" + v + ") greater or equal to maxKey" )
 //         val key  = keyFun( v )

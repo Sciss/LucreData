@@ -117,12 +117,18 @@ object LLSkipList {
       def isomorphicQuery( compare: A => Int ) : A = {
          require( compare( maxKey ) >= 0, "Search key cannot be greater than maxKey" )
          var x = hd
-         while( !x.isBottom ) {
-            while( compare( x.key ) < 0 ) x = x.right
-            if( x.down.isBottom ) return x.key
-            x = x.down
+         if( x.isBottom ) return maxKey
+         while( true ) {
+            var cmp = compare( x.key )
+            while( cmp < 0 ) {
+               x     = x.right
+               cmp   = compare( x.key )
+            }
+            val dn = x.down
+            if( cmp == 0 || dn.isBottom ) return x.key
+            x = dn
          }
-         maxKey
+         sys.error( "Never here" )
       }
 
       /**
@@ -316,7 +322,4 @@ object LLSkipList {
 }
 sealed trait LLSkipList[ /* @specialized( Int, Long ) */ A ] extends SkipList[ A ] {
    def top : LLSkipList.Node[ A ]
-
-   // this should go into SkipList when implemented in HASkipList
-   def isomorphicQuery( compare: A => Int ) : A
 }
