@@ -271,9 +271,9 @@ sys.error( "TODO" )
          found
       }
 
-      private sealed trait ModMaybe
-      private case object ModNone   extends ModMaybe
-      private sealed trait ModSome  extends ModMaybe
+//      private sealed trait ModMaybe
+//      private case object ModNone   extends ModMaybe
+      private sealed trait ModVirtual  // extends ModMaybe
 
       /*
        * In merge-with-right, the right sibling's
@@ -286,9 +286,9 @@ sys.error( "TODO" )
        * (thus the disposal corresponds with the ref
        * removed from the `downs` array)
        */
-      private case object ModMergeRight extends ModSome
+      private case object ModMergeRight extends ModVirtual
 
-      private sealed trait ModBorrowRight extends ModSome
+      private sealed trait ModBorrowRight extends ModVirtual
       /*
        * In borrow-from-right, both parents' downs need
        * update, but identifiers are kept.
@@ -310,7 +310,7 @@ sys.error( "TODO" )
        * (thus the disposal corresponds with the ref
        * removed from the `downs` array)
        */
-      private case object ModMergeLeft extends ModSome
+      private case object ModMergeLeft extends ModVirtual
 
       /*
        * In borrow-from-left, both parents' downs need
@@ -319,7 +319,7 @@ sys.error( "TODO" )
        * left sibling to match the before-last key in
        * the left sibling.
        */
-      private case object ModBorrowFromLeft extends ModSome
+      private case object ModBorrowFromLeft extends ModVirtual
 
       /**
        * Borrow-to-right is a special case encountered when
@@ -399,37 +399,33 @@ sys.error( "TODO" )
                }
 
             } else {                                           // merge with or borrow from the left
-               val sib  = b.down( idxP - 1 )
-               if( sib.size == arrMinSz ) {                    // merge with the left
-                  /*
-                   * In merge-with-left, the originating sibling's
-                   * identifier is re-used for the merged node.
-                   * Thus after the merge, the left sibling
-                   * should be disposed (when using an ephemeral
-                   * datastore). The parent needs to remove the
-                   * entry of the left sibling.
-                   *
-                   * (thus the disposal corresponds with the ref
-                   * removed from the `downs` array)
-                   */
-                  sys.error( "TODO" )
+               val idxPM1  = idxP - 1
+               val cSib    = b.down( idxPM1 )
+               val cSibSz  = cSib.size
+               if( cSibSz == arrMinSz ) {                    // merge with the left
+                  // The parent needs to remove the
+                  // entry of the left sibling.
+                  bNew        = b.removeColumn( idxPM1 )
+                  bDownIdx    = idxPM1
+                  cNew        = c.virtualize( ModMergeLeft, cSib )
                } else {                                        // borrow from the left
-                  /*
-                   * In borrow-from-left, both parents' downs need
-                   * update, but identifiers are kept.
-                   * the parent needs to update the key for the
-                   * left sibling to match the before-last key in
-                   * the left sibling.
-                   */
-                  sys.error( "TODO" )
+                  // the parent needs to update the key for the
+                  // left sibling to match the before-last key in
+                  // the left sibling.
+                  val upKey   = cSib.key( cSibSz - 2 )
+                  bNew        = b.updateKey( idxPM1, upKey )
+//                  bDownIdx    = idxP
+                  val bDown1  = b.downRef( idxPM1 )
+                  bDown1()    = c.removeColumn( cSibSz - 1 )
+                  cNew        = c.virtualize( ModBorrowFromLeft, cSib )
                }
             }
          } else {
             bNew  = b.devirtualize
          }
 
-         if( bNew ne b ) {
-            pDown() = bNew
+         if( bNew ne b ) { // branch changed
+            pDown() = bNew // update down ref from which it came
          }
 
          val bDown = bNew.downRef( bDownIdx )
@@ -537,18 +533,18 @@ sys.error( "TODO" )
       }
 
       private sealed trait LeafOrBranch extends NodeLike with NodeOrBottom {
-         def virtualize( mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike
+         def virtualize( mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike
       }
 
       private sealed trait LeafLike extends NodeLike with Leaf
 
-//      private def virtualize( main: LeafOrBranch, mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike = (main, sib) match {
+//      private def virtualize( main: LeafOrBranch, mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike = (main, sib) match {
 //         case (b: BranchImpl, bSib: BranchImpl) => new VirtualBranch( b, mod, bSib )
 //         case (l: BranchImpl, lSib: BranchImpl) => new VirtualLeaf(   l, mod, lSib )
 //      }
 
       private sealed trait VirtualLike {
-         protected def mod: ModSome
+         protected def mod: ModVirtual
          protected def main: LeafOrBranch
          protected def sib: LeafOrBranch
 
@@ -562,7 +558,7 @@ sys.error( "TODO" )
          }
       }
 
-      private final class VirtualLeaf( protected val main: LeafImpl, protected val mod: ModSome,
+      private final class VirtualLeaf( protected val main: LeafImpl, protected val mod: ModVirtual,
                                        protected val sib: LeafImpl ) extends LeafLike with VirtualLike {
          def removeColumn( idx: Int ) : LeafOrBranch = {
             sys.error( "TODO" )
@@ -579,7 +575,7 @@ sys.error( "TODO" )
 
          // XXX we could avoid this crappy pattern match if the branch would have a child type parameter.
          // but then this gets all too pathetic...
-         def virtualize( mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
+         def virtualize( mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
             case lSib: LeafImpl => new VirtualLeaf( this, mod, lSib )
             case _ => sys.error( "Internal structural error - sibling not a leaf: " + sib )
          }
@@ -663,7 +659,7 @@ sys.error( "TODO" )
          def devirtualize : BranchImpl
       }
 
-      private final class VirtualBranch( protected val main: BranchImpl, protected val mod: ModSome,
+      private final class VirtualBranch( protected val main: BranchImpl, protected val mod: ModVirtual,
                                          protected val sib: BranchImpl )
       extends BranchLike with VirtualLike {
          def downRef( idx: Int ) : Ref[ LeafOrBranch ] = mod match {
@@ -692,7 +688,7 @@ sys.error( "TODO" )
 
          def devirtualize : BranchImpl = this
 
-         def virtualize( mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
+         def virtualize( mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
             case bSib: BranchImpl => new VirtualBranch( this, mod, bSib )
             case _ => sys.error( "Internal structural error - sibling not a branch: " + sib )
          }
