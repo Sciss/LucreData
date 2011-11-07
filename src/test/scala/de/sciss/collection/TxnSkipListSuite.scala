@@ -5,6 +5,7 @@ import scala.collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import txn.{SkipList, HASkipList}
 import concurrent.stm.{Ref, InTxn, TxnExecutor}
+import concurrent.stm.ccstm.CCSTM
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -27,6 +28,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val SEED          = 0L
 
    val rnd           = new util.Random( SEED )
+
+   implicit val stm  = new CCSTM()  // ???
 
    withList( "HA-1", (oo, txn) => HASkipList.empty[ Int ]( minGap = 1, keyObserver = oo ))
    withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))

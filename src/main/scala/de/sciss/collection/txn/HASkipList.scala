@@ -28,6 +28,7 @@ package txn
 
 import annotation.tailrec
 import concurrent.stm.{Sink, TxnExecutor, Ref, InTxn}
+import concurrent.stm.impl.RefFactory
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -37,16 +38,18 @@ import concurrent.stm.{Sink, TxnExecutor, Ref, InTxn}
  * It uses the horizontal array technique with a parameter for k (minimum gap size)
  */
 object HASkipList {
-   def empty[ A : de.sciss.collection.Ordering : MaxKey : Manifest ] : HASkipList[ A ] = empty()
+   def empty[ A ]( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ],
+                   stm: RefFactory ) : HASkipList[ A ] = empty()
    def empty[ A ]( minGap: Int = 2, keyObserver: txn.SkipList.KeyObserver[ A ] = txn.SkipList.NoKeyObserver )
-                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ]) : HASkipList[ A ] = {
+                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ],
+                   stm: RefFactory ) : HASkipList[ A ] = {
       require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
       new Impl( maxKey.value, minGap, keyObserver )
    }
 
    private final class Impl[ /* @specialized( Int, Long ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ A ])
-      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ])
+      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ], stm: RefFactory )
    extends HASkipList[ A ] {
       private val arrMinSz = minGap + 1
       private val arrMaxSz = arrMinSz << 1   // aka maxGap + 1
@@ -85,18 +88,18 @@ object HASkipList {
          }
       }
 
-      @inline private def keyCopy( a: LeafOrBranch, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
-sys.error( "TODO" )
-//         System.arraycopy( a.keys, aOff, b, bOff, num )
-      }
-
-      @inline private def downCopy( a: BranchImpl, aOff: Int,
-                                    b: Array[ Ref[ LeafOrBranch ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
-sys.error( "TODO" )
-//         var i = 0; while( i < num ) {
-//            b( i + bOff ) = Ref( a.down( i + aOff ))
-//         i += 1 }
-      }
+//      @inline private def keyCopy( a: LeafOrBranch, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
+//sys.error( "TODO" )
+////         System.arraycopy( a.keys, aOff, b, bOff, num )
+//      }
+//
+//      @inline private def downCopy( a: BranchImpl, aOff: Int,
+//                                    b: Array[ Ref[ LeafOrBranch ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
+//sys.error( "TODO" )
+////         var i = 0; while( i < num ) {
+////            b( i + bOff ) = Ref( a.down( i + aOff ))
+////         i += 1 }
+//      }
 
       def height( implicit tx: InTxn ) : Int = {
          @tailrec def step( num: Int, n: LeafOrBranch ) : Int = n match {
@@ -203,7 +206,7 @@ sys.error( "TODO" )
       @tailrec private def addBranch( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, b: BranchImpl )
                                     ( implicit tx: InTxn ) : Boolean = {
          val idx = indexInNode( v, b )
-         if( idx == -1 ) return false
+         if( idx < 0 ) return false
 
          var bNew    = b
          var idxNew  = idx
@@ -249,25 +252,20 @@ sys.error( "TODO" )
 //      private def removeLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, pmod: Boolean,
 //                              l: LeafImpl )( implicit tx: InTxn ) : Boolean = {
 
-      private def removeLeaf( v: A, pDown: Sink[ BranchImpl ], l: LeafLike )
+      private def removeLeaf( v: A, pDown: Sink[ LeafImpl ], l: LeafLike )
                             ( implicit tx: InTxn ) : Boolean = {
 
          val idx     = indexInNode( v, l )
          val found   = idx < 0
-//         val idxP    = if( found ) -(idx + 1) else idx
-
-//         val minSz   = if( found ) arrMinSz + 1 else arrMinSz
-//
-//         val lmod = l.size == minSz
-//
-//         if( pmod || lmod ) {
-//            val tup  = p.mergeOrBorrow( pp, ppidx, pidx )
-//            val pNew = tup._1
-////            pidxNew  = tup._2
-//            pp.updateDown( ppidx, pNew )
-//         }
-         if( found ) sys.error( "TODO" )
-
+         val lNew    = if( found ) {
+            val idxP = -(idx + 1)
+            l.removeColumn( idxP )
+         } else {
+            l.devirtualize
+         }
+         if( lNew ne l ) {
+            pDown() = lNew
+         }
          found
       }
 
@@ -536,7 +534,10 @@ sys.error( "TODO" )
          def virtualize( mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike
       }
 
-      private sealed trait LeafLike extends NodeLike with Leaf
+      private sealed trait LeafLike extends NodeLike with Leaf {
+         def devirtualize : LeafImpl
+         def removeColumn( idx: Int ) : LeafImpl
+      }
 
 //      private def virtualize( main: LeafOrBranch, mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike = (main, sib) match {
 //         case (b: BranchImpl, bSib: BranchImpl) => new VirtualBranch( b, mod, bSib )
@@ -544,9 +545,9 @@ sys.error( "TODO" )
 //      }
 
       private sealed trait VirtualLike {
-         protected def mod: ModVirtual
+         protected def mod:  ModVirtual
          protected def main: LeafOrBranch
-         protected def sib: LeafOrBranch
+         protected def sib:  LeafOrBranch
 
          def size : Int = main.size + sib.size
 
@@ -560,9 +561,11 @@ sys.error( "TODO" )
 
       private final class VirtualLeaf( protected val main: LeafImpl, protected val mod: ModVirtual,
                                        protected val sib: LeafImpl ) extends LeafLike with VirtualLike {
-         def removeColumn( idx: Int ) : LeafOrBranch = {
+         def removeColumn( idx: Int ) : LeafImpl = {
             sys.error( "TODO" )
          }
+
+         def devirtualize: LeafImpl = sys.error( "TODO" )
       }
 
       private final class LeafImpl( keys: Array[ A ])
@@ -572,6 +575,8 @@ sys.error( "TODO" )
 
          def key( idx: Int ) = keys( idx )
          def size : Int = keys.size
+
+         def devirtualize: LeafImpl = this
 
          // XXX we could avoid this crappy pattern match if the branch would have a child type parameter.
          // but then this gets all too pathetic...
@@ -584,13 +589,19 @@ sys.error( "TODO" )
             val lsz     = size + 1
             val lkeys   = new Array[ A ]( lsz )
             // copy keys left to the insertion index
-            if( idx > 0 ) keyCopy( this, 0, lkeys, 0, idx )
+            if( idx > 0 ) {
+//               keyCopy( this, 0, lkeys, 0, idx )
+               System.arraycopy( keys, 0, lkeys, 0, idx )
+            }
             // put the new value
             lkeys( idx ) = v
             // copy the keys right to the insertion index
             val idxp1   = idx + 1
             val numr    = lsz - idxp1
-            if( numr > 0 ) keyCopy( this, idx, lkeys, idxp1, numr )
+            if( numr > 0 ) {
+//               keyCopy( this, idx, lkeys, idxp1, numr )
+               System.arraycopy( keys, idx, lkeys, idxp1, numr )
+            }
             new LeafImpl( lkeys )
          }
 
@@ -600,15 +611,19 @@ sys.error( "TODO" )
             if( idx < arrMinSz ) {  // split and add `v` to left leaf
                val lsz     = arrMinSz + 1
                val lkeys   = new Array[ A ]( lsz )
-               if( idx > 0 ) keyCopy( this, 0, lkeys, 0, idx )
+               if( idx > 0 ) {
+                  System.arraycopy( keys, 0, lkeys, 0, idx )
+               }
                lkeys( idx ) = v
                val numr    = arrMinSz - idx
-               if( numr > 0 ) keyCopy( this, idx, lkeys, idx + 1, numr )
+               if( numr > 0 ) {
+                  System.arraycopy( keys, idx, lkeys, idx + 1, numr )
+               }
                val left    = new LeafImpl( lkeys )
 
                val rsz     = arrMinSz
                val rkeys   = new Array[ A ]( rsz )
-               keyCopy( this, arrMinSz, rkeys, 0, rsz )
+               System.arraycopy( keys, arrMinSz, rkeys, 0, rsz )
                val right   = new LeafImpl( rkeys )
 
                (left, right)
@@ -616,23 +631,27 @@ sys.error( "TODO" )
             } else {               // split and add `v` to right leaf
                val lsz     = arrMinSz
                val lkeys   = new Array[ A ]( lsz )
-               keyCopy( this, 0, lkeys, 0, lsz )
+               System.arraycopy( keys, 0, lkeys, 0, lsz )
                val left    = new LeafImpl( lkeys )
 
                val rsz     = arrMinSz + 1
                val rkeys   = new Array[ A ]( rsz )
                val numl    = idx - arrMinSz
-               if( numl > 0 ) keyCopy( this, arrMinSz, rkeys, 0, numl )
+               if( numl > 0 ) {
+                  System.arraycopy( keys, arrMinSz, rkeys, 0, numl )
+               }
                rkeys( numl ) = v
                val numr    = arrMinSz - numl
-               if( numr > 0 ) keyCopy( this, idx, rkeys, numl + 1, numr )
+               if( numr > 0 ) {
+                  System.arraycopy( keys, idx, rkeys, numl + 1, numr )
+               }
                val right   = new LeafImpl( rkeys )
 
                (left, right)
             }
          }
 
-         def removeColumn( idx: Int ) : LeafOrBranch = {
+         def removeColumn( idx: Int ) : LeafImpl = {
             sys.error( "TODO" )
          }
 
@@ -704,15 +723,15 @@ sys.error( "TODO" )
             val lsz     = arrMinSz
             val lkeys   = new Array[ A ]( lsz )
             val ldowns  = new Array[ Ref[ LeafOrBranch ]]( lsz )
-            keyCopy( this, 0, lkeys, 0, lsz )
-            downCopy( this, 0, ldowns, 0, lsz )
+            System.arraycopy( keys,  0, lkeys,  0, lsz )
+            System.arraycopy( downs, 0, ldowns, 0, lsz )
             val left    = new BranchImpl( lkeys, ldowns )
 
             val rsz     = size - lsz
             val rkeys   = new Array[ A ]( rsz )
             val rdowns  = new Array[ Ref[ LeafOrBranch ]]( rsz )
-            keyCopy( this, lsz, rkeys, 0, rsz )
-            downCopy( this, lsz, rdowns, 0, rsz )
+            System.arraycopy( keys,  lsz, rkeys,  0, rsz )
+            System.arraycopy( downs, lsz, rdowns, 0, rsz )
             val right   = new BranchImpl( rkeys, rdowns )
 
             (left, right)
@@ -745,22 +764,24 @@ sys.error( "TODO" )
             val bdowns        = new Array[ Ref[ LeafOrBranch ]]( bsz )
             // copy entries left to split index
             if( idx > 0 ) {
-               keyCopy(  this, 0, bkeys,  0, idx )
-               downCopy( this, 0, bdowns, 0, idx )
+               System.arraycopy( keys,  0, bkeys,  0, idx )
+               System.arraycopy( downs, 0, bdowns, 0, idx )
             }
             // insert the left split entry
             bkeys( idx )     = splitKey
-            bdowns( idx )    = Ref( left )
+            bdowns( idx )    = stm.newRef( left )
             // copy entries right to split index
             val rightOff      = idx + 1
             val numr          = bsz - rightOff
-            keyCopy( this, idx, bkeys, rightOff, numr )
-            // while we could copy the right split entry's key,
-            // the split operation has yielded a new right node
-            bdowns( rightOff ) = Ref( right )
-            if( numr > 1 ) {
-               downCopy( this, rightOff, bdowns, rightOff + 1, numr - 1 )
-            }
+            System.arraycopy( keys, idx, bkeys, rightOff, numr )
+//            // while we could copy the right split entry's key,
+//            // the split operation has yielded a new right node
+//            bdowns( rightOff ) = stm.newRef( right )
+//            if( numr > 1 ) {
+//               downCopy( this, rightOff, bdowns, rightOff + 1, numr - 1 )
+//            }
+            System.arraycopy( downs, idx, bdowns, rightOff, numr )
+            bdowns( rightOff )() = right
 
             new BranchImpl( bkeys, bdowns )
          }
@@ -802,8 +823,8 @@ sys.error( "TODO" )
             bkeys( 0 )        = splitKey  // left node ends in the split key
             bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
             val bdowns        = new Array[ Ref[ LeafOrBranch ]]( 2 )
-            bdowns( 0 )       = Ref( left )
-            bdowns( 1 )       = Ref( right )
+            bdowns( 0 )       = stm.newRef( left )
+            bdowns( 1 )       = stm.newRef( right )
             new BranchImpl( bkeys, bdowns ) // new parent branch
 //            downNode.set( b )
 //            b

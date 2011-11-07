@@ -27,9 +27,11 @@ package de.sciss.collection
 package txn
 
 import concurrent.stm.InTxn
+import concurrent.stm.impl.RefFactory
 
 object SkipList {
-   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ]): SkipList[ A ] = HASkipList.empty[ A ]
+   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
+                   stm: RefFactory ): SkipList[ A ] = HASkipList.empty[ A ]
 
 //   private type CC[ A ] = SkipList[ A ]
 //   private type Coll = CC[ _ ]
@@ -46,6 +48,10 @@ object SkipList {
    /**
     * A trait for observing the promotion and demotion of a key
     * in the skip list's level hierarchy
+    *
+    * XXX TODO: doesn't the variance annotation of type parameter A
+    * undo the specialization?? you could one otherwise pass in
+    * NoKeyObserver to a SkipList[ Int ]?
     */
    trait KeyObserver[ @specialized( Int, Long ) -A ] {
       /**

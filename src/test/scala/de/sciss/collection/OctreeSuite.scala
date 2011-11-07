@@ -154,7 +154,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val sortFun3D = (p: Point3DLike) => (p.x, p.y, p.z)
 
-   def verifyRangeSearch[ A, D <: Space[ D ], S : Ordering ]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ],
+   def verifyRangeSearch[ A, D <: Space[ D ], S : math.Ordering ]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ],
                           queryFun: (Int, Int, Int) => QueryShape[ A, D ],
                           sortFun: D#Point => S ) {
       when( "the octree is range searched" )
@@ -181,7 +181,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val euclideanDist3D = DistanceMeasure3D.euclideanSq
 
-   def verifyNN[ @specialized( Long ) M : Ordering, D <: Space[ D ]]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
+   def verifyNN[ @specialized( Long ) M : math.Ordering, D <: Space[ D ]]( t: SkipOctree[ D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
                                    pointFilter: D#Point => Boolean, euclideanDist: DistanceMeasure[ M, D ]) {
       when( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( pointFun( 0xFFFFFFFF ))
