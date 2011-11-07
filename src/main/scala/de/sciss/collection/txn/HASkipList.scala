@@ -53,7 +53,7 @@ object HASkipList {
 
       override def size( implicit tx: InTxn ) : Int = Head.downNode() match {
          case BottomImpl  => 0
-         case n: NodeImpl => leafSizeSum( n ) - 1
+         case n: LeafOrBranch => leafSizeSum( n ) - 1
       }
 
       def maxGap : Int = arrMaxSz - 1  // aka (minGap << 1) + 1
@@ -72,7 +72,7 @@ object HASkipList {
 //         while( iter.hasNext ) b += iter.next()
 //      }
 
-      private def leafSizeSum( n: NodeImpl )( implicit tx: InTxn ) : Int = {
+      private def leafSizeSum( n: LeafOrBranch )( implicit tx: InTxn ) : Int = {
          val sz = n.size
          n match {
             case l: LeafImpl   => sz
@@ -85,26 +85,28 @@ object HASkipList {
          }
       }
 
-      @inline private def keyCopy( a: NodeImpl, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
-         System.arraycopy( a.keys, aOff, b, bOff, num )
+      @inline private def keyCopy( a: LeafOrBranch, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
+sys.error( "TODO" )
+//         System.arraycopy( a.keys, aOff, b, bOff, num )
       }
 
       @inline private def downCopy( a: BranchImpl, aOff: Int,
-                                    b: Array[ Ref[ NodeImpl ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
-         var i = 0; while( i < num ) {
-            b( i + bOff ) = Ref( a.down( i + aOff ))
-         i += 1 }
+                                    b: Array[ Ref[ LeafOrBranch ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
+sys.error( "TODO" )
+//         var i = 0; while( i < num ) {
+//            b( i + bOff ) = Ref( a.down( i + aOff ))
+//         i += 1 }
       }
 
       def height( implicit tx: InTxn ) : Int = {
-         @tailrec def step( num: Int, n: NodeImpl ) : Int = n match {
+         @tailrec def step( num: Int, n: LeafOrBranch ) : Int = n match {
             case l: LeafImpl   => num
             case b: BranchImpl => step( num + 1, b.down( 0 ))
          }
 
          Head.downNode() match {
-            case BottomImpl   => 0
-            case n: NodeImpl  => step( 1, n )
+            case BottomImpl         => 0
+            case n: LeafOrBranch    => step( 1, n )
          }
       }
 
@@ -117,7 +119,7 @@ object HASkipList {
       def contains( v: A )( implicit tx: InTxn ) : Boolean = {
          if( ordering.gteq( v, maxKey )) return false
 
-         @tailrec def step( n: NodeImpl ) : Boolean = {
+         @tailrec def step( n: LeafOrBranch ) : Boolean = {
             val idx = indexInNode( v, n )
             if( idx < 0 ) true else n match {
                case _: LeafImpl   => false
@@ -126,8 +128,8 @@ object HASkipList {
          }
 
          Head.downNode() match {
-            case BottomImpl => false
-            case n: NodeImpl => step( n )
+            case BottomImpl      => false
+            case n: LeafOrBranch => step( n )
          }
       }
 
@@ -141,17 +143,9 @@ object HASkipList {
        * @return  the index to go down (a node whose key is greater than `v`),
         *         or `-(index+1)` if `v` was found at `index`
        */
-      @inline private def indexInNode( v: A, n: NodeImpl ) : Int = {
+      @inline private def indexInNode( v: A, n: NodeLike ) : Int = {
          @tailrec def step( idx: Int ) : Int = {
             val cmp = ordering.compare( v, n.key( idx ))
-            if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
-         }
-         step( 0 )
-      }
-
-      @inline private def virtualIndexInNode( v: A, n: NodeImpl, mod: ModMaybe, sib: NodeImpl ) : Int = {
-         @tailrec def step( idx: Int ) : Int = {
-            val cmp = ordering.compare( v, n.virtualKey( idx, mod, sib ))
             if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
          }
          step( 0 )
@@ -161,7 +155,7 @@ object HASkipList {
 //       * Same as `indexInNode`, but doesn't provide hint as to whether the
 //       * key was found or not.
 //       */
-//      @inline private def indexInNode2( v: A, n: NodeImpl ) : Int = {
+//      @inline private def indexInNode2( v: A, n: NodeLike ) : Int = {
 //         @tailrec def step( idx: Int ) : Int = {
 //            val cmp = ordering.compare( v, n.key( idx ))
 //            if( cmp < 0 ) idx else step( idx + 1 )
@@ -246,8 +240,8 @@ object HASkipList {
       override def remove( v: A )( implicit tx: InTxn ) : Boolean = {
          if( ordering.gteq( v, maxKey )) return false
          Head.downNode() match {
-            case l: LeafImpl   => removeLeaf(   v, Head.downNode, l, ModNone, null )
-            case b: BranchImpl => removeBranch( v, Head.downNode, b, ModNone, null )
+            case l: LeafImpl   => removeLeaf(   v, Head.downNode, l )
+            case b: BranchImpl => removeBranch( v, Head.downNode, b )
             case BottomImpl    => false
          }
       }
@@ -255,10 +249,10 @@ object HASkipList {
 //      private def removeLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, pmod: Boolean,
 //                              l: LeafImpl )( implicit tx: InTxn ) : Boolean = {
 
-      private def removeLeaf( v: A, pDown: Sink[ BranchImpl ], l: LeafImpl, lMod: ModMaybe, lSib: LeafImpl )
+      private def removeLeaf( v: A, pDown: Sink[ BranchImpl ], l: LeafLike )
                             ( implicit tx: InTxn ) : Boolean = {
 
-         val idx     = virtualIndexInNode( v, l, lMod, lSib )
+         val idx     = indexInNode( v, l )
          val found   = idx < 0
 //         val idxP    = if( found ) -(idx + 1) else idx
 
@@ -348,26 +342,27 @@ object HASkipList {
        */
       private case object ModBorrowToRight extends ModBorrowRight
 
-      @tailrec private def removeBranch( v: A, pDown: Sink[ BranchImpl ], b: BranchImpl, bMod: ModMaybe, bSib: BranchImpl )
+      @tailrec private def removeBranch( v: A, pDown: Sink[ BranchImpl ], b: BranchLike )
                                        ( implicit tx: InTxn ) : Boolean = {
-         val idx        = virtualIndexInNode( v, b, bMod, bSib )
+         val idx        = indexInNode( v, b )
          val idxP       = -(idx + 1)
-         val c          = b.virtualDownRef( idxP, bMod, bSib )()
+         val c          = b.down( idxP )
          val cIdx       = indexInNode( v, c )
          val cFound     = cIdx < 0
          val cSz        = if( cFound ) c.size - 1 else c.size
 
-         var bNew             = b
+         var bNew: BranchImpl = null
          var bDownIdx         = idxP
-         var cMod: ModMaybe   = ModNone
-         var cSib: NodeImpl   = null
+         var cNew: NodeLike   = c
+//         var cMod: ModMaybe   = ModNone
+//         var cSib: NodeLike   = null
 
 //         var bDown: Ref[ BranchImpl ] =
 
          if( cFound || (cSz == arrMinSz) ) {
             val idxP1   = idxP + 1
-            if( cFound || (idxP1 < b.virtualSize( bMod, bSib ))) {   // merge with or borrow from/to the right
-               cSib           = b.virtualDownRef( idxP1, bMod, bSib )()
+            if( cFound || (idxP1 < b.size )) {   // merge with or borrow from/to the right
+               val cSib       = b.down( idxP1 )
                val cSibSz     = cSib.size
                val mergedSz   = cSz + cSibSz
                if( mergedSz <= arrMaxSz ) {                    // merge with the right
@@ -375,19 +370,19 @@ object HASkipList {
                   // and actualise b with virtual sibling. the key
                   // at bNew's index idxP is now the one formerly at
                   // idxP1, hence the right-most key in csib.
-                  bNew        = b.removeColumn( idxP, bMod, bSib )
+                  bNew        = b.removeColumn( idxP )
 //                  bDownIdx    = idxP
-                  cMod        = ModMergeRight
+                  cNew        = c.virtualize( ModMergeRight, cSib )
                } else if( cSibSz > arrMinSz ) {                // borrow from the right
                   // update the key index idxP of the
                   // originating sibling to match the first key in
                   // the right sibling
                   val upKey   = cSib.key( 0 )
-                  bNew        = b.updateKey( idxP, upKey, bMod, bSib )
+                  bNew        = b.updateKey( idxP, upKey )
 //                  bDownIdx    = idxP
-                  val bDown1  = b.virtualDownRef( idxP1, bMod, bSib )
-                  bDown1()    = cSib.removeColumn( 0, ModNone, null )
-                  cMod        = ModBorrowFromRight
+                  val bDown1  = b.downRef( idxP1 )
+                  bDown1()    = cSib.removeColumn( 0 )
+                  cNew        = c.virtualize( ModBorrowFromRight, cSib )
                } else {                                        // borrow to the right
                   assert( cFound )
                   // Like in a normal borrow, both parents' downs need
@@ -396,15 +391,15 @@ object HASkipList {
                   // match the before-last key in the originating sibling
                   // (or the new last key in the new originating sibling).
                   val upKey   = c.key( cSz - 1 )               // note that, since cFound == true, cSz := c.size - 1 !
-                  bNew        = b.updateKey( idxP, upKey, bMod, bSib )
+                  bNew        = b.updateKey( idxP, upKey )
                   bDownIdx    = idxP1     // we borrowed _to_ the right, hence traverse this way!
-                  val bDown1  = b.virtualDownRef( idxP, bMod, bSib )
-                  bDown1()    = c.removeColumn( cSz, ModNone, null )
-                  cMod        = ModBorrowToRight
+                  val bDown1  = b.downRef( idxP )
+                  bDown1()    = c.removeColumn( cSz )
+                  cNew        = c.virtualize( ModBorrowToRight, cSib )
                }
 
             } else {                                           // merge with or borrow from the left
-               val sib  = b.virtualDownRef( idxP - 1, bMod, bSib )()
+               val sib  = b.down( idxP - 1 )
                if( sib.size == arrMinSz ) {                    // merge with the left
                   /*
                    * In merge-with-left, the originating sibling's
@@ -429,6 +424,8 @@ object HASkipList {
                   sys.error( "TODO" )
                }
             }
+         } else {
+            bNew  = b.devirtualize
          }
 
          if( bNew ne b ) {
@@ -436,11 +433,9 @@ object HASkipList {
          }
 
          val bDown = bNew.downRef( bDownIdx )
-         cSib match {
-            case cl: LeafImpl    => removeLeaf( v, bDown, cl, cMod, cSib.asInstanceOf[ LeafImpl ])
-            case cb: BranchImpl  =>
-               // XXX cast not so sexy, but we can avoid constructing a Tuple2 in the match
-               removeBranch( v, bDown, cb, cMod, cSib.asInstanceOf[ BranchImpl ])
+         cNew match {
+            case cl: LeafLike   => removeLeaf(   v, bDown, cl )
+            case cb: BranchLike => removeBranch( v, bDown, cb )
          }
       }
 
@@ -463,7 +458,7 @@ object HASkipList {
          private val stack             = collection.mutable.Stack.empty[ (BranchImpl, Int) ]
 //         pushDown( 0, Head )
 
-         @tailrec private def pushDown( n: NodeImpl, idx0: Int )( implicit tx: InTxn ) {
+         @tailrec private def pushDown( n: LeafOrBranch, idx0: Int )( implicit tx: InTxn ) {
             n match {
                case l2: LeafImpl =>
                   l        = l2
@@ -477,7 +472,7 @@ object HASkipList {
 
          def init()( implicit tx: InTxn ) {
             Head.downNode() match {
-               case n: NodeImpl =>
+               case n: LeafOrBranch =>
                   pushDown( n, 0 )
                case _ =>
             }
@@ -512,39 +507,82 @@ object HASkipList {
 
       private sealed trait NodeOrBottom extends Child
 
-      private sealed trait NodeImpl extends Node with NodeOrBottom {
-//         override def down( i: Int )( implicit tx: InTxn ) : NodeImpl
+      private sealed trait NodeLike extends Node /* with NodeOrBottom */ {
+//         override def down( i: Int )( implicit tx: InTxn ) : NodeLike
 
 //         final def hasMaxSize = size == arrMaxSz
 //         final def hasMinSize = size == arrMinSz
 
-         final def size : Int = keys.size
-         def keys: Array[ A ]
-         final def key( i: Int ) : A = keys( i )
+//         def size : Int // = keys.size
+////         def keys: Array[ A ]
+//         def key( i: Int ) : A // = keys( i )
 
-         final def isEmpty = ordering.equiv( key( 0 ), maxKey )
+//         final def isEmpty = ordering.equiv( key( 0 ), maxKey )
 
-         def virtualKey( idx: Int, mod: ModMaybe, sib: NodeImpl ) : A = mod match {
-            case ModNone            => key( idx )
-            case ModMergeRight      => val ridx = idx - size; if( ridx < 0 ) key( idx ) else sib.key( ridx )
-            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else key( ridx )
-            case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else key( idx - 1 )
-            case _: ModBorrowRight  => if( idx == size ) sib.key( 0 ) else key( idx )
-         }
+//         def virtualKey( idx: Int, mod: ModMaybe, sib: NodeLike ) : A = mod match {
+//            case ModNone            => key( idx )
+//            case ModMergeRight      => val ridx = idx - size; if( ridx < 0 ) key( idx ) else sib.key( ridx )
+//            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else key( ridx )
+//            case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else key( idx - 1 )
+//            case _: ModBorrowRight  => if( idx == size ) sib.key( 0 ) else key( idx )
+//         }
 
-         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeImpl ) : NodeImpl
+         def removeColumn( idx: Int ) : LeafOrBranch
 
 //         def asBranch: BranchImpl
 //         def asLeaf: LeafImpl
 
-         protected final def toString( name: String ) : String =
-            keys.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
+//         protected final def toString( name: String ) : String =
+//            keys.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
       }
 
-      private final class LeafImpl( val keys: Array[ A ])
-      extends NodeImpl with Leaf {
-//         def down( i: Int )( implicit tx: InTxn )  : NodeImpl = Bottom
-//         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
+      private sealed trait LeafOrBranch extends NodeLike with NodeOrBottom {
+         def virtualize( mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike
+      }
+
+      private sealed trait LeafLike extends NodeLike with Leaf
+
+//      private def virtualize( main: LeafOrBranch, mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike = (main, sib) match {
+//         case (b: BranchImpl, bSib: BranchImpl) => new VirtualBranch( b, mod, bSib )
+//         case (l: BranchImpl, lSib: BranchImpl) => new VirtualLeaf(   l, mod, lSib )
+//      }
+
+      private sealed trait VirtualLike {
+         protected def mod: ModSome
+         protected def main: LeafOrBranch
+         protected def sib: LeafOrBranch
+
+         def size : Int = main.size + sib.size
+
+         final def key( idx: Int ) : A = mod match {
+            case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.key( idx ) else sib.key( ridx )
+            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else main.key( ridx )
+            case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else main.key( idx - 1 )
+            case _: ModBorrowRight  => if( idx == main.size ) sib.key( 0 ) else main.key( idx )
+         }
+      }
+
+      private final class VirtualLeaf( protected val main: LeafImpl, protected val mod: ModSome,
+                                       protected val sib: LeafImpl ) extends LeafLike with VirtualLike {
+         def removeColumn( idx: Int ) : LeafOrBranch = {
+            sys.error( "TODO" )
+         }
+      }
+
+      private final class LeafImpl( keys: Array[ A ])
+      extends LeafLike with LeafOrBranch {
+//         def down( i: Int )( implicit tx: InTxn )  : NodeLike = Bottom
+//         def down_=( i: Int, n: NodeLike )( implicit tx: InTxn ) { notSupported }
+
+         def key( idx: Int ) = keys( idx )
+         def size : Int = keys.size
+
+         // XXX we could avoid this crappy pattern match if the branch would have a child type parameter.
+         // but then this gets all too pathetic...
+         def virtualize( mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
+            case lSib: LeafImpl => new VirtualLeaf( this, mod, lSib )
+            case _ => sys.error( "Internal structural error - sibling not a leaf: " + sib )
+         }
 
          def insert( v: A, idx: Int ) : LeafImpl = {
             val lsz     = size + 1
@@ -598,44 +636,85 @@ object HASkipList {
             }
          }
 
-         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeImpl ) : LeafImpl = removeColumn( idx, mod, sib.asInstanceOf[ LeafImpl ])
-
-         def removeColumn( idx: Int, mod: ModMaybe, sib: LeafImpl ) : LeafImpl = {
+         def removeColumn( idx: Int ) : LeafOrBranch = {
             sys.error( "TODO" )
          }
 
-         override def toString = toString( "Leaf" )
+//         override def toString = toString( "Leaf" )
       }
 
       private sealed trait HeadOrBranch /* extends Branch */ {
-         def updateDown( i: Int, n: NodeImpl )( implicit tx: InTxn ) : Unit
+         def updateDown( i: Int, n: LeafOrBranch )( implicit tx: InTxn ) : Unit
 
-         def insertAfterSplit( pidx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
+         def insertAfterSplit( pidx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
                              ( implicit tx: InTxn ) : BranchImpl
 
 //         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int)
 
-//         override def down( i: Int )( implicit tx: InTxn ) : NodeImpl
+//         override def down( i: Int )( implicit tx: InTxn ) : NodeLike
       }
 
-      private final class BranchImpl( val keys: Array[ A ], downs: Array[ Ref[ NodeImpl ]])
-      extends NodeImpl with HeadOrBranch with Branch {
+      private sealed trait BranchLike extends NodeLike with /* HeadOrBranch with */ Branch {
+         def downRef( idx: Int ) : Ref[ LeafOrBranch ]
+         def down( idx: Int )( implicit tx: InTxn ) : LeafOrBranch
+//         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeLike ) : BranchImpl = removeColumn( idx, mod, sib.asInstanceOf[ BranchImpl ])
+         def updateKey( idx: Int, key: A ) : BranchImpl // BranchLike
+         def removeColumn( idx: Int ) : BranchImpl
+         def devirtualize : BranchImpl
+      }
+
+      private final class VirtualBranch( protected val main: BranchImpl, protected val mod: ModSome,
+                                         protected val sib: BranchImpl )
+      extends BranchLike with VirtualLike {
+         def downRef( idx: Int ) : Ref[ LeafOrBranch ] = mod match {
+            case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
+            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
+            case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
+            case _: ModBorrowRight  => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
+         }
+
+         def down( idx: Int )( implicit tx: InTxn ) : LeafOrBranch = downRef( idx )()
+
+         def devirtualize : BranchImpl = sys.error( "TODO" )
+
+         def removeColumn( idx: Int ) : BranchImpl = {
+            sys.error( "TODO" )
+         }
+
+         def updateKey( idx: Int, key: A ) : BranchImpl = {
+            sys.error( "TODO" )
+         }
+      }
+
+      private final class BranchImpl( keys: Array[ A ], downs: Array[ Ref[ LeafOrBranch ]])
+      extends BranchLike with HeadOrBranch with LeafOrBranch {
          assert( keys.size == downs.size )
 
-         def downRef( i: Int ) : Ref[ NodeImpl ] = downs( i )
+         def devirtualize : BranchImpl = this
 
-         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downs( i )()
+         def virtualize( mod: ModSome, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
+            case bSib: BranchImpl => new VirtualBranch( this, mod, bSib )
+            case _ => sys.error( "Internal structural error - sibling not a branch: " + sib )
+         }
+
+         def key( idx: Int ) : A = keys( idx )
+         def size : Int = keys.size
+
+         def downRef( i: Int ) : Ref[ LeafOrBranch ] = downs( i )
+
+         def down( i: Int )( implicit tx: InTxn ) : LeafOrBranch = downs( i )()
+
          def split( implicit tx: InTxn ) : (BranchImpl, BranchImpl) = {
             val lsz     = arrMinSz
             val lkeys   = new Array[ A ]( lsz )
-            val ldowns  = new Array[ Ref[ NodeImpl ]]( lsz )
+            val ldowns  = new Array[ Ref[ LeafOrBranch ]]( lsz )
             keyCopy( this, 0, lkeys, 0, lsz )
             downCopy( this, 0, ldowns, 0, lsz )
             val left    = new BranchImpl( lkeys, ldowns )
 
             val rsz     = size - lsz
             val rkeys   = new Array[ A ]( rsz )
-            val rdowns  = new Array[ Ref[ NodeImpl ]]( rsz )
+            val rdowns  = new Array[ Ref[ LeafOrBranch ]]( rsz )
             keyCopy( this, lsz, rkeys, 0, rsz )
             downCopy( this, lsz, rdowns, 0, rsz )
             val right   = new BranchImpl( rkeys, rdowns )
@@ -643,157 +722,23 @@ object HASkipList {
             (left, right)
          }
 
-         def virtualSize( mod: ModMaybe, sib: BranchImpl ) : Int = {
-            if( sib == null ) size else size + sib.size
-         }
+//         def virtualSize( mod: ModMaybe, sib: BranchImpl ) : Int = {
+//            if( sib == null ) size else size + sib.size
+//         }
 
-         def virtualDownRef( idx: Int, mod: ModMaybe, sib: BranchImpl ) : Ref[ NodeImpl ] = mod match {
-            case ModNone            => downRef( idx )
-            case ModMergeRight      => val ridx = idx - size; if( ridx < 0 ) downRef( idx ) else sib.downRef( ridx )
-            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else downRef( ridx )
-            case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else downRef( idx - 1 )
-            case _: ModBorrowRight  => if( idx == size ) sib.downRef( 0 ) else downRef( idx )
-         }
-
-         def updateDown( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
+         def updateDown( i: Int, n: LeafOrBranch )( implicit tx: InTxn ) {
             downs( i ).set( n )
          }
 
-         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeImpl ) : BranchImpl = removeColumn( idx, mod, sib.asInstanceOf[ BranchImpl ])
-
-         def removeColumn( idx: Int, mod: ModMaybe, sib: BranchImpl ) : BranchImpl = {
+         def removeColumn( idx: Int ) : BranchImpl  = {
             sys.error( "TODO" )
          }
 
-         def updateKey( idx: Int, key: A, mod: ModMaybe, sib: BranchImpl ) : BranchImpl = {
+         def updateKey( idx: Int, key: A ) : BranchImpl = {
             sys.error( "TODO" )
          }
 
-//         /**
-//          * @param   idx   the index (positive) to remove
-//          */
-//         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int) = {
-//            val found   = idx < 0
-//            val idxP    = if( found ) -(idx + 1) else idx
-//            p match {
-//               case Head => sys.error( "TODO" )
-//
-//               case pb: BranchImpl =>
-//                  sys.error( "TODO" )
-////                  val ridx = idx + 1
-////                  if( ridx < pb.size ) { // if does NOT drop in last gap -> merge or borrow to the right
-////                     // if minGap elems in next gap G' (aka xSucc.down.right),
-////                     // or at bottom level --> merge G and G', by lowering the element
-////                     // between G and G', that is xSucc
-////                     val dropKey       = pb.key( pidx )
-////                     keyObserver.keyDown( dropKey )
-//////                     val sibKey  = pb.key( ridx )
-////                     val sib     = pb.down( ridx )
-////                     val szSib   = sib.size
-////                     if( szSib == arrMinSz ) {    // i.e. G' has size minGap -- merge
-////                        val sz1        = (if( found ) size - 1 else size)
-////                        val szNew      = sz1 + szSib
-////                        val keysNew    = new Array[ A ]( szNew )
-////                        val downsNew   = new Array[ Ref[ NodeImpl ]]( szNew )
-////                        if( found ) {
-////                           if( idxP > 0 ) {
-////                              keyCopy(  this, 0, keysNew, idxP )
-////                              downCopy( this, 0, downsNew, idxP )
-////                           }
-////                           val numr = sz1 - idxP
-////                           if( numr > 0 ) {
-////                              keyCopy(  this, idxP + 1, keysNew,  idxP, numr )
-////                              downCopy( this, idxP + 1, downsNew, idxP, numr )
-////                           }
-////                        } else {
-////                           keyCopy(  this, 0, keysNew,  size )
-////                           downCopy( this, 0, downsNew, size )
-////                        }
-////                        val b = new BranchImpl( keysNew, downsNew )
-////
-//////                        p.update
-////
-////                     } else {	   // if >minGap elems in next gap G' -- borrow
-////                        val upKey         = rightSibling.key( 0 ) // raise 1st elem in next gap & lower...
-////                        b.keyArr( idx )   = upKey
-////                        // ... separator of current+next gap
-////                        if( d.isLeaf ) {
-////                           val ld   = d.asLeaf
-////                           val lrs  = rightSibling.asLeaf
-////                           ld.keyArr( arrMinSz ) = upKey
-////                           ld.size  = arrMinSz + 1
-////                           val szm1 = lrs.size - 1
-////                           keyCopy( lrs, 1, lrs, 0, szm1 )
-////                           lrs.size = szm1
-////                        } else {
-////                           val bd   = d.asBranch
-////                           val brs  = rightSibling.asBranch
-////                           bd.keyArr( arrMinSz )   = upKey
-////                           bd.downArr( arrMinSz )  = brs.downArr( 0 )
-////                           bd.size  = arrMinSz + 1
-////                           val szm1 = brs.size - 1
-////                           keyCopy(  brs, 1, brs, 0, szm1 )
-////                           downCopy( brs, 1, brs, 0, szm1 )
-////                           brs.size = szm1
-////                        }
-////                        keyObserver.keyUp( upKey )
-////                     }
-////                  } else {    // if DOES drop in last gap --> merge or borrow to the left
-////                     val idx1          = idx - 1
-////                     val leftSibling   = x.down( idx1 )
-////                     val dnKey         = x.key( idx1 ) // xPred.key
-////                     if( leftSibling.hasMinSize ) { // if only minGap elems in previous gap --> merge
-////                        keyObserver.keyDown( dnKey )
-////                        val b = x.asBranch   // XXX this could be factored out and go up one level
-////                        b.keyArr( idx1 ) = xKey
-////                        b.size -= 1
-////                        if( leftSibling.isLeaf ) {
-////                           val lls  = leftSibling.asLeaf
-////                           val ld   = d.asLeaf
-////                           val szld = ld.size
-////                           keyCopy( ld, 0, lls, arrMinSz, szld )
-////                           lls.size  = arrMinSz + szld
-////                        } else {
-////                           val bls = leftSibling.asBranch
-////                           val bd   = d.asBranch
-////                           val szbd = bd.size
-////                           keyCopy(  bd, 0, bls, arrMinSz, szbd )
-////                           downCopy( bd, 0, bls, arrMinSz, szbd )
-////                           bls.size  = arrMinSz + szbd
-////                        }
-////                        d = leftSibling
-////
-////
-////                     } else {    // if >minGap elems in previous gap --> borrow
-////                        val lssz1   = leftSibling.size - 1
-////                        val upKey   = leftSibling.key( lssz1 - 1 )
-////                        val b       = x.asBranch
-////                        b.keyArr( idx1 ) = upKey   // raise last elem in previous gap & lower...
-////                        if( d.isLeaf ) {
-////                           val ld            = d.asLeaf
-////                           val lls           = leftSibling.asLeaf
-////                           keyCopy( ld, 0, ld, 1, arrMinSz )
-////                           ld.keyArr( 0 )    = dnKey
-////                           ld.size           = arrMinSz + 1
-////                           lls.size          = lssz1
-////                        } else {
-////                           val bd            = d.asBranch
-////                           val bls           = leftSibling.asBranch
-////                           keyCopy(  bd, 0, bd, 1, arrMinSz )
-////                           downCopy( bd, 0, bd, 1, arrMinSz )
-////                           bd.keyArr( 0 )    = dnKey
-////                           bd.downArr( 0 )   = bls.downArr( lssz1 )
-////                           bd.size           = arrMinSz + 1
-////                           bls.size          = lssz1
-////                        }
-////                        keyObserver.keyDown( dnKey )
-////                        keyObserver.keyUp( upKey )
-////                     }
-////                  }
-//            }
-//         }
-
-         def insertAfterSplit( idx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
+         def insertAfterSplit( idx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
                              ( implicit tx: InTxn ) : BranchImpl = {
             // we must make a copy of this branch with the
             // size increased by one. the new key is `splitKey`
@@ -801,7 +746,7 @@ object HASkipList {
             // down, `idx`.
             val bsz           = size + 1
             val bkeys         = new Array[ A ]( bsz )
-            val bdowns        = new Array[ Ref[ NodeImpl ]]( bsz )
+            val bdowns        = new Array[ Ref[ LeafOrBranch ]]( bsz )
             // copy entries left to split index
             if( idx > 0 ) {
                keyCopy(  this, 0, bkeys,  0, idx )
@@ -824,12 +769,12 @@ object HASkipList {
             new BranchImpl( bkeys, bdowns )
          }
 
-         override def toString = toString( "Branch" )
+//         override def toString = toString( "Branch" )
       }
 
 //      private def notSupported = throw new IllegalArgumentException()
 
-//      private sealed trait HeadOrBottom extends NodeImpl {
+//      private sealed trait HeadOrBottom extends NodeLike {
 //         final def asLeaf : Leaf                   = notSupported
 //         final def isLeaf : Boolean                = false
 //         final def isEmpty                         = false
@@ -846,21 +791,21 @@ object HASkipList {
 //            assert( i == 0, "Accessing head with index > 0" )
 //            downNode()
 //         }
-         def updateDown( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
+         def updateDown( i: Int, n: LeafOrBranch )( implicit tx: InTxn ) {
             assert( i == 0, "Accessing head with index > 0" )
             downNode.set( n )
          }
 //         val size       = 1
 //         val isBottom   = false
 
-         def insertAfterSplit( pidx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
+         def insertAfterSplit( pidx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
                              ( implicit tx: InTxn ) : BranchImpl = {
             assert( pidx == 0 )
 
             val bkeys         = new Array[ A ]( 2 )
             bkeys( 0 )        = splitKey  // left node ends in the split key
             bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
-            val bdowns        = new Array[ Ref[ NodeImpl ]]( 2 )
+            val bdowns        = new Array[ Ref[ LeafOrBranch ]]( 2 )
             bdowns( 0 )       = Ref( left )
             bdowns( 1 )       = Ref( right )
             new BranchImpl( bkeys, bdowns ) // new parent branch
@@ -877,8 +822,8 @@ object HASkipList {
 
 //      private object Bottom extends HeadOrBottom {
 //         def key( i: Int ) : A = notSupported
-//         def down( i: Int )( implicit tx: InTxn ) : NodeImpl = notSupported
-//         def down_=( i: Int, n: NodeImpl )( implicit tx: InTxn ) { notSupported }
+//         def down( i: Int )( implicit tx: InTxn ) : NodeLike = notSupported
+//         def down_=( i: Int, n: NodeLike )( implicit tx: InTxn ) { notSupported }
 //         val size = 0
 //         val isBottom   = true
 ////         val isHead     = false
@@ -904,7 +849,7 @@ sealed trait HASkipList[ @specialized( Int, Long) A ] extends txn.SkipList[ A ] 
       def down( i: Int )( implicit tx: InTxn ) : Node
    }
 
-   sealed trait Leaf extends Child
+   sealed trait Leaf extends Node
 
    sealed trait Bottom extends Child
 
