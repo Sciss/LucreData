@@ -27,7 +27,7 @@ package de.sciss.collection
 package txn
 
 import annotation.tailrec
-import concurrent.stm.{TxnExecutor, Ref, InTxn}
+import concurrent.stm.{Sink, TxnExecutor, Ref, InTxn}
 
 /**
  * A deterministic k-(2k+1) top-down operated skip list
@@ -149,6 +149,14 @@ object HASkipList {
          step( 0 )
       }
 
+      @inline private def virtualIndexInNode( v: A, n: NodeImpl, mod: ModMaybe, sib: NodeImpl ) : Int = {
+         @tailrec def step( idx: Int ) : Int = {
+            val cmp = ordering.compare( v, n.virtualKey( idx, mod, sib ))
+            if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
+         }
+         step( 0 )
+      }
+
 //      /*
 //       * Same as `indexInNode`, but doesn't provide hint as to whether the
 //       * key was found or not.
@@ -238,279 +246,202 @@ object HASkipList {
       override def remove( v: A )( implicit tx: InTxn ) : Boolean = {
          if( ordering.gteq( v, maxKey )) return false
          Head.downNode() match {
-            case l: LeafImpl   => removeLeaf(   v, Head, 0, Head, 0, false, l )
-            case b: BranchImpl => removeBranch( v, Head, 0, Head, 0, false, b )
+            case l: LeafImpl   => removeLeaf(   v, Head.downNode, l, ModNone, null )
+            case b: BranchImpl => removeBranch( v, Head.downNode, b, ModNone, null )
             case BottomImpl    => false
          }
       }
 
-      private def removeLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, pmod: Boolean,
-                              l: LeafImpl )( implicit tx: InTxn ) : Boolean = {
-         val idx     = indexInNode( v, l )
+//      private def removeLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, pmod: Boolean,
+//                              l: LeafImpl )( implicit tx: InTxn ) : Boolean = {
+
+      private def removeLeaf( v: A, pDown: Sink[ BranchImpl ], l: LeafImpl, lMod: ModMaybe, lSib: LeafImpl )
+                            ( implicit tx: InTxn ) : Boolean = {
+
+         val idx     = virtualIndexInNode( v, l, lMod, lSib )
          val found   = idx < 0
 //         val idxP    = if( found ) -(idx + 1) else idx
 
-         val minSz   = if( found ) arrMinSz + 1 else arrMinSz
-
-         val lmod = l.size == minSz
-
-         if( pmod || lmod ) {
-            val tup  = p.mergeOrBorrow( pp, ppidx, pidx )
-            val pNew = tup._1
-//            pidxNew  = tup._2
-            pp.updateDown( ppidx, pNew )
-         }
+//         val minSz   = if( found ) arrMinSz + 1 else arrMinSz
+//
+//         val lmod = l.size == minSz
+//
+//         if( pmod || lmod ) {
+//            val tup  = p.mergeOrBorrow( pp, ppidx, pidx )
+//            val pNew = tup._1
+////            pidxNew  = tup._2
+//            pp.updateDown( ppidx, pNew )
+//         }
+         if( found ) sys.error( "TODO" )
 
          found
       }
 
-//      private sealed trait ModMaybe
-//      private object ModNone       extends ModMaybe
-//      private sealed trait ModSome extends ModMaybe
-//      private object ModMergeLeft  extends ModSome
-//      private object ModMergeRight extends ModSome
+      private sealed trait ModMaybe
+      private case object ModNone   extends ModMaybe
+      private sealed trait ModSome  extends ModMaybe
 
-      @tailrec private def removeBranch( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int,
-                                         pmod: Boolean, b: BranchImpl )( implicit tx: InTxn ) : Boolean = {
-         val idx     = indexInNode( v, b )
-         val found   = idx < 0
-         val idxP    = if( found ) -(idx + 1) else idx
-//         val dropKey = b.key( idxP )
+      /*
+       * In merge-with-right, the right sibling's
+       * identifier is re-used for the merged node.
+       * Thus after the merge, the originating sibling
+       * should be disposed (when using an ephemeral
+       * datastore). The parent needs to remove the
+       * entry of the originating sibling.
+       *
+       * (thus the disposal corresponds with the ref
+       * removed from the `downs` array)
+       */
+      private case object ModMergeRight extends ModSome
 
-//         var bNew    = b
-//         var idxNew  = idx
-         var pNew    = p
-         var pidxNew = pidx
-//         var psibNew = psib
-//         var pmodNew = pmod
+      private sealed trait ModBorrowRight extends ModSome
+      /*
+       * In borrow-from-right, both parents' downs need
+       * update, but identifiers are kept.
+       * the parent needs to update the key for the
+       * originating sibling to match the first key in
+       * the right sibling (or the new last key in the
+       * originating sibling).
+       */
+      private case object ModBorrowFromRight extends ModBorrowRight
 
-         // the minimum size at which to split `b`.
-         // if the key was found the minimum size is
-         // obviously one bigger as the key is removed
-         val minSz   = if( found ) arrMinSz + 1 else arrMinSz
+      /*
+       * In merge-with-left, the originating sibling's
+       * identifier is re-used for the merged node.
+       * Thus after the merge, the left sibling
+       * should be disposed (when using an ephemeral
+       * datastore). The parent needs to remove the
+       * entry of the left sibling.
+       *
+       * (thus the disposal corresponds with the ref
+       * removed from the `downs` array)
+       */
+      private case object ModMergeLeft extends ModSome
 
-         val bmod = b.size == minSz
-//         if( bmod ) {   // we dropped into a gap G with size minGap
-            // if the parent was already provided with a sibling,
-            // this is due to the fact that the parent needs merge or borrow
-            // already. in that case we stick to `psib`. Otherwise (`psib` is `null`),
-            // we make an additional access to ``pp.down` to get the sibling required
-            // by the merge / borrow of `b`.
-//            if( psib == null ) pp match {
-//               case ppb: BranchImpl =>
-//                  val rppidx = ppdix + 1
-//                  if( rppdix < pp.size ) {
-//                     psibNew  = pp.down( rppidx )
-//                     pmodNew  = ModMergeRight
-//                  } else {
-//                     psibNew  = pp.down( ppidx - 1 )
-//                     pmodNew  = ModMergeLeft
-//                  }
-//
-//               case Head =>
-//            }
-//            pmodNew = true
+      /*
+       * In borrow-from-left, both parents' downs need
+       * update, but identifiers are kept.
+       * the parent needs to update the key for the
+       * left sibling to match the before-last key in
+       * the left sibling.
+       */
+      private case object ModBorrowFromLeft extends ModSome
 
-//            val rpidx = pidx + 1
-//            if( rpidx < p.size )
+      /**
+       * Borrow-to-right is a special case encountered when
+       * going down from a branch containing the search node,
+       * where the child cannot be merged to the right.
+       * Instead of merging to the left, or borrowing from
+       * the left which would keep the query key in the
+       * right-most position, causing successive update
+       * problems, we hereby achieve that the query key
+       * ends up in a position that is not the last in
+       * any node: We remove the query key -- the right
+       * most entry -- from the originating sibling and
+       * prepend it to its right sibling.
+       *
+       * Like in a normal borrow, both parents' downs need
+       * update, but identifiers are kept. The parent needs
+       * to update the key for the originating sibling to
+       * match the before-last key in the originating sibling
+       * (or the new last key in the new originating sibling).
+       */
+      private case object ModBorrowToRight extends ModBorrowRight
 
+      @tailrec private def removeBranch( v: A, pDown: Sink[ BranchImpl ], b: BranchImpl, bMod: ModMaybe, bSib: BranchImpl )
+                                       ( implicit tx: InTxn ) : Boolean = {
+         val idx        = virtualIndexInNode( v, b, bMod, bSib )
+         val idxP       = -(idx + 1)
+         val c          = b.virtualDownRef( idxP, bMod, bSib )()
+         val cIdx       = indexInNode( v, c )
+         val cFound     = cIdx < 0
+         val cSz        = if( cFound ) c.size - 1 else c.size
 
-//            if( !ordering.equiv( dropKey, lastAbove )) { ... }
-//         }
+         var bNew             = b
+         var bDownIdx         = idxP
+         var cMod: ModMaybe   = ModNone
+         var cSib: NodeImpl   = null
 
-         if( pmod || bmod ) {
-            val tup     = p.mergeOrBorrow( pp, ppidx, pidx )
-            val pbNew   = tup._1
-            pNew        = pbNew
-            pidxNew     = tup._2
-            pp.updateDown( ppidx, pbNew )
+//         var bDown: Ref[ BranchImpl ] =
+
+         if( cFound || (cSz == arrMinSz) ) {
+            val idxP1   = idxP + 1
+            if( cFound || (idxP1 < b.virtualSize( bMod, bSib ))) {   // merge with or borrow from/to the right
+               cSib           = b.virtualDownRef( idxP1, bMod, bSib )()
+               val cSibSz     = cSib.size
+               val mergedSz   = cSz + cSibSz
+               if( mergedSz <= arrMaxSz ) {                    // merge with the right
+                  // remove the entry at idxP from the branch,
+                  // and actualise b with virtual sibling. the key
+                  // at bNew's index idxP is now the one formerly at
+                  // idxP1, hence the right-most key in csib.
+                  bNew        = b.removeColumn( idxP, bMod, bSib )
+//                  bDownIdx    = idxP
+                  cMod        = ModMergeRight
+               } else if( cSibSz > arrMinSz ) {                // borrow from the right
+                  // update the key index idxP of the
+                  // originating sibling to match the first key in
+                  // the right sibling
+                  val upKey   = cSib.key( 0 )
+                  bNew        = b.updateKey( idxP, upKey, bMod, bSib )
+//                  bDownIdx    = idxP
+                  val bDown1  = b.virtualDownRef( idxP1, bMod, bSib )
+                  bDown1()    = cSib.removeColumn( 0, ModNone, null )
+                  cMod        = ModBorrowFromRight
+               } else {                                        // borrow to the right
+                  assert( cFound )
+                  // Like in a normal borrow, both parents' downs need
+                  // update, but identifiers are kept. The parent needs
+                  // to update the key for the originating sibling to
+                  // match the before-last key in the originating sibling
+                  // (or the new last key in the new originating sibling).
+                  val upKey   = c.key( cSz - 1 )               // note that, since cFound == true, cSz := c.size - 1 !
+                  bNew        = b.updateKey( idxP, upKey, bMod, bSib )
+                  bDownIdx    = idxP1     // we borrowed _to_ the right, hence traverse this way!
+                  val bDown1  = b.virtualDownRef( idxP, bMod, bSib )
+                  bDown1()    = c.removeColumn( cSz, ModNone, null )
+                  cMod        = ModBorrowToRight
+               }
+
+            } else {                                           // merge with or borrow from the left
+               val sib  = b.virtualDownRef( idxP - 1, bMod, bSib )()
+               if( sib.size == arrMinSz ) {                    // merge with the left
+                  /*
+                   * In merge-with-left, the originating sibling's
+                   * identifier is re-used for the merged node.
+                   * Thus after the merge, the left sibling
+                   * should be disposed (when using an ephemeral
+                   * datastore). The parent needs to remove the
+                   * entry of the left sibling.
+                   *
+                   * (thus the disposal corresponds with the ref
+                   * removed from the `downs` array)
+                   */
+                  sys.error( "TODO" )
+               } else {                                        // borrow from the left
+                  /*
+                   * In borrow-from-left, both parents' downs need
+                   * update, but identifiers are kept.
+                   * the parent needs to update the key for the
+                   * left sibling to match the before-last key in
+                   * the left sibling.
+                   */
+                  sys.error( "TODO" )
+               }
+            }
          }
 
-         b.down( idxP ) match {
-            case l: LeafImpl     => removeLeaf(   v, pNew, pidx, b, idx, bmod, l )
-            case b: BranchImpl   => removeBranch( v, pNew, pidx, b, idx, bmod, b )
+         if( bNew ne b ) {
+            pDown() = bNew
          }
 
-
-//         var pn: NodeImpl  = Head
-//         var x             = Head.downNode()
-//         // prevents infinite loop if user provided a surmountable maxKey, or if v == maxKey
-//         if( ordering.gteq( v, maxKey ) || x.isBottom ) return false
-//
-//         var lastAbove     = maxKey    // last key at level above, needed to determine if we drop into the last gap
-//
-//         while( true ) {
-//            var idx = 0
-//            var cmp = ordering.compare( v, x.key( idx ))
-//            while( cmp > 0 ) {   // find where you drop
-//               idx  += 1
-//               cmp   = ordering.compare( v, x.key( idx ))
-//            }
-//            var d       = x.down( idx )
-//            val dIsBot  = d.isBottom
-//            var xKey    = x.key( idx )
-//
-//            if( dIsBot ) {
-//               val success = if( cmp == 0 ) {
-//                  val idx1 = idx + 1
-//                  val l    = x.asLeaf
-//                  val szl  = l.size
-//                  l.size   = szl - 1
-//                  if( idx1 < szl ) { // replace x by its right neighbour
-//                     keyCopy( l, idx1, l, idx, szl - idx1 )
-//                  } else { // this was the last element.
-//                     // therefore we just need to have the size decremented.
-//                     // but also, we need a second pass to remove the key
-//                     // from previous levels:
-//                     val prevKey = x.key( idx - 1 )
-//                     x = Head.downNode()
-//                     while( !x.isBottom ) {
-//                        idx = 0
-//                        cmp = ordering.compare( v, x.key( idx ))
-//                        while( cmp > 0 ) {
-//                           idx += 1
-//                           cmp  = ordering.compare( v, x.key( idx ))
-//                        }
-//                        val d = x.down( idx )
-//                        if( cmp == 0 ) {
-//                           if( d.isBottom ) {
-//                              val lx            = x.asLeaf
-//                              lx.keyArr( idx )  = prevKey
-//                           } else {
-//                              val bx            = x.asBranch
-//                              bx.keyArr( idx )  = prevKey
-//                              keyObserver.keyDown( v )
-//                              keyObserver.keyUp( prevKey )
-//                           }
-//                        }
-//                        x = d
-//                     }
-//                  }
-//                  true
-//
-//               } else { // which means the key was not found
-//                  false
-//               }
-//
-//               // lower header of DSL, if necessary
-//               x = Head.downNode()
-//               if( x.isEmpty ) {
-//                  Head.downNode() = x.down( 0 )
-//               }
-//
-//               return success
-//
-//            } else if( d.hasMinSize ) {   // we drop into gap G with size minGap
-//               if( !ordering.equiv( xKey, lastAbove )) { // if does NOT drop in last gap -> merge or borrow to the right
-//                  // if minGap elems in next gap G' (aka xSucc.down.right),
-//                  // or at bottom level --> merge G and G', by lowering the element
-//                  // between G and G', that is xSucc
-//                  val idx1 = idx + 1
-//                  keyObserver.keyDown( xKey )
-//                  val b             = x.asBranch
-//                  xKey              = x.key( idx1 )
-//                  val rightSibling  = x.down( idx1 ) // .asBranch
-//                  if( rightSibling.hasMinSize ) {    // i.e. G' has size minGap -- merge
-//                     val idx2 = idx1 + 1
-//                     // overwrite x.key, but keep x.down
-//                     val bsz = b.size
-//                     keyCopy(  b, idx1, b, idx,  bsz - idx1 )
-//                     downCopy( b, idx2, b, idx1, bsz - idx2 )
-//                     b.size  = bsz - 1
-//                     if( d.isLeaf ) {
-//                        val ld   = d.asLeaf
-//                        val lrs  = rightSibling.asLeaf
-//                        keyCopy( lrs, 0, ld, arrMinSz, arrMinSz )
-//                        ld.size  = arrMinSz + arrMinSz
-//                     } else {
-//                        val bd   = d.asBranch
-//                        val brs  = rightSibling.asBranch
-//                        keyCopy(  brs, 0, bd, arrMinSz, arrMinSz )
-//                        downCopy( brs, 0, bd, arrMinSz, arrMinSz )
-//                        bd.size  = arrMinSz + arrMinSz
-//                     }
-//                  } else {	   // if >minGap elems in next gap G' -- borrow
-//                     val upKey         = rightSibling.key( 0 ) // raise 1st elem in next gap & lower...
-//                     b.keyArr( idx )   = upKey
-//                     // ... separator of current+next gap
-//                     if( d.isLeaf ) {
-//                        val ld   = d.asLeaf
-//                        val lrs  = rightSibling.asLeaf
-//                        ld.keyArr( arrMinSz ) = upKey
-//                        ld.size  = arrMinSz + 1
-//                        val szm1 = lrs.size - 1
-//                        keyCopy( lrs, 1, lrs, 0, szm1 )
-//                        lrs.size = szm1
-//                     } else {
-//                        val bd   = d.asBranch
-//                        val brs  = rightSibling.asBranch
-//                        bd.keyArr( arrMinSz )   = upKey
-//                        bd.downArr( arrMinSz )  = brs.downArr( 0 )
-//                        bd.size  = arrMinSz + 1
-//                        val szm1 = brs.size - 1
-//                        keyCopy(  brs, 1, brs, 0, szm1 )
-//                        downCopy( brs, 1, brs, 0, szm1 )
-//                        brs.size = szm1
-//                     }
-//                     keyObserver.keyUp( upKey )
-//                  }
-//               } else {    // if DOES drop in last gap --> merge or borrow to the left
-//                  val idx1          = idx - 1
-//                  val leftSibling   = x.down( idx1 )
-//                  val dnKey         = x.key( idx1 ) // xPred.key
-//                  if( leftSibling.hasMinSize ) { // if only minGap elems in previous gap --> merge
-//                     keyObserver.keyDown( dnKey )
-//                     val b = x.asBranch   // XXX this could be factored out and go up one level
-//                     b.keyArr( idx1 ) = xKey
-//                     b.size -= 1
-//                     if( leftSibling.isLeaf ) {
-//                        val lls  = leftSibling.asLeaf
-//                        val ld   = d.asLeaf
-//                        val szld = ld.size
-//                        keyCopy( ld, 0, lls, arrMinSz, szld )
-//                        lls.size  = arrMinSz + szld
-//                     } else {
-//                        val bls = leftSibling.asBranch
-//                        val bd   = d.asBranch
-//                        val szbd = bd.size
-//                        keyCopy(  bd, 0, bls, arrMinSz, szbd )
-//                        downCopy( bd, 0, bls, arrMinSz, szbd )
-//                        bls.size  = arrMinSz + szbd
-//                     }
-//                     d = leftSibling
-//
-//
-//                  } else {    // if >minGap elems in previous gap --> borrow
-//                     val lssz1   = leftSibling.size - 1
-//                     val upKey   = leftSibling.key( lssz1 - 1 )
-//                     val b       = x.asBranch
-//                     b.keyArr( idx1 ) = upKey   // raise last elem in previous gap & lower...
-//                     if( d.isLeaf ) {
-//                        val ld            = d.asLeaf
-//                        val lls           = leftSibling.asLeaf
-//                        keyCopy( ld, 0, ld, 1, arrMinSz )
-//                        ld.keyArr( 0 )    = dnKey
-//                        ld.size           = arrMinSz + 1
-//                        lls.size          = lssz1
-//                     } else {
-//                        val bd            = d.asBranch
-//                        val bls           = leftSibling.asBranch
-//                        keyCopy(  bd, 0, bd, 1, arrMinSz )
-//                        downCopy( bd, 0, bd, 1, arrMinSz )
-//                        bd.keyArr( 0 )    = dnKey
-//                        bd.downArr( 0 )   = bls.downArr( lssz1 )
-//                        bd.size           = arrMinSz + 1
-//                        bls.size          = lssz1
-//                     }
-//                     keyObserver.keyDown( dnKey )
-//                     keyObserver.keyUp( upKey )
-//                  }
-//               }
-//            }
-//
-//            lastAbove   = xKey // x.key( idx )
-//            x           = d
-//         }
+         val bDown = bNew.downRef( bDownIdx )
+         cSib match {
+            case cl: LeafImpl    => removeLeaf( v, bDown, cl, cMod, cSib.asInstanceOf[ LeafImpl ])
+            case cb: BranchImpl  =>
+               // XXX cast not so sexy, but we can avoid constructing a Tuple2 in the match
+               removeBranch( v, bDown, cb, cMod, cSib.asInstanceOf[ BranchImpl ])
+         }
       }
 
       def iterator( implicit tx: InTxn ) : Iterator[ A ] = {
@@ -593,6 +524,19 @@ object HASkipList {
 
          final def isEmpty = ordering.equiv( key( 0 ), maxKey )
 
+         def virtualKey( idx: Int, mod: ModMaybe, sib: NodeImpl ) : A = mod match {
+            case ModNone            => key( idx )
+            case ModMergeRight      => val ridx = idx - size; if( ridx < 0 ) key( idx ) else sib.key( ridx )
+            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else key( ridx )
+            case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else key( idx - 1 )
+            case _: ModBorrowRight  => if( idx == size ) sib.key( 0 ) else key( idx )
+         }
+
+         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeImpl ) : NodeImpl
+
+//         def asBranch: BranchImpl
+//         def asLeaf: LeafImpl
+
          protected final def toString( name: String ) : String =
             keys.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
       }
@@ -654,6 +598,12 @@ object HASkipList {
             }
          }
 
+         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeImpl ) : LeafImpl = removeColumn( idx, mod, sib.asInstanceOf[ LeafImpl ])
+
+         def removeColumn( idx: Int, mod: ModMaybe, sib: LeafImpl ) : LeafImpl = {
+            sys.error( "TODO" )
+         }
+
          override def toString = toString( "Leaf" )
       }
 
@@ -663,7 +613,7 @@ object HASkipList {
          def insertAfterSplit( pidx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
                              ( implicit tx: InTxn ) : BranchImpl
 
-         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int)
+//         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int)
 
 //         override def down( i: Int )( implicit tx: InTxn ) : NodeImpl
       }
@@ -671,6 +621,8 @@ object HASkipList {
       private final class BranchImpl( val keys: Array[ A ], downs: Array[ Ref[ NodeImpl ]])
       extends NodeImpl with HeadOrBranch with Branch {
          assert( keys.size == downs.size )
+
+         def downRef( i: Int ) : Ref[ NodeImpl ] = downs( i )
 
          def down( i: Int )( implicit tx: InTxn ) : NodeImpl = downs( i )()
          def split( implicit tx: InTxn ) : (BranchImpl, BranchImpl) = {
@@ -691,133 +643,155 @@ object HASkipList {
             (left, right)
          }
 
+         def virtualSize( mod: ModMaybe, sib: BranchImpl ) : Int = {
+            if( sib == null ) size else size + sib.size
+         }
+
+         def virtualDownRef( idx: Int, mod: ModMaybe, sib: BranchImpl ) : Ref[ NodeImpl ] = mod match {
+            case ModNone            => downRef( idx )
+            case ModMergeRight      => val ridx = idx - size; if( ridx < 0 ) downRef( idx ) else sib.downRef( ridx )
+            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else downRef( ridx )
+            case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else downRef( idx - 1 )
+            case _: ModBorrowRight  => if( idx == size ) sib.downRef( 0 ) else downRef( idx )
+         }
+
          def updateDown( i: Int, n: NodeImpl )( implicit tx: InTxn ) {
             downs( i ).set( n )
          }
 
-         /**
-          * @param   idx   the index (positive) to remove
-          */
-         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int) = {
-            val found   = idx < 0
-            val idxP    = if( found ) -(idx + 1) else idx
-            p match {
-               case Head => sys.error( "TODO" )
+         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeImpl ) : BranchImpl = removeColumn( idx, mod, sib.asInstanceOf[ BranchImpl ])
 
-               case pb: BranchImpl =>
-                  sys.error( "TODO" )
-//                  val ridx = idx + 1
-//                  if( ridx < pb.size ) { // if does NOT drop in last gap -> merge or borrow to the right
-//                     // if minGap elems in next gap G' (aka xSucc.down.right),
-//                     // or at bottom level --> merge G and G', by lowering the element
-//                     // between G and G', that is xSucc
-//                     val dropKey       = pb.key( pidx )
-//                     keyObserver.keyDown( dropKey )
-////                     val sibKey  = pb.key( ridx )
-//                     val sib     = pb.down( ridx )
-//                     val szSib   = sib.size
-//                     if( szSib == arrMinSz ) {    // i.e. G' has size minGap -- merge
-//                        val sz1        = (if( found ) size - 1 else size)
-//                        val szNew      = sz1 + szSib
-//                        val keysNew    = new Array[ A ]( szNew )
-//                        val downsNew   = new Array[ Ref[ NodeImpl ]]( szNew )
-//                        if( found ) {
-//                           if( idxP > 0 ) {
-//                              keyCopy(  this, 0, keysNew, idxP )
-//                              downCopy( this, 0, downsNew, idxP )
-//                           }
-//                           val numr = sz1 - idxP
-//                           if( numr > 0 ) {
-//                              keyCopy(  this, idxP + 1, keysNew,  idxP, numr )
-//                              downCopy( this, idxP + 1, downsNew, idxP, numr )
-//                           }
-//                        } else {
-//                           keyCopy(  this, 0, keysNew,  size )
-//                           downCopy( this, 0, downsNew, size )
-//                        }
-//                        val b = new BranchImpl( keysNew, downsNew )
-//
-////                        p.update
-//
-//                     } else {	   // if >minGap elems in next gap G' -- borrow
-//                        val upKey         = rightSibling.key( 0 ) // raise 1st elem in next gap & lower...
-//                        b.keyArr( idx )   = upKey
-//                        // ... separator of current+next gap
-//                        if( d.isLeaf ) {
-//                           val ld   = d.asLeaf
-//                           val lrs  = rightSibling.asLeaf
-//                           ld.keyArr( arrMinSz ) = upKey
-//                           ld.size  = arrMinSz + 1
-//                           val szm1 = lrs.size - 1
-//                           keyCopy( lrs, 1, lrs, 0, szm1 )
-//                           lrs.size = szm1
-//                        } else {
-//                           val bd   = d.asBranch
-//                           val brs  = rightSibling.asBranch
-//                           bd.keyArr( arrMinSz )   = upKey
-//                           bd.downArr( arrMinSz )  = brs.downArr( 0 )
-//                           bd.size  = arrMinSz + 1
-//                           val szm1 = brs.size - 1
-//                           keyCopy(  brs, 1, brs, 0, szm1 )
-//                           downCopy( brs, 1, brs, 0, szm1 )
-//                           brs.size = szm1
-//                        }
-//                        keyObserver.keyUp( upKey )
-//                     }
-//                  } else {    // if DOES drop in last gap --> merge or borrow to the left
-//                     val idx1          = idx - 1
-//                     val leftSibling   = x.down( idx1 )
-//                     val dnKey         = x.key( idx1 ) // xPred.key
-//                     if( leftSibling.hasMinSize ) { // if only minGap elems in previous gap --> merge
-//                        keyObserver.keyDown( dnKey )
-//                        val b = x.asBranch   // XXX this could be factored out and go up one level
-//                        b.keyArr( idx1 ) = xKey
-//                        b.size -= 1
-//                        if( leftSibling.isLeaf ) {
-//                           val lls  = leftSibling.asLeaf
-//                           val ld   = d.asLeaf
-//                           val szld = ld.size
-//                           keyCopy( ld, 0, lls, arrMinSz, szld )
-//                           lls.size  = arrMinSz + szld
-//                        } else {
-//                           val bls = leftSibling.asBranch
-//                           val bd   = d.asBranch
-//                           val szbd = bd.size
-//                           keyCopy(  bd, 0, bls, arrMinSz, szbd )
-//                           downCopy( bd, 0, bls, arrMinSz, szbd )
-//                           bls.size  = arrMinSz + szbd
-//                        }
-//                        d = leftSibling
-//
-//
-//                     } else {    // if >minGap elems in previous gap --> borrow
-//                        val lssz1   = leftSibling.size - 1
-//                        val upKey   = leftSibling.key( lssz1 - 1 )
-//                        val b       = x.asBranch
-//                        b.keyArr( idx1 ) = upKey   // raise last elem in previous gap & lower...
-//                        if( d.isLeaf ) {
-//                           val ld            = d.asLeaf
-//                           val lls           = leftSibling.asLeaf
-//                           keyCopy( ld, 0, ld, 1, arrMinSz )
-//                           ld.keyArr( 0 )    = dnKey
-//                           ld.size           = arrMinSz + 1
-//                           lls.size          = lssz1
-//                        } else {
-//                           val bd            = d.asBranch
-//                           val bls           = leftSibling.asBranch
-//                           keyCopy(  bd, 0, bd, 1, arrMinSz )
-//                           downCopy( bd, 0, bd, 1, arrMinSz )
-//                           bd.keyArr( 0 )    = dnKey
-//                           bd.downArr( 0 )   = bls.downArr( lssz1 )
-//                           bd.size           = arrMinSz + 1
-//                           bls.size          = lssz1
-//                        }
-//                        keyObserver.keyDown( dnKey )
-//                        keyObserver.keyUp( upKey )
-//                     }
-//                  }
-            }
+         def removeColumn( idx: Int, mod: ModMaybe, sib: BranchImpl ) : BranchImpl = {
+            sys.error( "TODO" )
          }
+
+         def updateKey( idx: Int, key: A, mod: ModMaybe, sib: BranchImpl ) : BranchImpl = {
+            sys.error( "TODO" )
+         }
+
+//         /**
+//          * @param   idx   the index (positive) to remove
+//          */
+//         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int) = {
+//            val found   = idx < 0
+//            val idxP    = if( found ) -(idx + 1) else idx
+//            p match {
+//               case Head => sys.error( "TODO" )
+//
+//               case pb: BranchImpl =>
+//                  sys.error( "TODO" )
+////                  val ridx = idx + 1
+////                  if( ridx < pb.size ) { // if does NOT drop in last gap -> merge or borrow to the right
+////                     // if minGap elems in next gap G' (aka xSucc.down.right),
+////                     // or at bottom level --> merge G and G', by lowering the element
+////                     // between G and G', that is xSucc
+////                     val dropKey       = pb.key( pidx )
+////                     keyObserver.keyDown( dropKey )
+//////                     val sibKey  = pb.key( ridx )
+////                     val sib     = pb.down( ridx )
+////                     val szSib   = sib.size
+////                     if( szSib == arrMinSz ) {    // i.e. G' has size minGap -- merge
+////                        val sz1        = (if( found ) size - 1 else size)
+////                        val szNew      = sz1 + szSib
+////                        val keysNew    = new Array[ A ]( szNew )
+////                        val downsNew   = new Array[ Ref[ NodeImpl ]]( szNew )
+////                        if( found ) {
+////                           if( idxP > 0 ) {
+////                              keyCopy(  this, 0, keysNew, idxP )
+////                              downCopy( this, 0, downsNew, idxP )
+////                           }
+////                           val numr = sz1 - idxP
+////                           if( numr > 0 ) {
+////                              keyCopy(  this, idxP + 1, keysNew,  idxP, numr )
+////                              downCopy( this, idxP + 1, downsNew, idxP, numr )
+////                           }
+////                        } else {
+////                           keyCopy(  this, 0, keysNew,  size )
+////                           downCopy( this, 0, downsNew, size )
+////                        }
+////                        val b = new BranchImpl( keysNew, downsNew )
+////
+//////                        p.update
+////
+////                     } else {	   // if >minGap elems in next gap G' -- borrow
+////                        val upKey         = rightSibling.key( 0 ) // raise 1st elem in next gap & lower...
+////                        b.keyArr( idx )   = upKey
+////                        // ... separator of current+next gap
+////                        if( d.isLeaf ) {
+////                           val ld   = d.asLeaf
+////                           val lrs  = rightSibling.asLeaf
+////                           ld.keyArr( arrMinSz ) = upKey
+////                           ld.size  = arrMinSz + 1
+////                           val szm1 = lrs.size - 1
+////                           keyCopy( lrs, 1, lrs, 0, szm1 )
+////                           lrs.size = szm1
+////                        } else {
+////                           val bd   = d.asBranch
+////                           val brs  = rightSibling.asBranch
+////                           bd.keyArr( arrMinSz )   = upKey
+////                           bd.downArr( arrMinSz )  = brs.downArr( 0 )
+////                           bd.size  = arrMinSz + 1
+////                           val szm1 = brs.size - 1
+////                           keyCopy(  brs, 1, brs, 0, szm1 )
+////                           downCopy( brs, 1, brs, 0, szm1 )
+////                           brs.size = szm1
+////                        }
+////                        keyObserver.keyUp( upKey )
+////                     }
+////                  } else {    // if DOES drop in last gap --> merge or borrow to the left
+////                     val idx1          = idx - 1
+////                     val leftSibling   = x.down( idx1 )
+////                     val dnKey         = x.key( idx1 ) // xPred.key
+////                     if( leftSibling.hasMinSize ) { // if only minGap elems in previous gap --> merge
+////                        keyObserver.keyDown( dnKey )
+////                        val b = x.asBranch   // XXX this could be factored out and go up one level
+////                        b.keyArr( idx1 ) = xKey
+////                        b.size -= 1
+////                        if( leftSibling.isLeaf ) {
+////                           val lls  = leftSibling.asLeaf
+////                           val ld   = d.asLeaf
+////                           val szld = ld.size
+////                           keyCopy( ld, 0, lls, arrMinSz, szld )
+////                           lls.size  = arrMinSz + szld
+////                        } else {
+////                           val bls = leftSibling.asBranch
+////                           val bd   = d.asBranch
+////                           val szbd = bd.size
+////                           keyCopy(  bd, 0, bls, arrMinSz, szbd )
+////                           downCopy( bd, 0, bls, arrMinSz, szbd )
+////                           bls.size  = arrMinSz + szbd
+////                        }
+////                        d = leftSibling
+////
+////
+////                     } else {    // if >minGap elems in previous gap --> borrow
+////                        val lssz1   = leftSibling.size - 1
+////                        val upKey   = leftSibling.key( lssz1 - 1 )
+////                        val b       = x.asBranch
+////                        b.keyArr( idx1 ) = upKey   // raise last elem in previous gap & lower...
+////                        if( d.isLeaf ) {
+////                           val ld            = d.asLeaf
+////                           val lls           = leftSibling.asLeaf
+////                           keyCopy( ld, 0, ld, 1, arrMinSz )
+////                           ld.keyArr( 0 )    = dnKey
+////                           ld.size           = arrMinSz + 1
+////                           lls.size          = lssz1
+////                        } else {
+////                           val bd            = d.asBranch
+////                           val bls           = leftSibling.asBranch
+////                           keyCopy(  bd, 0, bd, 1, arrMinSz )
+////                           downCopy( bd, 0, bd, 1, arrMinSz )
+////                           bd.keyArr( 0 )    = dnKey
+////                           bd.downArr( 0 )   = bls.downArr( lssz1 )
+////                           bd.size           = arrMinSz + 1
+////                           bls.size          = lssz1
+////                        }
+////                        keyObserver.keyDown( dnKey )
+////                        keyObserver.keyUp( upKey )
+////                     }
+////                  }
+//            }
+//         }
 
          def insertAfterSplit( idx: Int, splitKey: A, left: NodeImpl, right: NodeImpl )
                              ( implicit tx: InTxn ) : BranchImpl = {
@@ -894,9 +868,9 @@ object HASkipList {
 //            b
          }
 
-         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int) = {
-            sys.error( "TODO" )
-         }
+//         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int) = {
+//            sys.error( "TODO" )
+//         }
 
          override def toString = "Head"
       }

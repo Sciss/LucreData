@@ -29,7 +29,7 @@ package view
 import java.awt.event.{ActionListener, ActionEvent}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
 import mutable.{HASkipList, LLSkipList, SkipList}
-import javax.swing.{WindowConstants, JFrame, JTextField, JButton, JPanel}
+import javax.swing.{Box, JLabel, SwingConstants, WindowConstants, JFrame, JTextField, JButton, JPanel}
 
 /**
  * Simple GUI app to probe the LLSkipList interactively.
@@ -48,7 +48,7 @@ object InteractiveSkipListView extends App with Runnable {
       val iv   = new InteractiveSkipListView( mode )
       cp.add( iv, BorderLayout.CENTER )
 
-      PDFSupport.addMenu( f, Seq( iv ))
+      PDFSupport.addMenu( f, Seq( iv ), usePrefSize = false )
 
       f.pack()
       f.setLocationRelativeTo( null )
@@ -65,6 +65,8 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
    view =>
 
    import InteractiveSkipListView._
+
+   private val rnd   = new util.Random( 1L )
 
 //   private var obsSet = Set.empty[ Int ]
    private var obsUp = IndexedSeq.empty[ Int ]
@@ -87,7 +89,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
 
    add( slv, BorderLayout.CENTER )
    private val p = new JPanel( new FlowLayout() )
-   def but( lb: String )( action: => Unit ) {
+   private def but( lb: String )( action: => Unit ) {
       val b = new JButton( lb )
       b.setFocusable( false )
       b.addActionListener( new ActionListener {
@@ -97,6 +99,14 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
          }
       })
       p.add( b )
+   }
+   private def space() {
+      p.add( Box.createHorizontalStrut( 8 ))
+   }
+   private def label( text: String ) {
+      val l = new JLabel( text, SwingConstants.RIGHT )
+//      l.putClientProperty( "JComponent.sizeVariant", "mini" )
+      p.add( l )
    }
    private val ggNum = new JTextField( 2 )
    p.add( ggNum )
@@ -128,9 +138,24 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ Int ] {
       slv.highlight = Map( i -> Color.blue )
    }}
 
-but( "Height" ) {
-   println( l.height )
-}
+   space()
+   label( "Randomly:" )
+
+   private def addRandom( num: Int ) {
+      obsUp = IndexedSeq.empty
+      obsDn = IndexedSeq.empty
+      val ps = Seq.fill( num )( rnd.nextInt( 100 ))
+      status( ps.lastOption.map( _.toString ).getOrElse( "" ))
+      ps.foreach( l add _ )
+      slv.highlight = (obsUp.map( _ -> colrGreen ) ++ obsDn.map( _ -> Color.red ) ++ ps.map( _ -> Color.blue )).toMap
+   }
+
+   but( "Add 1x" )  { addRandom(  1 )}
+   but( "Add 10x" ) { addRandom( 10 )}
+
+//but( "Height" ) {
+//   println( l.height )
+//}
 
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )

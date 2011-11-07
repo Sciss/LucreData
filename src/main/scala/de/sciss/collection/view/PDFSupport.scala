@@ -34,7 +34,7 @@ import com.itextpdf.text.pdf.PdfWriter
 import collection.breakOut
 
 object PDFSupport {
-   def addMenu[ A <: JComponent ]( f: JFrame, views: Seq[ A ], prepare: A => Unit = (_: A) => () ) {
+   def addMenu[ A <: JComponent ]( f: JFrame, views: Seq[ A ], prepare: A => Unit = (_: A) => (), usePrefSize: Boolean = true ) {
       val mb            = new JMenuBar()
       val mFile         = new JMenu( "File" )
       val miExportPDF   = new JMenuItem( new AbstractAction( "Export as PDF..." ) {
@@ -93,7 +93,7 @@ object PDFSupport {
                val dir  = fDlg.getDirectory
                if( file == null || dir == null ) return
                prepare( view )
-               createPDF( new File( dir, file ), view )
+               createPDF( new File( dir, file ), view, usePrefSize )
             }
          }
       })
