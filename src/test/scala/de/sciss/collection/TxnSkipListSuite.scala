@@ -16,7 +16,7 @@ import concurrent.stm.ccstm.CCSTM
 class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
    val OBSERVATION   = true
-   val REMOVAL       = false // true
+   val REMOVAL       = true
 
    // large
    val NUM1          = 0x040000  // 0x200000

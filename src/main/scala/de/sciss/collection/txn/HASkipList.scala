@@ -89,13 +89,11 @@ object HASkipList {
       }
 
 //      @inline private def keyCopy( a: LeafOrBranch, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
-//sys.error( "TODO" )
 ////         System.arraycopy( a.keys, aOff, b, bOff, num )
 //      }
 //
 //      @inline private def downCopy( a: BranchImpl, aOff: Int,
 //                                    b: Array[ Ref[ LeafOrBranch ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
-//sys.error( "TODO" )
 ////         var i = 0; while( i < num ) {
 ////            b( i + bOff ) = Ref( a.down( i + aOff ))
 ////         i += 1 }
@@ -114,8 +112,6 @@ object HASkipList {
       }
 
       def top( implicit tx: InTxn ) : Child = Head.downNode()
-
-//      def isomorphicQuery( compare: A => Int ) : A = sys.error( "not yet implemented" )
 
       // ---- set support ----
 
@@ -272,6 +268,7 @@ object HASkipList {
 //      private sealed trait ModMaybe
 //      private case object ModNone   extends ModMaybe
       private sealed trait ModVirtual  // extends ModMaybe
+//      private sealed trait ModMerge extends ModVirtual
 
       /*
        * In merge-with-right, the right sibling's
@@ -286,7 +283,7 @@ object HASkipList {
        */
       private case object ModMergeRight extends ModVirtual
 
-      private sealed trait ModBorrowRight extends ModVirtual
+//      private sealed trait ModBorrowRight extends ModVirtual
       /*
        * In borrow-from-right, both parents' downs need
        * update, but identifiers are kept.
@@ -295,7 +292,7 @@ object HASkipList {
        * the right sibling (or the new last key in the
        * originating sibling).
        */
-      private case object ModBorrowFromRight extends ModBorrowRight
+      private case object ModBorrowFromRight extends ModVirtual
 
       /*
        * In merge-with-left, the originating sibling's
@@ -338,12 +335,13 @@ object HASkipList {
        * match the before-last key in the originating sibling
        * (or the new last key in the new originating sibling).
        */
-      private case object ModBorrowToRight extends ModBorrowRight
+      private case object ModBorrowToRight extends ModVirtual
 
       @tailrec private def removeBranch( v: A, pDown: Sink[ BranchImpl ], b: BranchLike )
                                        ( implicit tx: InTxn ) : Boolean = {
          val idx        = indexInNode( v, b )
-         val idxP       = -(idx + 1)
+         val found      = idx < 0
+         val idxP       = if( found ) -(idx + 1) else idx
          val c          = b.down( idxP )
          val cIdx       = indexInNode( v, c )
          val cFound     = cIdx < 0
@@ -549,23 +547,51 @@ object HASkipList {
          protected def main: LeafOrBranch
          protected def sib:  LeafOrBranch
 
-         def size : Int = main.size + sib.size
+         def size : Int = mod match {
+            case ModMergeRight      => main.size + sib.size
+            case ModBorrowFromRight => main.size + 1
+            case ModBorrowToRight   => sib.size + 1
+            case ModMergeLeft       => main.size + sib.size
+            case ModBorrowFromLeft  => main.size + 1
+         }
 
          final def key( idx: Int ) : A = mod match {
             case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.key( idx ) else sib.key( ridx )
+            case ModBorrowFromRight => if( idx == main.size ) sib.key( 0 ) else main.key( idx )
+            case ModBorrowToRight   => if( idx == 0 ) main.key( main.size - 1 ) else sib.key( idx - 1 )
             case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else main.key( ridx )
             case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else main.key( idx - 1 )
-            case _: ModBorrowRight  => if( idx == main.size ) sib.key( 0 ) else main.key( idx )
          }
       }
 
       private final class VirtualLeaf( protected val main: LeafImpl, protected val mod: ModVirtual,
                                        protected val sib: LeafImpl ) extends LeafLike with VirtualLike {
          def removeColumn( idx: Int ) : LeafImpl = {
-            sys.error( "TODO" )
+            val newSz   = size - 1
+            val keys    = new Array[ A ]( newSz )
+            var i = 0
+            while( i < idx ) {
+               keys( i ) = key( i )
+               i += 1
+            }
+            while( i < newSz ) {
+               val i1 = i + 1
+               keys( i ) = key( i1 )
+               i = i1
+            }
+            new LeafImpl( keys )
          }
 
-         def devirtualize: LeafImpl = sys.error( "TODO" )
+         def devirtualize: LeafImpl = {
+            val newSz   = size
+            val keys    = new Array[ A ]( newSz )
+            var i = 0
+            while( i < newSz ) {
+               keys( i ) = key( i )
+               i += 1
+            }
+            new LeafImpl( keys )
+         }
       }
 
       private final class LeafImpl( keys: Array[ A ])
@@ -652,7 +678,12 @@ object HASkipList {
          }
 
          def removeColumn( idx: Int ) : LeafImpl = {
-            sys.error( "TODO" )
+            val sz      = size - 1
+            val newKeys = new Array[ A ]( sz )
+            if( idx > 0 ) System.arraycopy( keys, 0, newKeys, 0, idx )
+            val numr    = sz - idx
+            if( numr > 0 ) System.arraycopy( keys, idx + 1, newKeys, idx, numr )
+            new LeafImpl( newKeys )
          }
 
 //         override def toString = toString( "Leaf" )
@@ -682,22 +713,64 @@ object HASkipList {
                                          protected val sib: BranchImpl )
       extends BranchLike with VirtualLike {
          def downRef( idx: Int ) : Ref[ LeafOrBranch ] = mod match {
+//            case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
+//            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
+//            case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
+//            case _: ModBorrowRight  => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
+
             case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
+            case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
+            case ModBorrowToRight   => if( idx == 0 ) main.downRef( main.size - 1 ) else sib.downRef( idx - 1 )
             case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
             case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
-            case _: ModBorrowRight  => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
          }
 
          def down( idx: Int )( implicit tx: InTxn ) : LeafOrBranch = downRef( idx )()
 
-         def devirtualize : BranchImpl = sys.error( "TODO" )
-
-         def removeColumn( idx: Int ) : BranchImpl = {
-            sys.error( "TODO" )
+         def devirtualize : BranchImpl = {
+            val newSz   = size
+            val keys    = new Array[ A ]( newSz )
+            val downs   = new Array[ Ref[ LeafOrBranch ]]( newSz )
+            var i = 0
+            while( i < newSz ) {
+               keys( i )  = key( i )
+               downs( i ) = downRef( i )
+               i += 1
+            }
+            new BranchImpl( keys, downs )
          }
 
-         def updateKey( idx: Int, key: A ) : BranchImpl = {
-            sys.error( "TODO" )
+         def removeColumn( idx: Int ) : BranchImpl = {
+            val newSz   = size - 1
+            val keys    = new Array[ A ]( newSz )
+            val downs   = new Array[ Ref[ LeafOrBranch ]]( newSz )
+            var i = 0
+            while( i < idx ) {
+               keys( i )   = key( i )
+               downs( i )  = downRef( i )
+               i += 1
+            }
+            while( i < newSz ) {
+               val i1 = i + 1
+               keys( i )   = key( i1 )
+               downs( i )  = downRef( i1 )
+               i = i1
+            }
+            new BranchImpl( keys, downs )
+         }
+
+         def updateKey( idx: Int, k: A ) : BranchImpl = {
+            val newSz   = size
+            val keys    = new Array[ A ]( newSz )
+            val downs   = new Array[ Ref[ LeafOrBranch ]]( newSz )
+            var i = 0
+            while( i < newSz ) {
+               keys( i )   = key( i )
+               downs( i )  = downRef( i )
+               i += 1
+            }
+            keys( idx ) = k
+            new BranchImpl( keys, downs )
          }
       }
 
@@ -746,11 +819,28 @@ object HASkipList {
          }
 
          def removeColumn( idx: Int ) : BranchImpl  = {
-            sys.error( "TODO" )
+assert( idx >= 0 && idx < size )
+            val sz         = size - 1
+            val newKeys    = new Array[ A ]( sz )
+            val newDowns   = new Array[ Ref[ LeafOrBranch ]]( sz )
+            if( idx > 0 ) {
+               System.arraycopy( keys,  0, newKeys,  0, idx )
+               System.arraycopy( downs, 0, newDowns, 0, idx )
+            }
+            val numr    = sz - idx
+            if( numr > 0 ) {
+               System.arraycopy( keys,  idx + 1, newKeys,  idx, numr )
+               System.arraycopy( downs, idx + 1, newDowns, idx, numr )
+            }
+            new BranchImpl( newKeys, newDowns )
          }
 
          def updateKey( idx: Int, key: A ) : BranchImpl = {
-            sys.error( "TODO" )
+            val sz         = size
+            val newKeys    = new Array[ A ]( sz )
+            System.arraycopy( keys, 0, newKeys, 0, sz )  // just copy all and then overwrite one
+            newKeys( idx ) = key
+            new BranchImpl( newKeys, downs )
          }
 
          def insertAfterSplit( idx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
@@ -831,7 +921,6 @@ object HASkipList {
          }
 
 //         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int) = {
-//            sys.error( "TODO" )
 //         }
 
          override def toString = "Head"
