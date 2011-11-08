@@ -367,6 +367,10 @@ object HASkipList {
                val cSib       = b.down( idxP1 )
                val cSibSz     = cSib.size
                val mergedSz   = cSz + cSibSz
+
+               val downKey    = b.key( idxP )
+               keyObserver.keyDown( downKey )
+
                if( mergedSz <= arrMaxSz ) {                    // merge with the right
                   // remove the entry at idxP from the branch,
                   // and actualise b with virtual sibling. the key
@@ -381,6 +385,7 @@ object HASkipList {
                   // the right sibling
                   val upKey   = cSib.key( 0 )
                   bNew        = b.updateKey( idxP, upKey )
+                  keyObserver.keyUp( upKey )
 //                  bDownIdx    = idxP
                   val bDown1  = b.downRef( idxP1 )
                   bDown1()    = cSib.removeColumn( 0 )
@@ -394,6 +399,7 @@ object HASkipList {
                   // (or the new last key in the new originating sibling).
                   val upKey   = c.key( cSz - 1 )               // note that, since cFound == true, cSz := c.size - 1 !
                   bNew        = b.updateKey( idxP, upKey )
+                  keyObserver.keyUp( upKey )
                   bDownIdx    = idxP1     // we borrowed _to_ the right, hence traverse this way!
                   val bDown1  = b.downRef( idxP )
                   bDown1()    = c.removeColumn( cSz )
@@ -412,6 +418,10 @@ object HASkipList {
 //}
                val cSib    = b.down( idxPM1 )
                val cSibSz  = cSib.size
+
+               val downKey    = b.key( idxPM1 )
+               keyObserver.keyDown( downKey )
+
                if( cSibSz == arrMinSz ) {                      // merge with the left
                   // The parent needs to remove the
                   // entry of the left sibling.
@@ -424,6 +434,7 @@ object HASkipList {
                   // the left sibling.
                   val upKey   = cSib.key( cSibSz - 2 )
                   bNew        = b.updateKey( idxPM1, upKey )
+                  keyObserver.keyUp( upKey )
 //                  bDownIdx    = idxP
                   val bDown1  = b.downRef( idxPM1 )
                   bDown1()    = cSib.removeColumn( cSibSz - 1 )

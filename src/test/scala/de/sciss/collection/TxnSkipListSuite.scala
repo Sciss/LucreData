@@ -19,8 +19,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val REMOVAL       = true
 
    // large
-   val NUM1          = 10 // 0x040000  // 0x200000
-   val NUM2          = 5 // 0x020000  // 0x100000
+   val NUM1          = 12 // 0x040000  // 0x200000
+   val NUM2          = 6 // 0x020000  // 0x100000
 
    // small
    val NUM3          = 10
@@ -131,7 +131,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
          val keptInL  = atomic { implicit tx => s.filterNot( l.remove( _ ))}
          val szAfter2 = atomic { implicit tx => l.size }
          then( "all of the remove operations should return 'true'" )
-         assert( keptInL.isEmpty, keptInL.take( 10 ).toString() )
+         assert( keptInL.isEmpty, "the following elements were not found in removal: " + keptInL.take( 10 ).toString() )
          then( "the size of l should be zero" )
          assert( szAfter2 == 0, szAfter2.toString )
       }
@@ -210,7 +210,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
                      }
                   }
                   then( "none was ever promoted during their deletion" )
-                  assert( !uppedDelKey )
+                  assert( !uppedDelKey, "elements were promoted during their deletion" )
                   val upsNotInS = atomic { implicit tx => obs.allUp().keys.filterNot( s.contains( _ ))}
                   then( "no key was ever promoted which was not in s" )
                   assert( upsNotInS.isEmpty, upsNotInS.take( 10 ).toString() )
