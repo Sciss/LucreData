@@ -242,7 +242,7 @@ object HASkipList {
             case l: LeafImpl =>
                removeLeaf(   v, Head.downNode, l )
             case b: BranchImpl =>
-println( "Starting with a branch" )
+//println( "Starting with a branch" )
                removeBranch( v, Head.downNode, b )
             case BottomImpl =>
                false
@@ -252,7 +252,7 @@ println( "Starting with a branch" )
 //      private def removeLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, pmod: Boolean,
 //                              l: LeafImpl )( implicit tx: InTxn ) : Boolean = {
 
-      private def removeLeaf( v: A, pDown: Sink[ LeafImpl ], l: LeafLike )
+      private def removeLeaf( v: A, pDown: Sink[ LeafOrBranch ], l: LeafLike )
                             ( implicit tx: InTxn ) : Boolean = {
 
          val idx     = indexInNode( v, l )
@@ -341,10 +341,10 @@ println( "Starting with a branch" )
        */
       private case object ModBorrowToRight extends ModVirtual
 
-      @tailrec private def removeBranch( v: A, pDown: Sink[ BranchImpl ], b: BranchLike )
+      @tailrec private def removeBranch( v: A, pDown: Sink[ LeafOrBranch ], b: BranchLike )
                                        ( implicit tx: InTxn ) : Boolean = {
          val idx        = indexInNode( v, b )
-println( "A branch... " + idx )
+//println( "A branch... " + idx )
          val found      = idx < 0
          val idxP       = if( found ) -(idx + 1) else idx
          val c          = b.down( idxP )
@@ -407,9 +407,9 @@ println( "A branch... " + idx )
                // virtualization be merged to or have borrowed from its right sibling)
 
                val idxPM1  = idxP - 1
-if( idxPM1 < 0 ) { // XXX
-   println( "OH NO" )
-}
+//if( idxPM1 < 0 ) { // XXX
+//   println( "OH NO" )
+//}
                val cSib    = b.down( idxPM1 )
                val cSibSz  = cSib.size
                if( cSibSz == arrMinSz ) {                      // merge with the left
@@ -434,11 +434,20 @@ if( idxPM1 < 0 ) { // XXX
             bNew  = b.devirtualize
          }
 
-         if( bNew ne b ) { // branch changed
-            pDown() = bNew // update down ref from which it came
+         val bDown = if( bNew ne b ) { // branch changed
+            if( bNew.size > 1 ) {
+               pDown() = bNew // update down ref from which it came
+               bNew.downRef( bDownIdx )
+            } else {
+               // unfortunately we do not have `p`
+//               assert( p == Head )
+               pDown
+            }
+         } else {
+            bNew.downRef( bDownIdx )
          }
 
-         val bDown = bNew.downRef( bDownIdx )
+//         val bDown = bNew.downRef( bDownIdx )
          cNew match {
             case cl: LeafLike   => removeLeaf(   v, bDown, cl )
             case cb: BranchLike => removeBranch( v, bDown, cb )
