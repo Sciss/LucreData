@@ -19,8 +19,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val REMOVAL       = true
 
    // large
-   val NUM1          = 0x040000  // 0x200000
-   val NUM2          = 0x020000  // 0x100000
+   val NUM1          = 10 // 0x040000  // 0x200000
+   val NUM2          = 5 // 0x020000  // 0x100000
 
    // small
    val NUM3          = 10

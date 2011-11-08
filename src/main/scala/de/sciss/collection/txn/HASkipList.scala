@@ -239,9 +239,13 @@ object HASkipList {
       override def remove( v: A )( implicit tx: InTxn ) : Boolean = {
          if( ordering.gteq( v, maxKey )) return false
          Head.downNode() match {
-            case l: LeafImpl   => removeLeaf(   v, Head.downNode, l )
-            case b: BranchImpl => removeBranch( v, Head.downNode, b )
-            case BottomImpl    => false
+            case l: LeafImpl =>
+               removeLeaf(   v, Head.downNode, l )
+            case b: BranchImpl =>
+println( "Starting with a branch" )
+               removeBranch( v, Head.downNode, b )
+            case BottomImpl =>
+               false
          }
       }
 
@@ -340,6 +344,7 @@ object HASkipList {
       @tailrec private def removeBranch( v: A, pDown: Sink[ BranchImpl ], b: BranchLike )
                                        ( implicit tx: InTxn ) : Boolean = {
          val idx        = indexInNode( v, b )
+println( "A branch... " + idx )
          val found      = idx < 0
          val idxP       = if( found ) -(idx + 1) else idx
          val c          = b.down( idxP )
@@ -356,8 +361,9 @@ object HASkipList {
 //         var bDown: Ref[ BranchImpl ] =
 
          if( cFound || (cSz == arrMinSz) ) {
-            val idxP1   = idxP + 1
-            if( cFound || (idxP1 < b.size )) {   // merge with or borrow from/to the right
+            val idxP1      = idxP + 1
+            val bHasRight  = idxP1 < b.size
+            if( bHasRight ) {                                  // merge with or borrow from/to the right
                val cSib       = b.down( idxP1 )
                val cSibSz     = cSib.size
                val mergedSz   = cSz + cSibSz
@@ -395,10 +401,18 @@ object HASkipList {
                }
 
             } else {                                           // merge with or borrow from the left
+               // it implies that if cFound is true, cIdx is < c.size - 1
+               // that is, the key is not in the last element of c
+               // (because otherwise, b would have already in its
+               // virtualization be merged to or have borrowed from its right sibling)
+
                val idxPM1  = idxP - 1
+if( idxPM1 < 0 ) { // XXX
+   println( "OH NO" )
+}
                val cSib    = b.down( idxPM1 )
                val cSibSz  = cSib.size
-               if( cSibSz == arrMinSz ) {                    // merge with the left
+               if( cSibSz == arrMinSz ) {                      // merge with the left
                   // The parent needs to remove the
                   // entry of the left sibling.
                   bNew        = b.removeColumn( idxPM1 )
@@ -412,7 +426,7 @@ object HASkipList {
                   bNew        = b.updateKey( idxPM1, upKey )
 //                  bDownIdx    = idxP
                   val bDown1  = b.downRef( idxPM1 )
-                  bDown1()    = c.removeColumn( cSibSz - 1 )
+                  bDown1()    = cSib.removeColumn( cSibSz - 1 )
                   cNew        = c.virtualize( ModBorrowFromLeft, cSib )
                }
             }
@@ -721,7 +735,14 @@ object HASkipList {
             case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
             case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
             case ModBorrowToRight   => if( idx == 0 ) main.downRef( main.size - 1 ) else sib.downRef( idx - 1 )
-            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
+            case ModMergeLeft       => // val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
+               val ridx = idx - sib.size
+               if( ridx < 0 ) {
+                  sib.downRef( idx )
+               } else {
+assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + " ; main.size = " + main.size )
+                  main.downRef( ridx )
+               }
             case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
          }
 
@@ -819,7 +840,7 @@ object HASkipList {
          }
 
          def removeColumn( idx: Int ) : BranchImpl  = {
-assert( idx >= 0 && idx < size )
+assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
             val sz         = size - 1
             val newKeys    = new Array[ A ]( sz )
             val newDowns   = new Array[ Ref[ LeafOrBranch ]]( sz )
