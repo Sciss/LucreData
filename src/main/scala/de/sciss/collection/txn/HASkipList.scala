@@ -31,11 +31,15 @@ import concurrent.stm.{Sink, TxnExecutor, Ref, InTxn}
 import concurrent.stm.impl.RefFactory
 
 /**
- * A deterministic k-(2k+1) top-down operated skip list
+ * A transactional version of the deterministic k-(2k+1) top-down operated skip list
  * as described in T. Papadakis, Skip Lists and Probabilistic Analysis of
  * Algorithms. Ch. 4 (Deterministic Skip Lists), pp. 55--78. Waterloo (CA) 1993
  *
- * It uses the horizontal array technique with a parameter for k (minimum gap size)
+ * It uses the horizontal array technique with a parameter for k (minimum gap size).
+ * It uses a modified top-down removal algorithm that avoids the need for a second
+ * pass as in the original algorithm, and is careful about object creations, so that
+ * it will be able to persist the data structure without any unnecessary reads or
+ * writes to the store.
  */
 object HASkipList {
    def empty[ A ]( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ],
@@ -70,11 +74,6 @@ object HASkipList {
       def toSeq( implicit tx: InTxn ) : Seq[ A ] = iterator.toSeq
       def toSet( implicit tx: InTxn ) : Set[ A ] = iterator.toSet
 
-//      private def fillBuilder( b: Builder[ A, _ ])( implicit tx: InTxn ) {
-//         val iter = iterator
-//         while( iter.hasNext ) b += iter.next()
-//      }
-
       private def leafSizeSum( n: LeafOrBranch )( implicit tx: InTxn ) : Int = {
          val sz = n.size
          n match {
@@ -87,17 +86,6 @@ object HASkipList {
                res
          }
       }
-
-//      @inline private def keyCopy( a: LeafOrBranch, aOff: Int, b: Array[ A ], bOff: Int, num: Int ) {
-////         System.arraycopy( a.keys, aOff, b, bOff, num )
-//      }
-//
-//      @inline private def downCopy( a: BranchImpl, aOff: Int,
-//                                    b: Array[ Ref[ LeafOrBranch ]], bOff: Int, num: Int )( implicit tx: InTxn ) {
-////         var i = 0; while( i < num ) {
-////            b( i + bOff ) = Ref( a.down( i + aOff ))
-////         i += 1 }
-//      }
 
       def height( implicit tx: InTxn ) : Int = {
          @tailrec def step( num: Int, n: LeafOrBranch ) : Int = n match {
@@ -149,18 +137,6 @@ object HASkipList {
          }
          step( 0 )
       }
-
-//      /*
-//       * Same as `indexInNode`, but doesn't provide hint as to whether the
-//       * key was found or not.
-//       */
-//      @inline private def indexInNode2( v: A, n: NodeLike ) : Int = {
-//         @tailrec def step( idx: Int ) : Int = {
-//            val cmp = ordering.compare( v, n.key( idx ))
-//            if( cmp < 0 ) idx else step( idx + 1 )
-//         }
-//         step( 0 )
-//      }
 
       override def add( v: A )( implicit tx: InTxn ) : Boolean = {
          require( ordering.lt( v, maxKey ))
@@ -242,37 +218,13 @@ object HASkipList {
             case l: LeafImpl =>
                removeLeaf(   v, Head.downNode, l )
             case b: BranchImpl =>
-//println( "Starting with a branch" )
                removeBranch( v, Head.downNode, b )
             case BottomImpl =>
                false
          }
       }
 
-//      private def removeLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, pmod: Boolean,
-//                              l: LeafImpl )( implicit tx: InTxn ) : Boolean = {
-
-      private def removeLeaf( v: A, pDown: Sink[ LeafOrBranch ], l: LeafLike )
-                            ( implicit tx: InTxn ) : Boolean = {
-
-         val idx     = indexInNode( v, l )
-         val found   = idx < 0
-         val lNew    = if( found ) {
-            val idxP = -(idx + 1)
-            l.removeColumn( idxP )
-         } else {
-            l.devirtualize
-         }
-         if( lNew ne l ) {
-            pDown() = lNew
-         }
-         found
-      }
-
-//      private sealed trait ModMaybe
-//      private case object ModNone   extends ModMaybe
       private sealed trait ModVirtual  // extends ModMaybe
-//      private sealed trait ModMerge extends ModVirtual
 
       /*
        * In merge-with-right, the right sibling's
@@ -287,7 +239,6 @@ object HASkipList {
        */
       private case object ModMergeRight extends ModVirtual
 
-//      private sealed trait ModBorrowRight extends ModVirtual
       /*
        * In borrow-from-right, both parents' downs need
        * update, but identifiers are kept.
@@ -341,26 +292,49 @@ object HASkipList {
        */
       private case object ModBorrowToRight extends ModVirtual
 
+      private def removeLeaf( v: A, pDown: Sink[ LeafOrBranch ], l: LeafLike )
+                            ( implicit tx: InTxn ) : Boolean = {
+
+         val idx     = indexInNode( v, l )
+         val found   = idx < 0
+         val lNew    = if( found ) {
+            val idxP = -(idx + 1)
+            l.removeColumn( idxP )
+         } else {
+            l.devirtualize
+         }
+         if( lNew ne l ) {
+            pDown() = lNew
+         }
+         found
+      }
+
       @tailrec private def removeBranch( v: A, pDown: Sink[ LeafOrBranch ], b: BranchLike )
                                        ( implicit tx: InTxn ) : Boolean = {
          val idx        = indexInNode( v, b )
-//println( "A branch... " + idx )
          val found      = idx < 0
          val idxP       = if( found ) -(idx + 1) else idx
          val c          = b.down( idxP )
          val cIdx       = indexInNode( v, c )
          val cFound     = cIdx < 0
          val cSz        = if( cFound ) c.size - 1 else c.size
+         // if the key was found in the last element of the child,
+         // (-(cIdx+1) == cSz), this implies that it was found in
+         // the current branch, thus `found` will be true.
+//         val cFoundLast = found || (-(cIdx+1) == cSz)
 
          var bNew: BranchImpl = null
          var bDownIdx         = idxP
          var cNew: NodeLike   = c
-//         var cMod: ModMaybe   = ModNone
-//         var cSib: NodeLike   = null
 
-//         var bDown: Ref[ BranchImpl ] =
-
-         if( cFound || (cSz == arrMinSz) ) {
+         // a merge or borrow is necesary either when we descend
+         // to a minimally filled child (because that child might
+         // need to shrink in the next step), or when the key was
+         // found in the current branch, because then the key will
+         // appear as the last element of the child -- and we
+         // prevent further problems with an early borrow-to-right
+         // if necessary.
+         if( found /* cFound */ || (cSz == arrMinSz) ) {
             val idxP1      = idxP + 1
             val bHasRight  = idxP1 < b.size
             if( bHasRight ) {                                  // merge with or borrow from/to the right
@@ -413,9 +387,6 @@ object HASkipList {
                // virtualization be merged to or have borrowed from its right sibling)
 
                val idxPM1  = idxP - 1
-//if( idxPM1 < 0 ) { // XXX
-//   println( "OH NO" )
-//}
                val cSib    = b.down( idxPM1 )
                val cSibSz  = cSib.size
 
@@ -534,32 +505,7 @@ object HASkipList {
       private sealed trait NodeOrBottom extends Child
 
       private sealed trait NodeLike extends Node /* with NodeOrBottom */ {
-//         override def down( i: Int )( implicit tx: InTxn ) : NodeLike
-
-//         final def hasMaxSize = size == arrMaxSz
-//         final def hasMinSize = size == arrMinSz
-
-//         def size : Int // = keys.size
-////         def keys: Array[ A ]
-//         def key( i: Int ) : A // = keys( i )
-
-//         final def isEmpty = ordering.equiv( key( 0 ), maxKey )
-
-//         def virtualKey( idx: Int, mod: ModMaybe, sib: NodeLike ) : A = mod match {
-//            case ModNone            => key( idx )
-//            case ModMergeRight      => val ridx = idx - size; if( ridx < 0 ) key( idx ) else sib.key( ridx )
-//            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else key( ridx )
-//            case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else key( idx - 1 )
-//            case _: ModBorrowRight  => if( idx == size ) sib.key( 0 ) else key( idx )
-//         }
-
          def removeColumn( idx: Int ) : LeafOrBranch
-
-//         def asBranch: BranchImpl
-//         def asLeaf: LeafImpl
-
-//         protected final def toString( name: String ) : String =
-//            keys.toSeq.take( size ).map( k => if( k == maxKey ) "M" else k.toString ).mkString( name + "(", ", ", ")" )
       }
 
       private sealed trait LeafOrBranch extends NodeLike with NodeOrBottom {
@@ -570,11 +516,6 @@ object HASkipList {
          def devirtualize : LeafImpl
          def removeColumn( idx: Int ) : LeafImpl
       }
-
-//      private def virtualize( main: LeafOrBranch, mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike = (main, sib) match {
-//         case (b: BranchImpl, bSib: BranchImpl) => new VirtualBranch( b, mod, bSib )
-//         case (l: BranchImpl, lSib: BranchImpl) => new VirtualLeaf(   l, mod, lSib )
-//      }
 
       private sealed trait VirtualLike {
          protected def mod:  ModVirtual
@@ -630,9 +571,6 @@ object HASkipList {
 
       private final class LeafImpl( keys: Array[ A ])
       extends LeafLike with LeafOrBranch {
-//         def down( i: Int )( implicit tx: InTxn )  : NodeLike = Bottom
-//         def down_=( i: Int, n: NodeLike )( implicit tx: InTxn ) { notSupported }
-
          def key( idx: Int ) = keys( idx )
          def size : Int = keys.size
 
@@ -728,16 +666,11 @@ object HASkipList {
 
          def insertAfterSplit( pidx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
                              ( implicit tx: InTxn ) : BranchImpl
-
-//         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int)
-
-//         override def down( i: Int )( implicit tx: InTxn ) : NodeLike
       }
 
       private sealed trait BranchLike extends NodeLike with /* HeadOrBranch with */ Branch {
          def downRef( idx: Int ) : Ref[ LeafOrBranch ]
          def down( idx: Int )( implicit tx: InTxn ) : LeafOrBranch
-//         def removeColumn( idx: Int, mod: ModMaybe, sib: NodeLike ) : BranchImpl = removeColumn( idx, mod, sib.asInstanceOf[ BranchImpl ])
          def updateKey( idx: Int, key: A ) : BranchImpl // BranchLike
          def removeColumn( idx: Int ) : BranchImpl
          def devirtualize : BranchImpl
@@ -747,11 +680,6 @@ object HASkipList {
                                          protected val sib: BranchImpl )
       extends BranchLike with VirtualLike {
          def downRef( idx: Int ) : Ref[ LeafOrBranch ] = mod match {
-//            case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
-//            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
-//            case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
-//            case _: ModBorrowRight  => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
-
             case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
             case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
             case ModBorrowToRight   => if( idx == 0 ) main.downRef( main.size - 1 ) else sib.downRef( idx - 1 )
@@ -851,10 +779,6 @@ assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + "
             (left, right)
          }
 
-//         def virtualSize( mod: ModMaybe, sib: BranchImpl ) : Int = {
-//            if( sib == null ) size else size + sib.size
-//         }
-
          def updateDown( i: Int, n: LeafOrBranch )( implicit tx: InTxn ) {
             downs( i ).set( n )
          }
@@ -916,35 +840,15 @@ assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
 
             new BranchImpl( bkeys, bdowns )
          }
-
-//         override def toString = toString( "Branch" )
       }
-
-//      private def notSupported = throw new IllegalArgumentException()
-
-//      private sealed trait HeadOrBottom extends NodeLike {
-//         final def asLeaf : Leaf                   = notSupported
-//         final def isLeaf : Boolean                = false
-//         final def isEmpty                         = false
-//         final def asBranch : Branch               = notSupported
-//      }
 
       private object Head extends HeadOrBranch {
          val downNode = Ref[ NodeOrBottom ]( BottomImpl )
-//         def key( i: Int ) : A = {
-//            assert( i == 0, "Accessing head with index > 0" )
-//            maxKey
-//         }
-//         def down( i: Int )( implicit tx: InTxn ) : NodeOrBottom = {
-//            assert( i == 0, "Accessing head with index > 0" )
-//            downNode()
-//         }
+
          def updateDown( i: Int, n: LeafOrBranch )( implicit tx: InTxn ) {
             assert( i == 0, "Accessing head with index > 0" )
             downNode.set( n )
          }
-//         val size       = 1
-//         val isBottom   = false
 
          def insertAfterSplit( pidx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
                              ( implicit tx: InTxn ) : BranchImpl = {
@@ -957,25 +861,9 @@ assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
             bdowns( 0 )       = stm.newRef( left )
             bdowns( 1 )       = stm.newRef( right )
             new BranchImpl( bkeys, bdowns ) // new parent branch
-//            downNode.set( b )
-//            b
          }
-
-//         def mergeOrBorrow( p: HeadOrBranch, pidx: Int, idx: Int )( implicit tx: InTxn ) : (BranchImpl, Int) = {
-//         }
-
          override def toString = "Head"
       }
-
-//      private object Bottom extends HeadOrBottom {
-//         def key( i: Int ) : A = notSupported
-//         def down( i: Int )( implicit tx: InTxn ) : NodeLike = notSupported
-//         def down_=( i: Int, n: NodeLike )( implicit tx: InTxn ) { notSupported }
-//         val size = 0
-//         val isBottom   = true
-////         val isHead     = false
-//
-//      }
 
       private object BottomImpl extends Bottom with NodeOrBottom {
          override def toString = "Bottom"

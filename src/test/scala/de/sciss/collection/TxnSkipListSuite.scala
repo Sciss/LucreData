@@ -15,12 +15,12 @@ import concurrent.stm.ccstm.CCSTM
  */
 class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
-   val OBSERVATION   = true
+   val OBSERVATION   = false
    val REMOVAL       = true
 
    // large
-   val NUM1          = 12 // 0x040000  // 0x200000
-   val NUM2          = 6 // 0x020000  // 0x100000
+   val NUM1          = 8 // 0x040000  // 0x200000
+   val NUM2          = 10 // 0x020000  // 0x100000
 
    // small
    val NUM3          = 10
@@ -32,7 +32,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    implicit val stm  = new CCSTM()  // ???
 
    withList( "HA-1", (oo, txn) => HASkipList.empty[ Int ]( minGap = 1, keyObserver = oo ))
-   withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
+//   withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
 
    def atomic[ A ]( fun: InTxn => A ) : A = TxnExecutor.defaultAtomic( fun )
 
