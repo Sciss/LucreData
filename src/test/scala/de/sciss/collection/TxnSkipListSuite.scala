@@ -4,8 +4,8 @@ import scala.collection.immutable.IntMap
 import scala.collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import txn.{SkipList, HASkipList}
-import concurrent.stm.{Ref, InTxn, TxnExecutor}
 import concurrent.stm.ccstm.CCSTM
+import concurrent.stm.{Ref, InTxn, TxnExecutor}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -15,12 +15,12 @@ import concurrent.stm.ccstm.CCSTM
  */
 class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
-   val OBSERVATION   = false
+   val OBSERVATION   = true
    val REMOVAL       = true
 
    // large
-   val NUM1          = 8 // 0x040000  // 0x200000
-   val NUM2          = 10 // 0x020000  // 0x100000
+   val NUM1          = 0x040000  // 0x200000
+   val NUM2          = 0x020000  // 0x100000
 
    // small
    val NUM3          = 10
@@ -32,7 +32,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    implicit val stm  = new CCSTM()  // ???
 
    withList( "HA-1", (oo, txn) => HASkipList.empty[ Int ]( minGap = 1, keyObserver = oo ))
-//   withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
+   withList( "HA-2", (oo, txn) => HASkipList.empty[ Int ]( minGap = 2, keyObserver = oo ))
 
    def atomic[ A ]( fun: InTxn => A ) : A = TxnExecutor.defaultAtomic( fun )
 
@@ -44,9 +44,11 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
 //if( i == 3 ) {
 //   println()
 //}
-         atomic { implicit tx => l.add( x )}
          s.add( x )
+//println( "\n\n#" + (i+1) + " added " + x + "\n" )
+//println( atomic { implicit tx => l.debugPrint })
       }
+      atomic { implicit tx => s.foreach( l.add( _ ))}
    }
 
    def randFill2 : Set[ Int ] = {
@@ -71,10 +73,10 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
       when( "the structure is mapped to its pairwise comparisons" )
 //atomic { implicit tx => println( l.toList )}
       var res  = Set.empty[ Int ]
-      val iter = atomic( l.iterator( _ ))
+      val seq  = atomic( l.toIndexedSeq( _ ))
+//      val iter = atomic( l.iterator( _ ))
       var prev = -2
-      while( iter.hasNext ) {
-         val next  = iter.next()
+      seq.foreach { next =>
          res      += prev compare next
          prev      = next
       }
@@ -105,13 +107,13 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    def verifyContainsNot( l: SkipList[ Int ], s: MSet[ Int ]) {
       when( "the structure l is queried for keys not in the independently maintained set s" )
       var testSet = Set.empty[ Int ]
-      atomic { implicit tx =>
+      val inL = atomic { implicit tx =>
          while( testSet.size < 100 ) {
             val x = rnd.nextInt()
             if( !s.contains( x )) testSet += x
          }
+         testSet.filter( l.contains( _ ))
       }
-      val inL = atomic { implicit tx => testSet.filter( l.contains( _ ))}
       then( "none of them should be contained in l" )
       assert( inL.isEmpty, inL.take( 10 ).toString() )
    }

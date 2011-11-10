@@ -71,6 +71,8 @@ object HASkipList {
       def isEmpty( implicit tx: InTxn )   = Head.downNode().isBottom
       def notEmpty( implicit tx: InTxn )  = !isEmpty
 
+      def debugPrint( implicit tx: InTxn ) = "<debugPrint - not yet implemented>"
+
       def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ] = {
          val b = collection.immutable.IndexedSeq.newBuilder[ A ]
          fillBuilder( b )

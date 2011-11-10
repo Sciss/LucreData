@@ -27,11 +27,11 @@ package de.sciss.collection
 package txn
 
 import concurrent.stm.InTxn
-import concurrent.stm.impl.RefFactory
+import concurrent.stm.impl.STMImpl
 
 object SkipList {
    def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
-                   stm: RefFactory ): SkipList[ A ] = HASkipList.empty[ A ]
+                   stm: STMImpl ): SkipList[ A ] = HASkipList.empty[ A ]
 
 //   private type CC[ A ] = SkipList[ A ]
 //   private type Coll = CC[ _ ]
@@ -122,6 +122,8 @@ trait SkipList[ @specialized( Int, Long ) A ] {
    def toList( implicit tx: InTxn ) : List[ A ]
    def toSeq( implicit tx: InTxn ) : Seq[ A ]
    def toSet( implicit tx: InTxn ) : Set[ A ]
+
+   def debugPrint( implicit tx: InTxn ) : String
 
    /**
     * The number of levels in the skip list.

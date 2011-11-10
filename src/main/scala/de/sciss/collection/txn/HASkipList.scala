@@ -28,7 +28,9 @@ package txn
 
 import annotation.tailrec
 import concurrent.stm.{Sink, TxnExecutor, Ref, InTxn}
-import concurrent.stm.impl.RefFactory
+import concurrent.stm.impl.STMImpl
+import collection.mutable.Builder
+import collection.immutable.{IndexedSeq => IIdxSeq}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -43,17 +45,17 @@ import concurrent.stm.impl.RefFactory
  */
 object HASkipList {
    def empty[ A ]( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ],
-                   stm: RefFactory ) : HASkipList[ A ] = empty()
+                   stm: STMImpl ) : HASkipList[ A ] = empty()
    def empty[ A ]( minGap: Int = 2, keyObserver: txn.SkipList.KeyObserver[ A ] = txn.SkipList.NoKeyObserver )
                  ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ], mf: Manifest[ A ],
-                   stm: RefFactory ) : HASkipList[ A ] = {
+                   stm: STMImpl ) : HASkipList[ A ] = {
       require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
       new Impl( maxKey.value, minGap, keyObserver )
    }
 
    private final class Impl[ /* @specialized( Int, Long ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ A ])
-      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ], stm: RefFactory )
+      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ], stm: STMImpl )
    extends HASkipList[ A ] {
       private val arrMinSz = minGap + 1
       private val arrMaxSz = arrMinSz << 1   // aka maxGap + 1
@@ -69,10 +71,10 @@ object HASkipList {
       def isEmpty( implicit tx: InTxn )   = Head.downNode() eq BottomImpl
       def notEmpty( implicit tx: InTxn )  = !isEmpty
 
-      def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ] = iterator.toIndexedSeq
-      def toList( implicit tx: InTxn ) : List[ A ] = iterator.toList
-      def toSeq( implicit tx: InTxn ) : Seq[ A ] = iterator.toSeq
-      def toSet( implicit tx: InTxn ) : Set[ A ] = iterator.toSet
+      def toIndexedSeq( implicit tx: InTxn ) : IIdxSeq[ A ] = fillBuilder( IIdxSeq.newBuilder[ A ])
+      def toList( implicit tx: InTxn ) : List[ A ] = fillBuilder( List.newBuilder[ A ])
+      def toSeq(  implicit tx: InTxn ) : Seq[  A ] = fillBuilder( Seq.newBuilder[  A ])
+      def toSet(  implicit tx: InTxn ) : Set[  A ] = fillBuilder( Set.newBuilder[  A ])
 
       private def leafSizeSum( n: LeafOrBranch )( implicit tx: InTxn ) : Int = {
          val sz = n.size
@@ -100,6 +102,43 @@ object HASkipList {
       }
 
       def top( implicit tx: InTxn ) : Child = Head.downNode()
+
+      def debugPrint( implicit tx: InTxn ) : String = {
+         def printNode( n: LeafOrBranch ) : IndexedSeq[ String ] = {
+            n match {
+               case l: LeafImpl   =>
+                  val keys = Seq.tabulate( n.size ) { idx =>
+                     val k = n.key( idx )
+                     if( k == maxKey ) "M" else k.toString
+                  }
+                  IndexedSeq( keys.mkString( "--" ))
+               case b: BranchImpl =>
+                  val columns = IndexedSeq.tabulate( b.size ) { idx =>
+                     val child   = printNode( b.down( idx ))
+                     val childSz = child.head.length()
+                     val k       = b.key( idx )
+                     val key     = if( k == maxKey ) "M" else k.toString
+                     val keySz   = key.length()
+                     val colSz   = math.max( keySz, childSz ) + 2
+                     val keyAdd  = (if( idx == b.size - 1 ) " " else "-") * (colSz - keySz)
+                     val bar     = "|" + (" " * (colSz - 1))
+                     val childAdd= " " * (colSz - childSz)
+                     IndexedSeq( key + keyAdd, bar ) ++ child.map( _ + childAdd )
+                  }
+//                  val red = columns.reduceLeft { (b, column) =>
+//                     b.zip( column ).map { case (left, right) => left + right }
+//                  }
+//                  red // .map( _ + "  " )
+                  IndexedSeq.tabulate( columns.map( _.size ).max ) { row =>
+                     columns.map( _.apply( row )).mkString( "" )
+                  }
+            }
+         }
+         Head.downNode() match {
+            case BottomImpl      => "M"
+            case n: LeafOrBranch => printNode( n ).mkString( "\n" )
+         }
+      }
 
       // ---- set support ----
 
@@ -334,7 +373,8 @@ object HASkipList {
          // appear as the last element of the child -- and we
          // prevent further problems with an early borrow-to-right
          // if necessary.
-         if( found /* cFound */ || (cSz == arrMinSz) ) {
+         // ; note that `cSz` can be `< arrMinSz` due to a found key already being accounted for (`c.size - 1`)!
+         if( found /* cFound */ || (cSz <= arrMinSz) ) {
             val idxP1      = idxP + 1
             val bHasRight  = idxP1 < b.size
             if( bHasRight ) {                                  // merge with or borrow from/to the right
@@ -442,6 +482,15 @@ object HASkipList {
          i
       }
 
+      private def fillBuilder[ Res ]( b: Builder[ A, Res ])( implicit tx: InTxn ) : Res = {
+         val i = new IteratorImpl
+         i.init()
+         while( i.hasNext ) {
+            b += i.nextTxn
+         }
+         b.result()
+      }
+
 //      private object EmptyIterator extends Iterator[ A ] {
 //         def hasNext( implicit tx: InTxn ) = false
 //         override def toString() = "empty iterator"
@@ -476,7 +525,9 @@ object HASkipList {
          }
 
          def hasNext : Boolean = ordering.nequiv( nextKey, maxKey )
-         def next() : A = {
+         def next() : A = stm.apply( nextTxn( _ ))
+
+         def nextTxn( implicit tx: InTxn ) : A = {
             if( !hasNext ) throw new java.util.NoSuchElementException( "next on empty iterator" )
             val res  = nextKey
             idx     += 1
