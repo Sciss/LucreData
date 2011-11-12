@@ -894,7 +894,7 @@ assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
       }
 
       private object Head extends HeadOrBranch {
-         val downNode = Ref[ NodeOrBottom ]( BottomImpl )
+         val downNode = stm.newRef[ NodeOrBottom ]( BottomImpl )
 
          def updateDown( i: Int, n: LeafOrBranch )( implicit tx: InTxn ) {
             assert( i == 0, "Accessing head with index > 0" )
