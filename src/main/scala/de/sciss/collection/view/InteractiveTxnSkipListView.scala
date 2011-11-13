@@ -31,6 +31,7 @@ import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
 import javax.swing.{Box, JLabel, SwingConstants, WindowConstants, JFrame, JTextField, JButton, JPanel}
 import concurrent.stm.ccstm.CCSTM
 import concurrent.stm.{TxnExecutor, InTxn}
+import de.sciss.lucrestm.InMemory
 
 /**
  * Simple GUI app to probe the txn.HASkipList interactively.
@@ -52,15 +53,15 @@ object InteractiveTxnSkipListView extends App with Runnable {
    }
 }
 class InteractiveTxnSkipListView
-extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ Int ] {
+extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ InMemory, Int ] {
    view =>
 
    private val rnd   = new util.Random( 1L )
    private var obsUp = IndexedSeq.empty[ Int ]
    private var obsDn = IndexedSeq.empty[ Int ]
 
-   implicit val stm = new CCSTM()
-   val l = txn.HASkipList.empty[ Int ]( minGap = 1, keyObserver = view )
+   implicit val stm = new InMemory
+   val l = txn.HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = view )
    val slv = new TxnHASkipListView( l )
 
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))

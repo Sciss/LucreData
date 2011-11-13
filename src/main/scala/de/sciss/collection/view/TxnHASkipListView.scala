@@ -26,26 +26,23 @@
 package de.sciss.collection
 package view
 
-import mutable.HASkipList
 import java.awt.{Color, Point, Rectangle, Dimension, Graphics2D}
-import concurrent.stm.{TxnExecutor, InTxn}
+import de.sciss.lucrestm.Sys
 
-class TxnHASkipListView[ A ]( private val l: txn.HASkipList[ A ]) extends SkipListView[ A ] {
-   private var boxMap = Map.empty[ l.Child, NodeBox ]
+class TxnHASkipListView[ S <: Sys[ S ], A ]( private val l: txn.HASkipList[ S, A ])
+extends SkipListView[ A ] {
+   private val stm      = l.system
+   private var boxMap   = Map.empty[ l.Child, NodeBox ]
 
    setPreferredSize( rebuildMap() match {
       case Some( bb )   => new Dimension( bb.r.width + 9, bb.r.height + 9 )
       case None         => new Dimension( 54, 54 )
    })
 
-   private def atomic[ A ]( fun: InTxn => A ) : A = {
-      TxnExecutor.defaultAtomic( fun )
-   }
-
    private def rebuildMap() : Option[ Box  ] = {
       boxMap = boxMap.empty
 
-      atomic { implicit tx =>
+      stm.atomic { implicit tx =>
          l.top match {
             case n: l.Node =>
                val bb = buildBoxMap( n )
@@ -56,7 +53,7 @@ class TxnHASkipListView[ A ]( private val l: txn.HASkipList[ A ]) extends SkipLi
       }
    }
 
-   private def buildBoxMap( n: l.Node )( implicit tx: InTxn ) : Box = {
+   private def buildBoxMap( n: l.Node )( implicit tx: S#Tx ) : Box = {
       val b = NodeBox( n )
       boxMap += n -> b
       n match {
@@ -70,13 +67,13 @@ class TxnHASkipListView[ A ]( private val l: txn.HASkipList[ A ]) extends SkipLi
 
    protected def paintList( g2: Graphics2D ) {
       rebuildMap()
-      atomic { implicit tx => l.top match {
+      stm.atomic { implicit tx => l.top match {
          case n: l.Node => drawNode( g2, n )
          case _ =>
       }}
    }
 
-   private def drawNode( g2: Graphics2D, n: l.Node, arr: Option[ Point ] = None )( implicit tx: InTxn ) {
+   private def drawNode( g2: Graphics2D, n: l.Node, arr: Option[ Point ] = None )( implicit tx: S#Tx ) {
       boxMap.get( n ).foreach { b =>
          g2.setColor( Color.black )
          g2.draw( b.r )

@@ -10,6 +10,7 @@ resolvers += "itextpdf.com" at "http://maven.itextpdf.com"
 
 libraryDependencies ++= Seq(
    "org.scala-tools" %% "scala-stm" % "0.4",
+   "de.sciss" %% "lucrestm" % "0.10-SNAPSHOT",
    "de.sciss" % "prefuse" % "0.20",
    "com.itextpdf" % "itextpdf" % "5.1.1",
    "org.scalatest" %% "scalatest" % "1.6.1" % "test"

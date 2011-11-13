@@ -26,12 +26,11 @@
 package de.sciss.collection
 package txn
 
-import concurrent.stm.InTxn
-import concurrent.stm.impl.STMImpl
+import de.sciss.lucrestm.Sys
 
 object SkipList {
-   def empty[ A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
-                   stm: STMImpl ): SkipList[ A ] = HASkipList.empty[ A ]
+   def empty[ S <: Sys[ S ], A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
+                                  stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
 
 //   private type CC[ A ] = SkipList[ A ]
 //   private type Coll = CC[ _ ]
@@ -53,25 +52,26 @@ object SkipList {
     * undo the specialization?? you could one otherwise pass in
     * NoKeyObserver to a SkipList[ Int ]?
     */
-   trait KeyObserver[ @specialized( Int, Long ) -A ] {
+   trait KeyObserver[ S <: Sys[ S ], @specialized( Int, Long ) -A ] {
       /**
        * Notifies the observer that a given key
        * is promoted to a higher (more sparse) level
        */
-      def keyUp( key : A )( implicit tx: InTxn ) : Unit
+      def keyUp( key : A )( implicit tx: S#Tx ) : Unit
       /**
        * Notifies the observer that a given key
        * is demoted to a lower (more dense) level
        */
-      def keyDown( key : A )( implicit tx: InTxn ) : Unit
+      def keyDown( key : A )( implicit tx: S#Tx ) : Unit
    }
 
-   object NoKeyObserver extends KeyObserver[ Any ] {
-      def keyUp( key : Any )( implicit tx: InTxn ) {}
-      def keyDown( key : Any )( implicit tx: InTxn ) {}
+   def NoKeyObserver[ S <: Sys[ S ], A ] : KeyObserver[ S, A ] = new NoKeyObserver[ S, A ]
+   private final class NoKeyObserver[ S <: Sys[ S ], A ] extends KeyObserver[ S, A ] {
+      def keyUp( key : A )( implicit tx: S#Tx ) {}
+      def keyDown( key : A )( implicit tx: S#Tx ) {}
    }
 }
-trait SkipList[ @specialized( Int, Long ) A ] {
+trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
 //   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
 
    /**
@@ -80,7 +80,7 @@ trait SkipList[ @specialized( Int, Long ) A ] {
     * @param   v  the key to search for
     * @return  `true` if the key is in the list, `false` otherwise
     */
-   def contains( v: A )( implicit tx: InTxn ) : Boolean
+   def contains( v: A )( implicit tx: S#Tx ) : Boolean
 
 //   /**
 //    * Finds the nearest item equal or greater
@@ -98,7 +98,7 @@ trait SkipList[ @specialized( Int, Long ) A ] {
 //    *
 //    * @return  the nearest item, or the maximum item
 //    */
-//   def isomorphicQuery( compare: A => Int )( implicit tx: InTxn ) : A
+//   def isomorphicQuery( compare: A => Int )( implicit tx: S#Tx ) : A
 
    /**
     * Inserts a new key into the list.
@@ -107,34 +107,34 @@ trait SkipList[ @specialized( Int, Long ) A ] {
     * @return  `true` if the key was successfully inserted,
     *          `false` if a node with the given key already existed
     */
-   def add( v: A )( implicit tx: InTxn ) : Boolean
+   def add( v: A )( implicit tx: S#Tx ) : Boolean
 
    // ---- stuff lost from collection.mutable.Set ----
 
-   def remove( v: A )( implicit tx: InTxn ) : Boolean
-   def +=( elem: A )( implicit tx: InTxn ) : this.type
-   def -=( elem: A )( implicit tx: InTxn ) : this.type
-   def isEmpty( implicit tx: InTxn ) : Boolean
-   def notEmpty( implicit tx: InTxn ) : Boolean
+   def remove( v: A )( implicit tx: S#Tx ) : Boolean
+   def +=( elem: A )( implicit tx: S#Tx ) : this.type
+   def -=( elem: A )( implicit tx: S#Tx ) : this.type
+   def isEmpty( implicit tx: S#Tx ) : Boolean
+   def notEmpty( implicit tx: S#Tx ) : Boolean
 
-   def iterator( implicit tx: InTxn ) : Iterator[ A ]
-   def toIndexedSeq( implicit tx: InTxn ) : collection.immutable.IndexedSeq[ A ]
-   def toList( implicit tx: InTxn ) : List[ A ]
-   def toSeq( implicit tx: InTxn ) : Seq[ A ]
-   def toSet( implicit tx: InTxn ) : Set[ A ]
+   def iterator( implicit tx: S#Tx ) : Iterator[ A ]
+   def toIndexedSeq( implicit tx: S#Tx ) : collection.immutable.IndexedSeq[ A ]
+   def toList( implicit tx: S#Tx ) : List[ A ]
+   def toSeq( implicit tx: S#Tx ) : Seq[ A ]
+   def toSet( implicit tx: S#Tx ) : Set[ A ]
 
-   def debugPrint( implicit tx: InTxn ) : String
+   def debugPrint( implicit tx: S#Tx ) : String
 
    /**
     * The number of levels in the skip list.
     */
-   def height( implicit tx: InTxn ) : Int
+   def height( implicit tx: S#Tx ) : Int
 
    /**
     * The number of keys in the skip list (size of the bottom level).
     * This operation may take up to O(n) time, depending on the implementation.
     */
-   def size( implicit tx: InTxn ) : Int
+   def size( implicit tx: S#Tx ) : Int
 
    /**
     * The 'maximum' key. In the ordering of the skip list,
