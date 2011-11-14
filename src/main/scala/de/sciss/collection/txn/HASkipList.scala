@@ -29,8 +29,8 @@ package txn
 import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import java.io.{ObjectOutputStream, ObjectInputStream}
-import de.sciss.lucrestm.{Sink, Serializer, Sys}
 import annotation.{switch, tailrec}
+import de.sciss.lucrestm.{DataOutput, DataInput, Sink, Serializer, Sys}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -63,7 +63,7 @@ object HASkipList {
     * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
     * specifies the type of the keys stored in the list.
     *
-    * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 62 inclusive.
+    * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 126 inclusive.
     * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
     *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
     *                      for synchronized decimations of related data structures, such as the deterministic
@@ -80,10 +80,10 @@ object HASkipList {
                                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ],
                                   mf: Manifest[ A ], serKey: Serializer[ A ], stm: S ) : HASkipList[ S, A ] = {
 
-      // 127 <= arrMaxSz = (minGap + 1) << 1
+      // 255 <= arrMaxSz = (minGap + 1) << 1
       // ; this is, so we can write a node's size as signed byte, and
-      // no reasonable app would use a node size > 127
-      require( minGap >= 1 && minGap <= 62, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 62" )
+      // no reasonable app would use a node size > 255
+      require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
       new Impl[ S, A ]( maxKey.value, minGap, keyObserver )
    }
@@ -594,18 +594,18 @@ object HASkipList {
 
       private object NodeOrBottom {
          implicit object Serializer extends Serializer[ NodeOrBottom ] {
-            def write( v: NodeOrBottom, os: ObjectOutputStream ) { v.write( os )}
-            def read( is: ObjectInputStream ) : NodeOrBottom = {
-               (is.readByte(): @switch) match {
+            def write( v: NodeOrBottom, out: DataOutput ) { v.write( out )}
+            def read( in: DataInput ) : NodeOrBottom = {
+               (in.readUnsignedByte(): @switch) match {
                   case 0 => BottomImpl
-                  case 1 => BranchImpl.read( is )
-                  case 2 => LeafImpl.read( is )
+                  case 1 => BranchImpl.read( in )
+                  case 2 => LeafImpl.read( in )
                }
             }
          }
       }
       private sealed trait NodeOrBottom extends Child {
-         def write( os: ObjectOutputStream ) : Unit
+         def write( out: DataOutput ) : Unit
       }
 
       private sealed trait NodeLike extends Node /* with NodeOrBottom */ {
@@ -614,11 +614,11 @@ object HASkipList {
 
       private object LeafOrBranch {
          implicit object Ser extends Serializer[ LeafOrBranch ] {
-            def write( v: LeafOrBranch, os: ObjectOutputStream ) { v.write( os )}
-            def read( is: ObjectInputStream ) : LeafOrBranch = {
-               (is.readByte(): @switch) match {
-                  case 1 => BranchImpl.read( is )
-                  case 2 => LeafImpl.read( is )
+            def write( v: LeafOrBranch, out: DataOutput ) { v.write( out )}
+            def read( in: DataInput ) : LeafOrBranch = {
+               (in.readUnsignedByte(): @switch) match {
+                  case 1 => BranchImpl.read( in )
+                  case 2 => LeafImpl.read( in )
                }
             }
          }
@@ -685,11 +685,11 @@ object HASkipList {
       }
 
       private object LeafImpl {
-         def read( is: ObjectInputStream ) : LeafImpl = {
-            val sz: Int = is.readByte()
+         def read( in: DataInput ) : LeafImpl = {
+            val sz: Int = in.readUnsignedByte()
             val keys = new Array[ A ]( sz )
             var i = 0; while( i < sz ) {
-               keys( i ) = serKey.read( is )
+               keys( i ) = serKey.read( in )
             i += 1 }
             new LeafImpl( keys )
          }
@@ -785,12 +785,13 @@ object HASkipList {
 
 //         override def toString = toString( "Leaf" )
 
-         def write( os: ObjectOutputStream ) {
-            os.writeByte( 2 )
+         def write( out: DataOutput ) {
             val sz = size
-            os.writeByte( sz )
+//            out.writeUnsignedShort( 0x200 | sz )
+            out.writeUnsignedByte( 2 )
+            out.writeUnsignedByte( sz )
             var i = 0; while( i < sz ) {
-               serKey.write( keys( i ), os )
+               serKey.write( keys( i ), out )
             i += 1 }
          }
       }
@@ -878,15 +879,15 @@ assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + "
       }
 
       private object BranchImpl {
-         def read( is: ObjectInputStream ) : BranchImpl = {
-            val sz: Int = is.readByte()
+         def read( in: DataInput ) : BranchImpl = {
+            val sz: Int = in.readUnsignedByte()
             val keys    = new Array[ A ]( sz )
             val downs   = system.newRefArray[ LeafOrBranch ]( sz )
             var i = 0; while( i < sz ) {
-               keys( i ) = serKey.read( is )
+               keys( i ) = serKey.read( in )
             i += 1 }
             i = 0; while( i < sz ) {
-               downs( i ) = system.readRef[ LeafOrBranch ]( is )
+               downs( i ) = system.readRef[ LeafOrBranch ]( in )
             i += 1 }
             new BranchImpl( keys, downs )
          }
@@ -989,15 +990,15 @@ assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
             new BranchImpl( bkeys, bdowns )
          }
 
-         def write( os: ObjectOutputStream ) {
-            os.writeByte( 1 )
+         def write( out: DataOutput ) {
+            out.writeUnsignedByte( 1 )
             val sz = size
-            os.writeByte( sz )
+            out.writeUnsignedByte( sz )
             var i = 0; while( i < sz ) {
-               serKey.write( keys( i ), os )
+               serKey.write( keys( i ), out )
             i += 1 }
             i = 0; while( i < sz ) {
-               system.writeRef( downs( i ), os )
+               system.writeRef( downs( i ), out )
             i += 1 }
          }
       }
@@ -1032,8 +1033,8 @@ assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
       private object BottomImpl extends Bottom with NodeOrBottom {
          override def toString = "Bottom"
 
-         def write( os: ObjectOutputStream ) {
-            os.writeByte( 0 )
+         def write( out: DataOutput ) {
+            out.writeUnsignedByte( 0 )
          }
       }
    }
