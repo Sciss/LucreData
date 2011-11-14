@@ -4,8 +4,9 @@ import scala.collection.immutable.IntMap
 import scala.collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import txn.{SkipList, HASkipList}
-import de.sciss.lucrestm.{InMemory, Sys}
 import concurrent.stm.{InTxn, TxnExecutor, Ref}
+import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
+import java.io.File
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -17,6 +18,9 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
    val OBSERVATION   = true
    val REMOVAL       = true
+   val TWO_GAP_SIZES = false
+   val INMEMORY      = false
+   val DATABASE      = true
 
    // large
    val NUM1          = 0x040000  // 0x200000
@@ -29,10 +33,28 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
 
    val rnd           = new util.Random( SEED )
 
-   implicit val inMem = new InMemory
+   def withSys[ S <: Sys[ S ]]( sysName: String )( implicit sys: S ) {
+      withList[    S ]( "HA-1 (" + sysName + ")", (oo, txn) => HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo ))
+      if( TWO_GAP_SIZES ) {
+         withList[ S ]( "HA-2 (" + sysName + ")", (oo, txn) => HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo ))
+      }
+   }
 
-   withList[ InMemory ]( "HA-1", (oo, txn) => HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = oo ))
-   withList[ InMemory ]( "HA-2", (oo, txn) => HASkipList.empty[ InMemory, Int ]( minGap = 2, keyObserver = oo ))
+   if( INMEMORY ) withSys( "Mem" )( new InMemory )
+   if( DATABASE ) {
+      val dir     = File.createTempFile( "tree", "_database" )
+      dir.delete()
+      dir.mkdir()
+      val f       = new File( dir, "data" )
+      println( f.getAbsolutePath )
+      val bdb  = BerkeleyDB.open( f )
+      try {
+         withSys( "BDB" )( bdb )
+         println( "FINAL DB SIZE = " + bdb.numRefs )
+      } finally {
+         bdb.close()
+      }
+   }
 
    def atomic[ A ]( fun: InTxn => A ) : A = TxnExecutor.defaultAtomic( fun )
 
