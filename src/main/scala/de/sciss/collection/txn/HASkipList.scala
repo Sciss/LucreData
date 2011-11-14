@@ -26,11 +26,11 @@
 package de.sciss.collection
 package txn
 
-import annotation.tailrec
 import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import java.io.{ObjectOutputStream, ObjectInputStream}
 import de.sciss.lucrestm.{Sink, Serializer, Sys}
+import annotation.{switch, tailrec}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -44,19 +44,54 @@ import de.sciss.lucrestm.{Sink, Serializer, Sys}
  * writes to the store.
  */
 object HASkipList {
+   /**
+    * Creates a new empty skip list with default minimum gap parameter of `2` and no key observer.
+    * Type parameter `S` specifies the STM system to use. Type parameter `A`
+    * specifies the type of the keys stored in the list.
+    *
+    * @param   ord         the ordering of the keys. This is an instance of `de.sciss.collection.Ordering` to allow
+    *                      for specialized versions.
+    * @param   maxKey      the maximum key for the list. No element added can be equal or greater to this key.
+    * @param   mf          the manifest for key type `A`, necessary for internal array constructions.
+    * @param   serKey      the serializer for the elements, in case a persistent STM is used.
+    * @param   stm         the software transactional memory to use.
+    */
    def empty[ S <: Sys[ S ], A ]( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ],
-                                  mf: Manifest[ A ], stm: S ) : HASkipList[ S, A ] = empty()
+                                  mf: Manifest[ A ], serKey: Serializer[ A ], stm: S ) : HASkipList[ S, A ] = empty()
+
+   /**
+    * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
+    * specifies the type of the keys stored in the list.
+    *
+    * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 62 inclusive.
+    * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
+    *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
+    *                      for synchronized decimations of related data structures, such as the deterministic
+    *                      skip quadtree.
+    * @param   ord         the ordering of the keys. This is an instance of `de.sciss.collection.Ordering` to allow
+    *                      for specialized versions.
+    * @param   maxKey      the maximum key for the list. No element added can be equal or greater to this key.
+    * @param   mf          the manifest for key type `A`, necessary for internal array constructions.
+    * @param   serKey      the serializer for the elements, in case a persistent STM is used.
+    * @param   stm         the software transactional memory to use.
+    */
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                   keyObserver: txn.SkipList.KeyObserver[ S, A ] = txn.SkipList.NoKeyObserver[ S, A ])
                                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ],
-                                  mf: Manifest[ A ], stm: S ) : HASkipList[ S, A ] = {
-      require( minGap >= 1, "Minimum gap (" + minGap + ") cannot be less than 1" )
+                                  mf: Manifest[ A ], serKey: Serializer[ A ], stm: S ) : HASkipList[ S, A ] = {
+
+      // 127 <= arrMaxSz = (minGap + 1) << 1
+      // ; this is, so we can write a node's size as signed byte, and
+      // no reasonable app would use a node size > 127
+      require( minGap >= 1 && minGap <= 62, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 62" )
+
       new Impl[ S, A ]( maxKey.value, minGap, keyObserver )
    }
 
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int, Long ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S, A ])
-      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ], val system: S )
+      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ], serKey: Serializer[ A ],
+        val system: S )
    extends HASkipList[ S, A ] {
       private val arrMinSz = minGap + 1
       private val arrMaxSz = arrMinSz << 1   // aka maxGap + 1
@@ -559,11 +594,19 @@ object HASkipList {
 
       private object NodeOrBottom {
          implicit object Serializer extends Serializer[ NodeOrBottom ] {
-            def write( v: NodeOrBottom, os: ObjectOutputStream ) { sys.error( "TODO" )}
-            def read( is: ObjectInputStream ) : NodeOrBottom = sys.error( "TODO" )
+            def write( v: NodeOrBottom, os: ObjectOutputStream ) { v.write( os )}
+            def read( is: ObjectInputStream ) : NodeOrBottom = {
+               (is.readByte(): @switch) match {
+                  case 0 => BottomImpl
+                  case 1 => BranchImpl.read( is )
+                  case 2 => LeafImpl.read( is )
+               }
+            }
          }
       }
-      private sealed trait NodeOrBottom extends Child
+      private sealed trait NodeOrBottom extends Child {
+         def write( os: ObjectOutputStream ) : Unit
+      }
 
       private sealed trait NodeLike extends Node /* with NodeOrBottom */ {
          def removeColumn( idx: Int ) : LeafOrBranch
@@ -571,8 +614,13 @@ object HASkipList {
 
       private object LeafOrBranch {
          implicit object Ser extends Serializer[ LeafOrBranch ] {
-            def write( v: LeafOrBranch, os: ObjectOutputStream ) { sys.error( "TODO" )}
-            def read( is: ObjectInputStream ) : LeafOrBranch = sys.error( "TODO" )
+            def write( v: LeafOrBranch, os: ObjectOutputStream ) { v.write( os )}
+            def read( is: ObjectInputStream ) : LeafOrBranch = {
+               (is.readByte(): @switch) match {
+                  case 1 => BranchImpl.read( is )
+                  case 2 => LeafImpl.read( is )
+               }
+            }
          }
       }
       private sealed trait LeafOrBranch extends NodeLike with NodeOrBottom {
@@ -636,6 +684,16 @@ object HASkipList {
          }
       }
 
+      private object LeafImpl {
+         def read( is: ObjectInputStream ) : LeafImpl = {
+            val sz: Int = is.readByte()
+            val keys = new Array[ A ]( sz )
+            var i = 0; while( i < sz ) {
+               keys( i ) = serKey.read( is )
+            i += 1 }
+            new LeafImpl( keys )
+         }
+      }
       private final class LeafImpl( keys: Array[ A ])
       extends LeafLike with LeafOrBranch {
          def key( idx: Int ) = keys( idx )
@@ -726,6 +784,15 @@ object HASkipList {
          }
 
 //         override def toString = toString( "Leaf" )
+
+         def write( os: ObjectOutputStream ) {
+            os.writeByte( 2 )
+            val sz = size
+            os.writeByte( sz )
+            var i = 0; while( i < sz ) {
+               serKey.write( keys( i ), os )
+            i += 1 }
+         }
       }
 
       private sealed trait HeadOrBranch /* extends Branch */ {
@@ -810,6 +877,20 @@ assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + "
          }
       }
 
+      private object BranchImpl {
+         def read( is: ObjectInputStream ) : BranchImpl = {
+            val sz: Int = is.readByte()
+            val keys    = new Array[ A ]( sz )
+            val downs   = system.newRefArray[ LeafOrBranch ]( sz )
+            var i = 0; while( i < sz ) {
+               keys( i ) = serKey.read( is )
+            i += 1 }
+            i = 0; while( i < sz ) {
+               downs( i ) = system.readRef[ LeafOrBranch ]( is )
+            i += 1 }
+            new BranchImpl( keys, downs )
+         }
+      }
       private final class BranchImpl( keys: Array[ A ], downs: Array[ S#Ref[ LeafOrBranch ]])
       extends BranchLike with HeadOrBranch with LeafOrBranch {
          assert( keys.size == downs.size )
@@ -907,10 +988,23 @@ assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
 
             new BranchImpl( bkeys, bdowns )
          }
+
+         def write( os: ObjectOutputStream ) {
+            os.writeByte( 1 )
+            val sz = size
+            os.writeByte( sz )
+            var i = 0; while( i < sz ) {
+               serKey.write( keys( i ), os )
+            i += 1 }
+            i = 0; while( i < sz ) {
+               system.writeRef( downs( i ), os )
+            i += 1 }
+         }
       }
 
       private object Head extends HeadOrBranch {
 //         val downNode = system.newRef[ NodeOrBottom ]( BottomImpl )
+         // XXX TODO not nice to issue a txn here
          val downNode = system.atomic { implicit tx =>
             system.newRef[ NodeOrBottom ]( BottomImpl )
          }
@@ -937,6 +1031,10 @@ assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
 
       private object BottomImpl extends Bottom with NodeOrBottom {
          override def toString = "Bottom"
+
+         def write( os: ObjectOutputStream ) {
+            os.writeByte( 0 )
+         }
       }
    }
 }

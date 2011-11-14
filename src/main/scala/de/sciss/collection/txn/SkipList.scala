@@ -26,11 +26,11 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.Sys
+import de.sciss.lucrestm.{Serializer, Sys}
 
 object SkipList {
    def empty[ S <: Sys[ S ], A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
-                                  stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
+                                  serKey: Serializer[ A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
 
 //   private type CC[ A ] = SkipList[ A ]
 //   private type Coll = CC[ _ ]
