@@ -33,27 +33,34 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
 
    val rnd           = new util.Random( SEED )
 
-   def withSys[ S <: Sys[ S ]]( sysName: String )( implicit sys: S ) {
-      withList[    S ]( "HA-1 (" + sysName + ")", (oo, txn) => HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo ))
+   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: S => Unit ) {
+      withList[ S ]( "HA-1 (" + sysName + ")", oo => {
+         implicit val sys = sysCreator()
+         val l = HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )
+         (l, () => sysCleanUp( sys ))
+      })
       if( TWO_GAP_SIZES ) {
-         withList[ S ]( "HA-2 (" + sysName + ")", (oo, txn) => HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo ))
+         withList[ S ]( "HA-2 (" + sysName + ")", oo => {
+            implicit val sys = sysCreator()
+            val l = HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )
+            (l, () => sysCleanUp( sys ))
+         })
       }
    }
 
-   if( INMEMORY ) withSys( "Mem" )( new InMemory )
+   if( INMEMORY ) withSys( "Mem", () => new InMemory, (_: InMemory) => () )
    if( DATABASE ) {
-      val dir     = File.createTempFile( "tree", "_database" )
-      dir.delete()
-      dir.mkdir()
-      val f       = new File( dir, "data" )
-      println( f.getAbsolutePath )
-      val bdb  = BerkeleyDB.open( f )
-      try {
-         withSys( "BDB" )( bdb )
+      withSys[ BerkeleyDB ]( "BDB", () => {
+         val dir     = File.createTempFile( "tree", "_database" )
+         dir.delete()
+         dir.mkdir()
+         val f       = new File( dir, "data" )
+         println( f.getAbsolutePath )
+         BerkeleyDB.open( f )
+      }, bdb => {
          println( "FINAL DB SIZE = " + bdb.numRefs )
-      } finally {
          bdb.close()
-      }
+      })
    }
 
    def atomic[ A ]( fun: InTxn => A ) : A = TxnExecutor.defaultAtomic( fun )
@@ -161,8 +168,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   private def withList[ S <: Sys[ S ]]( name: String, lf: (SkipList.KeyObserver[ S, Int ], S#Tx) => SkipList[ S, Int ])
-                                       ( implicit sys: S ) {
+   private def withList[ S <: Sys[ S ]]( name: String,
+                                         lf: SkipList.KeyObserver[ S, Int ] => (SkipList[ S, Int ], () => Unit) ) {
       def scenarioWithTime( descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
@@ -178,13 +185,17 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
             info( "are tried and expected behaviour verified" )
 
             scenarioWithTime( "Consistency is verified on a randomly filled structure" ) {
-               val l  = sys.atomic { tx => lf( SkipList.NoKeyObserver, tx )}
-               val s  = MSet.empty[ Int ]
-               randFill( l, s )
-               verifyOrder( l )
-               verifyElems( l, s )
-               verifyContainsNot( l, s )
-               verifyAddRemoveAll( l, s )
+               val (l, cleanUp)  = lf( SkipList.NoKeyObserver )
+               try {
+                  val s  = MSet.empty[ Int ]
+                  randFill( l, s )
+                  verifyOrder( l )
+                  verifyElems( l, s )
+                  verifyContainsNot( l, s )
+                  verifyAddRemoveAll( l, s )
+               } finally {
+                  cleanUp()
+               }
             }
          }
       }
@@ -196,57 +207,61 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
 
             scenarioWithTime( "Observation is verified on a randomly filled structure" ) {
                val obs   = new Obs[ S ]
-               val l     = sys.atomic { tx => lf( obs, tx )}
-               val s     = randFill2 // randFill3
-               when( "all the elements of the set are added" )
-               var uppedInsKey = false
-               sys.atomic { implicit tx =>
-                  s.foreach { i =>
-                     obs.oneUp.transform( _ - i )
-                     l.add( i )
-                     uppedInsKey |= obs.oneUp().contains( i )
-                  }
-               }
-               then( "none was ever promoted during their insertion" )
-               assert( !uppedInsKey )
-               then( "there haven't been any demotions" )
-               assert( obs.allDn.single().isEmpty, obs.allDn.single().take( 10 ).toString() )
-               then( "there were several promotions" )
-               assert( obs.allUp.single().nonEmpty )
-               then( "the height of the list is equal to the maximally promoted key + 1" )
-               val maxProm = obs.allUp.single().maxBy( _._2 )._2
-               val h  = sys.atomic { implicit tx => l.height }
-//println( "height = " + h )
-               assert( h == maxProm + 1, "Height is reported as " + h + ", while keys were maximally promoted " + maxProm + " times" )
-               val sz = s.size + 1 // account for the 'maxKey'
-               val minH = math.ceil( math.log( sz ) / math.log( l.maxGap + 1 )).toInt
-               val maxH = math.ceil( math.log( sz ) / math.log( l.minGap + 1 )).toInt
-               then( "ceil(log(n+1)/log(maxGap+1)) <= height <= ceil(log(n+1)/log(minGap+1))" )
-               assert( minH <= h && h <= maxH, "Not: " + minH + " <= " + h + " <= " + maxH )
-
-               if( REMOVAL ) {
-                  when( "all the elements are removed again" )
-                  var uppedDelKey = false
-                  sys.atomic { implicit tx =>
+               val (l, cleanUp) = lf( obs )
+               try {
+                  val s     = randFill2 // randFill3
+                  when( "all the elements of the set are added" )
+                  var uppedInsKey = false
+                  l.system.atomic { implicit tx =>
                      s.foreach { i =>
                         obs.oneUp.transform( _ - i )
-                        l.remove( i )
-                        uppedDelKey |= obs.oneUp().contains( i )
+                        l.add( i )
+                        uppedInsKey |= obs.oneUp().contains( i )
                      }
                   }
-                  then( "none was ever promoted during their deletion" )
-                  assert( !uppedDelKey, "elements were promoted during their deletion" )
-                  val upsNotInS = obs.allUp.single().keys.filterNot( s.contains( _ ))
-                  then( "no key was ever promoted which was not in s" )
-                  assert( upsNotInS.isEmpty, upsNotInS.take( 10 ).toString() )
-                  val dnsNotInS = obs.allDn.single().keys.filterNot( s.contains( _ ))
-                  then( "no key was ever demoted which was not in s" )
-                  assert( dnsNotInS.isEmpty, dnsNotInS.take( 10 ).toString() )
-                  val unbal = atomic { implicit tx =>
-                     s.map( i => i -> (obs.allUp().getOrElse( i, 0 ) - obs.allDn().getOrElse( i, 0 ))).filterNot( _._2 == 0 )
+                  then( "none was ever promoted during their insertion" )
+                  assert( !uppedInsKey )
+                  then( "there haven't been any demotions" )
+                  assert( obs.allDn.single().isEmpty, obs.allDn.single().take( 10 ).toString() )
+                  then( "there were several promotions" )
+                  assert( obs.allUp.single().nonEmpty )
+                  then( "the height of the list is equal to the maximally promoted key + 1" )
+                  val maxProm = obs.allUp.single().maxBy( _._2 )._2
+                  val h  = l.system.atomic { implicit tx => l.height }
+//println( "height = " + h )
+                  assert( h == maxProm + 1, "Height is reported as " + h + ", while keys were maximally promoted " + maxProm + " times" )
+                  val sz = s.size + 1 // account for the 'maxKey'
+                  val minH = math.ceil( math.log( sz ) / math.log( l.maxGap + 1 )).toInt
+                  val maxH = math.ceil( math.log( sz ) / math.log( l.minGap + 1 )).toInt
+                  then( "ceil(log(n+1)/log(maxGap+1)) <= height <= ceil(log(n+1)/log(minGap+1))" )
+                  assert( minH <= h && h <= maxH, "Not: " + minH + " <= " + h + " <= " + maxH )
+
+                  if( REMOVAL ) {
+                     when( "all the elements are removed again" )
+                     var uppedDelKey = false
+                     l.system.atomic { implicit tx =>
+                        s.foreach { i =>
+                           obs.oneUp.transform( _ - i )
+                           l.remove( i )
+                           uppedDelKey |= obs.oneUp().contains( i )
+                        }
+                     }
+                     then( "none was ever promoted during their deletion" )
+                     assert( !uppedDelKey, "elements were promoted during their deletion" )
+                     val upsNotInS = obs.allUp.single().keys.filterNot( s.contains( _ ))
+                     then( "no key was ever promoted which was not in s" )
+                     assert( upsNotInS.isEmpty, upsNotInS.take( 10 ).toString() )
+                     val dnsNotInS = obs.allDn.single().keys.filterNot( s.contains( _ ))
+                     then( "no key was ever demoted which was not in s" )
+                     assert( dnsNotInS.isEmpty, dnsNotInS.take( 10 ).toString() )
+                     val unbal = atomic { implicit tx =>
+                        s.map( i => i -> (obs.allUp().getOrElse( i, 0 ) - obs.allDn().getOrElse( i, 0 ))).filterNot( _._2 == 0 )
+                     }
+                     then( "the number of promotions and demotions for every key is equal" )
+                     assert( unbal.isEmpty, unbal.take( 10 ).toString() )
                   }
-                  then( "the number of promotions and demotions for every key is equal" )
-                  assert( unbal.isEmpty, unbal.take( 10 ).toString() )
+               } finally {
+                  cleanUp()
                }
             }
          }

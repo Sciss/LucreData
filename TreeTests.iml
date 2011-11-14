@@ -56,13 +56,24 @@
           <root url="jar://$MODULE_DIR$/lib_managed/jars/de.sciss/lucrestm_2.9.1/lucrestm_2.9.1-0.10-SNAPSHOT.jar!/" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES />
+        <SOURCES>
+          <root url="jar://$MODULE_DIR$/../LucreSTM/target/scala-2.9.1/lucrestm_2.9.1-0.10-SNAPSHOT-sources.jar!/" />
+        </SOURCES>
       </library>
     </orderEntry>
     <orderEntry type="module-library">
       <library>
         <CLASSES>
           <root url="jar://$MODULE_DIR$/lib_managed/jars/org.scala-tools/scala-stm_2.9.1/scala-stm_2.9.1-0.4.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/lib_managed/jars/com.sleepycat/je/je-4.1.10.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
