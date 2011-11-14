@@ -74,6 +74,8 @@ object SkipList {
 trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
 //   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
 
+   def system: S
+
    /**
     * Searches for the Branch of a given key.
     *

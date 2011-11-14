@@ -393,6 +393,7 @@ object HASkipList {
                   // at bNew's index idxP is now the one formerly at
                   // idxP1, hence the right-most key in csib.
                   bNew        = b.removeColumn( idxP )
+                  system.disposeRef( b.downRef( idxP ))
 //                  bDownIdx    = idxP
                   cNew        = c.virtualize( ModMergeRight, cSib )
                } else if( cSibSz > arrMinSz ) {                // borrow from the right
@@ -439,6 +440,7 @@ object HASkipList {
                   // The parent needs to remove the
                   // entry of the left sibling.
                   bNew        = b.removeColumn( idxPM1 )
+                  system.disposeRef( b.downRef( idxPM1 ))
                   bDownIdx    = idxPM1
                   cNew        = c.virtualize( ModMergeLeft, cSib )
                } else {                                        // borrow from the left
