@@ -87,20 +87,18 @@ object HASkipList {
       // no reasonable app would use a node size > 255
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
-implicit def nodeSer: Serializer[ Node[ S, A ]] = null // XXX
-      val downNode = system.newRef[ Node[ S, A ]]( null )
-      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, downNode )
+      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newRef[ Node[ S, A ]]( null )( tx, list ))
    }
 
    def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
                                      ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
                                        keySerializer: Serializer[ A ], system: S ): Serializer[ HASkipList[ S, A ]] =
-      new Ser[ S, A ]( keyObserver, mf, ordering, keySerializer, system )
+      new Ser[ S, A ]( keyObserver )
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ],
-                                                mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
+   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
+                                              ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
                                                 keySerializer: Serializer[ A ], system: S )
    extends Serializer[ HASkipList[ S, A ]] {
       def read( in: DataInput ) : HASkipList[ S, A ] = {
@@ -110,10 +108,7 @@ implicit def nodeSer: Serializer[ Node[ S, A ]] = null // XXX
 
          val minGap  = in.readInt()
          val maxKey  = keySerializer.read( in )
-         // XXX downRef
-         sys.error( "TODO" )
-         val downRef : S#Ref[ Node[ S, A ]] = null.asInstanceOf[ S#Ref[ Node[ S, A ]]]
-         new Impl( maxKey, minGap, keyObserver, downRef )( mf, ordering, keySerializer, system )
+         new Impl[ S, A ]( maxKey, minGap, keyObserver, list => list.system.readRef[ Node[ S, A ]]( in )( list ))
       }
 
       def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
@@ -123,13 +118,15 @@ implicit def nodeSer: Serializer[ Node[ S, A ]] = null // XXX
 
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S, A ],
-        downNode: S#Ref[ Node[ S, A ]])
+        _downNode: Impl[ S, A ] => S#Ref[ Node[ S, A ]])
       ( implicit val mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ],
         val keySerializer: Serializer[ A ], val system: S )
    extends HASkipList[ S, A ] with Serializer[ Node[ S, A ]] with HeadOrBranch[ S, A ] {
 
       implicit private def head = this
 //      implicit def nodeSer = new NodeSer[ S, A ]
+
+      private val downNode = _downNode( this )
 
       def arrMinSz = minGap + 1
       private val arrMaxSz = arrMinSz << 1   // aka maxGap + 1
@@ -208,17 +205,17 @@ implicit def nodeSer: Serializer[ Node[ S, A ]] = null // XXX
       override def add( v: A )( implicit tx: S#Tx ) : Boolean = {
          require( ordering.lt( v, maxKey ))
          val c = topN
-         if( c.isLeaf ) {
-            addLeaf( v, head, 0, head, 0, c.asLeaf )
-         } else if( c.isBranch ) {
-            addBranch( v, head, 0, head, 0, c.asBranch )
-         } else {
+         if( c == null ) {
             val lkeys         = new Array[ A ]( 2 )
             lkeys( 0 )        = v
             lkeys( 1 )        = maxKey
             val l             = new Leaf[ S, A ]( lkeys )
             /*Head.*/ downNode.set( l )
             true
+         } else if( c.isLeaf ) {
+            addLeaf( v, head, 0, head, 0, c.asLeaf )
+         } else {
+            addBranch( v, head, 0, head, 0, c.asBranch )
          }
       }
 
@@ -464,9 +461,16 @@ implicit def nodeSer: Serializer[ Node[ S, A ]] = null // XXX
 //      }
 
       // ---- Serializer[ Node[ S, A ]] ----
-      def write( v: Node[ S, A ], out: DataOutput ) { v.write( out )}
+      def write( v: Node[ S, A ], out: DataOutput ) {
+         if( v == null ) {
+            out.writeUnsignedByte( 0 ) // Bottom
+         } else {
+            v.write( out )
+         }
+      }
       def read( in: DataInput ) : Node[ S, A ] = {
          (in.readUnsignedByte(): @switch) match {
+            case 0 => null // .asInstanceOf[ Node[ S, A ]]
             case 1 => Branch.read( in )
             case 2 => Leaf.read( in )
          }

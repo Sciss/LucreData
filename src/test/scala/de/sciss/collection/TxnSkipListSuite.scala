@@ -19,8 +19,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val OBSERVATION   = true
    val REMOVAL       = true
    val TWO_GAP_SIZES = false // true
-   val INMEMORY      = false // true
-   val DATABASE      = true
+   val INMEMORY      = true // true
+   val DATABASE      = false
 
    // large
    val NUM1          = 0x040000  // 0x200000
@@ -37,13 +37,13 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
       if( TWO_GAP_SIZES ) {
          withList[ S ]( "HA-1 (" + sysName + ")", oo => {
             implicit val sys = sysCreator()
-            val l = HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )
+            val l = sys.atomic { implicit tx => HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )}
             (l, () => sysCleanUp( sys ))
          })
       }
       withList[ S ]( "HA-2 (" + sysName + ")", oo => {
          implicit val sys = sysCreator()
-         val l = HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )
+         val l = sys.atomic { implicit tx => HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )}
          (l, () => sysCleanUp( sys ))
       })
    }
