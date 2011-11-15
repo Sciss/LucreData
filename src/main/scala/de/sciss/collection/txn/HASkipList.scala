@@ -87,7 +87,13 @@ object HASkipList {
       // no reasonable app would use a node size > 255
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
-      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newRef[ Node[ S, A ]]( null )( tx, list ))
+//      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newRef[ Node[ S, A ]]( null )( tx, list ))
+      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => {
+println( "CALLING NEW REF FOR DOWN NODE" )
+         val res = system.newRef[ Node[ S, A ]]( null )( tx, list )
+res.debug
+         res
+      })
    }
 
    def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
@@ -97,9 +103,9 @@ object HASkipList {
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
-                                              ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
-                                                keySerializer: Serializer[ A ], system: S )
+   final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
+                                      ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
+                                        keySerializer: Serializer[ A ], system: S )
    extends Serializer[ HASkipList[ S, A ]] {
       def read( in: DataInput ) : HASkipList[ S, A ] = {
          val version = in.readUnsignedByte()
