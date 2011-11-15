@@ -29,7 +29,7 @@ package txn
 import de.sciss.lucrestm.{Serializer, Sys}
 
 object SkipList {
-   def empty[ S <: Sys[ S ], A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
+   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
                                   serKey: Serializer[ A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
 
 //   private type CC[ A ] = SkipList[ A ]
