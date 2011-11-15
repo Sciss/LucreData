@@ -18,7 +18,9 @@ libraryDependencies ++= Seq(
 
 retrieveManaged := true
 
-scalacOptions ++= Seq( "-deprecation", "-unchecked" )
+// the guy who is responsible for specialization should be decapitated
+
+scalacOptions ++= Seq( "-deprecation", "-unchecked", "-no-specialization" )
 
 // ---- publishing ----
 

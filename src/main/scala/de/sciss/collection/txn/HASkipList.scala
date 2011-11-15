@@ -114,7 +114,7 @@ object HASkipList {
 
    private val SER_VERSION = 0
 
-   private final class Impl[ S <: Sys[ S ], /* @specialized( Int, Long ) */ A ]
+   private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S, A ])
       ( implicit val mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ],
         val keySerializer: Serializer[ A ], val system: S )
@@ -618,7 +618,7 @@ object HASkipList {
     */
    private case object ModBorrowToRight extends ModVirtual
 
-   private sealed trait VirtualLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
+   private sealed trait VirtualLike[ S <: Sys[ S ], @specialized( Int ) A ] {
       protected def mod:  ModVirtual
       protected def main: Node[ S, A ]
       protected def sib:  Node[ S, A ]
@@ -648,7 +648,7 @@ object HASkipList {
    }
 
    object Child {
-      implicit def ser[ S <: Sys[ S ], @specialized( Int, Long) A ]( implicit list: Impl[ S, A ]) : Serializer[ Child[ S, A ]] =
+      implicit def ser[ S <: Sys[ S ], @specialized( Int ) A ]( implicit list: Impl[ S, A ]) : Serializer[ Child[ S, A ]] =
          new Serializer[ Child[ S, A ]] {
 
          def write( v: Child[ S, A ], out: DataOutput ) { v.write( out )}
@@ -661,7 +661,7 @@ object HASkipList {
          }
       }
    }
-   sealed trait Child[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
+   sealed trait Child[ S <: Sys[ S ], @specialized( Int ) A ] {
       private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) : Unit
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
       private[HASkipList] def printNode( implicit tx: S#Tx, list: Impl[ S, A ]) : IndexedSeq[ String ]
@@ -670,7 +670,7 @@ object HASkipList {
       def branchOption : Option[ Branch[ S, A ]]
       def isBottom : Boolean
    }
-   sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] /* extends Child[ S, A ] */ {
+   sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int ) A ] /* extends Child[ S, A ] */ {
       private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Node[ S, A ]
       def size : Int
       def key( i: Int ): A
@@ -678,7 +678,7 @@ object HASkipList {
       private[HASkipList] def branchLikeOption : Option[ BranchLike[ S, A ]]
    }
 
-//   private final class NodeSer[ S <: Sys[ S ], @specialized( Int, Long) A ]( implicit list: Impl[ S, A ])
+//   private final class NodeSer[ S <: Sys[ S ], @specialized( Int ) A ]( implicit list: Impl[ S, A ])
 //   extends Serializer[ Node[ S, A ]] {
 //      def write( v: Node[ S, A ], out: DataOutput ) { v.write( out )}
 //      def read( in: DataInput ) : Node[ S, A ] = {
@@ -690,19 +690,19 @@ object HASkipList {
 //   }
 
    object Node {
-      def unapply[ S <: Sys[ S ], @specialized( Int, Long ) A ]( child: Child[ S, A ]) : Option[ Node[ S, A ]] = child.nodeOption
+      def unapply[ S <: Sys[ S ], @specialized( Int ) A ]( child: Child[ S, A ]) : Option[ Node[ S, A ]] = child.nodeOption
    }
-   sealed trait Node[ S <: Sys[ S ], @specialized( Int, Long) A ] extends NodeLike[ S, A ] with Child[ S, A ] {
+   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] with Child[ S, A ] {
       private[HASkipList] def virtualize( mod: ModVirtual, sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ]
       final def nodeOption : Option[ Node[ S, A ]] = Some( this )
       final def isBottom : Boolean = false
    }
 
    object BranchLike {
-      def unapply[ S <: Sys[ S ], @specialized( Int, Long) A ]( node: NodeLike[ S, A ]) : Option[ BranchLike[ S, A ]] =
+      def unapply[ S <: Sys[ S ], @specialized( Int ) A ]( node: NodeLike[ S, A ]) : Option[ BranchLike[ S, A ]] =
          node.branchLikeOption
    }
-   sealed trait BranchLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends NodeLike[ S, A ] {
+   sealed trait BranchLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
       def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ]
       private[HASkipList] def downRef( idx: Int ) : S#Ref[ Node[ S, A ]]
       private[HASkipList] def updateKey( idx: Int, key: A )( implicit list: Impl[ S, A ]) : Branch[ S, A ]
@@ -713,17 +713,17 @@ object HASkipList {
    }
 
    object LeafLike {
-      def unapply[ S <: Sys[ S ], @specialized( Int, Long) A ]( node: NodeLike[ S, A ]) : Option[ LeafLike[ S, A ]] =
+      def unapply[ S <: Sys[ S ], @specialized( Int ) A ]( node: NodeLike[ S, A ]) : Option[ LeafLike[ S, A ]] =
          node.leafLikeOption
    }
-   sealed trait LeafLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends NodeLike[ S, A ] {
+   sealed trait LeafLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
       private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]) : Leaf[ S, A ]
       private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ]
       final def branchLikeOption : Option[ BranchLike[ S, A ]] = None
       final def leafLikeOption : Option[ LeafLike[ S, A ]] = Some( this )
    }
 
-   final class Bottom[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Child[ S, A ] {
+   final class Bottom[ S <: Sys[ S ], @specialized( Int ) A ] extends Child[ S, A ] {
       override def toString = "Bottom"
 
       def nodeOption : Option[ Node[ S, A ]] = None
@@ -741,9 +741,9 @@ object HASkipList {
          IndexedSeq( list.keyString( list.maxKey ))
    }
 
-   private final class VirtualLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A ]( protected val main: Leaf[ S, A ],
-                                                                                  protected val mod: ModVirtual,
-                                                                                  protected val sib: Leaf[ S, A ])
+   private final class VirtualLeaf[ S <: Sys[ S ], @specialized( Int ) A ]( protected val main: Leaf[ S, A ],
+                                                                            protected val mod: ModVirtual,
+                                                                            protected val sib: Leaf[ S, A ])
    extends LeafLike[ S, A ] with VirtualLike[ S, A ] {
       def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
          import list.{size => _, _}
@@ -776,7 +776,7 @@ object HASkipList {
    }
 
    object Leaf {
-      def read[ S <: Sys[ S ], @specialized( Int, Long) A ]( in: DataInput )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
+      def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
          import list._
          val sz: Int = in.readUnsignedByte()
          val keys = new Array[ A ]( sz )
@@ -786,10 +786,10 @@ object HASkipList {
          new Leaf[ S, A ]( keys )
       }
 
-      def unapply[ S <: Sys[ S ], @specialized( Int, Long) A ]( child: Child[ S, A ]) : Option[ Leaf[ S, A ]] =
+      def unapply[ S <: Sys[ S ], @specialized( Int ) A ]( child: Child[ S, A ]) : Option[ Leaf[ S, A ]] =
          child.leafOption
    }
-   final class Leaf[ S <: Sys[ S ], @specialized( Int, Long) A ]( keys: Array[ A ])
+   final class Leaf[ S <: Sys[ S ], @specialized( Int ) A ]( keys: Array[ A ])
    extends LeafLike[ S, A ] with Node[ S, A ] {
       def key( idx: Int ) = keys( idx )
       def size : Int = keys.size
@@ -915,9 +915,9 @@ object HASkipList {
 //         def devirtualize : Branch
 //      }
 
-   private final class VirtualBranch[ S <: Sys[ S ], @specialized( Int, Long) A ]( protected val main: Branch[ S, A ],
-                                                                                   protected val mod: ModVirtual,
-                                                                                   protected val sib: Branch[ S, A ])
+   private final class VirtualBranch[ S <: Sys[ S ], @specialized( Int ) A ]( protected val main: Branch[ S, A ],
+                                                                              protected val mod: ModVirtual,
+                                                                              protected val sib: Branch[ S, A ])
    extends BranchLike[ S, A ] with VirtualLike[ S, A ] {
       def downRef( idx: Int ) : S#Ref[ Node[ S, A ]] = mod match {
          case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
@@ -987,7 +987,7 @@ assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + "
    }
 
    object Branch {
-      def read[ S <: Sys[ S ], @specialized( Int, Long ) A ]( in: DataInput )
+      def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput )
                                                             ( implicit list: Impl[ S, A ]) : Branch[ S, A ] = {
          import list._
          val sz: Int = in.readUnsignedByte()
@@ -1002,10 +1002,10 @@ assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + "
          new Branch[ S, A ]( keys, downs )
       }
 
-      def unapply[ S <: Sys[ S ], @specialized( Int, Long) A ]( child: Child[ S, A ]) : Option[ Branch[ S, A ]] =
+      def unapply[ S <: Sys[ S ], @specialized( Int ) A ]( child: Child[ S, A ]) : Option[ Branch[ S, A ]] =
          child.branchOption
    }
-   final class Branch[ S <: Sys[ S ], @specialized( Int, Long ) A ]( keys: Array[ A ],
+   final class Branch[ S <: Sys[ S ], @specialized( Int ) A ]( keys: Array[ A ],
                                                                      downs: Array[ S#Ref[ Node[ S, A ]]])
    extends BranchLike[ S, A ] with HeadOrBranch[ S, A ] with Node[ S, A ] {
 //      assert( keys.size == downs.size )
@@ -1154,7 +1154,7 @@ assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + "
    }
 }
 
-sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int, Long) A ] extends txn.SkipList[ S, A ] {
+sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
    def system: S
 
    def top( implicit tx: S#Tx ) : HASkipList.Child[ S, A ]
