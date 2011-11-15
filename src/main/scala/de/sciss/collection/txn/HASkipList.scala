@@ -87,8 +87,8 @@ object HASkipList {
       // no reasonable app would use a node size > 255
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
-implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
-      val downNode = system.newRef[ Child[ S, A ]]( new Bottom[ S, A ])
+implicit def nodeSer: Serializer[ Node[ S, A ]] = null // XXX
+      val downNode = system.newRef[ Node[ S, A ]]( null )
       new Impl[ S, A ]( maxKey.value, minGap, keyObserver, downNode )
    }
 
@@ -112,7 +112,7 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
          val maxKey  = keySerializer.read( in )
          // XXX downRef
          sys.error( "TODO" )
-         val downRef : S#Ref[ Child[ S, A ]] = null.asInstanceOf[ S#Ref[ Child[ S, A ]]]
+         val downRef : S#Ref[ Node[ S, A ]] = null.asInstanceOf[ S#Ref[ Node[ S, A ]]]
          new Impl( maxKey, minGap, keyObserver, downRef )( mf, ordering, keySerializer, system )
       }
 
@@ -123,7 +123,7 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
 
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S, A ],
-        downNode: S#Ref[ Child[ S, A ]])
+        downNode: S#Ref[ Node[ S, A ]])
       ( implicit val mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ],
         val keySerializer: Serializer[ A ], val system: S )
    extends HASkipList[ S, A ] with Serializer[ Node[ S, A ]] with HeadOrBranch[ S, A ] {
@@ -141,12 +141,12 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
          system.writeRef( /* Head. */ downNode, out )
       }
 
-      override def size( implicit tx: S#Tx ) : Int = top.leafSizeSum - 1
+      override def size( implicit tx: S#Tx ) : Int = topN.leafSizeSum - 1
 
       def maxGap : Int = arrMaxSz - 1  // aka (minGap << 1) + 1
       def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
 
-      def isEmpty( implicit tx: S#Tx )   = top.isBottom
+      def isEmpty( implicit tx: S#Tx )   = topN == null
       def notEmpty( implicit tx: S#Tx )  = !isEmpty
 
       def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ] = fillBuilder( IIdxSeq.newBuilder[ A ])
@@ -155,8 +155,8 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
       def toSet(  implicit tx: S#Tx ) : Set[  A ] = fillBuilder( Set.newBuilder[  A ])
 
       def height( implicit tx: S#Tx ) : Int = {
-         var n    = top
-         if( n.isBottom ) 0 else {
+         var n = topN
+         if( n == null ) 0 else {
             var h = 1
             while( n.isBranch ) {
                n = n.asBranch.down( 0 )
@@ -166,10 +166,10 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
          }
       }
 
-      def top( implicit tx: S#Tx ) : Child[ S, A ] = /* Head.*/ downNode.get
-//      private[txn] def topRef : S#Ref[ Child ] = Head.downNode
+      def top( implicit tx: S#Tx ) : Option[ Node[ S, A ]] = Option( topN )
+      private def topN( implicit tx: S#Tx ) : Node[ S, A ] = /* Head.*/ downNode.get
 
-      def debugPrint( implicit tx: S#Tx ) : String = top.printNode.mkString( "\n" )
+      def debugPrint( implicit tx: S#Tx ) : String = topN.printNode.mkString( "\n" )
 
       def keyString( key: A ) : String = if( key == maxKey ) "M" else key.toString
 
@@ -183,8 +183,8 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
             if( idx < 0 ) true else if( n.isLeaf ) false else step( n.asBranch.down( idx ))
          }
 
-         val c = top
-         if( c.isBottom ) false else step( c.asNode )
+         val c = topN
+         if( c == null ) false else step( c )
       }
 
       /*
@@ -207,7 +207,7 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
 
       override def add( v: A )( implicit tx: S#Tx ) : Boolean = {
          require( ordering.lt( v, maxKey ))
-         val c = top
+         val c = topN
          if( c.isLeaf ) {
             addLeaf( v, head, 0, head, 0, c.asLeaf )
          } else if( c.isBranch ) {
@@ -286,7 +286,7 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
 
       override def remove( v: A )( implicit tx: S#Tx ) : Boolean = {
          if( ordering.gteq( v, maxKey )) return false
-         val c = top
+         val c = topN
          if( c.isLeaf ) {
             removeLeaf(   v, /* Head. */downNode, c.asLeaf )
          } else if( c.isBranch ) {
@@ -495,8 +495,8 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
          }
 
          def init()( implicit tx: S#Tx ) {
-            val c = top
-            if( !c.isBottom ) pushDown( c.asNode, 0 )
+            val c = topN
+            if( c != null ) pushDown( c, 0 )
          }
 
          def hasNext : Boolean = ordering.nequiv( nextKey, maxKey )
@@ -655,31 +655,6 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
                                               ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
    }
 
-   private final class ChildSer[ S <: Sys[ S ], @specialized( Int ) A ]( implicit list: Impl[ S, A ])
-   extends Serializer[ Child[ S, A ]] {
-      def write( v: Child[ S, A ], out: DataOutput ) { v.write( out )}
-      def read( in: DataInput ) : Child[ S, A ] = {
-         (in.readUnsignedByte(): @switch) match {
-            case 0 => new Bottom[ S, A ]
-            case 1 => Branch.read( in )
-            case 2 => Leaf.read( in )
-         }
-      }
-   }
-   sealed trait Child[ S <: Sys[ S ], @specialized( Int ) A ] {
-      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) : Unit
-      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
-      private[HASkipList] def printNode( implicit tx: S#Tx, list: Impl[ S, A ]) : IndexedSeq[ String ]
-//      def nodeOption : Option[ Node[ S, A ]]
-//      def leafOption : Option[ Leaf[ S, A ]]
-//      def branchOption : Option[ Branch[ S, A ]]
-      def isLeaf   : Boolean
-      def isBranch : Boolean
-      def isBottom : Boolean
-      def asLeaf   : Leaf[ S, A ]
-      def asBranch : Branch[ S, A ]
-      def asNode   : Node[ S, A ]
-   }
    sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int ) A ] /* extends Child[ S, A ] */ {
       private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Node[ S, A ]
       def size : Int
@@ -690,10 +665,15 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
       def asBranchLike : BranchLike[ S, A ]
    }
 
-   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] with Child[ S, A ] {
+   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] /* with Child[ S, A ] */ {
       private[HASkipList] def virtualize( mod: ModVirtual, sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ]
-      final def isBottom : Boolean = false
-      final def asNode : Node[ S, A ] = this
+      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) : Unit
+      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
+      private[HASkipList] def printNode( implicit tx: S#Tx, list: Impl[ S, A ]) : IndexedSeq[ String ]
+      def isLeaf   : Boolean
+      def isBranch : Boolean
+      def asLeaf   : Leaf[ S, A ]
+      def asBranch : Branch[ S, A ]
    }
 
    sealed trait BranchLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
@@ -717,25 +697,24 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
       final def asBranchLike : BranchLike[ S, A ] = opNotSupported
    }
 
-   final class Bottom[ S <: Sys[ S ], @specialized( Int ) A ] extends Child[ S, A ] {
-      override def toString = "Bottom"
-
-      def isLeaf   : Boolean = false
-      def isBranch : Boolean = false
-      def isBottom : Boolean = true
-      def asLeaf   : Leaf[ S, A ]   = opNotSupported
-      def asBranch : Branch[ S, A ] = opNotSupported
-      def asNode   : Node[ S, A ]   = opNotSupported
-
-      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
-         out.writeUnsignedByte( 0 )
-      }
-
-      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = 1
-
-      private[HASkipList] def printNode( implicit tx: S#Tx, list: Impl[ S, A ]) : IndexedSeq[ String ] =
-         IndexedSeq( list.keyString( list.maxKey ))
-   }
+//   final class Bottom[ S <: Sys[ S ], @specialized( Int ) A ] extends Child[ S, A ] {
+//      override def toString = "Bottom"
+//
+//      def isLeaf   : Boolean = false
+//      def isBranch : Boolean = false
+//      def asLeaf   : Leaf[ S, A ]   = opNotSupported
+//      def asBranch : Branch[ S, A ] = opNotSupported
+//      def asNode   : Node[ S, A ]   = opNotSupported
+//
+//      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
+//         out.writeUnsignedByte( 0 )
+//      }
+//
+//      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = 1
+//
+//      private[HASkipList] def printNode( implicit tx: S#Tx, list: Impl[ S, A ]) : IndexedSeq[ String ] =
+//         IndexedSeq( list.keyString( list.maxKey ))
+//   }
 
    private final class VirtualLeaf[ S <: Sys[ S ], @specialized( Int ) A ]( protected val main: Leaf[ S, A ],
                                                                             protected val mod: ModVirtual,
@@ -1135,7 +1114,7 @@ implicit def childSer: Serializer[ Child[ S, A ]] = null // XXX
 sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
    def system: S
 
-   def top( implicit tx: S#Tx ) : HASkipList.Child[ S, A ]
+   def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A ]]
 
    def write( out: DataOutput ) : Unit
    def keySerializer : Serializer[ A ]
