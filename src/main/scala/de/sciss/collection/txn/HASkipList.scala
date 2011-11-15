@@ -89,10 +89,10 @@ object HASkipList {
 
 //      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newRef[ Node[ S, A ]]( null )( tx, list ))
       new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => {
-println( "CALLING NEW REF FOR DOWN NODE" )
-         val res = system.newRef[ Node[ S, A ]]( null )( tx, list )
-res.debug
-         res
+//println( "CALLING NEW REF FOR DOWN NODE" )
+         /* val res = */ system.newRef[ Node[ S, A ]]( null )( tx, list )
+//res.debug
+//         res
       })
    }
 
