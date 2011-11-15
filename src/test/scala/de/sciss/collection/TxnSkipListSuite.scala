@@ -34,18 +34,18 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val rnd           = new util.Random( SEED )
 
    def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: S => Unit ) {
-      withList[ S ]( "HA-1 (" + sysName + ")", oo => {
-         implicit val sys = sysCreator()
-         val l = HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )
-         (l, () => sysCleanUp( sys ))
-      })
       if( TWO_GAP_SIZES ) {
-         withList[ S ]( "HA-2 (" + sysName + ")", oo => {
+         withList[ S ]( "HA-1 (" + sysName + ")", oo => {
             implicit val sys = sysCreator()
-            val l = HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )
+            val l = HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )
             (l, () => sysCleanUp( sys ))
          })
       }
+      withList[ S ]( "HA-2 (" + sysName + ")", oo => {
+         implicit val sys = sysCreator()
+         val l = HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )
+         (l, () => sysCleanUp( sys ))
+      })
    }
 
    if( INMEMORY ) withSys( "Mem", () => new InMemory, (_: InMemory) => () )
