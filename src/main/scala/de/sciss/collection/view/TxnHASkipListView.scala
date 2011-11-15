@@ -26,78 +26,68 @@
 package de.sciss.collection
 package view
 
-import java.awt.{Color, Point, Rectangle, Dimension, Graphics2D}
+import java.awt.{Color, Point, Rectangle, Graphics2D}
 import de.sciss.lucrestm.Sys
 
 class TxnHASkipListView[ S <: Sys[ S ], A ]( private val l: txn.HASkipList[ S, A ])
 extends SkipListView[ A ] {
    private val stm      = l.system
-   private var boxMap   = Map.empty[ l.Child, NodeBox ]
 
-   setPreferredSize( rebuildMap() match {
-      case Some( bb )   => new Dimension( bb.r.width + 9, bb.r.height + 9 )
-      case None         => new Dimension( 54, 54 )
-   })
-
-   private def rebuildMap() : Option[ Box  ] = {
-      boxMap = boxMap.empty
-
-      stm.atomic { implicit tx =>
-         l.top match {
-            case n: l.Node =>
-               val bb = buildBoxMap( n )
-               bb.moveTo( 0, 0 )
-               Some( bb )
-            case _ => None
-         }
+   private def buildBoxMap( n: l.Node )( implicit tx: S#Tx ) : (Box, NodeBox) = {
+      val keys = IndexedSeq.tabulate( n.size ) { i =>
+         val key     = n.key( i )
+         (key, (if( key == Int.MaxValue ) "M" else key.toString))
       }
-   }
-
-   private def buildBoxMap( n: l.Node )( implicit tx: S#Tx ) : Box = {
-      val b = NodeBox( n )
-      boxMap += n -> b
-      n match {
-         case _: l.Leaf => b
+      val chbo = n match {
+         case _: l.Leaf => None
          case nb: l.Branch =>
-            val chb  = IndexedSeq.tabulate( n.size )( i => buildBoxMap( nb.down( i )))
+            Some( IndexedSeq.tabulate( n.size )( i => buildBoxMap( nb.down( i ))))
+      }
+      val b    = NodeBox( n, keys, chbo.map( _.map( _._2 )))
+      val bb   = chbo match {
+         case Some( chbt ) =>
+            val chb  = chbt.map( _._1 )
             val h    = Horiz( bs = chb )
             Vert( bs = IndexedSeq( b, h ))
+         case None => b
       }
+
+      (bb, b)
    }
 
    protected def paintList( g2: Graphics2D ) {
-      rebuildMap()
-      stm.atomic { implicit tx => l.top match {
-         case n: l.Node => drawNode( g2, n )
-         case _ =>
-      }}
+      stm.atomic { implicit tx =>
+         l.top match {
+            case n: l.Node =>
+               val (bb, nb) = buildBoxMap( n )
+               bb.moveTo( 0, 0 )
+               drawNode( g2, nb )
+            case _ =>
+         }
+      }
    }
 
-   private def drawNode( g2: Graphics2D, n: l.Node, arr: Option[ Point ] = None )( implicit tx: S#Tx ) {
-      boxMap.get( n ).foreach { b =>
-         g2.setColor( Color.black )
-         g2.draw( b.r )
-         val x = b.r.x
-         val y = b.r.y
-         val w = b.r.width
-         val h = b.r.height
-         if( h > 23 ) g2.drawLine( x, y + 23, x + b.r.width, y + 23 )
-         arr.foreach { pt =>
-            drawArrow( g2, pt.x, pt.y, x + (w >> 1), y - 2 )
-         }
-         for( i <- 1 to l.maxGap ) {
-            g2.drawLine( x + (i * 23), y, x + (i * 23), y + h )
-         }
-         for( i <- 0 until n.size ) {
-            val x1      = x + (i * 23)
-            val key     = n.key( i )
-            val keyStr  = if( key == Int.MaxValue ) "M" else key.toString
-            g2.setColor( highlight.getOrElse( key, Color.black ))
-            g2.drawString( keyStr, x1 + 4, y + 17 )
-            n match {
-               case nb: l.Branch => drawNode( g2, nb.down( i ), Some( new Point( x1 + 11, y + 36 )))
-               case _ =>
-            }
+   private def drawNode( g2: Graphics2D, b: NodeBox, arr: Option[ Point ] = None )( implicit tx: S#Tx ) {
+      g2.setColor( Color.black )
+      g2.draw( b.r )
+      val x = b.r.x
+      val y = b.r.y
+      val w = b.r.width
+      val h = b.r.height
+      if( h > 23 ) g2.drawLine( x, y + 23, x + b.r.width, y + 23 )
+      arr.foreach { pt =>
+         drawArrow( g2, pt.x, pt.y, x + (w >> 1), y - 2 )
+      }
+      for( i <- 1 to l.maxGap ) {
+         g2.drawLine( x + (i * 23), y, x + (i * 23), y + h )
+      }
+      for( i <- 0 until b.keys.size ) {
+         val x1 = x + (i * 23)
+         val (key, keyStr) = b.keys( i )
+         g2.setColor( highlight.getOrElse( key, Color.black ))
+         g2.drawString( keyStr, x1 + 4, y + 17 )
+         b.downs.foreach { downs =>
+            drawNode( g2, downs( i ), Some( new Point( x1 + 11, y + 36 )))
          }
       }
    }
@@ -139,7 +129,8 @@ extends SkipListView[ A ] {
       }
    }
 
-   private final case class NodeBox( n: l.Node ) extends Box {
+   private final case class NodeBox( n: l.Node, keys: IndexedSeq[ (A, String) ], downs: Option[ IndexedSeq[ NodeBox ]])
+   extends Box {
       r.width  = 23 * (l.maxGap + 1) + 1
       r.height = n match {
          case _: l.Leaf => 23

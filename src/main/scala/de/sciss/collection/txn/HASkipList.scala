@@ -57,7 +57,7 @@ object HASkipList {
     * @param   stm         the software transactional memory to use.
     */
    def empty[ S <: Sys[ S ], A ]( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ],
-                                  mf: Manifest[ A ], serKey: Serializer[ A ], stm: S ) : HASkipList[ S, A ] = empty()
+                                  mf: Manifest[ A ], keySerializer: Serializer[ A ], system: S ) : HASkipList[ S, A ] = empty()
 
    /**
     * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
@@ -78,7 +78,7 @@ object HASkipList {
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                   keyObserver: txn.SkipList.KeyObserver[ S, A ] = txn.SkipList.NoKeyObserver[ S, A ])
                                 ( implicit ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ],
-                                  mf: Manifest[ A ], serKey: Serializer[ A ], stm: S ) : HASkipList[ S, A ] = {
+                                  mf: Manifest[ A ], keySerializer: Serializer[ A ], system: S ) : HASkipList[ S, A ] = {
 
       // 255 <= arrMaxSz = (minGap + 1) << 1
       // ; this is, so we can write a node's size as signed byte, and
@@ -88,18 +88,48 @@ object HASkipList {
       new Impl[ S, A ]( maxKey.value, minGap, keyObserver )
    }
 
+   def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
+                                     ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
+                                       keySerializer: Serializer[ A ], system: S ): Serializer[ HASkipList[ S, A ]] =
+      new Ser[ S, A ]( keyObserver, mf, ordering, keySerializer, system )
+
+   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ],
+                                                mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
+                                                keySerializer: Serializer[ A ], system: S )
+   extends Serializer[ HASkipList[ S, A ]] {
+      def read( in: DataInput ) : HASkipList[ S, A ] = {
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+
+         val minGap  = in.readInt()
+         val maxKey  = keySerializer.read( in )
+         // XXX downRef
+         sys.error( "TODO" )
+         new Impl( maxKey, minGap, keyObserver )( mf, ordering, keySerializer, system )
+      }
+
+      def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
+   }
+
+   private val SER_VERSION = 0
+
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int, Long ) */ A ]
       ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S, A ])
-      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ], serKey: Serializer[ A ],
-        val system: S )
+      ( implicit mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ],
+        val keySerializer: Serializer[ A ], val system: S )
    extends HASkipList[ S, A ] {
       private val arrMinSz = minGap + 1
       private val arrMaxSz = arrMinSz << 1   // aka maxGap + 1
 
-      override def size( implicit tx: S#Tx ) : Int = topImpl match {
-         case BottomImpl  => 0
-         case n: LeafOrBranch => leafSizeSum( n ) - 1
+      def write( out: DataOutput ) {
+         out.writeUnsignedByte( SER_VERSION )
+         out.writeInt( minGap )
+         keySerializer.write( maxKey, out )
+         system.writeRef( Head.downNode, out )
       }
+
+      override def size( implicit tx: S#Tx ) : Int = top.leafSizeSum - 1
 
       def maxGap : Int = arrMaxSz - 1  // aka (minGap << 1) + 1
       def maxKeyHolder : MaxKey[ A ] = MaxKey( maxKey )
@@ -112,87 +142,39 @@ object HASkipList {
       def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = fillBuilder( Seq.newBuilder[  A ])
       def toSet(  implicit tx: S#Tx ) : Set[  A ] = fillBuilder( Set.newBuilder[  A ])
 
-      private def leafSizeSum( n: LeafOrBranch )( implicit tx: S#Tx ) : Int = {
-         val sz = n.size
-         n match {
-            case l: LeafImpl   => sz
-            case b: BranchImpl =>
-               var res = 0
-               var i = 0; while( i < sz ) {
-                  res += leafSizeSum( b.down( i ))
-               i += 1 }
-               res
-         }
-      }
-
       def height( implicit tx: S#Tx ) : Int = {
-         @tailrec def step( num: Int, n: LeafOrBranch ) : Int = n match {
-            case l: LeafImpl   => num
-            case b: BranchImpl => step( num + 1, b.down( 0 ))
+         @tailrec def step( num: Int, n: Node[ _, _ ]) : Int = n match {
+            case l: Leaf[ _, _ ] => num
+            case b: Branch[ _, _ ] => step( num + 1, b.down( 0 ))
          }
 
-         topImpl match {
-            case BottomImpl         => 0
-            case n: LeafOrBranch    => step( 1, n )
+         top match {
+            case _: Bottom[ _, _ ]  => 0
+            case n: Node[ _, _ ]    => step( 1, n )
          }
       }
 
-      def top( implicit tx: S#Tx ) : Child = topImpl
-      private def topImpl( implicit tx: S#Tx ) : NodeOrBottom = Head.downNode.get
+      def top( implicit tx: S#Tx ) : Child[ S, A ] = Head.downNode.get
+//      private[txn] def topRef : S#Ref[ Child ] = Head.downNode
 
-      def debugPrint( implicit tx: S#Tx ) : String = {
-         def printNode( n: LeafOrBranch ) : IndexedSeq[ String ] = {
-            n match {
-               case l: LeafImpl   =>
-                  val keys = Seq.tabulate( n.size ) { idx =>
-                     val k = n.key( idx )
-                     if( k == maxKey ) "M" else k.toString
-                  }
-                  IndexedSeq( keys.mkString( "--" ))
-               case b: BranchImpl =>
-                  val columns = IndexedSeq.tabulate( b.size ) { idx =>
-                     val child   = printNode( b.down( idx ))
-                     val childSz = child.head.length()
-                     val k       = b.key( idx )
-                     val key     = if( k == maxKey ) "M" else k.toString
-                     val keySz   = key.length()
-                     val colSz   = math.max( keySz, childSz ) + 2
-                     val keyAdd  = (if( idx == b.size - 1 ) " " else "-") * (colSz - keySz)
-                     val bar     = "|" + (" " * (colSz - 1))
-                     val childAdd= " " * (colSz - childSz)
-                     IndexedSeq( key + keyAdd, bar ) ++ child.map( _ + childAdd )
-                  }
-//                  val red = columns.reduceLeft { (b, column) =>
-//                     b.zip( column ).map { case (left, right) => left + right }
-//                  }
-//                  red // .map( _ + "  " )
-                  IndexedSeq.tabulate( columns.map( _.size ).max ) { row =>
-                     columns.map( _.apply( row )).mkString( "" )
-                  }
-            }
-         }
-         topImpl match {
-            case BottomImpl      => "M"
-            case n: LeafOrBranch => printNode( n ).mkString( "\n" )
-         }
-      }
+      def debugPrint( implicit tx: S#Tx ) : String = top.printNode.mkString( "\n" )
 
       // ---- set support ----
 
       def contains( v: A )( implicit tx: S#Tx ) : Boolean = {
          if( ordering.gteq( v, maxKey )) return false
 
-         @tailrec def step( n: LeafOrBranch ) : Boolean = {
+         @tailrec def step( n: Node[ S, A ]) : Boolean = {
             val idx = indexInNode( v, n )
             if( idx < 0 ) true else n match {
-               case _: LeafImpl   => false
-               case b: BranchImpl => step( b.down( idx ))
+               case _: Leaf[ S, A ]    => false
+               case b: Branch[ S, A ]  => step( b.down( idx ))
             }
          }
 
-         topImpl match {
+         top match {
             case BottomImpl      => false
-            case n: LeafOrBranch => step( n )
+            case n: Node[ S, A ] => step( n )
          }
       }
 
@@ -206,7 +188,7 @@ object HASkipList {
        * @return  the index to go down (a node whose key is greater than `v`),
         *         or `-(index+1)` if `v` was found at `index`
        */
-      @inline private def indexInNode( v: A, n: NodeLike ) : Int = {
+      @inline private def indexInNode( v: A, n: NodeLike[ S, A ]) : Int = {
          @tailrec def step( idx: Int ) : Int = {
             val cmp = ordering.compare( v, n.key( idx ))
             if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
@@ -216,21 +198,22 @@ object HASkipList {
 
       override def add( v: A )( implicit tx: S#Tx ) : Boolean = {
          require( ordering.lt( v, maxKey ))
-         topImpl match {
+         top match {
             case BottomImpl =>
                val lkeys         = new Array[ A ]( 2 )
                lkeys( 0 )        = v
                lkeys( 1 )        = maxKey
-               val l             = new LeafImpl( lkeys )
+               val l             = new Leaf( lkeys )
                Head.downNode.set( l )
                true
 
-            case l: LeafImpl   => addLeaf(   v, Head, 0, Head, 0, l )
-            case b: BranchImpl => addBranch( v, Head, 0, Head, 0, b )
+            case l: Leaf[ S, A ]    => addLeaf(   v, Head, 0, Head, 0, l )
+            case b: Branch[ S, A ]  => addBranch( v, Head, 0, Head, 0, b )
          }
       }
 
-      private def addLeaf( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, l: LeafImpl )
+      private def addLeaf( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
+                           l: Leaf[ S, A ])
                          ( implicit tx: S#Tx ) : Boolean = {
          val idx = indexInNode( v, l )
          if( idx < 0 ) return false
@@ -251,7 +234,8 @@ object HASkipList {
          true
       }
 
-      @tailrec private def addBranch( v: A, pp: HeadOrBranch, ppidx: Int, p: HeadOrBranch, pidx: Int, b: BranchImpl )
+      @tailrec private def addBranch( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
+                                      b: Branch[ S, A ])
                                     ( implicit tx: S#Tx ) : Boolean = {
          val idx = indexInNode( v, b )
          if( idx < 0 ) return false
@@ -280,8 +264,8 @@ object HASkipList {
          }
 
          bNew.down( idxNew ) match {
-            case l: LeafImpl    => addLeaf(   v, pNew, pidxNew, bNew, idxNew, l  )
-            case bc: BranchImpl => addBranch( v, pNew, pidxNew, bNew, idxNew, bc )
+            case l: Leaf[ S, A ]    => addLeaf(   v, pNew, pidxNew, bNew, idxNew, l  )
+            case bc: Branch[ S, A ] => addBranch( v, pNew, pidxNew, bNew, idxNew, bc )
          }
       }
 
@@ -290,85 +274,17 @@ object HASkipList {
 
       override def remove( v: A )( implicit tx: S#Tx ) : Boolean = {
          if( ordering.gteq( v, maxKey )) return false
-         topImpl match {
-            case l: LeafImpl =>
+         top match {
+            case l: Leaf[ S, A ] =>
                removeLeaf(   v, Head.downNode, l )
-            case b: BranchImpl =>
+            case b: Branch[ S, A ] =>
                removeBranch( v, Head.downNode, b )
             case BottomImpl =>
                false
          }
       }
 
-      private sealed trait ModVirtual  // extends ModMaybe
-
-      /*
-       * In merge-with-right, the right sibling's
-       * identifier is re-used for the merged node.
-       * Thus after the merge, the originating sibling
-       * should be disposed (when using an ephemeral
-       * datastore). The parent needs to remove the
-       * entry of the originating sibling.
-       *
-       * (thus the disposal corresponds with the ref
-       * removed from the `downs` array)
-       */
-      private case object ModMergeRight extends ModVirtual
-
-      /*
-       * In borrow-from-right, both parents' downs need
-       * update, but identifiers are kept.
-       * the parent needs to update the key for the
-       * originating sibling to match the first key in
-       * the right sibling (or the new last key in the
-       * originating sibling).
-       */
-      private case object ModBorrowFromRight extends ModVirtual
-
-      /*
-       * In merge-with-left, the originating sibling's
-       * identifier is re-used for the merged node.
-       * Thus after the merge, the left sibling
-       * should be disposed (when using an ephemeral
-       * datastore). The parent needs to remove the
-       * entry of the left sibling.
-       *
-       * (thus the disposal corresponds with the ref
-       * removed from the `downs` array)
-       */
-      private case object ModMergeLeft extends ModVirtual
-
-      /*
-       * In borrow-from-left, both parents' downs need
-       * update, but identifiers are kept.
-       * the parent needs to update the key for the
-       * left sibling to match the before-last key in
-       * the left sibling.
-       */
-      private case object ModBorrowFromLeft extends ModVirtual
-
-      /**
-       * Borrow-to-right is a special case encountered when
-       * going down from a branch containing the search node,
-       * where the child cannot be merged to the right.
-       * Instead of merging to the left, or borrowing from
-       * the left which would keep the query key in the
-       * right-most position, causing successive update
-       * problems, we hereby achieve that the query key
-       * ends up in a position that is not the last in
-       * any node: We remove the query key -- the right
-       * most entry -- from the originating sibling and
-       * prepend it to its right sibling.
-       *
-       * Like in a normal borrow, both parents' downs need
-       * update, but identifiers are kept. The parent needs
-       * to update the key for the originating sibling to
-       * match the before-last key in the originating sibling
-       * (or the new last key in the new originating sibling).
-       */
-      private case object ModBorrowToRight extends ModVirtual
-
-      private def removeLeaf( v: A, pDown: Sink[ S#Tx, LeafOrBranch ], l: LeafLike )
+      private def removeLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: LeafLike[ S, A ])
                             ( implicit tx: S#Tx ) : Boolean = {
 
          val idx     = indexInNode( v, l )
@@ -385,7 +301,7 @@ object HASkipList {
          found
       }
 
-      @tailrec private def removeBranch( v: A, pDown: Sink[ S#Tx, LeafOrBranch ], b: BranchLike )
+      @tailrec private def removeBranch( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ])
                                        ( implicit tx: S#Tx ) : Boolean = {
          val idx        = indexInNode( v, b )
          val found      = idx < 0
@@ -399,9 +315,9 @@ object HASkipList {
          // the current branch, thus `found` will be true.
 //         val cFoundLast = found || (-(cIdx+1) == cSz)
 
-         var bNew: BranchImpl = null
+         var bNew: Branch[ S, A ] = null
          var bDownIdx         = idxP
-         var cNew: NodeLike   = c
+         var cNew: NodeLike[ S, A ] = c
 
          // a merge or borrow is necesary either when we descend
          // to a minimally filled child (because that child might
@@ -510,8 +426,8 @@ object HASkipList {
 
 //         val bDown = bNew.downRef( bDownIdx )
          cNew match {
-            case cl: LeafLike   => removeLeaf(   v, bDown, cl )
-            case cb: BranchLike => removeBranch( v, bDown, cb )
+            case cl: LeafLike[ S, A ]     => removeLeaf(   v, bDown, cl )
+            case cb: BranchLike[ S, A ]   => removeBranch( v, bDown, cb )
          }
       }
 
@@ -537,27 +453,27 @@ object HASkipList {
 //      }
 
       private final class IteratorImpl extends Iterator[ A ] {
-         private var l: LeafImpl       = null
+         private var l: Leaf[ S, A ]   = null
          private var nextKey : A       = _
          private var idx: Int          = 0
-         private val stack             = collection.mutable.Stack.empty[ (BranchImpl, Int) ]
+         private val stack             = collection.mutable.Stack.empty[ (Branch[ S, A ], Int) ]
 //         pushDown( 0, Head )
 
-         @tailrec private def pushDown( n: LeafOrBranch, idx0: Int )( implicit tx: S#Tx ) {
+         @tailrec private def pushDown( n: Node[ S, A ], idx0: Int )( implicit tx: S#Tx ) {
             n match {
-               case l2: LeafImpl =>
+               case l2: Leaf[ S, A ] =>
                   l        = l2
                   idx      = 0
                   nextKey  = l2.key( 0 )
-               case b: BranchImpl =>
+               case b: Branch[ S, A ] =>
                   stack.push( (b, idx0 + 1) )
                   pushDown( b.down( idx0 ), 0 )
             }
          }
 
          def init()( implicit tx: S#Tx ) {
-            topImpl match {
-               case n: LeafOrBranch =>
+            top match {
+               case n: Node[ S, A ] =>
                   pushDown( n, 0 )
                case _ =>
             }
@@ -592,474 +508,583 @@ object HASkipList {
          }
       }
 
-      private object NodeOrBottom {
-         implicit object Serializer extends Serializer[ NodeOrBottom ] {
-            def write( v: NodeOrBottom, out: DataOutput ) { v.write( out )}
-            def read( in: DataInput ) : NodeOrBottom = {
-               (in.readUnsignedByte(): @switch) match {
-                  case 0 => BottomImpl
-                  case 1 => BranchImpl.read( in )
-                  case 2 => LeafImpl.read( in )
-               }
-            }
-         }
-      }
-      private sealed trait NodeOrBottom extends Child {
-         def write( out: DataOutput ) : Unit
-      }
-
-      private sealed trait NodeLike extends Node /* with NodeOrBottom */ {
-         def removeColumn( idx: Int ) : LeafOrBranch
-      }
-
-      private object LeafOrBranch {
-         implicit object Ser extends Serializer[ LeafOrBranch ] {
-            def write( v: LeafOrBranch, out: DataOutput ) { v.write( out )}
-            def read( in: DataInput ) : LeafOrBranch = {
-               (in.readUnsignedByte(): @switch) match {
-                  case 1 => BranchImpl.read( in )
-                  case 2 => LeafImpl.read( in )
-               }
-            }
-         }
-      }
-      private sealed trait LeafOrBranch extends NodeLike with NodeOrBottom {
-         def virtualize( mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike
-      }
-
-      private sealed trait LeafLike extends NodeLike with Leaf {
-         def devirtualize : LeafImpl
-         def removeColumn( idx: Int ) : LeafImpl
-      }
-
-      private sealed trait VirtualLike {
-         protected def mod:  ModVirtual
-         protected def main: LeafOrBranch
-         protected def sib:  LeafOrBranch
-
-         def size : Int = mod match {
-            case ModMergeRight      => main.size + sib.size
-            case ModBorrowFromRight => main.size + 1
-            case ModBorrowToRight   => sib.size + 1
-            case ModMergeLeft       => main.size + sib.size
-            case ModBorrowFromLeft  => main.size + 1
+      private object Head extends HeadOrBranch[ S, A ] {
+//         val downNode = system.newRef[ Child ]( BottomImpl )
+         // XXX TODO not nice to issue a txn here
+         val downNode = system.atomic { implicit tx =>
+            system.newRef[ Child[ S, A ]]( BottomImpl )
          }
 
-         final def key( idx: Int ) : A = mod match {
-            case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.key( idx ) else sib.key( ridx )
-            case ModBorrowFromRight => if( idx == main.size ) sib.key( 0 ) else main.key( idx )
-            case ModBorrowToRight   => if( idx == 0 ) main.key( main.size - 1 ) else sib.key( idx - 1 )
-            case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else main.key( ridx )
-            case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else main.key( idx - 1 )
+         def updateDown( i: Int, n: Node[ S, A ])( implicit tx: S#Tx ) {
+            assert( i == 0, "Accessing head with index > 0" )
+            downNode.set( n )
          }
+
+         def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A ], right: Node[ S, A ])
+                             ( implicit tx: S#Tx ) : Branch[ S, A ] = {
+            assert( pidx == 0 )
+
+            val bkeys         = new Array[ A ]( 2 )
+            bkeys( 0 )        = splitKey  // left node ends in the split key
+            bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
+            val bdowns        = system.newRefArray[ Node[ S, A ]]( 2 ) // new Array[ S#Ref[ Node ]]( 2 )
+            bdowns( 0 )       = system.newRef( left )
+            bdowns( 1 )       = system.newRef( right )
+            new Branch[ S, A ]( bkeys, bdowns ) // new parent branch
+         }
+         override def toString = "Head"
+      }
+   }
+
+   private sealed trait ModVirtual  // extends ModMaybe
+
+   /*
+    * In merge-with-right, the right sibling's
+    * identifier is re-used for the merged node.
+    * Thus after the merge, the originating sibling
+    * should be disposed (when using an ephemeral
+    * datastore). The parent needs to remove the
+    * entry of the originating sibling.
+    *
+    * (thus the disposal corresponds with the ref
+    * removed from the `downs` array)
+    */
+   private case object ModMergeRight extends ModVirtual
+
+   /*
+    * In borrow-from-right, both parents' downs need
+    * update, but identifiers are kept.
+    * the parent needs to update the key for the
+    * originating sibling to match the first key in
+    * the right sibling (or the new last key in the
+    * originating sibling).
+    */
+   private case object ModBorrowFromRight extends ModVirtual
+
+   /*
+    * In merge-with-left, the originating sibling's
+    * identifier is re-used for the merged node.
+    * Thus after the merge, the left sibling
+    * should be disposed (when using an ephemeral
+    * datastore). The parent needs to remove the
+    * entry of the left sibling.
+    *
+    * (thus the disposal corresponds with the ref
+    * removed from the `downs` array)
+    */
+   private case object ModMergeLeft extends ModVirtual
+
+   /*
+    * In borrow-from-left, both parents' downs need
+    * update, but identifiers are kept.
+    * the parent needs to update the key for the
+    * left sibling to match the before-last key in
+    * the left sibling.
+    */
+   private case object ModBorrowFromLeft extends ModVirtual
+
+   /**
+    * Borrow-to-right is a special case encountered when
+    * going down from a branch containing the search node,
+    * where the child cannot be merged to the right.
+    * Instead of merging to the left, or borrowing from
+    * the left which would keep the query key in the
+    * right-most position, causing successive update
+    * problems, we hereby achieve that the query key
+    * ends up in a position that is not the last in
+    * any node: We remove the query key -- the right
+    * most entry -- from the originating sibling and
+    * prepend it to its right sibling.
+    *
+    * Like in a normal borrow, both parents' downs need
+    * update, but identifiers are kept. The parent needs
+    * to update the key for the originating sibling to
+    * match the before-last key in the originating sibling
+    * (or the new last key in the new originating sibling).
+    */
+   private case object ModBorrowToRight extends ModVirtual
+
+   private sealed trait VirtualLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
+      protected def mod:  ModVirtual
+      protected def main: Node[ S, A ]
+      protected def sib:  Node[ S, A ]
+
+      def size : Int = mod match {
+         case ModMergeRight      => main.size + sib.size
+         case ModBorrowFromRight => main.size + 1
+         case ModBorrowToRight   => sib.size + 1
+         case ModMergeLeft       => main.size + sib.size
+         case ModBorrowFromLeft  => main.size + 1
       }
 
-      private final class VirtualLeaf( protected val main: LeafImpl, protected val mod: ModVirtual,
-                                       protected val sib: LeafImpl ) extends LeafLike with VirtualLike {
-         def removeColumn( idx: Int ) : LeafImpl = {
-            val newSz   = size - 1
-            val keys    = new Array[ A ]( newSz )
-            var i = 0
-            while( i < idx ) {
-               keys( i ) = key( i )
-               i += 1
-            }
-            while( i < newSz ) {
-               val i1 = i + 1
-               keys( i ) = key( i1 )
-               i = i1
-            }
-            new LeafImpl( keys )
-         }
+      final def key( idx: Int ) : A = mod match {
+         case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.key( idx ) else sib.key( ridx )
+         case ModBorrowFromRight => if( idx == main.size ) sib.key( 0 ) else main.key( idx )
+         case ModBorrowToRight   => if( idx == 0 ) main.key( main.size - 1 ) else sib.key( idx - 1 )
+         case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else main.key( ridx )
+         case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else main.key( idx - 1 )
+      }
+   }
 
-         def devirtualize: LeafImpl = {
-            val newSz   = size
-            val keys    = new Array[ A ]( newSz )
-            var i = 0
-            while( i < newSz ) {
-               keys( i ) = key( i )
-               i += 1
-            }
-            new LeafImpl( keys )
-         }
+   sealed trait HeadOrBranch[ S <: Sys[ S ], A ] /* extends Branch */ {
+      private[HASkipList] def updateDown( i: Int, n: Node[ S, A ])( implicit tx: S#Tx ) : Unit
+
+      private[HASkipList] def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A ], right: Node[ S, A ])
+                                              ( implicit tx: S#Tx ) : Branch[ S, A ]
+   }
+
+//   object Child {
+//      implicit object Serializer extends Serializer[ Child ] {
+//         def write( v: Child, out: DataOutput ) { v.write( out )}
+//         def read( in: DataInput ) : Child = {
+//            (in.readUnsignedByte(): @switch) match {
+//               case 0 => BottomImpl
+//               case 1 => Branch.read( in )
+//               case 2 => Leaf.read( in )
+//            }
+//         }
+//      }
+//   }
+   sealed trait Child[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
+      private[HASkipList] def write( out: DataOutput ) : Unit
+      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
+      private[HASkipList] def printNode( implicit tx: S#Tx ) : IndexedSeq[ String ]
+   }
+   sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] /* extends Child[ S, A ] */ {
+      private[HASkipList] def removeColumn( idx: Int ) : Node[ S, A ]
+      def size : Int
+      def key( i: Int ): A
+   }
+//   private object Node {
+//      implicit object Ser extends Serializer[ Node ] {
+//         def write( v: Node, out: DataOutput ) { v.write( out )}
+//         def read( in: DataInput ) : Node = {
+//            (in.readUnsignedByte(): @switch) match {
+//               case 1 => Branch.read( in )
+//               case 2 => Leaf.read( in )
+//            }
+//         }
+//      }
+//   }
+   sealed trait Node[ S <: Sys[ S ], @specialized( Int, Long) A ] extends NodeLike[ S, A ] with Child[ S, A ] {
+      private[HASkipList] def virtualize( mod: ModVirtual, sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ]
+   }
+
+   sealed trait BranchLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends NodeLike[ S, A ] {
+      def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ]
+      private[HASkipList] def downRef( idx: Int ) : S#Ref[ Node[ S, A ]]
+      private[HASkipList] def updateKey( idx: Int, key: A ) : Branch[ S, A ]
+      private[HASkipList] def removeColumn( idx: Int ) : Branch[ S, A ]
+      private[HASkipList] def devirtualize : Branch[ S, A ]
+   }
+
+   sealed trait LeafLike[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends NodeLike[ S, A ] {
+      private[HASkipList] def devirtualize : Leaf[ S, A ]
+      private[HASkipList] def removeColumn( idx: Int ) : Leaf[ S, A ]
+   }
+
+   final class Bottom[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Child[ S, A ] {
+      override def toString = "Bottom"
+
+      def write( out: DataOutput ) {
+         out.writeUnsignedByte( 0 )
       }
 
-      private object LeafImpl {
-         def read( in: DataInput ) : LeafImpl = {
-            val sz: Int = in.readUnsignedByte()
-            val keys = new Array[ A ]( sz )
-            var i = 0; while( i < sz ) {
-               keys( i ) = serKey.read( in )
-            i += 1 }
-            new LeafImpl( keys )
+      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = 1
+
+      private[HASkipList] def printNode( implicit tx: S#Tx ) : IndexedSeq[ String ] = IndexedSeq( "M" )
+   }
+
+   private final class VirtualLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A ]( protected val main: Leaf[ S, A ],
+                                                                                  protected val mod: ModVirtual,
+                                                                                  protected val sib: Leaf[ S, A ])
+   extends LeafLike[ S, A ] with VirtualLike[ S, A ] {
+      def removeColumn( idx: Int ) : Leaf[ S, A ] = {
+         val newSz   = size - 1
+         val keys    = new Array[ A ]( newSz )
+         var i = 0
+         while( i < idx ) {
+            keys( i ) = key( i )
+            i += 1
          }
+         while( i < newSz ) {
+            val i1 = i + 1
+            keys( i ) = key( i1 )
+            i = i1
+         }
+         new Leaf[ S, A ]( keys )
       }
-      private final class LeafImpl( keys: Array[ A ])
-      extends LeafLike with LeafOrBranch {
-         def key( idx: Int ) = keys( idx )
-         def size : Int = keys.size
 
-         def devirtualize: LeafImpl = this
-
-         // XXX we could avoid this crappy pattern match if the branch would have a child type parameter.
-         // but then this gets all too pathetic...
-         def virtualize( mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
-            case lSib: LeafImpl => new VirtualLeaf( this, mod, lSib )
-            case _ => sys.error( "Internal structural error - sibling not a leaf: " + sib )
+      def devirtualize: Leaf[ S, A ] = {
+         val newSz   = size
+         val keys    = new Array[ A ]( newSz )
+         var i = 0
+         while( i < newSz ) {
+            keys( i ) = key( i )
+            i += 1
          }
+         new Leaf[ S, A ]( keys )
+      }
+   }
 
-         def insert( v: A, idx: Int ) : LeafImpl = {
-            val lsz     = size + 1
-            val lkeys   = new Array[ A ]( lsz )
-            // copy keys left to the insertion index
-            if( idx > 0 ) {
+//   private object Leaf {
+//      def read( in: DataInput ) : Leaf = {
+//         val sz: Int = in.readUnsignedByte()
+//         val keys = new Array[ A ]( sz )
+//         var i = 0; while( i < sz ) {
+//            keys( i ) = keySerializer.read( in )
+//         i += 1 }
+//         new Leaf( keys )
+//      }
+//   }
+   final class Leaf[ S <: Sys[ S ], @specialized( Int, Long) A ]( keys: Array[ A ])
+   extends LeafLike[ S, A ] with Node[ S, A ] {
+      def key( idx: Int ) = keys( idx )
+      def size : Int = keys.size
+
+      private[HASkipList] def devirtualize: Leaf[ S, A ] = this
+
+      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = size
+
+      private[HASkipList] def printNode( implicit tx: S#Tx ) : IndexedSeq[ String ] = {
+         val keys = Seq.tabulate( size ) { idx =>
+            val k = key( idx )
+            if( k == maxKey ) "M" else k.toString
+         }
+         IndexedSeq( keys.mkString( "--" ))
+      }
+
+      // XXX we could avoid this crappy pattern match if the branch would have a child type parameter.
+      // but then this gets all too pathetic...
+      private[HASkipList] def virtualize( mod: ModVirtual,
+                                          sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ] = sib match {
+         case lSib: Leaf[ S, A ] => new VirtualLeaf[ S, A ]( this, mod, lSib )
+         case _ => sys.error( "Internal structural error - sibling not a leaf: " + sib )
+      }
+
+      private[HASkipList] def insert( v: A, idx: Int ) : Leaf[ S, A ] = {
+         val lsz     = size + 1
+         val lkeys   = new Array[ A ]( lsz )
+         // copy keys left to the insertion index
+         if( idx > 0 ) {
 //               keyCopy( this, 0, lkeys, 0, idx )
+            System.arraycopy( keys, 0, lkeys, 0, idx )
+         }
+         // put the new value
+         lkeys( idx ) = v
+         // copy the keys right to the insertion index
+         val idxp1   = idx + 1
+         val numr    = lsz - idxp1
+         if( numr > 0 ) {
+//               keyCopy( this, idx, lkeys, idxp1, numr )
+            System.arraycopy( keys, idx, lkeys, idxp1, numr )
+         }
+         new Leaf[ S, A ]( lkeys )
+      }
+
+      private[HASkipList] def splitAndInsert( v: A, idx: Int ) : (Leaf[ S, A ], Leaf[ S, A ]) = {
+         assert( size == arrMaxSz )
+
+         if( idx < arrMinSz ) {  // split and add `v` to left leaf
+            val lsz     = arrMinSz + 1
+            val lkeys   = new Array[ A ]( lsz )
+            if( idx > 0 ) {
                System.arraycopy( keys, 0, lkeys, 0, idx )
             }
-            // put the new value
             lkeys( idx ) = v
-            // copy the keys right to the insertion index
-            val idxp1   = idx + 1
-            val numr    = lsz - idxp1
+            val numr    = arrMinSz - idx
             if( numr > 0 ) {
-//               keyCopy( this, idx, lkeys, idxp1, numr )
-               System.arraycopy( keys, idx, lkeys, idxp1, numr )
+               System.arraycopy( keys, idx, lkeys, idx + 1, numr )
             }
-            new LeafImpl( lkeys )
-         }
+            val left    = new Leaf[ S, A ]( lkeys )
 
-         def splitAndInsert( v: A, idx: Int ) : (LeafImpl, LeafImpl) = {
-            assert( size == arrMaxSz )
+            val rsz     = arrMinSz
+            val rkeys   = new Array[ A ]( rsz )
+            System.arraycopy( keys, arrMinSz, rkeys, 0, rsz )
+            val right   = new Leaf[ S, A ]( rkeys )
 
-            if( idx < arrMinSz ) {  // split and add `v` to left leaf
-               val lsz     = arrMinSz + 1
-               val lkeys   = new Array[ A ]( lsz )
-               if( idx > 0 ) {
-                  System.arraycopy( keys, 0, lkeys, 0, idx )
-               }
-               lkeys( idx ) = v
-               val numr    = arrMinSz - idx
-               if( numr > 0 ) {
-                  System.arraycopy( keys, idx, lkeys, idx + 1, numr )
-               }
-               val left    = new LeafImpl( lkeys )
+            (left, right)
 
-               val rsz     = arrMinSz
-               val rkeys   = new Array[ A ]( rsz )
-               System.arraycopy( keys, arrMinSz, rkeys, 0, rsz )
-               val right   = new LeafImpl( rkeys )
-
-               (left, right)
-
-            } else {               // split and add `v` to right leaf
-               val lsz     = arrMinSz
-               val lkeys   = new Array[ A ]( lsz )
-               System.arraycopy( keys, 0, lkeys, 0, lsz )
-               val left    = new LeafImpl( lkeys )
-
-               val rsz     = arrMinSz + 1
-               val rkeys   = new Array[ A ]( rsz )
-               val numl    = idx - arrMinSz
-               if( numl > 0 ) {
-                  System.arraycopy( keys, arrMinSz, rkeys, 0, numl )
-               }
-               rkeys( numl ) = v
-               val numr    = arrMinSz - numl
-               if( numr > 0 ) {
-                  System.arraycopy( keys, idx, rkeys, numl + 1, numr )
-               }
-               val right   = new LeafImpl( rkeys )
-
-               (left, right)
-            }
-         }
-
-         def removeColumn( idx: Int ) : LeafImpl = {
-            val sz      = size - 1
-            val newKeys = new Array[ A ]( sz )
-            if( idx > 0 ) System.arraycopy( keys, 0, newKeys, 0, idx )
-            val numr    = sz - idx
-            if( numr > 0 ) System.arraycopy( keys, idx + 1, newKeys, idx, numr )
-            new LeafImpl( newKeys )
-         }
-
-//         override def toString = toString( "Leaf" )
-
-         def write( out: DataOutput ) {
-            val sz = size
-//            out.writeUnsignedShort( 0x200 | sz )
-            out.writeUnsignedByte( 2 )
-            out.writeUnsignedByte( sz )
-            var i = 0; while( i < sz ) {
-               serKey.write( keys( i ), out )
-            i += 1 }
-         }
-      }
-
-      private sealed trait HeadOrBranch /* extends Branch */ {
-         def updateDown( i: Int, n: LeafOrBranch )( implicit tx: S#Tx ) : Unit
-
-         def insertAfterSplit( pidx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
-                             ( implicit tx: S#Tx ) : BranchImpl
-      }
-
-      private sealed trait BranchLike extends NodeLike with /* HeadOrBranch with */ Branch {
-         def downRef( idx: Int ) : S#Ref[ LeafOrBranch ]
-         def down( idx: Int )( implicit tx: S#Tx ) : LeafOrBranch
-         def updateKey( idx: Int, key: A ) : BranchImpl // BranchLike
-         def removeColumn( idx: Int ) : BranchImpl
-         def devirtualize : BranchImpl
-      }
-
-      private final class VirtualBranch( protected val main: BranchImpl, protected val mod: ModVirtual,
-                                         protected val sib: BranchImpl )
-      extends BranchLike with VirtualLike {
-         def downRef( idx: Int ) : S#Ref[ LeafOrBranch ] = mod match {
-            case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
-            case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
-            case ModBorrowToRight   => if( idx == 0 ) main.downRef( main.size - 1 ) else sib.downRef( idx - 1 )
-            case ModMergeLeft       => // val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
-               val ridx = idx - sib.size
-               if( ridx < 0 ) {
-                  sib.downRef( idx )
-               } else {
-assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + " ; main.size = " + main.size )
-                  main.downRef( ridx )
-               }
-            case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
-         }
-
-         def down( idx: Int )( implicit tx: S#Tx ) : LeafOrBranch = downRef( idx ).get
-
-         def devirtualize : BranchImpl = {
-            val newSz   = size
-            val keys    = new Array[ A ]( newSz )
-            val downs   = system.newRefArray[ LeafOrBranch ]( newSz ) // new Array[ S#Ref[ LeafOrBranch ]]( newSz )
-            var i = 0
-            while( i < newSz ) {
-               keys( i )  = key( i )
-               downs( i ) = downRef( i )
-               i += 1
-            }
-            new BranchImpl( keys, downs )
-         }
-
-         def removeColumn( idx: Int ) : BranchImpl = {
-            val newSz   = size - 1
-            val keys    = new Array[ A ]( newSz )
-            val downs   = system.newRefArray[ LeafOrBranch ]( newSz ) // new Array[ S#Ref[ LeafOrBranch ]]( newSz )
-            var i = 0
-            while( i < idx ) {
-               keys( i )   = key( i )
-               downs( i )  = downRef( i )
-               i += 1
-            }
-            while( i < newSz ) {
-               val i1 = i + 1
-               keys( i )   = key( i1 )
-               downs( i )  = downRef( i1 )
-               i = i1
-            }
-            new BranchImpl( keys, downs )
-         }
-
-         def updateKey( idx: Int, k: A ) : BranchImpl = {
-            val newSz   = size
-            val keys    = new Array[ A ]( newSz )
-            val downs   = system.newRefArray[ LeafOrBranch ]( newSz ) // new Array[ S#Ref[ LeafOrBranch ]]( newSz )
-            var i = 0
-            while( i < newSz ) {
-               keys( i )   = key( i )
-               downs( i )  = downRef( i )
-               i += 1
-            }
-            keys( idx ) = k
-            new BranchImpl( keys, downs )
-         }
-      }
-
-      private object BranchImpl {
-         def read( in: DataInput ) : BranchImpl = {
-            val sz: Int = in.readUnsignedByte()
-            val keys    = new Array[ A ]( sz )
-            val downs   = system.newRefArray[ LeafOrBranch ]( sz )
-            var i = 0; while( i < sz ) {
-               keys( i ) = serKey.read( in )
-            i += 1 }
-            i = 0; while( i < sz ) {
-               downs( i ) = system.readRef[ LeafOrBranch ]( in )
-            i += 1 }
-            new BranchImpl( keys, downs )
-         }
-      }
-      private final class BranchImpl( keys: Array[ A ], downs: Array[ S#Ref[ LeafOrBranch ]])
-      extends BranchLike with HeadOrBranch with LeafOrBranch {
-         assert( keys.size == downs.size )
-
-         def devirtualize : BranchImpl = this
-
-         def virtualize( mod: ModVirtual, sib: LeafOrBranch ) : NodeLike with VirtualLike = sib match {
-            case bSib: BranchImpl => new VirtualBranch( this, mod, bSib )
-            case _ => sys.error( "Internal structural error - sibling not a branch: " + sib )
-         }
-
-         def key( idx: Int ) : A = keys( idx )
-         def size : Int = keys.size
-
-         def downRef( i: Int ) : S#Ref[ LeafOrBranch ] = downs( i )
-
-         def down( i: Int )( implicit tx: S#Tx ) : LeafOrBranch = downs( i ).get
-
-         def split( implicit tx: S#Tx ) : (BranchImpl, BranchImpl) = {
+         } else {               // split and add `v` to right leaf
             val lsz     = arrMinSz
             val lkeys   = new Array[ A ]( lsz )
-            val ldowns  = system.newRefArray[ LeafOrBranch ]( lsz ) // new Array[ S#Ref[ LeafOrBranch ]]( lsz )
-            System.arraycopy( keys,  0, lkeys,  0, lsz )
-            System.arraycopy( downs, 0, ldowns, 0, lsz )
-            val left    = new BranchImpl( lkeys, ldowns )
+            System.arraycopy( keys, 0, lkeys, 0, lsz )
+            val left    = new Leaf[ S, A ]( lkeys )
 
-            val rsz     = size - lsz
+            val rsz     = arrMinSz + 1
             val rkeys   = new Array[ A ]( rsz )
-            val rdowns  = system.newRefArray[ LeafOrBranch ]( rsz ) // new Array[ S#Ref[ LeafOrBranch ]]( rsz )
-            System.arraycopy( keys,  lsz, rkeys,  0, rsz )
-            System.arraycopy( downs, lsz, rdowns, 0, rsz )
-            val right   = new BranchImpl( rkeys, rdowns )
+            val numl    = idx - arrMinSz
+            if( numl > 0 ) {
+               System.arraycopy( keys, arrMinSz, rkeys, 0, numl )
+            }
+            rkeys( numl ) = v
+            val numr    = arrMinSz - numl
+            if( numr > 0 ) {
+               System.arraycopy( keys, idx, rkeys, numl + 1, numr )
+            }
+            val right   = new Leaf[ S, A ]( rkeys )
 
             (left, right)
          }
+      }
 
-         def updateDown( i: Int, n: LeafOrBranch )( implicit tx: S#Tx ) {
-            downs( i ).set( n )
+      private[HASkipList] def removeColumn( idx: Int ) : Leaf[ S, A ] = {
+         val sz      = size - 1
+         val newKeys = new Array[ A ]( sz )
+         if( idx > 0 ) System.arraycopy( keys, 0, newKeys, 0, idx )
+         val numr    = sz - idx
+         if( numr > 0 ) System.arraycopy( keys, idx + 1, newKeys, idx, numr )
+         new Leaf[ S, A ]( newKeys )
+      }
+
+//         override def toString = toString( "Leaf" )
+
+      private[HASkipList] def write( out: DataOutput ) {
+         val sz = size
+//            out.writeUnsignedShort( 0x200 | sz )
+         out.writeUnsignedByte( 2 )
+         out.writeUnsignedByte( sz )
+         var i = 0; while( i < sz ) {
+            keySerializer.write( keys( i ), out )
+         i += 1 }
+      }
+   }
+
+//      private sealed trait BranchLike extends NodeLike with /* HeadOrBranch with */ Branch {
+//         def downRef( idx: Int ) : S#Ref[ Node ]
+//         def down( idx: Int )( implicit tx: S#Tx ) : Node
+//         def updateKey( idx: Int, key: A ) : Branch // BranchLike
+//         def removeColumn( idx: Int ) : Branch
+//         def devirtualize : Branch
+//      }
+
+   private final class VirtualBranch[ S <: Sys[ S ], @specialized( Int, Long) A ]( protected val main: Branch[ S, A ],
+                                                                                   protected val mod: ModVirtual,
+                                                                                   protected val sib: Branch[ S, A ])
+   extends BranchLike[ S, A ] with VirtualLike[ S, A ] {
+      def downRef( idx: Int ) : S#Ref[ Node[ S, A ]] = mod match {
+         case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
+         case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
+         case ModBorrowToRight   => if( idx == 0 ) main.downRef( main.size - 1 ) else sib.downRef( idx - 1 )
+         case ModMergeLeft       => // val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
+            val ridx = idx - sib.size
+            if( ridx < 0 ) {
+               sib.downRef( idx )
+            } else {
+assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + " ; main.size = " + main.size )
+               main.downRef( ridx )
+            }
+         case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
+      }
+
+      def down( idx: Int )( implicit tx: S#Tx ) : Node[ S, A ] = downRef( idx ).get
+
+      def devirtualize : Branch[ S, A ] = {
+         val newSz   = size
+         val keys    = new Array[ A ]( newSz )
+         val downs   = system.newRefArray[ Node[ S, A ]]( newSz )
+         var i = 0
+         while( i < newSz ) {
+            keys( i )  = key( i )
+            downs( i ) = downRef( i )
+            i += 1
          }
+         new Branch[ S, A ]( keys, downs )
+      }
 
-         def removeColumn( idx: Int ) : BranchImpl  = {
+      def removeColumn( idx: Int ) : Branch[ S, A ] = {
+         val newSz   = size - 1
+         val keys    = new Array[ A ]( newSz )
+         val downs   = system.newRefArray[ Node[ S, A ]]( newSz )
+         var i = 0
+         while( i < idx ) {
+            keys( i )   = key( i )
+            downs( i )  = downRef( i )
+            i += 1
+         }
+         while( i < newSz ) {
+            val i1 = i + 1
+            keys( i )   = key( i1 )
+            downs( i )  = downRef( i1 )
+            i = i1
+         }
+         new Branch[ S, A ]( keys, downs )
+      }
+
+      def updateKey( idx: Int, k: A ) : Branch[ S, A ] = {
+         val newSz   = size
+         val keys    = new Array[ A ]( newSz )
+         val downs   = system.newRefArray[ Node[ S, A ]]( newSz )
+         var i = 0
+         while( i < newSz ) {
+            keys( i )   = key( i )
+            downs( i )  = downRef( i )
+            i += 1
+         }
+         keys( idx ) = k
+         new Branch[ S, A ]( keys, downs )
+      }
+   }
+
+//   private object Branch {
+//      def read[ S <: Sys[ S ], @specialized( Int, Long ) A ]( in: DataInput ) : Branch[ S, A ] = {
+//         val sz: Int = in.readUnsignedByte()
+//         val keys    = new Array[ A ]( sz )
+//         val downs   = system.newRefArray[ Node[ S, A ]]( sz )
+//         var i = 0; while( i < sz ) {
+//            keys( i ) = keySerializer.read( in )
+//         i += 1 }
+//         i = 0; while( i < sz ) {
+//            downs( i ) = system.readRef[ Node[ S, A ]]( in )
+//         i += 1 }
+//         new Branch[ S, A ]( keys, downs )
+//      }
+//   }
+   final class Branch[ S <: Sys[ S ], @specialized( Int, Long ) A ]( keys: Array[ A ],
+                                                                     downs: Array[ S#Ref[ Node[ S, A ]]])
+   extends BranchLike[ S, A ] with HeadOrBranch[ S, A ] with Node[ S, A ] {
+      assert( keys.size == downs.size )
+
+      private[HASkipList] def devirtualize : Branch[ S, A ] = this
+
+      private[HASkipList] def virtualize( mod: ModVirtual,
+                                          sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ] = sib match {
+         case bSib: Branch[ S, A ] => new VirtualBranch[ S, A ]( this, mod, bSib )
+         case _ => sys.error( "Internal structural error - sibling not a branch: " + sib )
+      }
+
+      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = {
+         var res = 0
+         var i = 0; while( i < sz ) {
+            res += down( i ).leafSizeSum
+         i += 1 }
+         res
+      }
+
+      private[HASkipList] def printNode( implicit tx: S#Tx ) : IndexedSeq[ String ] = {
+         val columns = IndexedSeq.tabulate( size ) { idx =>
+            val child   = printNode( down( idx ))
+            val childSz = child.head.length()
+            val k       = key( idx )
+            val ks      = if( k == maxKey ) "M" else k.toString
+            val keySz   = ks.length()
+            val colSz   = math.max( keySz, childSz ) + 2
+            val keyAdd  = (if( idx == b.size - 1 ) " " else "-") * (colSz - keySz)
+            val bar     = "|" + (" " * (colSz - 1))
+            val childAdd= " " * (colSz - childSz)
+            IndexedSeq( ks + keyAdd, bar ) ++ child.map( _ + childAdd )
+         }
+         IndexedSeq.tabulate( columns.map( _.size ).max ) { row =>
+            columns.map( _.apply( row )).mkString( "" )
+         }
+      }
+
+      def key( idx: Int ) : A = keys( idx )
+      def size : Int = keys.size
+
+      private[HASkipList] def downRef( i: Int ) : S#Ref[ Node[ S, A ]] = downs( i )
+
+      def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ] = downs( i ).get
+
+      private[HASkipList] def split( implicit tx: S#Tx ) : (Branch[ S, A ], Branch[ S, A ]) = {
+         val lsz     = arrMinSz
+         val lkeys   = new Array[ A ]( lsz )
+         val ldowns  = system.newRefArray[ Node[ S, A ]]( lsz )
+         System.arraycopy( keys,  0, lkeys,  0, lsz )
+         System.arraycopy( downs, 0, ldowns, 0, lsz )
+         val left    = new Branch[ S, A ]( lkeys, ldowns )
+
+         val rsz     = size - lsz
+         val rkeys   = new Array[ A ]( rsz )
+         val rdowns  = system.newRefArray[ Node[ S, A ]]( rsz )
+         System.arraycopy( keys,  lsz, rkeys,  0, rsz )
+         System.arraycopy( downs, lsz, rdowns, 0, rsz )
+         val right   = new Branch[ S, A ]( rkeys, rdowns )
+
+         (left, right)
+      }
+
+      private[HASkipList] def updateDown( i: Int, n: Node[ S, A ])( implicit tx: S#Tx ) {
+         downs( i ).set( n )
+      }
+
+      private[HASkipList] def removeColumn( idx: Int ) : Branch[ S, A ] = {
 assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
-            val sz         = size - 1
-            val newKeys    = new Array[ A ]( sz )
-            val newDowns   = system.newRefArray[ LeafOrBranch ]( sz ) // new Array[ S#Ref[ LeafOrBranch ]]( sz )
-            if( idx > 0 ) {
-               System.arraycopy( keys,  0, newKeys,  0, idx )
-               System.arraycopy( downs, 0, newDowns, 0, idx )
-            }
-            val numr    = sz - idx
-            if( numr > 0 ) {
-               System.arraycopy( keys,  idx + 1, newKeys,  idx, numr )
-               System.arraycopy( downs, idx + 1, newDowns, idx, numr )
-            }
-            new BranchImpl( newKeys, newDowns )
+         val sz         = size - 1
+         val newKeys    = new Array[ A ]( sz )
+         val newDowns   = system.newRefArray[ Node[ S, A ]]( sz )
+         if( idx > 0 ) {
+            System.arraycopy( keys,  0, newKeys,  0, idx )
+            System.arraycopy( downs, 0, newDowns, 0, idx )
          }
-
-         def updateKey( idx: Int, key: A ) : BranchImpl = {
-            val sz         = size
-            val newKeys    = new Array[ A ]( sz )
-            System.arraycopy( keys, 0, newKeys, 0, sz )  // just copy all and then overwrite one
-            newKeys( idx ) = key
-            new BranchImpl( newKeys, downs )
+         val numr    = sz - idx
+         if( numr > 0 ) {
+            System.arraycopy( keys,  idx + 1, newKeys,  idx, numr )
+            System.arraycopy( downs, idx + 1, newDowns, idx, numr )
          }
+         new Branch[ S, A ]( newKeys, newDowns )
+      }
 
-         def insertAfterSplit( idx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
-                             ( implicit tx: S#Tx ) : BranchImpl = {
-            // we must make a copy of this branch with the
-            // size increased by one. the new key is `splitKey`
-            // which gets inserted at the index where we went
-            // down, `idx`.
-            val bsz           = size + 1
-            val bkeys         = new Array[ A ]( bsz )
-            val bdowns        = system.newRefArray[ LeafOrBranch ]( bsz ) // new Array[ S#Ref[ LeafOrBranch ]]( bsz )
-            // copy entries left to split index
-            if( idx > 0 ) {
-               System.arraycopy( keys,  0, bkeys,  0, idx )
-               System.arraycopy( downs, 0, bdowns, 0, idx )
-            }
-            // insert the left split entry
-            bkeys( idx )     = splitKey
-            bdowns( idx )    = system.newRef( left )
-            // copy entries right to split index
-            val rightOff      = idx + 1
-            val numr          = bsz - rightOff
-            System.arraycopy( keys, idx, bkeys, rightOff, numr )
+      private[HASkipList] def updateKey( idx: Int, key: A ) : Branch[ S, A ] = {
+         val sz         = size
+         val newKeys    = new Array[ A ]( sz )
+         System.arraycopy( keys, 0, newKeys, 0, sz )  // just copy all and then overwrite one
+         newKeys( idx ) = key
+         new Branch[ S, A ]( newKeys, downs )
+      }
+
+      private[HASkipList] def insertAfterSplit( idx: Int, splitKey: A, left: Node[ S, A ], right: Node[ S, A ])
+                                              ( implicit tx: S#Tx ) : Branch[ S, A ] = {
+         // we must make a copy of this branch with the
+         // size increased by one. the new key is `splitKey`
+         // which gets inserted at the index where we went
+         // down, `idx`.
+         val bsz           = size + 1
+         val bkeys         = new Array[ A ]( bsz )
+         val bdowns        = system.newRefArray[ Node[ S, A ]]( bsz ) // new Array[ S#Ref[ Node ]]( bsz )
+         // copy entries left to split index
+         if( idx > 0 ) {
+            System.arraycopy( keys,  0, bkeys,  0, idx )
+            System.arraycopy( downs, 0, bdowns, 0, idx )
+         }
+         // insert the left split entry
+         bkeys( idx )     = splitKey
+         bdowns( idx )    = system.newRef( left )
+         // copy entries right to split index
+         val rightOff      = idx + 1
+         val numr          = bsz - rightOff
+         System.arraycopy( keys, idx, bkeys, rightOff, numr )
 //            // while we could copy the right split entry's key,
 //            // the split operation has yielded a new right node
 //            bdowns( rightOff ) = system.newRef( right )
 //            if( numr > 1 ) {
 //               downCopy( this, rightOff, bdowns, rightOff + 1, numr - 1 )
 //            }
-            System.arraycopy( downs, idx, bdowns, rightOff, numr )
-            bdowns( rightOff ).set( right )
+         System.arraycopy( downs, idx, bdowns, rightOff, numr )
+         bdowns( rightOff ).set( right )
 
-            new BranchImpl( bkeys, bdowns )
-         }
-
-         def write( out: DataOutput ) {
-            out.writeUnsignedByte( 1 )
-            val sz = size
-            out.writeUnsignedByte( sz )
-            var i = 0; while( i < sz ) {
-               serKey.write( keys( i ), out )
-            i += 1 }
-            i = 0; while( i < sz ) {
-               system.writeRef( downs( i ), out )
-            i += 1 }
-         }
+         new Branch[ S, A ]( bkeys, bdowns )
       }
 
-      private object Head extends HeadOrBranch {
-//         val downNode = system.newRef[ NodeOrBottom ]( BottomImpl )
-         // XXX TODO not nice to issue a txn here
-         val downNode = system.atomic { implicit tx =>
-            system.newRef[ NodeOrBottom ]( BottomImpl )
-         }
-
-         def updateDown( i: Int, n: LeafOrBranch )( implicit tx: S#Tx ) {
-            assert( i == 0, "Accessing head with index > 0" )
-            downNode.set( n )
-         }
-
-         def insertAfterSplit( pidx: Int, splitKey: A, left: LeafOrBranch, right: LeafOrBranch )
-                             ( implicit tx: S#Tx ) : BranchImpl = {
-            assert( pidx == 0 )
-
-            val bkeys         = new Array[ A ]( 2 )
-            bkeys( 0 )        = splitKey  // left node ends in the split key
-            bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
-            val bdowns        = system.newRefArray[ LeafOrBranch ]( 2 ) // new Array[ S#Ref[ LeafOrBranch ]]( 2 )
-            bdowns( 0 )       = system.newRef( left )
-            bdowns( 1 )       = system.newRef( right )
-            new BranchImpl( bkeys, bdowns ) // new parent branch
-         }
-         override def toString = "Head"
-      }
-
-      private object BottomImpl extends Bottom with NodeOrBottom {
-         override def toString = "Bottom"
-
-         def write( out: DataOutput ) {
-            out.writeUnsignedByte( 0 )
-         }
+      private[HASkipList] def write( out: DataOutput ) {
+         out.writeUnsignedByte( 1 )
+         val sz = size
+         out.writeUnsignedByte( sz )
+         var i = 0; while( i < sz ) {
+            keySerializer.write( keys( i ), out )
+         i += 1 }
+         i = 0; while( i < sz ) {
+            system.writeRef( downs( i ), out )
+         i += 1 }
       }
    }
 }
+
 sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int, Long) A ] extends txn.SkipList[ S, A ] {
    def system: S
 
-   def top( implicit tx: S#Tx ) : Child // HASkipList.Node[ A ]
+   def top( implicit tx: S#Tx ) : HASkipList.Child[ S, A ]
 
-   sealed trait Child   // Either Node or Bottom
-
-   sealed trait Node extends Child {
-      def size : Int
-      def key( i: Int ): A
-   }
-
-   sealed trait Branch extends Node {
-      def down( i: Int )( implicit tx: S#Tx ) : Node
-   }
-
-   sealed trait Leaf extends Node
-
-   sealed trait Bottom extends Child
-
-//   object Bottom extends Child {
-//      override def toString = "Bottom"
-//   }
+   def write( out: DataOutput ) : Unit
+   def keySerializer : Serializer[ A ]
 }
