@@ -79,8 +79,8 @@ object TotalOrder {
          def tag : Int
          def prev( implicit tx: S#Tx ) : Repr
          def next( implicit tx: S#Tx ) : Repr
-         def isHead : Boolean
-         def isLast : Boolean
+//         def isHead : Boolean
+//         def isLast : Boolean
          private[TotalOrder] def prevRef : S#Ref[ Repr ]
       }
    }
@@ -184,58 +184,65 @@ object TotalOrder {
        * multiplier dynamically to allow it to be as large as possible
        * without producing integer overflows."
        */
-      protected def relabel( _first: E )( implicit tx: S#Tx ) {
-         var base       = _first.tag
-         var mask       = -1
-         var thresh     = 1.0
-         var first : E  = _first
-         var last : E   = _first
-         var num        = 1
-   //      val mul     = 2/((2*len(self))**(1/30.))
-         val mul        = 2 / math.pow( size << 1, 1/30.0 )
-         do {
-            while( !first.isHead && ((first.prev.tag & mask) == base) ) {
-               first = first.prev
-               num  += 1
-            }
-            while( !last.isLast && ((last.next.tag & mask) == base) ) {
-               last = last.next
-               num += 1
-            }
-   //         val inc = (mask + 1) / num
-            val inc = -mask / num
-
-            // important: we found a corner case where _first is the last
-            // element in the list with a value of 0x7FFFFFFF. in this
-            // case, if the predecessor is smaller in value, the original
-            // algorithm would immediately terminate with num == 1, which
-            // will obviously leave the tag unchanged! thus we must add
-            // the additional condition that num is greater than 1!
-            if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-               observer.beforeRelabeling( first, num )
-               var item = first
-   //            while( !(item eq last) ) {
-               // Note: this was probably a bug in Eppstein's code
-               // -- it ran for one iteration less which made
-               // the test suite fail for very dense tags. it
-               // seems now it is correct with the inclusion
-               // of last in the tag updating.
-               var cnt = 0; while( cnt < num ) {
-//                  item.tag   = base
-                  val itemNew = retag( item, base )
-                  sys.error( "TODO - write back" )
-                  item       = item.next
-                  base      += inc
-                  cnt += 1
-               }
-               observer.afterRelabeling( first, num )
-               return
-            }
-            mask   <<= 1      // next coarse step
-            base    &= mask
-            thresh  *= mul
-         } while( mask != 0 )
-         sys.error( "label overflow" )
+      protected def relabel( _firstRef: S#Ref[ E ])( implicit tx: S#Tx ) {
+//         var base       = _first.tag
+//         var mask       = -1
+//         var thresh     = 1.0
+//         var firstRef   = _firstRef
+//         var lastRef    = _firstRef
+//         var num        = 1
+//   //      val mul     = 2/((2*len(self))**(1/30.))
+//         val mul        = 2 / math.pow( size << 1, 1/30.0 )
+//         do {
+////            var first   = firstRef.get
+//            var prevRef = first.prevRef
+//            var prev    = prevRef.get
+//            while( (prev != null) && ((prev.tag & mask) == base) ) {
+////               first    = prev
+//               firstRef = prevRef
+//               prevRef  = prev.prevRef
+//               prev     = prevRef.get
+//               num     += 1
+//            }
+//            var succRef = lastRef.get
+//            while( !last.isLast && ((last.next.tag & mask) == base) ) {
+//               last = last.next
+//               num += 1
+//            }
+//   //         val inc = (mask + 1) / num
+//            val inc = -mask / num
+//
+//            // important: we found a corner case where _first is the last
+//            // element in the list with a value of 0x7FFFFFFF. in this
+//            // case, if the predecessor is smaller in value, the original
+//            // algorithm would immediately terminate with num == 1, which
+//            // will obviously leave the tag unchanged! thus we must add
+//            // the additional condition that num is greater than 1!
+//            if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
+//               observer.beforeRelabeling( first, num )
+//               var item = first
+//   //            while( !(item eq last) ) {
+//               // Note: this was probably a bug in Eppstein's code
+//               // -- it ran for one iteration less which made
+//               // the test suite fail for very dense tags. it
+//               // seems now it is correct with the inclusion
+//               // of last in the tag updating.
+//               var cnt = 0; while( cnt < num ) {
+////                  item.tag   = base
+//                  val itemNew = retag( item, base )
+//                  sys.error( "TODO - write back" )
+//                  item       = item.next
+//                  base      += inc
+//                  cnt += 1
+//               }
+//               observer.afterRelabeling( first, num )
+//               return
+//            }
+//            mask   <<= 1      // next coarse step
+//            base    &= mask
+//            thresh  *= mul
+//         } while( mask != 0 )
+//         sys.error( "label overflow" )
       }
    }
 
