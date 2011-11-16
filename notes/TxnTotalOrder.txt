@@ -1,0 +1,63 @@
+
+ref --> data <tag, pre, post>
+
+leaf
+  order
+
+node
+  start-order, stop-order
+
+must be refs, thus
+
+leaf
+  ref<order>
+  // --> in skip list
+node
+  ref<start-order>, ref<stop-order>
+  // --> not in skip list
+
+we could 'clump' some entries together in the serialization?
+
+-----
+use case 1
+- stored as orders in nodes and leaves
+
+-----
+use case 2
+- pre/ post order entries for vertices
+- for the marked tree, they go into skiplists
+- there is a mapping from m-tree to full-tree orders
+(however instead of using a real Map, we could have
+ a reference to the full tree vertex in the marked tree)
+
+
+so 'marking' goes like this:
+- isomorphic search for the vertex to be marked (using full tree vertex as key)
+- create the orders for the marked tree's vertex
+- create the marked tree vertex with both the marked orders _and_ the full orders
+(remember that these are 'stable' in that their tags will be refs)
+- thus the marked tree consists of these 'fat' vertices, where the point
+  function refers to the marked orders, and iso search we use the full orders
+- now the coordinates in the quadtree must be constant, thus it wouldn't make
+  sense to have a ref to the order's tag.
+- on the other hand we don't want to have to exchange the order entries for
+  vertex if it's pred/succ fields change.
+- also we wish to avoid the extra map in the ancestorsuite from order entries
+  to vertices. thus we should add again some 'payload' to the entries.
+
++-----------+
+| tag : Int |
+| pred: Ref |
+| succ: Ref |
+| pay : ??? | -> vertex
++-----------+
+
+     |
+     | Update
+    \|/
+     V
+
+copy structure with new tag; keep refs!
+
+but also we cannot update the marked tree if full order entries are moving...
+

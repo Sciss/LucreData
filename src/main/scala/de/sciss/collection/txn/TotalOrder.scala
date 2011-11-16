@@ -26,6 +26,8 @@
 package de.sciss.collection
 package txn
 
+import de.sciss.lucrestm.Sys
+
 /**
  * A transactional data structure to maintain an ordered sequence of elements such
  * that two random elements can be compared in O(1).
@@ -43,11 +45,39 @@ package txn
  * the amortized time per insertion in an n-item list is O(log n)."
  */
 object TotalOrder {
-   def apply( relabelObserver: RelabelObserver = NoRelabelObserver ) : TotalOrder = new Impl( relabelObserver )
+   def apply[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S ] = NoRelabelObserver )
+                            ( implicit tx: S#Tx, system: S ) : TotalOrder[ S ] = {
 
-   sealed trait Entry extends Ordered[ Entry ] {
-      def prev : Entry
-      def next : Entry
+      new Impl( relabelObserver )
+   }
+
+//   object Ordering extends de.sciss.collection.Ordering[ Entry ] {
+//      /**
+//       * Compares the positions of `a` and `b` in the sequence
+//      */
+//      def compare( a: Entry, b: Entry ) : Int = {
+//         val atag = a.tag
+//         val btag = b.tag
+//         if( atag < btag ) -1 else if( atag > btag ) 1 else 0
+//      }
+//   }
+
+   object Entry {
+      implicit def Ordering[ S <: Sys[ S ]] : de.sciss.collection.Ordering[ Entry[ S ]] = new Ord[ S ]
+      private final class Ord[ S <: Sys[ S ]] extends de.sciss.collection.Ordering[ Entry[ S ]] {
+         /**
+          * Compares the positions of `a` and `b` in the sequence
+         */
+         def compare( a: Entry[ S ], b: Entry[ S ]) : Int = {
+            val atag = a.tag
+            val btag = b.tag
+            if( atag < btag ) -1 else if( atag > btag ) 1 else 0
+         }
+      }
+   }
+   sealed trait Entry[ S <: Sys[ S ]] /* extends Ordered[ Entry ] */ {
+      def prev : Entry[ S ]
+      def next : Entry[ S ]
       def tag : Int
 
       def isHead : Boolean
@@ -57,12 +87,12 @@ object TotalOrder {
       /**
        * Inserts a new element after this node.
        */
-      def append() : Entry
+      def append()( implicit tx: S#Tx ) : Entry[ S ]
 
       /**
        * Inserts a new element before this node.
        */
-      def prepend() : Entry
+      def prepend()( implicit tx: S#Tx ) : Entry[ S ]
 
       /**
        * Removes and disposes this element from the order.
@@ -76,18 +106,20 @@ object TotalOrder {
       def tagList : List[ Int ]
    }
 
-   trait RelabelObserver {
-      def beforeRelabeling( first: Entry, num: Int ) : Unit
-      def afterRelabeling( first: Entry, num: Int ) : Unit
+   trait RelabelObserver[ S <: Sys[ S ]] {
+      def beforeRelabeling( first: Entry[ S ], num: Int )( implicit tx: S#Tx ) : Unit
+      def afterRelabeling( first: Entry[ S ], num: Int )( implicit tx: S#Tx ) : Unit
    }
 
-   object NoRelabelObserver extends RelabelObserver {
-      def beforeRelabeling( first: Entry, num: Int ) {}
-      def afterRelabeling( first: Entry, num: Int ) {}
+   def NoRelabelObserver[ S <: Sys[ S ]] : RelabelObserver[ S ] = new NoRelabelObserver[ S ]
+   private final class NoRelabelObserver[ S <: Sys[ S ]] extends RelabelObserver[ S ] {
+      def beforeRelabeling( first: Entry[ S ], num: Int )( implicit tx: S#Tx ) {}
+      def afterRelabeling( first: Entry[ S ], num: Int )( implicit tx: S#Tx ) {}
    }
 
-   private final class Impl( val observer: RelabelObserver )
-   extends TotalOrder {
+   private final class Impl[ S <: Sys[ S ]]( val observer: RelabelObserver[ S ])( implicit val system: S )
+   extends TotalOrder[ S ] {
+//      private var sizeVar : Int = 1
       private var sizeVar : Int = 1 // root!
 
       val max : EntryImpl = {
@@ -103,13 +135,13 @@ object TotalOrder {
          head
       }
 
-      def head : Entry = {
+      def head( implicit tx: S#Tx ) : Entry[ S ] = {
          var e = root
          while( !e.isHead ) e = e.prev
          e
       }
 
-      def size : Int = sizeVar
+      def size( implicit tx: S#Tx ) : Int = sizeVar
 
       /*
        * Relabels from a this entry to clean up collisions with
@@ -130,7 +162,7 @@ object TotalOrder {
        * multiplier dynamically to allow it to be as large as possible
        * without producing integer overflows."
        */
-      private def relabel( _first: EntryImpl ) {
+      private def relabel( _first: EntryImpl )( implicit tx: S#Tx ) {
          var base       = _first.tag
          var mask       = -1
          var thresh     = 1.0
@@ -185,8 +217,19 @@ object TotalOrder {
          sys.error( "label overflow" )
       }
 
+      private def insertEntry( prev: Entry, next: Entry )( implicit tx: S#Tx ) : EntryImpl = {
+         val prevRef = system.newRef( prev )
+         val nextRef = system.newref( next )
+         sizeVar    += 1
+         val res     = new EntryImpl( prevRef, nextRef )
+         res
+      }
+
+      private final case class EntryData( tag: Int, prev: Entry, next: Entry )
+
 // important: maintain default equals (reference equality)
-      final class EntryImpl extends Entry {
+      private final class EntryImpl( tagRef: S#Ref[ Int ], prevRef: S#Ref[ Entry ], nextRef: S#Ref[ Entry ])
+      extends Entry[ S ] {
          private var tagVar : Int = 0
          private var prevVar : EntryImpl = _
          private var nextVar : EntryImpl = this
@@ -219,13 +262,13 @@ object TotalOrder {
             nextVar = null
          }
 
-         /**
-          * Compares the positions of x and y in the sequence
-         */
-         def compare( that: Entry ) : Int = {
-            val thatTag = that.tag
-            if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
-         }
+//         /**
+//          * Compares the positions of x and y in the sequence
+//         */
+//         def compare( that: Entry ) : Int = {
+//            val thatTag = that.tag
+//            if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
+//         }
 
          override def toString = "Tag(" + tagVar + ")"
 
@@ -237,7 +280,7 @@ object TotalOrder {
          def next : EntryImpl = nextVar
          def tag  : Int       = tagVar
 
-         def append() : EntryImpl = {
+         def append()( implicit tx: S#Tx ) : EntryImpl = {
             require( !isEnd )
             val rec     = new EntryImpl( this, next )
             // this condition is now fulfilled by the list ending in `max` !
@@ -248,7 +291,7 @@ object TotalOrder {
             rec
          }
 
-         def prepend() : EntryImpl = {
+         def prepend()( implicit tx: S#Tx ) : EntryImpl = {
             val rec     = new EntryImpl( prev, this )
             val prevTag = if( rec.isHead ) 0 else rec.prev.tag
             rec.tag     = prevTag + ((tag - prevTag + 1) >>> 1)
@@ -284,17 +327,33 @@ object TotalOrder {
       }
    }
 }
-sealed trait TotalOrder {
+sealed trait TotalOrder[ S <: Sys[ S ]] {
    import TotalOrder._
 
-   def max : Entry
-   def root : Entry
+   def system: S
+
+   /**
+    * Return the 'tail' of order, that is, the element which is higher
+    * than all user elements. It can be used for comparisons.
+    */
+   def max : Entry[ S ]
+
+   /**
+    * The initial element created from which you can start to append and prepend.
+    */
+   def root : Entry[ S ]
 
    /**
     * Returns the head element of the structure. Note that this
     * is O(n) worst case.
     */
-   def head : Entry
+   def head( implicit tx: S#Tx ) : Entry[ S ]
 
-   def size : Int
+   /**
+    * The number of elements in the order. This is `1` for a newly
+    * created order (consisting only of the root element).
+    * You will rarely need this information except for debugging
+    * purpose. The operation is O(1).
+    */
+   def size( implicit tx: S#Tx ) : Int
 }
