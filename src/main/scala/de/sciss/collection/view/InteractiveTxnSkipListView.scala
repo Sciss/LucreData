@@ -153,6 +153,7 @@ extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S#Tx, Int ] 
       obsUp = IndexedSeq.empty
       obsDn = IndexedSeq.empty
       val ps = Seq.fill( num )( rnd.nextInt( 100 ))
+println( ps )
       status( ps.lastOption.map( _.toString ).getOrElse( "" ))
       l.system.atomic { implicit tx =>
          ps.foreach( l add _ )
