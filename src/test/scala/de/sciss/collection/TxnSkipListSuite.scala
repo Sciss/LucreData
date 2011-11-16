@@ -169,7 +169,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    }
 
    private def withList[ S <: Sys[ S ]]( name: String,
-                                         lf: SkipList.KeyObserver[ S, Int ] => (SkipList[ S, Int ], () => Unit) ) {
+                                         lf: SkipList.KeyObserver[ S#Tx, Int ] => (SkipList[ S, Int ], () => Unit) ) {
       def scenarioWithTime( descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
@@ -268,7 +268,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   class Obs[ S <: Sys[ S ]] extends SkipList.KeyObserver[ S, Int ] {
+   class Obs[ S <: Sys[ S ]] extends SkipList.KeyObserver[ S#Tx, Int ] {
       var allUp = Ref( IntMap.empty[ Int ])
       var allDn = Ref( IntMap.empty[ Int ])
       var oneUp = Ref( IntMap.empty[ Int ])

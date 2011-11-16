@@ -77,8 +77,8 @@ object InteractiveTxnSkipListView extends App with Runnable {
       f.setVisible( true )
    }
 }
-class InteractiveTxnSkipListView[ S <: Sys[ S ]]( _create: txn.SkipList.KeyObserver[ S, Int ] => txn.HASkipList[ S, Int ])
-extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S, Int ] {
+class InteractiveTxnSkipListView[ S <: Sys[ S ]]( _create: txn.SkipList.KeyObserver[ S#Tx, Int ] => txn.HASkipList[ S, Int ])
+extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S#Tx, Int ] {
    view =>
 
    private val rnd   = new util.Random( 1L )

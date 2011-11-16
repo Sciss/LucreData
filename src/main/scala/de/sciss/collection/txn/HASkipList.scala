@@ -78,7 +78,7 @@ object HASkipList {
     * @param   stm         the software transactional memory to use.
     */
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
-                                  keyObserver: txn.SkipList.KeyObserver[ S, A ] = txn.SkipList.NoKeyObserver[ S, A ])
+                                  keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                 ( implicit tx: S#Tx, ord: de.sciss.collection.Ordering[ A ], maxKey: MaxKey[ A ],
                                   mf: Manifest[ A ], keySerializer: Serializer[ A ], system: S ) : HASkipList[ S, A ] = {
 
@@ -96,14 +96,14 @@ object HASkipList {
       })
    }
 
-   def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
+   def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
                                      ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
                                        keySerializer: Serializer[ A ], system: S ): Serializer[ HASkipList[ S, A ]] =
       new Ser[ S, A ]( keyObserver )
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-   final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S, A ])
+   final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
                                       ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
                                         keySerializer: Serializer[ A ], system: S )
    extends Serializer[ HASkipList[ S, A ]] {
@@ -123,7 +123,7 @@ object HASkipList {
    private val SER_VERSION = 0
 
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
-      ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S, A ],
+      ( val maxKey: A, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
         _downNode: Impl[ S, A ] => S#Ref[ Node[ S, A ]])
       ( implicit val mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ],
         val keySerializer: Serializer[ A ], val system: S )

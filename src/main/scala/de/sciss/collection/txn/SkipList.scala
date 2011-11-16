@@ -52,23 +52,23 @@ object SkipList {
     * undo the specialization?? you could one otherwise pass in
     * NoKeyObserver to a SkipList[ Int ]?
     */
-   trait KeyObserver[ S <: Sys[ S ], @specialized( Int, Long ) -A ] {
+   trait KeyObserver[ -Tx, @specialized( Int, Long ) -A ] {
       /**
        * Notifies the observer that a given key
        * is promoted to a higher (more sparse) level
        */
-      def keyUp( key : A )( implicit tx: S#Tx ) : Unit
+      def keyUp( key : A )( implicit tx: Tx ) : Unit
       /**
        * Notifies the observer that a given key
        * is demoted to a lower (more dense) level
        */
-      def keyDown( key : A )( implicit tx: S#Tx ) : Unit
+      def keyDown( key : A )( implicit tx: Tx ) : Unit
    }
 
-   def NoKeyObserver[ S <: Sys[ S ], A ] : KeyObserver[ S, A ] = new NoKeyObserver[ S, A ]
-   private final class NoKeyObserver[ S <: Sys[ S ], A ] extends KeyObserver[ S, A ] {
-      def keyUp( key : A )( implicit tx: S#Tx ) {}
-      def keyDown( key : A )( implicit tx: S#Tx ) {}
+   def NoKeyObserver[ A ] : KeyObserver[ Any, A ] = new NoKeyObserver[ A ]
+   private final class NoKeyObserver[ A ] extends KeyObserver[ Any, A ] {
+      def keyUp( key : A )( implicit tx: Any ) {}
+      def keyDown( key : A )( implicit tx: Any ) {}
    }
 }
 trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
