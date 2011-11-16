@@ -65,6 +65,9 @@ object SkipList {
       def keyDown( key : A )( implicit tx: Tx ) : Unit
    }
 
+   // Note: We could also have `object NoKeyObserver extends KeyObserver[ Any, Any ]` if
+   // `A` was made contravariant, too. But I guess we would end up in boxing since
+   // that wouldn't be specialized any more?
    def NoKeyObserver[ A ] : KeyObserver[ Any, A ] = new NoKeyObserver[ A ]
    private final class NoKeyObserver[ A ] extends KeyObserver[ Any, A ] {
       def keyUp( key : A )( implicit tx: Any ) {}

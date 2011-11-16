@@ -169,7 +169,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    }
 
    private def withList[ S <: Sys[ S ]]( name: String,
-                                         lf: SkipList.KeyObserver[ S#Tx, Int ] => (SkipList[ S, Int ], () => Unit) ) {
+                                         lf: SkipList.KeyObserver[ InTxn, Int ] => (SkipList[ S, Int ], () => Unit) ) {
       def scenarioWithTime( descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
@@ -206,7 +206,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
             info( "observer monitors key promotions and demotions" )
 
             scenarioWithTime( "Observation is verified on a randomly filled structure" ) {
-               val obs   = new Obs[ S ]
+               val obs   = new Obs
                val (l, cleanUp) = lf( obs )
                try {
                   val s     = randFill2 // randFill3
@@ -268,17 +268,17 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   class Obs[ S <: Sys[ S ]] extends SkipList.KeyObserver[ S#Tx, Int ] {
+   final class Obs extends SkipList.KeyObserver[ InTxn, Int ] {
       var allUp = Ref( IntMap.empty[ Int ])
       var allDn = Ref( IntMap.empty[ Int ])
       var oneUp = Ref( IntMap.empty[ Int ])
 
-      def keyUp( key: Int )( implicit tx: S#Tx ) {
+      def keyUp( key: Int )( implicit tx: InTxn ) {
          allUp.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
          oneUp.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
       }
 
-      def keyDown( key: Int )( implicit tx: S#Tx ) {
+      def keyDown( key: Int )( implicit tx: InTxn ) {
          allDn.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
       }
    }
