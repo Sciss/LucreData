@@ -29,20 +29,8 @@ package txn
 import de.sciss.lucrestm.{Serializer, Sys}
 
 object SkipList {
-   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
+   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ A ], mf: Manifest[ A ],
                                   serKey: Serializer[ A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
-
-//   private type CC[ A ] = SkipList[ A ]
-//   private type Coll = CC[ _ ]
-//
-//   implicit def canBuildFrom[ A : Ordering : MaxKey ] : CanBuildFrom[ Coll, A, CC[ A ]] = new SkipListCanBuildFrom
-//
-//   private class SkipListCanBuildFrom[ A : Ordering : MaxKey ] extends CanBuildFrom[ Coll, A, CC[ A ]] {
-//      def apply( from: Coll ) = newBuilder[ A ]
-//      def apply() = newBuilder[ A ]
-//   }
-//
-//   def newBuilder[ A : Ordering : MaxKey ]: MBuilder[ A, CC[ A ]] = new MSetBuilder( empty[ A ])
 
    /**
     * A trait for observing the promotion and demotion of a key
@@ -141,13 +129,13 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
     */
    def size( implicit tx: S#Tx ) : Int
 
-   /**
-    * The 'maximum' key. In the ordering of the skip list,
-    * no is allowed to be greater or equal to this maximum key.
-    */
-   def maxKey : A
-
-   implicit def maxKeyHolder : MaxKey[ A ] // = MaxKey( maxKey )
+//   /**
+//    * The 'maximum' key. In the ordering of the skip list,
+//    * no is allowed to be greater or equal to this maximum key.
+//    */
+//   def maxKey : A
+//
+//   implicit def maxKeyHolder : MaxKey[ A ] // = MaxKey( maxKey )
 
    /**
     * The ordering used for the keys of this list.
