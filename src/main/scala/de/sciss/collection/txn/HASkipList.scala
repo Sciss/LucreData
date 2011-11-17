@@ -139,7 +139,10 @@ object HASkipList {
          system.writeRef( /* Head. */ downNode, out )
       }
 
-      override def size( implicit tx: S#Tx ) : Int = topN.leafSizeSum - 1
+      override def size( implicit tx: S#Tx ) : Int = {
+         val c = topN
+         if( c == null ) 0 else c.leafSizeSum - 1
+      }
 
       def maxGap : Int = (minGap << 1) + 1 // aka arrMaxSz - 1
 
@@ -168,23 +171,26 @@ object HASkipList {
 
       def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( true ).mkString( "\n" )
 
-//      def keyString( key: A ) : String = if( key == maxKey ) "M" else key.toString
-
       // ---- set support ----
 
       def contains( v: A )( implicit tx: S#Tx ) : Boolean = {
 //         if( ordering.gteq( v, maxKey )) return false
 
-         @tailrec def step( n: Node[ S, A ], isRight: Boolean ) : Boolean = {
-            val idx = indexInNode( v, n, isRight )
+         @tailrec def stepRight( n: Node[ S, A ]) : Boolean = {
+            val idx = indexInNodeR( v, n )
             if( idx < 0 ) true else if( n.isLeaf ) false else {
-               val r = isRight && (idx == n.size - 1)
-               step( n.asBranch.down( idx ), r )
+               val c = n.asBranch.down( idx )
+               if( idx < n.size - 1 ) stepLeft( c ) else stepRight( c )
             }
          }
 
+         @tailrec def stepLeft( n: Node[ S, A ]) : Boolean = {
+            val idx = indexInNodeL( v, n )
+            if( idx < 0 ) true else if( n.isLeaf ) false else stepLeft( n.asBranch.down( idx ))
+         }
+
          val c = topN
-         if( c == null ) false else step( c, true )
+         if( c == null ) false else stepRight( c )
       }
 
       /*
@@ -197,31 +203,24 @@ object HASkipList {
        * @return  the index to go down (a node whose key is greater than `v`),
         *         or `-(index+1)` if `v` was found at `index`
        */
-      @inline private def indexInNode( v: A, n: NodeLike[ S, A ], isRight: Boolean ) : Int = {
-         val sz   = if( isRight ) n.size - 1 else n.size
+      private def indexInNodeR( v: A, n: NodeLike[ S, A ]) : Int = {
          var idx  = 0
-         while( idx < sz ) {
+         val sz   = n.size - 1
+         do {
             val cmp = ordering.compare( v, n.key( idx ))
             if( cmp == 0 ) return -(idx + 1) else if( cmp < 0 ) return idx
             idx += 1
-         }
+         } while( idx < sz )
          sz
       }
 
-//      /*
-//       * Like `indexInNode` but with the possibility that the search key `v` is
-//       * greater than any of the keys in `n`. In that case, `n.size` is returned.
-//       */
-//      @inline private def indexInNodeM( v: A, n: NodeLike[ S, A ]) : Int = {
-//         val sz  = n.size
-//         var idx = 0
-//         while( idx < sz ) {
-//            val cmp = ordering.compare( v, n.key( idx ))
-//            if( cmp == 0 ) return -(idx + 1) else if( cmp < 0 ) return idx
-//            idx += 1
-//         }
-//         sz
-//      }
+      private def indexInNodeL( v: A, n: NodeLike[ S, A ]) : Int = {
+         @tailrec def step( idx : Int ) : Int = {
+            val cmp = ordering.compare( v, n.key( idx ))
+            if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
+         }
+         step( 0 )
+      }
 
       override def add( v: A )( implicit tx: S#Tx ) : Boolean = {
 //         require( ordering.lt( v, maxKey ))
@@ -243,7 +242,7 @@ object HASkipList {
       private def addLeaf( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
                            l: Leaf[ S, A ], isRight: Boolean )
                          ( implicit tx: S#Tx ) : Boolean = {
-         val idx = indexInNode( v, l, isRight )
+         val idx = if( isRight ) indexInNodeR( v, l ) else indexInNodeL( v, l )
          if( idx < 0 ) return false
 
          if( l.size == arrMaxSz ) {
@@ -265,7 +264,7 @@ object HASkipList {
       @tailrec private def addBranch( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
                                       b: Branch[ S, A ], isRight: Boolean )
                                     ( implicit tx: S#Tx ) : Boolean = {
-         val idx = indexInNode( v, b, isRight )
+         val idx = if( isRight ) indexInNodeR( v, b ) else indexInNodeL( v, b )
          if( idx < 0 ) return false
 
          var bNew       = b
@@ -317,7 +316,7 @@ object HASkipList {
 
       private def removeLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: LeafLike[ S, A ],
                               isRight: Boolean )( implicit tx: S#Tx ) : Boolean = {
-         val idx     = indexInNode( v, l, isRight )
+         val idx     = if( isRight ) indexInNodeR( v, l ) else indexInNodeL( v, l )
          val found   = idx < 0
          val lNew    = if( found ) {
             val idxP = -(idx + 1)
@@ -326,20 +325,20 @@ object HASkipList {
             l.devirtualize
          }
          if( lNew ne l ) {
-            pDown.set( lNew )
+            pDown.set( if( lNew.size > 1 ) lNew else null )
          }
          found
       }
 
       @tailrec private def removeBranch( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ],
                                          isRight: Boolean )( implicit tx: S#Tx ) : Boolean = {
-         val idx        = indexInNode( v, b, isRight )
+         val idx        = if( isRight ) indexInNodeR( v, b ) else indexInNodeL( v, b )
          val found      = idx < 0
          val idxP       = if( found ) -(idx + 1) else idx
          val bsz        = b.size
          var isRightNew = isRight && (idxP == bsz - 1)
          val c          = b.down( idxP )
-         val cIdx       = indexInNode( v, c, isRightNew )
+         val cIdx       = if( isRightNew ) indexInNodeR( v, c ) else indexInNodeL( v, c )
          val cFound     = cIdx < 0
          val cSz        = if( cFound ) c.size - 1 else c.size
          // if the key was found in the last element of the child,
