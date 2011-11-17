@@ -509,44 +509,46 @@ object HASkipList {
       private final class IteratorImpl extends Iterator[ A ] {
          private var l: Leaf[ S, A ]   = null
          private var nextKey : A       = _
-         private var idx: Int          = 0
-         private val stack             = collection.mutable.Stack.empty[ (Branch[ S, A ], Int) ]
+         private var isRight           = true
+         private var idx               = 0
+         private val stack             = collection.mutable.Stack.empty[ (Branch[ S, A ], Int, Boolean) ]
 //         pushDown( 0, Head )
 
-         @tailrec private def pushDown( n: Node[ S, A ], idx0: Int )( implicit tx: S#Tx ) {
+         @tailrec private def pushDown( n: Node[ S, A ], idx0: Int, r: Boolean )( implicit tx: S#Tx ) {
             if( n.isLeaf ) {
                val l2   = n.asLeaf
                l        = l2
                idx      = 0
+               isRight  = r
                nextKey  = l2.key( 0 )
             } else {
                val b    = n.asBranch
-               stack.push( (b, idx0 + 1) )
-               pushDown( b.down( idx0 ), 0 )
+               stack.push( (b, idx0 + 1, r) )
+               pushDown( b.down( idx0 ), 0, r && (idx0 == b.size - 1) )
             }
          }
 
          def init()( implicit tx: S#Tx ) {
             val c = topN
-            if( c != null ) pushDown( c, 0 )
+            if( c != null ) pushDown( c, 0, true )
          }
 
-         def hasNext : Boolean = l == null // ordering.nequiv( nextKey, maxKey )
+         def hasNext : Boolean = l != null // ordering.nequiv( nextKey, maxKey )
          def next() : A = system.atomic( nextTxn( _ ))
 
          def nextTxn( implicit tx: S#Tx ) : A = {
             if( !hasNext ) throw new java.util.NoSuchElementException( "next on empty iterator" )
             val res  = nextKey
             idx     += 1
-            if( idx == l.size /* || ordering.equiv( l.key( idx ), maxKey ) */) {
+            if( idx == (if( isRight ) l.size - 1 else l.size) /* || ordering.equiv( l.key( idx ), maxKey ) */) {
                @tailrec def popUp() {
                   if( stack.isEmpty ) {
                      l        = null
                      nextKey  = null.asInstanceOf[ A ] // maxKey
                   } else {
-                     val (b, i) = stack.pop()
+                     val (b, i, r) = stack.pop()
                      if( i < b.size ) {
-                        system.atomic( implicit tx => pushDown( b, i ))
+                        system.atomic( implicit tx => pushDown( b, i, r ))
                      } else {
                         popUp()
                      }

@@ -164,6 +164,11 @@ println( ps )
    but( "Add 1x" )  { addRandom(  1 )}
    but( "Add 10x" ) { addRandom( 10 )}
 
+   space()
+   but( "Print List" ) {
+      println( l.system.atomic( implicit tx => l.toList ))
+   }
+
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )
 
