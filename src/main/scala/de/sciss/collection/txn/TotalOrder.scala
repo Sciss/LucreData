@@ -63,7 +63,7 @@ object TotalOrder {
 //      }
 //   }
 
-   object Entry {
+//   object Entry {
 //      implicit def Ordering[ S <: Sys[ S ]] : de.sciss.collection.Ordering[ Entry[ S ]] = new Ord[ S ]
 //      private final class Ord[ S <: Sys[ S ]] extends de.sciss.collection.Ordering[ Entry[ S ]] {
 //         /**
@@ -75,21 +75,23 @@ object TotalOrder {
 //            if( atag < btag ) -1 else if( atag > btag ) 1 else 0
 //         }
 //      }
-
-      sealed trait View[ S <: Sys[ S ], Repr ] {
-         def tag : Int
-         def prev( implicit tx: S#Tx ) : Repr
-         def next( implicit tx: S#Tx ) : Repr
-//         def isHead : Boolean
-//         def isLast : Boolean
-         private[TotalOrder] def prevRef : S#Ref[ Repr ]
-         private[TotalOrder] def nextRef : S#Ref[ Repr ]
-      }
-   }
-   sealed trait Entry[ S <: Sys[ S ] /*, Repr */ /* <: Entry[ S, Repr ] */] /* extends Ordered[ Entry ] */ {
+//   }
+   sealed trait Entry[ S <: Sys[ S ], Repr ] /* extends Ordered[ Entry ] */ {
 //      def prev( implicit tx: S#Tx ) : Repr
 //      def next( implicit tx: S#Tx ) : Repr
       def tag( implicit tx: S#Tx ) : Int
+
+      def prev( implicit tx: S#Tx ) : Repr
+      def next( implicit tx: S#Tx ) : Repr
+//         def isHead : Boolean
+//         def isLast : Boolean
+
+      private[TotalOrder] def tagRef  : S#Ref[ Int ]
+      private[TotalOrder] def prevRef : S#Ref[ Repr ]
+      private[TotalOrder] def nextRef : S#Ref[ Repr ]
+//      private[TotalOrder] def tag_=( value: Int )( implicit tx: S#Tx ) : Unit
+//      private[TotalOrder] def prev_=( e: Repr )(   implicit tx: S#Tx ) : Unit
+//      private[TotalOrder] def next_=( e: Repr )(   implicit tx: S#Tx ) : Unit
 
 //      def isHead : Boolean
 //      def isLast : Boolean
@@ -107,31 +109,12 @@ object TotalOrder {
       def tagList( implicit tx: S#Tx ) : List[ Int ]
    }
 
-   object SetEntry {
-      // the following is currently 'forbidden' as cyclic in scala:
-//      type View[ Tx ] = Entry.View[ Tx, View[ Tx ]]
-      sealed trait View[ S <: Sys[ S ]] extends Entry.View[ S, View[ S ]]
-   }
-   sealed trait SetEntry[ S <: Sys[ S ]] extends Entry[ S /*, SetEntry[ S ] */] {
-      /**
-       * Inserts a new element after this node.
-       */
-      def append()( implicit tx: S#Tx ) : SetEntry[ S ]
-
-      /**
-       * Inserts a new element before this node.
-       */
+   sealed trait SetEntry[ S <: Sys[ S ]] extends Entry[ S, SetEntry[ S ]] {
+      def append()(  implicit tx: S#Tx ) : SetEntry[ S ]
       def prepend()( implicit tx: S#Tx ) : SetEntry[ S ]
-
-      private[TotalOrder] def ref : S#Ref[ SetEntry.View[ S ]]
    }
 
-   object AssocEntry {
-      sealed trait View[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Entry.View[ S, View[ S, A ]] {
-         def value : A
-      }
-   }
-   sealed trait AssocEntry[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Entry[ S /*, AssocEntry[ S, A ]*/] {
+   sealed trait AssocEntry[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Entry[ S, AssocEntry[ S, A ]] {
       /**
        * Returns the 'payload' of the node.
        */
@@ -150,9 +133,9 @@ object TotalOrder {
       def prepend( value: A )( implicit tx: S#Tx ) : AssocEntry[ S, A ]
    }
 
-   trait RelabelObserver[ -Tx, -View ] {
-      def beforeRelabeling( first: View, num: Int )( implicit tx: Tx ) : Unit
-      def afterRelabeling(  first: View, num: Int )( implicit tx: Tx ) : Unit
+   trait RelabelObserver[ -Tx, -E ] {
+      def beforeRelabeling( first: E, num: Int )( implicit tx: Tx ) : Unit
+      def afterRelabeling(  first: E, num: Int )( implicit tx: Tx ) : Unit
    }
 
    object NoRelabelObserver extends RelabelObserver[ Any, Any ] {
@@ -160,14 +143,33 @@ object TotalOrder {
       def afterRelabeling(  first: Any, num: Int )( implicit tx: Any ) {}
    }
 
-   private sealed trait BasicImpl[ S <: Sys[ S ], E <: Entry.View[ S, E ]] {
-      def system : S
-      protected def sizeRef : S#Ref[ Int ]
+   private sealed trait BasicImpl[ S <: Sys[ S ], E <: Entry[ S, E ]] {
+      me: TotalOrder[ S, E ] =>
 
+      protected def sizeRef : S#Ref[ Int ]
       protected def observer : RelabelObserver[ S#Tx, E ]
-      protected def retag( e: E, tag: Int ) : E
 
       final def size( implicit tx: S#Tx ) : Int = sizeRef.get
+
+      final def head( implicit tx: S#Tx ) : E = {
+         var e    = root
+         var prev = e.prev
+         while( prev != null ) {
+            e     = prev
+            prev  = prev.prev
+         }
+         e
+      }
+
+      final def tagList( _entry: E )( implicit tx: S#Tx ) : List[ Int ] = {
+         val b       = List.newBuilder[ Int ]
+         var entry   = _entry
+         while( entry != null ) {
+            b       += entry.tag
+            entry    = entry.next
+         }
+         b.result()
+      }
 
       /**
        * Relabels from a this entry to clean up collisions with
@@ -188,34 +190,26 @@ object TotalOrder {
        * multiplier dynamically to allow it to be as large as possible
        * without producing integer overflows."
        */
-      protected def relabel( _firstRef: S#Ref[ E ])( implicit tx: S#Tx ) : E = {
+      protected final def relabel( _first: E )( implicit tx: S#Tx ) {
          var mask       = -1
          var thresh     = 1.0
-         var firstRef   = _firstRef
-         var lastRef    = _firstRef
          var num        = 1
    //      val mul     = 2/((2*len(self))**(1/30.))
          val mul        = 2 / math.pow( size << 1, 1/30.0 )
-         var first      = firstRef.get
-         var base       = first.tag
+         var first      = _first
+         var last       = _first
+         var base       = _first.tag
          do {
-//            var first   = firstRef.get
-            var prevRef = first.prevRef
-            var prev    = prevRef.get
+            var prev    = first.prev
             while( (prev != null) && ((prev.tag & mask) == base) ) {
-//               first    = prev
-               firstRef = prevRef
                first    = prev
-               prevRef  = prev.prevRef
-               prev     = prevRef.get
+               prev     = prev.prev
                num     += 1
             }
-            var nextRef = lastRef.get.nextRef
-            var next    = nextRef.get
+            var next    = last.next
             while( (next != null) && ((next.tag & mask) == base) ) {
-               lastRef  = nextRef
-               nextRef  = next.nextRef
-               next     = nextRef.get
+               last     = next
+               next     = next.next
                num     += 1
             }
    //         val inc = (mask + 1) / num
@@ -229,20 +223,16 @@ object TotalOrder {
             // the additional condition that num is greater than 1!
             if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
                observer.beforeRelabeling( first, num )
-               var itemRef = firstRef
-               var item    = first
    //            while( !(item eq last) ) {
                // Note: this was probably a bug in Eppstein's code
                // -- it ran for one iteration less which made
                // the test suite fail for very dense tags. it
                // seems now it is correct with the inclusion
                // of last in the tag updating.
+               next = first
                var cnt = 0; while( cnt < num ) {
-//                  item.tag   = base
-                  val itemNew = retag( item, base )
-                  itemRef.set( itemNew )
-                  itemRef     = item.nextRef
-                  item        = itemRef.get
+                  next.tagRef.set( base )
+                  next        = next.next
                   base       += inc
                   cnt        += 1
                }
@@ -257,22 +247,26 @@ object TotalOrder {
       }
    }
 
-   private final class SetEntryViewImpl[ S <: Sys[ S ]]( val tag: Int,
-                                                         private[TotalOrder] val prevRef: S#Ref[ SetEntry.View[ S ]],
-                                                         private[TotalOrder] val nextRef: S#Ref[ SetEntry.View[ S ]])
-   extends SetEntry.View[ S ] {
-      def prev( implicit tx: S#Tx ) : SetEntry.View[ S ] = prevRef.get
-      def next( implicit tx: S#Tx ) : SetEntry.View[ S ] = nextRef.get
-   }
-
-   private final class SetEntryImpl[ S <: Sys[ S ]]( impl: SetImpl[ S ],
-                                                     private[TotalOrder] val ref: S#Ref[ SetEntry.View[ S ]])
+   private final class SetEntryImpl[ S <: Sys[ S ]]( impl: SetImpl[ S ], private[TotalOrder] val tagRef: S#Ref[ Int ],
+                                                     private[TotalOrder] val prevRef: S#Ref[ SetEntry[ S ]],
+                                                     private[TotalOrder] val nextRef: S#Ref[ SetEntry[ S ]])
    extends SetEntry[ S ] {
-      def append()(  implicit tx: S#Tx ) : SetEntry[ S ] = impl.append( ref )
-      def prepend()( implicit tx: S#Tx ) : SetEntry[ S ] = impl.prepend( ref )
+      private type E = SetEntry[ S ]
+
+      def tag( implicit tx: S#Tx )  : Int = tagRef.get
+      def prev( implicit tx: S#Tx ) : E   = prevRef.get
+      def next( implicit tx: S#Tx ) : E   = nextRef.get
+
+//      private[TotalOrder] def tag_=( value: Int )( implicit tx: S#Tx ) { tagRef.set( value )}
+//      private[TotalOrder] def prev_=( e: E )( implicit tx: S#Tx ) { prevRef.set( e )}
+//      private[TotalOrder] def next_=( e: E )( implicit tx: S#Tx ) { nextRef.set( e )}
+
+      def append()(  implicit tx: S#Tx ) : SetEntry[ S ] = impl.append( this )
+      def prepend()( implicit tx: S#Tx ) : SetEntry[ S ] = impl.prepend( this )
+
       def remove()( implicit tx: S#Tx ) { impl.remove( this )}
-      def tagList( implicit tx: S#Tx ) : List[ Int ] = TotalOrder.tagList[ S, SetEntry.View[ S ]]( ref.get )
-      def tag( implicit tx: S#Tx ) : Int = ref.get.tag
+
+      def tagList( implicit tx: S#Tx ) : List[ Int ] = impl.tagList( this )
    }
 
 //   private final class AssocEntryViewImpl[ S <: Sys[ S ], @specialized( Int, Long ) A ]( val tag: Int, val value : A,
@@ -290,212 +284,83 @@ object TotalOrder {
 //      def prepend( a: A )( implicit tx: S#Tx ) : SetEntry[ S ] = impl.prepend( this, a )
 //   }
 
-   private final class SetImpl[ S <: Sys[ S ]]( protected val observer: RelabelObserver[ S#Tx, SetEntry.View[ S ]],
+   private final class SetImpl[ S <: Sys[ S ]]( protected val observer: RelabelObserver[ S#Tx, SetEntry[ S ]],
                                                 protected val sizeRef: S#Ref[ Int ],
                                                 _rootFun: SetImpl[ S ] => SetEntry[ S ])
                                               ( implicit val system: S )
-   extends Set[ S ] with BasicImpl[ S, SetEntry.View[ S ]] with Serializer[ SetEntry[ S ]] {
+   extends Set[ S ] with BasicImpl[ S, SetEntry[ S ]] with Serializer[ SetEntry[ S ]] {
+
       private type E = SetEntry[ S ]
-      private type V = SetEntry.View[ S ]
 
       val root = _rootFun( this )
 
-      implicit object ViewSer extends Serializer[ V ] {
-         def read( in: DataInput ) : V = {
-            val tag  = in.readInt()
-            val prev = system.readRef[ V ]( in )
-            val next = system.readRef[ V ]( in )
-            new SetEntryViewImpl[ S ]( tag, prev, next )
-         }
-         def write( e: V, out: DataOutput ) {
-            out.writeInt( e.tag )
-            system.writeRef( e.prevRef, out )
-            system.writeRef( e.nextRef, out )
-         }
-      }
+      implicit def impl = this
 
       def read( in: DataInput ) : E = {
-         val ref = system.readRef[ V ]( in )
-         new SetEntryImpl[ S ]( this, ref )
+         if( in.readUnsignedByte() == 1 ) {
+            val tagRef  = system.readRef[ Int ]( in )
+            val prevRef = system.readRef[ E ](   in )
+            val nextRef = system.readRef[ E ](   in )
+            new SetEntryImpl[ S ]( this, tagRef, prevRef, nextRef )
+         } else {
+            null
+         }
       }
       def write( e: E, out: DataOutput ) {
-         system.writeRef( e.ref, out )
+         if( e != null ) {
+            out.writeUnsignedByte( 1 )
+            system.writeRef( e.tagRef,  out )
+            system.writeRef( e.prevRef, out )
+            system.writeRef( e.nextRef, out )
+         } else {
+            out.writeUnsignedByte( 0 )
+         }
       }
 
-      def append( prevRef: S#Ref[ V ])( implicit tx: S#Tx ) : E = {
-         val prev       = prevRef.get
+      def append( prev: E )( implicit tx: S#Tx ) : E = {
          val next       = prev.next
          val nextTag    = if( next == null ) Int.MaxValue else next.tag
-         val recPrevRef = system.newRef[ V ]( prev )
-         val recNextRef = system.newRef[ V ]( next )
+         val recPrevRef = system.newRef[ E ]( prev )
+         val recNextRef = system.newRef[ E ]( next )
          val prevTag    = prev.tag
          val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val rec        = new SetEntryViewImpl[ S ]( recTag, recPrevRef, recNextRef )
+         val recTagRef  = system.newRef[ Int ]( recTag )
+         val rec        = new SetEntryImpl[ S ]( this, recTagRef, recPrevRef, recNextRef )
          prev.nextRef.set( rec )
-         next.prevRef.set( rec )
-         val recRef     = system.newRef[ V ]( rec )
-         if( recTag == nextTag ) relabel( recRef )
-
+         if( next != null ) next.prevRef.set( rec )
+         sizeRef.transform( _ + 1 )
+         if( recTag == nextTag ) relabel( rec )
+         rec
       }
 
       def prepend( next: E )( implicit tx: S#Tx ) : E = {
-         sys.error( "TODO" )
+         val prev       = next.prev
+         val prevTag    = if( prev == 0 ) 0 else prev.tag
+         val recPrevRef = system.newRef[ E ]( prev )
+         val recNextRef = system.newRef[ E ]( next )
+         val nextTag    = next.tag
+         val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
+         val recTagRef  = system.newRef[ Int ]( recTag )
+         val rec        = new SetEntryImpl[ S ]( this, recTagRef, recPrevRef, recNextRef )
+         next.prevRef.set( rec )
+         if( prev != null ) prev.nextRef.set( rec )
+         sizeRef.transform( _ + 1 )
+         if( recTag == nextTag ) relabel( rec )
+         rec
       }
 
-      def remove( e: E )( implicit tx: S#Tx ) {
-         sys.error( "TODO" )
-      }
-
-      protected def retag( e: V, tag: Int ) : V = {
-         sys.error( "TODO" )
+      def remove( rec: E )( implicit tx: S#Tx ) {
+         val p = rec.prev
+         val n = rec.next
+         if( p != null ) p.nextRef.set( n )
+         if( n != null ) n.prevRef.set( p )
+         system.disposeRef( rec.tagRef )
+         system.disposeRef( rec.prevRef )
+         system.disposeRef( rec.nextRef )
+         sizeRef.transform( _ - 1 )
       }
    }
 
-//   private final class Impl[ S <: Sys[ S ]]( val observer: RelabelObserver[ S ])( implicit val system: S )
-//   extends TotalOrder[ S ] {
-////      private var sizeVar : Int = 1
-//      private var sizeVar : Int = 1 // root!
-//
-//      val max : EntryImpl = {
-//         val e = new EntryImpl()
-//         e.tag = Int.MaxValue
-//         e
-//      }
-//
-//      val root : EntryImpl = {
-//         val head    = new EntryImpl()
-//         head.next   = max
-//         max.prev    = head
-//         head
-//      }
-//
-//      def head( implicit tx: S#Tx ) : Entry[ S ] = {
-//         var e = root
-//         while( !e.isHead ) e = e.prev
-//         e
-//      }
-//
-//      def size( implicit tx: S#Tx ) : Int = sizeVar
-//
-//      /*
-//       * Relabels from a this entry to clean up collisions with
-//       * its successors' tags.
-//       *
-//       * Original remark from Eppstein:
-//       * "At each iteration of the rebalancing algorithm, we look at
-//       * a contiguous subsequence of items, defined as the items for which
-//       * self._tag &~ mask == base.  We keep track of the first and last
-//       * items in the subsequence, and the number of items, until we find
-//       * a subsequence with sufficiently low density, at which point
-//       * we space the tags evenly throughout the available values.
-//       *
-//       * The multiplier controls the growth of the threshhold density;
-//       * it is 2/T for the T parameter described by Bender et al.
-//       * Large multipliers lead to fewer relabels, while small items allow
-//       * us to handle more items with machine integer tags, so we vary the
-//       * multiplier dynamically to allow it to be as large as possible
-//       * without producing integer overflows."
-//       */
-//      private def relabel( _first: EntryImpl )( implicit tx: S#Tx ) {
-//         var base       = _first.tag
-//         var mask       = -1
-//         var thresh     = 1.0
-//         var first : EntryImpl = _first
-//         var last : EntryImpl = _first
-//         var num        = 1
-//   //      val mul     = 2/((2*len(self))**(1/30.))
-//         val mul        = 2 / math.pow( size << 1, 1/30.0 )
-//   //println( "relabel" )
-//         do {
-//   //println( "   -mask " + -mask )
-//            while( !first.isHead && ((first.prev.tag & mask) == base) ) {
-//               first = first.prev
-//               num  += 1
-//            }
-//            while( !last.isLast && ((last.next.tag & mask) == base) ) {
-//               last = last.next
-//               num += 1
-//            }
-//   //         val inc = (mask + 1) / num
-//            val inc = -mask / num
-//
-//            // important: we found a corner case where _first is the last
-//            // element in the list with a value of 0x7FFFFFFF. in this
-//            // case, if the predecessor is smaller in value, the original
-//            // algorithm would immediately terminate with num == 1, which
-//            // will obviously leave the tag unchanged! thus we must add
-//            // the additional condition that num is greater than 1!
-//            if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-//               observer.beforeRelabeling( first, num )
-//               var item = first
-//   //            while( !(item eq last) ) {
-//               // Note: this was probably a bug in Eppstein's code
-//               // -- it ran for one iteration less which made
-//               // the test suite fail for very dense tags. it
-//               // seems now it is correct with the inclusion
-//               // of last in the tag updating.
-//               var cnt = 0; while( cnt < num ) {
-//                  item.tag   = base
-//                  item       = item.next
-//                  base      += inc
-//                  cnt += 1
-//               }
-//               observer.afterRelabeling( first, num )
-//               return
-//            }
-//   //         mask     = (mask << 1) + 1    // expand to next power of two
-//            mask   <<= 1      // next coarse step
-//            base    &= mask
-//            thresh  *= mul
-//         } while( mask != 0 )
-//         sys.error( "label overflow" )
-//      }
-//
-//      private def insertEntry( prev: Entry, next: Entry )( implicit tx: S#Tx ) : EntryImpl = {
-//         val prevRef = system.newRef( prev )
-//         val nextRef = system.newref( next )
-//         sizeVar    += 1
-//         val res     = new EntryImpl( prevRef, nextRef )
-//         res
-//      }
-//
-//      private final case class EntryData( tag: Int, prev: Entry, next: Entry )
-//
-//// important: maintain default equals (reference equality)
-//      private final class EntryImpl( tagRef: S#Ref[ Int ], prevRef: S#Ref[ Entry ], nextRef: S#Ref[ Entry ])
-//      extends Entry[ S ] {
-//         private var tagVar : Int = 0
-//         private var prevVar : EntryImpl = _
-//         private var nextVar : EntryImpl = this
-//
-//         private def this( prev: EntryImpl, next: EntryImpl ) {
-//            this()
-//            sizeVar += 1
-//            prevVar = prev
-//            if( prev != null ) {
-//               require( !prev.isEnd && (prev.next eq next) )
-//               prev.next = this
-//            } else {
-//               require( next.isHead )
-//            }
-//            nextVar     = next
-//            next.prev   = this
-//         }
-//
-//         def isHead : Boolean = prev == null
-//         def isLast : Boolean = next.isEnd
-//         def isEnd  : Boolean = next eq this
-//
-//         def remove() {
-//            require( nextVar != null, "Entry already removed" )
-//            next.prev = prevVar
-//            if( prevVar != null ) {
-//               prevVar.next   = nextVar
-//               prevVar        = null
-//            }
-//            nextVar = null
-//         }
-//
 ////         /**
 ////          * Compares the positions of x and y in the sequence
 ////         */
@@ -503,90 +368,23 @@ object TotalOrder {
 ////            val thatTag = that.tag
 ////            if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
 ////         }
-//
-//         override def toString = "Tag(" + tagVar + ")"
-//
-//         def tag_=( value: Int ) { tagVar = value }
-//         def next_=( entry: EntryImpl ) { nextVar = entry }
-//         def prev_=( entry: EntryImpl ) { prevVar = entry }
-//
-//         def prev : EntryImpl = prevVar
-//         def next : EntryImpl = nextVar
-//         def tag  : Int       = tagVar
-//
-//         def append()( implicit tx: S#Tx ) : EntryImpl = {
-//            require( !isEnd )
-//            val rec     = new EntryImpl( this, next )
-//            // this condition is now fulfilled by the list ending in `max` !
-//   //         val nextTag = if( rec.isLast ) Int.MaxValue else rec.next.tag
-//            val nextTag = rec.next.tag
-//            rec.tag     = tag + ((nextTag - tag + 1) >>> 1)
-//            if( rec.tag == nextTag ) relabel( rec )
-//            rec
-//         }
-//
-//         def prepend()( implicit tx: S#Tx ) : EntryImpl = {
-//            val rec     = new EntryImpl( prev, this )
-//            val prevTag = if( rec.isHead ) 0 else rec.prev.tag
-//            rec.tag     = prevTag + ((tag - prevTag + 1) >>> 1)
-//            if( rec.tag == tag ) relabel( rec )
-//            rec
-//         }
-//
-//         /**
-//          * Debugging method: Validates that the list from this entry
-//          * to the end has monotonically increasing
-//          * tags. Throws an assertion error if the
-//          * validation fails.
-//          */
-//         def validateToEnd {
-//            var prevTag = tag
-//            var entry   = next
-//            while( !entry.isEnd ) {
-//               assert( entry.tag > prevTag, "has tag " + entry.tag + ", while previous elem has tag " + prevTag )
-//               prevTag  = entry.tag
-//               entry    = entry.next
-//            }
-//         }
-//
-//         def tagList : List[ Int ] = {
-//            val b       = List.newBuilder[ Int ]
-//            var entry : EntryImpl = this
-//            while( !entry.isEnd ) {
-//               b += entry.tag
-//               entry    = entry.next
-//            }
-//            b.result()
-//         }
-//      }
-//   }
 
    type Set[ S <: Sys[ S ]]         = TotalOrder[ S, SetEntry[ S ]]
-   type Assoc[ S <: Sys[ S ], A ]   = TotalOrder[ S, AssocEntry[ S, A ]]
+//   type Assoc[ S <: Sys[ S ], A ]   = TotalOrder[ S, AssocEntry[ S, A ]]
 
-   def empty[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, SetEntry.View[ S ]] = NoRelabelObserver )
+   def empty[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, SetEntry[ S ]] = NoRelabelObserver )
                             ( implicit tx: S#Tx, system: S ) : Set[ S ] = {
 
-      new SetImpl[ S ]( relabelObserver, system.newRef( 1 ), { implicit set =>
-         import set.ViewSer
-         val view = new SetEntryViewImpl[ S ]( 0, system.newRef[ SetEntry.View[ S ]]( null ),
-                                                  system.newRef[ SetEntry.View[ S ]]( null ))
-         new SetEntryImpl[ S ]( set, system.newRef[ SetEntry.View[ S ]]( view ))
+      new SetImpl[ S ]( relabelObserver, system.newRef( 1 ), { implicit impl =>
+         val tagRef  = system.newRef[ Int ]( 0 )
+         val prevRef = system.newRef[ SetEntry[ S ]]( null )
+         val nextRef = system.newRef[ SetEntry[ S ]]( null )
+         new SetEntryImpl[ S ]( impl, tagRef, prevRef, nextRef )
       })
    }
 
-   def emptyAssoc[ S <: Sys[ S ], A ]( relabelObserver: RelabelObserver[ S#Tx, AssocEntry.View[ S, A ]] = NoRelabelObserver )
-                                     ( implicit tx: S#Tx, system: S ) : Assoc[ S, A ] = sys.error( "TODO" )
-
-   private def tagList[ S <: Sys[ S ], E <: Entry.View[ S, E ]]( _entry: E )( implicit tx: S#Tx ) : List[ Int ] = {
-      val b       = List.newBuilder[ Int ]
-      var entry   = _entry
-      while( entry != null ) {
-         b += entry.tag
-         entry    = entry.next
-      }
-      b.result()
-   }
+//   def emptyAssoc[ S <: Sys[ S ], A ]( relabelObserver: RelabelObserver[ S#Tx, AssocEntry[ S, A ]] = NoRelabelObserver )
+//                                     ( implicit tx: S#Tx, system: S ) : Assoc[ S, A ] = sys.error( "TODO" )
 }
 sealed trait TotalOrder[ S <: Sys[ S ], E ] {
    def system: S
@@ -602,11 +400,11 @@ sealed trait TotalOrder[ S <: Sys[ S ], E ] {
     */
    def root : E // Entry[ S ]
 
-//   /**
-//    * Returns the head element of the structure. Note that this
-//    * is O(n) worst case.
-//    */
-//   def head( implicit tx: S#Tx ) : E // Entry[ S ]
+   /**
+    * Returns the head element of the structure. Note that this
+    * is O(n) worst case.
+    */
+   def head( implicit tx: S#Tx ) : E // Entry[ S ]
 
    /**
     * The number of elements in the order. This is `1` for a newly
