@@ -1,0 +1,393 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   version="1.1"
+   inkscape:version="0.48.1 r9760"
+   sodipodi:docname="TxnTotalOrder_EntryView.svg">
+  <defs
+     id="defs4">
+    <marker
+       inkscape:stockid="Arrow1Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mend"
+       style="overflow:visible;">
+      <path
+         id="path3799"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none;"
+         transform="scale(0.4) rotate(180) translate(10,0)" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.98994949"
+     inkscape:cx="270.08261"
+     inkscape:cy="787.20038"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1572"
+     inkscape:window-height="1010"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     showguides="true"
+     inkscape:guide-bbox="true" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="68.690376"
+       y="39.17918"
+       id="text2985"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan2987"
+         x="68.690376"
+         y="39.17918">first idea</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="73.741135"
+       y="75.54467"
+       id="text2989"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan2991"
+         x="73.741135"
+         y="75.54467">E'' :  Ref                              PRED</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="91.79467"
+         id="tspan2993">                                          prev: Ref</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="108.04467"
+         id="tspan2995">                                          next: Ref</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="124.29467"
+         id="tspan2997" /><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="140.54468"
+         id="tspan2999" /><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="156.79468"
+         id="tspan3001">E   : Ref                               REC</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="173.04468"
+         id="tspan3003">                                           prev: Ref</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="189.29468"
+         id="tspan3005">                                           next: Ref</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="205.54468"
+         id="tspan3007" /><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="221.79468"
+         id="tspan3009" /><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="238.04468"
+         id="tspan3011">E'   : Ref                              SUCC</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="254.29468"
+         id="tspan3013">                                           prev : Ref</tspan><tspan
+         sodipodi:role="line"
+         x="73.741135"
+         y="270.54468"
+         id="tspan3015">                                           next : Ref</tspan></text>
+    <path
+       style="color:#000000;fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate;marker-end:url(#Arrow1Mend)"
+       d="m 132.32998,70.493909 119.198,0"
+       id="path3017"
+       inkscape:connector-curvature="0" />
+    <path
+       style="color:#000000;fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;marker-end:url(#Arrow1Mend);visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+       d="m 132.32998,232.49391 119.198,0"
+       id="path4233"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)"
+       d="m 323.24881,249.29091 c 43.30453,12.27423 40.29711,-90.50114 1e-5,-97.37357"
+       id="path4235"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       sodipodi:nodetypes="cc"
+       inkscape:connector-curvature="0"
+       id="path4442"
+       d="m 313.24881,103.50392 c 43.30453,-6.125815 46.35803,36.58003 8.08124,42.53995"
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)"
+       d="m 256.57875,168.47871 c -55.46942,5.74895 -38.12658,-70.74918 -4.04059,-90.913764"
+       id="path4444"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)"
+       d="m 256.57875,185.6513 c -13.2936,-5.685 -29.34099,8.36835 -23.54973,22.23382 1.86182,8.21126 9.28715,13.25924 15.46847,18.17215"
+       id="path4649"
+       inkscape:connector-curvature="0" />
+    <rect
+       style="fill:#ffffff;stroke:none;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="rect4846"
+       width="14.142136"
+       height="11.111678"
+       x="218.17264"
+       y="146.23505" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path4231"
+       d="m 132.32998,152.49391 119.198,0"
+       style="color:#000000;fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;marker-end:url(#Arrow1Mend);visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <path
+       style="fill:#008000;stroke:#008000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:1, 1;stroke-dashoffset:0;marker-start:none;opacity:1;fill-opacity:0.15686275"
+       d="m 119.198,142.21474 c -20.204271,-16.61644 -27.972922,32.37954 -2.73669,23.42395 5.83657,0.28197 14.17912,-3.0524 12.83813,-10.29169"
+       id="path4848"
+       inkscape:connector-curvature="0" />
+    <path
+       inkscape:connector-curvature="0"
+       id="path5060"
+       d="m 307.08637,94.73757 c -20.20427,-16.61644 -27.97292,32.37954 -2.73669,23.42395 5.83657,0.28197 14.17912,-3.0524 12.83813,-10.29169"
+       style="fill:#008000;fill-opacity:0.15686275;stroke:#008000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:1, 1;stroke-dashoffset:0;marker-start:none" />
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="391.93918"
+       y="77.56498"
+       id="text5062"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan5064"
+         x="391.93918"
+         y="77.56498">we cannot have two Refs to the same REC,</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="93.81498"
+         id="tspan5066">because the E-Ref will be invisible in the</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="110.06498"
+         id="tspan5068">relabeling.</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="126.31498"
+         id="tspan5070" /><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="142.56497"
+         id="tspan5072">We could use PRED's nextRef now for E,</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="158.81497"
+         id="tspan5074">but then what happens if an element X is</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="175.06497"
+         id="tspan5078">inserted after PRED? X would need to</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="191.31497"
+         id="tspan5082">use PRED's former nextRef, and PRED's</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="207.56497"
+         id="tspan5084">nextRef would need to be replaced. But this</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="223.81497"
+         id="tspan5086">would required PRED to be rewritten to</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="240.06497"
+         id="tspan5088">PRED's predecessor's nextRef.</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="256.31497"
+         id="tspan5090" /><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="272.56497"
+         id="tspan5092">This is kind of cumbersome, and since the</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="288.81497"
+         id="tspan5094">use site stores anyway E and not the view,</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="305.06497"
+         id="tspan5096">the number of deferencing ops for tag</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="321.31497"
+         id="tspan5098">comparison would anyway be 2. Thus, we</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="337.56497"
+         id="tspan5100">could instead do away with the distinction</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="353.81497"
+         id="tspan5102">between Entry and Entry-View, and instead</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="370.06497"
+         id="tspan5104">store tag in a Ref[Int], yielding the same</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="386.31497"
+         id="tspan5106">2 dereferencing ops per comparison, but</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="402.56497"
+         id="tspan5108">removing the extra E object along with</tspan><tspan
+         sodipodi:role="line"
+         x="391.93918"
+         y="418.81497"
+         id="tspan5110">greatly simplifying the relabeling!</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="174.75639"
+       y="519.00165"
+       id="text5131"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan5133"
+         x="174.75639"
+         y="519.00165">REC</tspan><tspan
+         sodipodi:role="line"
+         x="174.75639"
+         y="535.25165"
+         id="tspan5137">prev: Ref</tspan><tspan
+         sodipodi:role="line"
+         x="174.75639"
+         y="551.50165"
+         id="tspan5141">tag : Ref[ Int ]</tspan><tspan
+         sodipodi:role="line"
+         x="174.75639"
+         y="567.75165"
+         id="tspan5143">next : Ref</tspan></text>
+    <text
+       sodipodi:linespacing="125%"
+       id="text5145"
+       y="425.0575"
+       x="175.76654"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       xml:space="preserve"><tspan
+         y="425.0575"
+         x="175.76654"
+         id="tspan5147"
+         sodipodi:role="line">PRED</tspan><tspan
+         id="tspan5149"
+         y="441.3075"
+         x="175.76654"
+         sodipodi:role="line">prev: Ref</tspan><tspan
+         id="tspan5151"
+         y="457.5575"
+         x="175.76654"
+         sodipodi:role="line">tag : Ref[ Int ]</tspan><tspan
+         id="tspan5153"
+         y="473.8075"
+         x="175.76654"
+         sodipodi:role="line">next : Ref</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="173.74623"
+       y="620.01691"
+       id="text5155"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan5157"
+         x="173.74623"
+         y="620.01691">SUCC</tspan><tspan
+         sodipodi:role="line"
+         x="173.74623"
+         y="636.26691"
+         id="tspan5159">prev: Ref</tspan><tspan
+         sodipodi:role="line"
+         x="173.74623"
+         y="652.51691"
+         id="tspan5161">tag : Ref[ Int ]</tspan><tspan
+         sodipodi:role="line"
+         x="173.74623"
+         y="668.76691"
+         id="tspan5163">next : Ref</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)"
+       d="m 238.396,470.51432 c 29.40489,-11.28015 12.70396,19.8282 -4.40622,32.07409 -8.9982,6.44008 -23.87805,8.33176 -23.87805,8.33176"
+       id="path5165"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="csc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)"
+       d="m 233.34524,631.14888 c 68.69582,8.1224 76.19789,-110.68996 19.41786,-114.26747 l -22.44832,-1.90008"
+       id="path5367"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="ccc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)"
+       d="m 167.68532,531.12347 c -34.62651,2.44894 -31.11434,-44.39316 -22.80753,-66.6209 4.62004,-12.51123 13.24039,-22.9103 19.77703,-34.3944"
+       id="path5571"
+       inkscape:connector-curvature="0" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker-end:url(#Arrow1Mend)"
+       d="m 168.69548,563.44835 c -15.37819,-5.09012 -32.68575,9.12288 -25.78709,25.33649 1.0949,14.11694 12.5923,22.3799 24.51674,27.25124 l 1.17969,0.92584 1.1006,1.03467"
+       id="path5573"
+       inkscape:connector-curvature="0" />
+    <text
+       xml:space="preserve"
+       style="font-size:13px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Gulim;-inkscape-font-specification:Gulim"
+       x="320.21835"
+       y="513.95087"
+       id="text5963"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         x="320.21835"
+         y="513.95087"
+         id="tspan5967">serialization: three ref writes/reads</tspan></text>
+  </g>
+</svg>

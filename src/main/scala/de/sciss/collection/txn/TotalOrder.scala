@@ -188,7 +188,7 @@ object TotalOrder {
        * multiplier dynamically to allow it to be as large as possible
        * without producing integer overflows."
        */
-      protected def relabel( _firstRef: S#Ref[ E ])( implicit tx: S#Tx ) {
+      protected def relabel( _firstRef: S#Ref[ E ])( implicit tx: S#Tx ) : E = {
          var mask       = -1
          var thresh     = 1.0
          var firstRef   = _firstRef
@@ -268,8 +268,8 @@ object TotalOrder {
    private final class SetEntryImpl[ S <: Sys[ S ]]( impl: SetImpl[ S ],
                                                      private[TotalOrder] val ref: S#Ref[ SetEntry.View[ S ]])
    extends SetEntry[ S ] {
-      def append()(  implicit tx: S#Tx ) : SetEntry[ S ] = impl.append( this )
-      def prepend()( implicit tx: S#Tx ) : SetEntry[ S ] = impl.prepend( this )
+      def append()(  implicit tx: S#Tx ) : SetEntry[ S ] = impl.append( ref )
+      def prepend()( implicit tx: S#Tx ) : SetEntry[ S ] = impl.prepend( ref )
       def remove()( implicit tx: S#Tx ) { impl.remove( this )}
       def tagList( implicit tx: S#Tx ) : List[ Int ] = TotalOrder.tagList[ S, SetEntry.View[ S ]]( ref.get )
       def tag( implicit tx: S#Tx ) : Int = ref.get.tag
@@ -322,8 +322,20 @@ object TotalOrder {
          system.writeRef( e.ref, out )
       }
 
-      def append( prev: E )( implicit tx: S#Tx ) : E = {
-         sys.error( "TODO" )
+      def append( prevRef: S#Ref[ V ])( implicit tx: S#Tx ) : E = {
+         val prev       = prevRef.get
+         val next       = prev.next
+         val nextTag    = if( next == null ) Int.MaxValue else next.tag
+         val recPrevRef = system.newRef[ V ]( prev )
+         val recNextRef = system.newRef[ V ]( next )
+         val prevTag    = prev.tag
+         val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
+         val rec        = new SetEntryViewImpl[ S ]( recTag, recPrevRef, recNextRef )
+         prev.nextRef.set( rec )
+         next.prevRef.set( rec )
+         val recRef     = system.newRef[ V ]( rec )
+         if( recTag == nextTag ) relabel( recRef )
+
       }
 
       def prepend( next: E )( implicit tx: S#Tx ) : E = {
