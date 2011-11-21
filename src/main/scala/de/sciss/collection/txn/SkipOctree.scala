@@ -36,7 +36,7 @@ import collection.immutable.{IndexedSeq => IIdxSeq}
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ] {
+trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] {
    def space: D
    def system: S
 
