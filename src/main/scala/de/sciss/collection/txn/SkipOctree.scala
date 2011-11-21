@@ -28,6 +28,7 @@ package txn
 
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
 import de.sciss.lucrestm.Sys
+import collection.immutable.{IndexedSeq => IIdxSeq}
 
 /**
  * A `SkipOctree` is a multi-dimensional data structure that
@@ -37,6 +38,7 @@ import de.sciss.lucrestm.Sys
  */
 trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ] {
    def space: D
+   def system: S
 
 //   def headTree: QNode
 //   def lastTree: QNode
@@ -80,6 +82,11 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ] 
 
    def isEmpty( implicit tx: S#Tx ) : Boolean
 
+   def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ]
+   def toList( implicit tx: S#Tx ) : List[ A ]
+   def toSeq(  implicit tx: S#Tx ) : Seq[  A ]
+   def toSet(  implicit tx: S#Tx ) : Set[  A ]
+
    /**
     * Reports the nearest neighbor entry with respect to
     * a given point.
@@ -110,6 +117,9 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ] 
     * by the orthant indices of the nodes of the tree
     */
    def iterator( implicit tx: S#Tx ) : Iterator[ A ]
+
+   def +=( elem: A )( implicit tx: S#Tx ) : this.type
+   def -=( elem: A )( implicit tx: S#Tx ) : this.type
 
 //   /* sealed */ trait Q
 //   trait QEmpty extends Q

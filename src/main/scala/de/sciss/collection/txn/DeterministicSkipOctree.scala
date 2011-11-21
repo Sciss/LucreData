@@ -26,6 +26,7 @@
 package de.sciss.collection
 package txn
 
+import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.tailrec
 import geom.{QueryShape, DistanceMeasure, Space}
@@ -165,8 +166,23 @@ object DeterministicSkipOctree {
          i
       }
 
+      def +=( elem: A )( implicit tx: S#Tx ) : this.type = {
+         insertLeaf( elem )
+         this
+      }
+
+      def -=( elem: A )( implicit tx: S#Tx ) : this.type = {
+         removeLeaf( pointView( elem ))
+         this
+      }
+
       def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ A ] =
          new RangeQuery( qs )
+
+      def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ] = iterator.toIndexedSeq
+      def toList( implicit tx: S#Tx ) : List[ A ] = iterator.toList
+      def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toSeq
+      def toSet(  implicit tx: S#Tx ) : Set[  A ] = iterator.toSet
 
       private def findLeaf( point: D#Point ) : Leaf[ S, D, A ] = {
          val p0 = lastTree.findP0( point )
@@ -797,6 +813,8 @@ object DeterministicSkipOctree {
        * node exists.
        */
       private[DeterministicSkipOctree] def next: RightNode[ S, D, A ]
+
+      final def nextOption : Option[ Node[ S, D, A ]] = Option( next )
 
       /**
        * Sets the corresponding interesting
