@@ -76,6 +76,10 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ] 
 
    def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ A ]
 
+   def contains( elem: A )( implicit tx: S#Tx ) : Boolean
+
+   def isEmpty( implicit tx: S#Tx ) : Boolean
+
    /**
     * Reports the nearest neighbor entry with respect to
     * a given point.

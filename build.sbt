@@ -20,7 +20,7 @@ retrieveManaged := true
 
 // the guy who is responsible for specialization should be decapitated
 
-scalacOptions ++= Seq( "-deprecation", "-unchecked" ) // , "-Ylog:icode", "-Ydebug" ) // "-no-specialization"
+scalacOptions ++= Seq( "-deprecation", "-unchecked", "-no-specialization" ) // , "-Ylog:icode", "-Ydebug" ) //
 
 // ---- publishing ----
 
