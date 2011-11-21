@@ -199,7 +199,14 @@ object DeterministicSkipOctree {
             val leaf = p0.insert( point, elem )
             skipList.add( leaf )
          } else {
-            oldLeaf.value = elem
+//            oldLeaf.value = elem
+            // remove previous leaf
+            removeImmediateLeaf( oldLeaf )
+            // search anew
+            val p0b        = lastTree.findP0( point )
+            assert( p0b.findImmediateLeaf( point ) == null )
+            val leaf = p0.insert( point, elem )
+            skipList.add( leaf )
          }
          oldLeaf
       }
@@ -216,19 +223,22 @@ object DeterministicSkipOctree {
 
          val l = p0.findImmediateLeaf( point )
          if( l != null ) {
-            // this will trigger removals from upper levels
-            skipList.remove( l )
-            // be careful: p0 at this point may be invalid
-            // as the skiplist removal might have merged
-            // it with its parent(s). we thus need to find
-            // the parent of l in Q0 again!
-
-            val p = l.parent
-            p.removeImmediateLeaf( l )
-            assert( l.parent == null, "Internal error - leaf should be removed by now : " + l )
+            removeImmediateLeaf( l )
          }
-
          l
+      }
+
+      private def removeImmediateLeaf( l: Leaf[ S, D, A ])( implicit tx: S#Tx ) {
+         // this will trigger removals from upper levels
+         skipList.remove( l )
+         // be careful: p0 at this point may be invalid
+         // as the skiplist removal might have merged
+         // it with its parent(s). we thus need to find
+         // the parent of l in Q0 again!
+
+         val p = l.parent
+         p.removeImmediateLeaf( l )
+         assert( l.parent == null, "Internal error - leaf should be removed by now : " + l )
       }
 
       def iterator( implicit tx: S#Tx ) : Iterator[ A ] = skipList.iterator.map( _.value )
@@ -713,14 +723,9 @@ object DeterministicSkipOctree {
     * same leaf, while the parent of a leaf always
     * points into the highest level octree that
     * the leaf resides in, according to the skiplist.
-    *
-    * it would be better to replace the leaf instead of updating value; however
-    * the problem is there can be several pointers to a leaf, so at least for now,
-    * let's not make life more complicated than necessary. also skip list would
-    * need to be made 'replace-aware'.
     */
    /* private */ final class Leaf[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ](
-      val point: D#Point, var value: A, val order: Order[ S ])
+      val point: D#Point, val value: A, val order: Order[ S ])
    extends LeftInnerNonEmpty[ S, D, A ] with RightInnerNonEmpty[ S, D, A ] /* with Ordered[ Leaf[ S, D, A ]] */ /* with QLeaf */ {
       private var parentVar: Node[ S, D, A ] = null
 
