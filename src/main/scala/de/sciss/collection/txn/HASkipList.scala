@@ -770,7 +770,7 @@ object HASkipList {
    final class Leaf[ S <: Sys[ S ], @specialized( Int ) A ]( keys: Array[ A ])
    extends LeafLike[ S, A ] with Node[ S, A ] {
       def key( idx: Int ) = keys( idx )
-      def size : Int = keys.size
+      def size : Int = keys.length
 
       def isLeaf   : Boolean = true
       def isBranch : Boolean = false
@@ -1015,7 +1015,7 @@ object HASkipList {
       }
 
       def key( idx: Int ) : A = keys( idx )
-      def size : Int = keys.size
+      def size : Int = keys.length
 
       private[HASkipList] def downRef( i: Int ) : S#Ref[ Node[ S, A ]] = downs( i )
 
