@@ -53,10 +53,14 @@ object DeterministicSkipOctree {
                                                    dmf: Manifest[ D ],
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
-      val root: TopLeftNode[ S, D, A ] = null   // XXX
-      new Impl[ S, D, A ]( space, hyperCube, view, root, root, { implicit impl =>
-         import impl.system
-         HASkipList.empty[ S, Leaf[ S, D, A ]]( skipGap, impl )
+      new Impl[ S, D, A ]( space, hyperCube, view, { implicit impl =>
+         import impl.{numOrthants, topNodeSer}
+         val rootOrder     = TotalOrder.empty[ S ]().root
+         val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
+         val head          = new TopLeftNode[ S, D, A ]( hyperCube, rootOrder, children )
+         val lastTreeRef   = system.newRef[ TopNode[ S, D, A ]]( head )
+         val skipList      = HASkipList.empty[ S, Leaf[ S, D, A ]]( skipGap, impl )
+         (head, lastTreeRef, skipList)
       })
    }
 
@@ -70,10 +74,17 @@ object DeterministicSkipOctree {
 
    private type Order[ S <: Sys[ S ]] = TotalOrder.SetEntry[ S ]
 
+   private final class TopNodeSer[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
+   extends Serializer[ TopNode[ S, D, A ]] {
+      def read( in: DataInput ) : TopNode[ S, D, A ] = sys.error( "TODO" )
+      def write( node: TopNode[ S, D, A ], out: DataOutput ) {
+         sys.error( "TODO" )
+      }
+   }
+
    private final class Impl[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
       ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#Point,
-        val headTree: TopLeftNode[ S, D, A ], var lastTree: TopNode[ S, D, A ],
-        _skipListFun: Impl[ S, D, A ] => SkipList[ S, Leaf[ S, D, A ]])
+        _initFun: Impl[ S, D, A ] => (TopLeftNode[ S, D, A ], S#Ref[ TopNode[ S, D, A ]], SkipList[ S, Leaf[ S, D, A ]]))
       ( implicit val system: S )
    extends DeterministicSkipOctree[ S, D, A ]
    with SkipList.KeyObserver[ S#Tx, Leaf[ S, D, A ]]
@@ -83,7 +94,8 @@ object DeterministicSkipOctree {
 
       implicit private def impl = this
 
-      private val skipList = _skipListFun( this )
+      implicit val topNodeSer: Serializer[ TopNode[ S, D, A ]] = new TopNodeSer[ S, D, A ]
+      val (headTree, lastTreeRef, skipList) = _initFun( this )
 
       def numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
 //      val totalOrder = TotalOrder.empty[ S ]()
@@ -94,8 +106,13 @@ object DeterministicSkipOctree {
 //         HASkipList.empty[ Leaf ]( _skipGap, KeyObserver )
 //      }
 
-//      def headTree : Node = TopLeftNode
+//      def head : Node = TopLeftNode
 //      def lastTree : Node = lastTree
+      
+      def lastTree( implicit tx: S#Tx ) : TopNode[ S, D, A ] = lastTreeRef.get
+      def lastTree_=( node: TopNode[ S, D, A ])( implicit tx: S#Tx ) {
+         lastTreeRef.set( node )
+      }
 
       def add( elem: A )( implicit tx: S#Tx ) : Boolean = {
          val oldLeaf = insertLeaf( elem )
@@ -184,7 +201,7 @@ object DeterministicSkipOctree {
       def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toSeq
       def toSet(  implicit tx: S#Tx ) : Set[  A ] = iterator.toSet
 
-      private def findLeaf( point: D#Point ) : Leaf[ S, D, A ] = {
+      private def findLeaf( point: D#Point )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
          val p0 = lastTree.findP0( point )
          p0.findImmediateLeaf( point )
       }
@@ -1191,7 +1208,7 @@ object DeterministicSkipOctree {
       }
    }
 
-   private sealed trait TopNode[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
+   /* private */ sealed trait TopNode[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
    extends Node[ S, D, A ] {
 //      final def hyperCube : D#HyperCube = tree.hyperCube
       private[DeterministicSkipOctree] final def findPN : RightNode[ S, D, A ] = next
@@ -1271,7 +1288,7 @@ object DeterministicSkipOctree {
          dispose()
       }
 
-      private[DeterministicSkipOctree] def dispose()( implicit impl: Impl[ S, D, A ]) {
+      private[DeterministicSkipOctree] def dispose()( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
          import impl.lastTree
          assert( next == null )
          assert( lastTree == this )
@@ -1328,5 +1345,5 @@ object DeterministicSkipOctree {
 sealed trait DeterministicSkipOctree[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
 extends SkipOctree[ S, D, A ] {
    def headTree : DeterministicSkipOctree.Node[ S, D, A ]
-   def lastTree : DeterministicSkipOctree.Node[ S, D, A ]
+   def lastTree( implicit tx: S#Tx ) : DeterministicSkipOctree.TopNode[ S, D, A ]
 }
