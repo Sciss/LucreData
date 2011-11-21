@@ -29,7 +29,7 @@ package txn
 import de.sciss.lucrestm.{Serializer, Sys}
 
 object SkipList {
-   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ A ], mf: Manifest[ A ],
+   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ], mf: Manifest[ A ],
                                   serKey: Serializer[ A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
 
    /**
@@ -140,7 +140,7 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
    /**
     * The ordering used for the keys of this list.
     */
-   implicit def ordering : de.sciss.collection.Ordering[ A ]
+   implicit def ordering : Ordering[ S#Tx, A ]
 
    /**
     * The minimum gap within elements of each skip level

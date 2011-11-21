@@ -26,10 +26,10 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.Sys
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.tailrec
 import geom.{QueryShape, DistanceMeasure, Space}
+import de.sciss.lucrestm.{DataOutput, DataInput, Serializer, Sys}
 
 /**
  * A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
@@ -47,13 +47,16 @@ import geom.{QueryShape, DistanceMeasure, Space}
  */
 object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
-                                                 ( implicit view: A => D#Point, tx: S#Tx,
-                                                   system: S ) : DeterministicSkipOctree[ S, D, A ] = {
+                                                 ( implicit view: A => D#Point, tx: S#Tx, system: S,
+                                                   smf: Manifest[ S ],
+                                                   dmf: Manifest[ D ],
+                                                   amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
-      val headTree: TopLeftNode[ S, D, A ]         = null   // XXX
-      val lastTree: TopNode[ S, D, A ]             = null   // XXX
-      val skipList: SkipList[ S, Leaf[ S, D, A ]]  = null   // XXX
-      new Impl[ S, D, A ]( space, hyperCube, skipGap, view, headTree, lastTree, skipList )
+      val root: TopLeftNode[ S, D, A ] = null   // XXX
+      new Impl[ S, D, A ]( space, hyperCube, view, root, root, { implicit impl =>
+         import impl.system
+         HASkipList.empty[ S, Leaf[ S, D, A ]]( skipGap, impl )
+      })
    }
 
 //   def apply[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
@@ -67,13 +70,19 @@ object DeterministicSkipOctree {
    private type Order[ S <: Sys[ S ]] = TotalOrder.SetEntry[ S ]
 
    private final class Impl[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
-      ( val space: D, val hyperCube: D#HyperCube, _skipGap: Int, val pointView: A => D#Point,
-        val headTree: TopLeftNode[ S, D, A ], var lastTree: TopNode[ S, D, A ], skipList: SkipList[ S, Leaf[ S, D, A ]])
-      ( implicit system: S )
-   extends DeterministicSkipOctree[ S, D, A ] /* impl.SkipOctreeImpl[ D, A ] */ {
+      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#Point,
+        val headTree: TopLeftNode[ S, D, A ], var lastTree: TopNode[ S, D, A ],
+        _skipListFun: Impl[ S, D, A ] => SkipList[ S, Leaf[ S, D, A ]])
+      ( implicit val system: S )
+   extends DeterministicSkipOctree[ S, D, A ]
+   with SkipList.KeyObserver[ S#Tx, Leaf[ S, D, A ]]
+   with Ordering[ S#Tx, Leaf[ S, D, A ]]
+   with Serializer[ Leaf[ S, D, A ]] {
       // tree =>
 
       implicit private def impl = this
+
+      private val skipList = _skipListFun( this )
 
       def numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
 //      val totalOrder = TotalOrder.empty[ S ]()
@@ -206,47 +215,74 @@ object DeterministicSkipOctree {
          l
       }
 
-      def iterator( implicit tx: S#Tx ) : Iterator[ A ] = new Iter( skipList.iterator )
+      def iterator( implicit tx: S#Tx ) : Iterator[ A ] = skipList.iterator.map( _.value )
 
-      private final class Iter( underlying: Iterator[ Leaf[ S, D, A ]]) extends Iterator[ A ] {
-         def next() : A = {
-            val leaf = underlying.next()
-            leaf.value
-         }
-         def hasNext : Boolean = underlying.hasNext
+//      private final class Iter( underlying: Iterator[ Leaf[ S, D, A ]]) extends Iterator[ A ] {
+//         def next() : A = {
+//            val leaf = underlying.next()
+//            leaf.value
+//         }
+//         def hasNext : Boolean = underlying.hasNext
+//      }
+
+      // ---- Serializer[ Leaf[ ... ]] ----
+
+      def read( in: DataInput ) : Leaf[ S, D, A ] = {
+         sys.error( "TODO" )
       }
 
-      private object KeyObserver extends SkipList.KeyObserver[ S#Tx, Leaf[ S, D, A ]] {
-         def keyUp( l: Leaf[ S, D, A ])( implicit tx: S#Tx ) {
+      def write( leaf: Leaf[ S, D, A ], out: DataOutput ) {
+         sys.error( "TODO" )
+      }
+
+      // ---- Ordering[ Leaf[ ... ]] ----
+
+      /**
+       * Leafs are ordered by the tree's in-order traversal,
+       * where the quadrants I+II and III+IV can be thought
+       * of as dummy nodes to binarize the octree. That is
+       * to say, in a node, the child order corresponds to
+       * their quadrant indices (I < II < III < IV).
+       */
+      def compare( a: Leaf[ S, D, A ], b: Leaf[ S, D, A ])( implicit tx: S#Tx ) : Int = {
+//         order.compare( that.order )
+         val t1 = a.order.tag
+         val t2 = b.order.tag
+         if( t1 < t2 ) -1 else if( t1 > t2 ) 1 else 0
+      }
+
+
+      // ---- KeyObserver ----
+
+      def keyUp( l: Leaf[ S, D, A ])( implicit tx: S#Tx ) {
 //println( "up : " + l )
-            // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
-            //  then traverse upwards in Qi until we find the lowest
-            //  ancestor q of x which is also interesting in Qi+1.
-            //  (This is the reversed process of searching x in Qi
-            //  with q = pi,start = pi+1,end so it takes at most 6
-            //  steps by Lemma 5.) Then we go to the same square q
-            //  in Qi+1 and insert x."
+         // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
+         //  then traverse upwards in Qi until we find the lowest
+         //  ancestor q of x which is also interesting in Qi+1.
+         //  (This is the reversed process of searching x in Qi
+         //  with q = pi,start = pi+1,end so it takes at most 6
+         //  steps by Lemma 5.) Then we go to the same square q
+         //  in Qi+1 and insert x."
 
-            val pNext0  = l.parent.findPN // ( path, 0 )
-            val pNext   = if( pNext0 == null ) { // create new level
-               val sz   = numOrthants
-               val ch   = new Array[ RightChild[ S, D, A ]]( sz )
-               val res  = new TopRightNode( hyperCube, lastTree, ch )
-               lastTree = res
-               res
-            } else pNext0
-            pNext.insert( l ) // , path )
-         }
+         val pNext0  = l.parent.findPN // ( path, 0 )
+         val pNext   = if( pNext0 == null ) { // create new level
+            val sz   = numOrthants
+            val ch   = new Array[ RightChild[ S, D, A ]]( sz )
+            val res  = new TopRightNode( hyperCube, lastTree, ch )
+            lastTree = res
+            res
+         } else pNext0
+         pNext.insert( l ) // , path )
+      }
 
-         def keyDown( l: Leaf[ S, D, A ])( implicit tx: S#Tx ) {
+      def keyDown( l: Leaf[ S, D, A ])( implicit tx: S#Tx ) {
 //println( "down : " + l )
-            // "To delete x from Qi we go from xi to the smallest interesting
-            //  square pi(x) containing x in Qi following the pointers. Then
-            //  the deletion given pi(x) is as described in Section 2.3."
+         // "To delete x from Qi we go from xi to the smallest interesting
+         //  square pi(x) containing x in Qi following the pointers. Then
+         //  the deletion given pi(x) is as described in Section 2.3."
 
-            val p = l.parent
-            p.removeImmediateLeaf( l )
-         }
+         val p = l.parent
+         p.removeImmediateLeaf( l )
       }
    }
 
@@ -324,21 +360,24 @@ object DeterministicSkipOctree {
          val qdn  = dn.hyperCube
          var succ = n0.next
          while( succ != null ) {
-            succ.child( accept1Idx ) match {
-               case dn2: Node[ S, D, A ] if( dn2.hyperCube == qdn ) =>
+            val c = succ.child( accept1Idx )
+            succ  = if( c.isNode ) {
+               val dn2 = c.asNode
+               if( dn2.hyperCube == qdn ) {
                   dn    = dn2
-                  succ  = succ.next
-               case _ =>
-                  succ  = null
+                  succ.next
+               } else {
+                  null
+               }
+            } else {
+               null
             }
          }
 
          // now go left
-         @tailrec def findLeft( n: Node[ S, D, A ]) : LeftNode[ S, D, A ] = {
-            n match {
-               case l: LeftNode[ S, D, A ] => l
-               case r: RightNode[ S, D, A ] => findLeft( r.prev )
-            }
+         @tailrec def findLeft( n: Node[ S, D, A ]) : Node[ S, D, A ] = {
+            val prev = n.prev
+            if( prev == null ) n else findLeft( prev )
          }
 //         while( dn.prev != null ) dn = dn.prev
 //         findNNTail( dn )
@@ -398,23 +437,23 @@ object DeterministicSkipOctree {
       @tailrec def findEquiStabbingTail( node: Node[ S, D, A ], area: Area ) : Node[ S, D, A ] = {
          var pi = node
          var i = 0; while( i < sz ) {
-            pi.child( i ) match {
-               case pic: Node[ S, D, A ] =>
-                  val a2 = qs.overlapArea( pic.hyperCube )
-                  if( a2 == area ) {
-                     pi = pic
-                     i  = 0   // start over in child
-                  } else {
-                     i += 1
-                  }
-               case _ => i += 1
+            val c = pi.child( i )
+            if( c.isNode ) {
+               val pic = c.asNode
+               val a2 = qs.overlapArea( pic.hyperCube )
+               if( a2 == area ) {
+                  pi = pic
+                  i  = 0   // start over in child
+               } else {
+                  i += 1
+               }
+            } else {
+               i += 1
             }
          }
          // ... or jump to the next (previous) level
-         pi match {
-            case l: LeftNode[ S, D, A ]  => l
-            case r: RightNode[ S, D, A ] => findEquiStabbingTail( r.prev, area )
-         }
+         val prev = pi.prev
+         if( prev == null ) pi else findEquiStabbingTail( prev, area )
       }
 
       // the movement from Q0 to Qj
@@ -434,18 +473,20 @@ object DeterministicSkipOctree {
          var uncritical = p0
          var i = 0
          while( i < sz ) {
-            pi.child( i ) match {
-               case ci: Node[ S, D, A ] =>
-                  val a2 = qs.overlapArea( ci.hyperCube )
-                  if( a2 == area ) {   // that means node is uncritical
-                     uncritical  = pi
-                     pi          = pi.next
-                     if( pi == null ) return uncritical
-                     i           = 0   // restart in next level
-                  } else {
-                     i          += 1
-                  }
-               case _ => i += 1
+            val c = pi.child( i )
+            if( c.isNode ) {
+               val ci = c.asNode
+               val a2 = qs.overlapArea( ci.hyperCube )
+               if( a2 == area ) {   // that means node is uncritical
+                  uncritical  = pi
+                  pi          = pi.next
+                  if( pi == null ) return uncritical
+                  i           = 0   // restart in next level
+               } else {
+                  i          += 1
+               }
+            } else {
+               i += 1
             }
          }
          uncritical
@@ -471,37 +512,42 @@ object DeterministicSkipOctree {
             val nc   = findEquiStabbingTail( hi, as )    // now traverse towards Q0 to find the critical square
 
             var i = 0; while( i < sz ) {
-               nc.child( i ) match {
-                  case cl: Leaf[ S, D, A ] =>
-                     if( qs.contains( pointView( cl.value ))) in += cl
-                  case cn: Node[ S, D, A ] =>
-                     val q    = cn.hyperCube
-                     val ao   = qs.overlapArea( q )
-                     // test for stabbing or inclusion:
-                     // inclusion: overlap-area == area-of-p
-                     // stabbing: 0 < overlap-area < area-of-p
-                     if( qs.isAreaNonEmpty( ao )) {      // q is _not_ out
-                        if( qs.isAreaGreater( q, ao )) { // q is stabbing
-                           stabbing += cn -> ao
-                        } else {                         // q is in
-                           in += cn
-                        }
+               val c = nc.child( i )
+               if( c.isLeaf ) {
+                  val cl = c.asLeaf
+                  if( qs.contains( pointView( cl.value ))) in += cl
+               } else if( c.isNode ) {
+                  val cn = c.asNode
+                  val q    = cn.hyperCube
+                  val ao   = qs.overlapArea( q )
+                  // test for stabbing or inclusion:
+                  // inclusion: overlap-area == area-of-p
+                  // stabbing: 0 < overlap-area < area-of-p
+                  if( qs.isAreaNonEmpty( ao )) {      // q is _not_ out
+                     if( qs.isAreaGreater( q, ao )) { // q is stabbing
+                        stabbing += cn -> ao
+                     } else {                         // q is in
+                        in += cn
                      }
-                  case _ =>
+                  }
                }
             i += 1 }
 
-         } else in.dequeue() match {
-            case l: Leaf[ S, D, A ] =>
+         } else {
+            val c = in.dequeue()
+            if( c.isLeaf ) {
+               val l = c.asLeaf
                current = l.value
                return
-            case n: Node[ S, D, A ] =>
+            } else {
+               val n = c.asNode
                var i = 0; while( i < sz ) {
-                  n.child( i ) match {
-                     case ne: NonEmpty[ S, D, A ] => in += ne   // sucky `enqueue` creates intermediate Seq because of varargs
-                     case _ =>
+                  val cc = n.child( i )
+                  if( !cc.isEmpty ) {
+                     in += cc.asNonEmpty // sucky `enqueue` creates intermediate Seq because of varargs
                   }
-               i += 1 }
+                  i += 1 }
+            }
          }
       }}
    }
@@ -517,6 +563,7 @@ object DeterministicSkipOctree {
       def isNode : Boolean
       def asLeaf : Leaf[ S, D, A ]
       def asNode : Node[ S, D, A ]
+      def asNonEmpty : NonEmpty[ S, D, A ]
    }
    /**
     * A left child is one which is stored in Q0.
@@ -530,7 +577,9 @@ object DeterministicSkipOctree {
     * - `InnerLeftNode`
     */
    /* private */ sealed trait LeftChild[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
-   extends Child[ S, D, A ]
+   extends Child[ S, D, A ] {
+      private[DeterministicSkipOctree] def asLeftInnerNonEmpty : LeftInnerNonEmpty[ S, D, A ]
+   }
 
    /**
     * A right child is one which is stored in Qi, i > 0.
@@ -542,7 +591,9 @@ object DeterministicSkipOctree {
     * - `InnerRightNode`
     */
    /* private */ sealed trait RightChild[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
-   extends Child[ S, D, A ]
+   extends Child[ S, D, A ] {
+      private[DeterministicSkipOctree] def asRightInnerNonEmpty : RightInnerNonEmpty[ S, D, A ]
+   }
 
    /**
     * A dummy object indicating a vacant orthant in a node.
@@ -556,6 +607,9 @@ object DeterministicSkipOctree {
       def isNode = false
       def asLeaf : Leaf[ S, D, A ] = opNotSupported
       def asNode : Node[ S, D, A ] = opNotSupported
+      def asNonEmpty : NonEmpty[ S, D, A ] = opNotSupported
+      private[DeterministicSkipOctree] def asRightInnerNonEmpty : RightInnerNonEmpty[ S, D, A ] = opNotSupported
+      private[DeterministicSkipOctree] def asLeftInnerNonEmpty : LeftInnerNonEmpty[ S, D, A ] = opNotSupported
    }
 
    /**
@@ -583,6 +637,7 @@ object DeterministicSkipOctree {
       private[DeterministicSkipOctree] def orthantIndexIn( iq: D#HyperCube )( implicit impl: Impl[ S, D, A ]) : Int
 
       final def isEmpty = false
+      final def asNonEmpty : NonEmpty[ S, D, A ] = this
    }
 
    /**
@@ -621,6 +676,7 @@ object DeterministicSkipOctree {
    /* private */ sealed trait LeftInnerNonEmpty[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
    extends LeftNonEmpty[ S, D, A ] with InnerNonEmpty[ S, D, A ] with LeftChild[ S, D, A ] {
       private[DeterministicSkipOctree] def parentLeft_=( p: LeftNode[ S, D, A ]) : Unit
+      final private[DeterministicSkipOctree] def asLeftInnerNonEmpty : LeftInnerNonEmpty[ S, D, A ] = this
    }
 
    /**
@@ -629,6 +685,7 @@ object DeterministicSkipOctree {
    /* private */ sealed trait RightInnerNonEmpty[ S <: Sys[ S ], D <: Space[ D ], @specialized( Int, Long ) A ]
    extends InnerNonEmpty[ S, D, A ] with RightChild[ S, D, A ] {
       private[DeterministicSkipOctree] def parentRight_=( p: RightNode[ S, D, A ]) : Unit
+      final private[DeterministicSkipOctree] def asRightInnerNonEmpty : RightInnerNonEmpty[ S, D, A ] = this
    }
 
    /**
@@ -660,20 +717,6 @@ object DeterministicSkipOctree {
       def isNode  = false
       def asLeaf : Leaf[ S, D, A ]  = this
       def asNode : Node[ S, D, A ]  = opNotSupported
-
-      /**
-       * Leafs are ordered by the tree's in-order traversal,
-       * where the quadrants I+II and III+IV can be thought
-       * of as dummy nodes to binarize the octree. That is
-       * to say, in a node, the child order corresponds to
-       * their quadrant indices (I < II < III < IV).
-       */
-      def compare( that: Leaf[ S, D, A ])( implicit tx: S#Tx ) : Int = {
-//         order.compare( that.order )
-         val t1 = order.tag
-         val t2 = that.order.tag
-         if( t1 < t2 ) -1 else if( t1 > t2 ) 1 else 0
-      }
 
       private[DeterministicSkipOctree] def union( mq: D#HyperCube, point2: D#Point )( implicit impl: Impl[ S, D, A ]) = {
          import impl.pointView
@@ -761,6 +804,8 @@ object DeterministicSkipOctree {
        */
       private[DeterministicSkipOctree] def next_=( n: RightNode[ S, D, A ]) : Unit
 
+      private[DeterministicSkipOctree] def prev: Node[ S, D, A ]
+
       private[DeterministicSkipOctree] final def union( mq: D#HyperCube, point2: D#Point )
                                                       ( implicit impl: Impl[ S, D, A ]) = {
          val q = hyperCube
@@ -836,10 +881,14 @@ object DeterministicSkipOctree {
 
       private[DeterministicSkipOctree] final def findP0( point: D#Point ) : LeftNode[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
-         children( qidx ) match {
-            case n: Node[ S, D, A ] if( n.hyperCube.contains( point )) => n.findP0( point )
-            case _ => prev.findP0( point )
+         val c = children( qidx )
+         val n = if( c.isNode ) {
+            val cn = c.asNode
+            if( cn.hyperCube.contains( point )) cn else prev
+         } else {
+            prev
          }
+         n.findP0( point )
       }
 
       /**
@@ -860,38 +909,35 @@ object DeterministicSkipOctree {
          import impl.pointView
          val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
-         children( qidx ) match {
-            case _: Empty[ S, D, A ] =>
-               children( qidx )  = leaf
-               leaf.parent       = this
+         val c       = children( qidx )
+         if( c.isEmpty ) {
+            children( qidx )  = leaf
+            leaf.parent       = this
+         } else {
+            val old = c.asRightInnerNonEmpty
+            // determine the greatest interesting square for the new
+            // intermediate node to create
+            val qn2     = old.union( hyperCube.orthant( qidx ), point )
+            // find the corresponding node in the lower tree
+            var pPrev   = prev
+            while( pPrev.hyperCube != qn2 ) pPrev = pPrev.child( leaf.orthantIndexIn( pPrev.hyperCube )).asNode
+            val n2      = newNode( qidx, pPrev, qn2 )
 
-            case old: RightInnerNonEmpty[ S, D, A ] =>
-               // determine the greatest interesting square for the new
-               // intermediate node to create
-               val qn2     = old.union( hyperCube.orthant( qidx ), point )
-               // find the corresponding node in the lower tree
-               var pPrev   = prev
-               while( pPrev.hyperCube != qn2 ) pPrev = pPrev.child( leaf.orthantIndexIn( pPrev.hyperCube )) match {
-                  case n: Node[ S, D, A ] => n
-                  case _ => sys.error( "Internal error -- structural problem. No node leading to leaf" )
-               }
-               val n2      = newNode( qidx, pPrev, qn2 )
-
-               val c2      = n2.children
-               val oidx    = old.orthantIndexIn( qn2 )
-               c2( oidx )  = old
-               // This is a tricky bit! And a reason
-               // why should eventually try to do without
-               // parent pointers at all. Since `old`
-               // may be a leaf whose parent points
-               // to a higher level tree, we need to
-               // check first if the parent is `this`,
-               // and if so, adjust the parent to point
-               // to the new intermediate node `ne`!
-               if( old.parent == this ) old.parentRight_=( n2 )
-               val lidx    = leaf.orthantIndexIn( qn2 )
-               c2( lidx )  = leaf
-               leaf.parent = n2
+            val c2      = n2.children
+            val oidx    = old.orthantIndexIn( qn2 )
+            c2( oidx )  = old
+            // This is a tricky bit! And a reason
+            // why should eventually try to do without
+            // parent pointers at all. Since `old`
+            // may be a leaf whose parent points
+            // to a higher level tree, we need to
+            // check first if the parent is `this`,
+            // and if so, adjust the parent to point
+            // to the new intermediate node `ne`!
+            if( old.parent == this ) old.parentRight_=( n2 )
+            val lidx    = leaf.orthantIndexIn( qn2 )
+            c2( lidx )  = leaf
+            leaf.parent = n2
          }
       }
 
@@ -924,17 +970,17 @@ object DeterministicSkipOctree {
                var newParent  = prev
                var pidx       = qidx
                while( true ) {
-                  newParent.child( pidx ) match {
-                     case sn: Node[ S, D, A ] =>
-                        newParent   = sn
-                        pidx        = leaf.orthantIndexIn( sn.hyperCube )
-                     case sl: Leaf[ S, D, A ] =>
-                        assert( sl == leaf, "Internal error - diverging leaves : " + leaf + " versus " + sl )
-                        leafRemoved()
-                        leaf.parent = newParent
-                        return
-                     case _ =>
-                        assert( false, "Internal error - could not find parent of leaf in previous level : " + leaf )
+                  val c = newParent.child( pidx )
+                  if( c.isNode ) {
+                     val sn = c.asNode
+                     newParent   = sn
+                     pidx        = leaf.orthantIndexIn( sn.hyperCube )
+                  } else {
+                     val sl = c.asLeaf
+                     assert( sl == leaf, "Internal error - diverging leaves : " + leaf + " versus " + sl )
+                     leafRemoved()
+                     leaf.parent = newParent
+                     return
                   }
                }
             }
@@ -971,9 +1017,9 @@ object DeterministicSkipOctree {
          var res = startOrder
          val sz = children.length
          var i = 0; while( i < sz ) {
-            children( i ) match {
-               case n: LeftNonEmpty[ S, D, A ] => res = n.stopOrder
-               case _ =>
+            val c = children( i )
+            if( !c.isEmpty ) {
+               res = c.asLeftInnerNonEmpty.stopOrder
             }
          i +=1 }
          res
@@ -990,10 +1036,12 @@ object DeterministicSkipOctree {
 
       private[DeterministicSkipOctree] final def findP0( point: D#Point ) : LeftNode[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
-         child( qidx ) match {
-            case n: Node[ S, D, A ] if( n.hyperCube.contains( point )) => n.findP0( point )
-            case _ => this
-         }
+         val c    = children( qidx )
+         if( c.isNode ) {
+            val n = c.asNode
+            if( n.hyperCube.contains( point )) n.findP0( point )
+            else this
+         } else this
       }
 
       /**
@@ -1007,10 +1055,11 @@ object DeterministicSkipOctree {
                                                                   ( implicit impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
          import impl.pointView
          val qidx = hyperCube.indexOf( point )
-         child( qidx ) match {
-            case l: Leaf[ S, D, A ] if( pointView( l.value ) == point ) => l
-            case _ => null
-         }
+         val c = children( qidx )
+         if( c.isLeaf ) {
+            val l = c.asLeaf
+            if( pointView( l.value ) == point ) l else null
+         } else null
       }
 
       private[DeterministicSkipOctree] final def removeImmediateLeaf( leaf: Leaf[ S, D, A ])
@@ -1029,29 +1078,29 @@ object DeterministicSkipOctree {
       private[DeterministicSkipOctree] final def insert( point: D#Point, value: A )
                                                        ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
-         children( qidx ) match {
-            case _: Empty[ S, D, A ] =>
-               newLeaf( qidx, point, value ) // (this adds it to the children!)
-
-            case old: LeftInnerNonEmpty[ S, D, A ] =>
-               // define the greatest interesting square for the new node to insert
-               // in this node at qidx:
-               val qn2              = old.union( hyperCube.orthant( qidx ), point )
-               // create the new node (this adds it to the children!)
-               val n2               = newNode( qidx, qn2 )
-               val oidx             = old.orthantIndexIn( qn2 )
-               n2.children( oidx )  = old
-               val lidx             = qn2.indexOf( point )
-               // This is a tricky bit! And a reason
-               // why should eventually try to do without
-               // parent pointers at all. Since `old`
-               // may be a leaf whose parent points
-               // to a higher level tree, we need to
-               // check first if the parent is `this`,
-               // and if so, adjust the parent to point
-               // to the new intermediate node `ne`!
-               if( old.parent == this ) old.parentLeft_=( n2 )
-               n2.newLeaf( lidx, point, value )
+         val c    = children( qidx )
+         if( c.isEmpty ) {
+            newLeaf( qidx, point, value ) // (this adds it to the children!)
+         } else {
+            val old = c.asLeftInnerNonEmpty
+            // define the greatest interesting square for the new node to insert
+            // in this node at qidx:
+            val qn2              = old.union( hyperCube.orthant( qidx ), point )
+            // create the new node (this adds it to the children!)
+            val n2               = newNode( qidx, qn2 )
+            val oidx             = old.orthantIndexIn( qn2 )
+            n2.children( oidx )  = old
+            val lidx             = qn2.indexOf( point )
+            // This is a tricky bit! And a reason
+            // why should eventually try to do without
+            // parent pointers at all. Since `old`
+            // may be a leaf whose parent points
+            // to a higher level tree, we need to
+            // check first if the parent is `this`,
+            // and if so, adjust the parent to point
+            // to the new intermediate node `ne`!
+            if( old.parent == this ) old.parentLeft_=( n2 )
+            n2.newLeaf( lidx, point, value )
          }
       }
 
@@ -1091,9 +1140,9 @@ object DeterministicSkipOctree {
       private def newChildOrder( qidx: Int )( implicit tx: S#Tx ) : Order[ S ] = {
          var pre = startOrder
          var i = 0; while( i < qidx ) {
-            children( i ) match {
-               case n: LeftNonEmpty[ S, D, A ] => pre = n.stopOrder
-               case _ =>
+            val c = children( i )
+            if( !c.isEmpty ) {
+               pre = c.asLeftInnerNonEmpty.stopOrder
             }
          i +=1 }
          pre.append()
@@ -1159,11 +1208,10 @@ object DeterministicSkipOctree {
          var numNonEmpty = 0
          val sz = children.length
          var i = 0; while( i < sz ) {
-            children( i ) match {
-               case n: LeftInnerNonEmpty[ S, D, A ] =>
-                  numNonEmpty += 1
-                  lonely = n
-               case _ =>
+            val c = children( i )
+            if( !c.isEmpty ) {
+               numNonEmpty += 1
+               lonely = c.asLeftInnerNonEmpty
             }
          i += 1 }
          if( numNonEmpty == 1 ) {   // gotta remove this node and put remaining non empty element in parent
@@ -1192,10 +1240,8 @@ object DeterministicSkipOctree {
 
          val sz = children.length
          var i = 0; while( i < sz ) {
-            children( i ) match {
-               case _: RightInnerNonEmpty[ S, D, A ] => return   // node not empty, abort the check
-               case _ =>
-            }
+            val c = children( i )
+            if( !c.isEmpty ) return // node not empty, abort the check
          i += 1 }
 
          // ok, we are the right most tree and the node is empty...
@@ -1239,11 +1285,10 @@ object DeterministicSkipOctree {
          var numNonEmpty = 0
          val sz = children.length
          var i = 0; while( i < sz ) {
-            children( i ) match {
-               case n: RightInnerNonEmpty[ S, D, A ] =>
-                  numNonEmpty += 1
-                  lonely = n
-               case _ =>
+            val c = children( i )
+            if( !c.isEmpty ) {
+               numNonEmpty += 1
+               lonely = c.asRightInnerNonEmpty
             }
          i += 1 }
          if( numNonEmpty == 1 ) {   // gotta remove this node and put remaining non empty element in parent

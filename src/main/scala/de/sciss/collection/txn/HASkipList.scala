@@ -49,13 +49,13 @@ object HASkipList {
     * specifies the type of the keys stored in the list.
     *
     * @param   tx          the transaction in which to initialize the structure
-    * @param   ord         the ordering of the keys. This is an instance of `de.sciss.collection.Ordering` to allow
-    *                      for specialized versions.
+    * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+    *                      for specialized versions and transactional restrictions.
     * @param   mf          the manifest for key type `A`, necessary for internal array constructions.
     * @param   serKey      the serializer for the elements, in case a persistent STM is used.
     * @param   stm         the software transactional memory to use.
     */
-   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: de.sciss.collection.Ordering[ A ],
+   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
                                   mf: Manifest[ A ], keySerializer: Serializer[ A ], system: S ) : HASkipList[ S, A ] =
       empty()
 
@@ -69,15 +69,15 @@ object HASkipList {
     *                      for synchronized decimations of related data structures, such as the deterministic
     *                      skip quadtree.
     * @param   tx          the transaction in which to initialize the structure
-    * @param   ord         the ordering of the keys. This is an instance of `de.sciss.collection.Ordering` to allow
-    *                      for specialized versions.
+    * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+    *                      for specialized versions and transactional restrictions.
     * @param   mf          the manifest for key type `A`, necessary for internal array constructions.
     * @param   serKey      the serializer for the elements, in case a persistent STM is used.
     * @param   stm         the software transactional memory to use.
     */
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                   keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
-                                ( implicit tx: S#Tx, ord: de.sciss.collection.Ordering[ A ],
+                                ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
                                   mf: Manifest[ A ], keySerializer: Serializer[ A ], system: S ) : HASkipList[ S, A ] = {
 
       // 255 <= arrMaxSz = (minGap + 1) << 1
@@ -95,14 +95,14 @@ object HASkipList {
    }
 
    def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
-                                     ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
+                                     ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
                                        keySerializer: Serializer[ A ], system: S ): Serializer[ HASkipList[ S, A ]] =
       new Ser[ S, A ]( keyObserver )
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
    final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
-                                      ( implicit mf: Manifest[ A ], ordering: de.sciss.collection.Ordering[ A ],
+                                      ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
                                         keySerializer: Serializer[ A ], system: S )
    extends Serializer[ HASkipList[ S, A ]] {
       def read( in: DataInput ) : HASkipList[ S, A ] = {
@@ -122,7 +122,7 @@ object HASkipList {
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
       ( val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
         _downNode: Impl[ S, A ] => S#Ref[ Node[ S, A ]])
-      ( implicit val mf: Manifest[ A ], val ordering: de.sciss.collection.Ordering[ A ],
+      ( implicit val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
         val keySerializer: Serializer[ A ], val system: S )
    extends HASkipList[ S, A ] with Serializer[ Node[ S, A ]] with HeadOrBranch[ S, A ] {
 
@@ -203,7 +203,7 @@ object HASkipList {
        * @return  the index to go down (a node whose key is greater than `v`),
         *         or `-(index+1)` if `v` was found at `index`
        */
-      private def indexInNodeR( v: A, n: NodeLike[ S, A ]) : Int = {
+      private def indexInNodeR( v: A, n: NodeLike[ S, A ])( implicit tx: S#Tx ) : Int = {
          var idx  = 0
          val sz   = n.size - 1
          do {
@@ -214,7 +214,7 @@ object HASkipList {
          sz
       }
 
-      private def indexInNodeL( v: A, n: NodeLike[ S, A ]) : Int = {
+      private def indexInNodeL( v: A, n: NodeLike[ S, A ])( implicit tx: S#Tx ) : Int = {
          @tailrec def step( idx : Int ) : Int = {
             val cmp = ordering.compare( v, n.key( idx ))
             if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
