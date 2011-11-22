@@ -62,7 +62,7 @@ class TxnSkipQuadtreeView[ S <: Sys[ S ], A ]( t: txn.DeterministicSkipOctree[ S
       while( n != null ) {
          draw( h, n )
          h.translate( dx, 0 )
-         n = n.nextOption.orNull
+         n = t.system.atomic { implicit tx => n.nextOption.orNull }
       }
    }
 
