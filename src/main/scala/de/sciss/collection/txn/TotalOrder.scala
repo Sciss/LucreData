@@ -102,7 +102,7 @@ object TotalOrder {
       def afterRelabeling(  first: Any, num: Int )( implicit tx: Any ) {}
    }
 
-   private sealed trait BasicImpl[ S <: Sys[ S ], E >: Null <: Entry[ S, E ]] {
+   private sealed trait BasicImpl[ S <: Sys[ S ], E <: Entry[ S, E ]] {
       me: TotalOrder[ S, E ] =>
 
       protected def sizeVal : S#Val[ Int ]
@@ -112,10 +112,10 @@ object TotalOrder {
 
       final def head( implicit tx: S#Tx ) : E = {
          var e    = root.get
-         var prev = e.prevRef.get.orNull
+         var prev = e.prevRef.getOrNull
          while( prev != null ) {
             e     = prev
-            prev  = prev.prevRef.get.orNull
+            prev  = prev.prevRef.getOrNull
          }
          e
       }
@@ -142,7 +142,7 @@ object TotalOrder {
          var entry   = _entry
          while( entry != null ) {
             b       += entry.tag
-            entry    = entry.nextRef.get.orNull
+            entry    = entry.nextRef.getOrNull
          }
          b.result()
       }
@@ -176,16 +176,16 @@ object TotalOrder {
          var last       = _first
          var base       = _first.tag
          do {
-            var prev    = first.prevRef.get.orNull
+            var prev    = first.prevRef.getOrNull
             while( (prev != null) && ((prev.tag & mask) == base) ) {
                first    = prev
-               prev     = prev.prevRef.get.orNull
+               prev     = prev.prevRef.getOrNull
                num     += 1
             }
-            var next    = last.nextRef.get.orNull
+            var next    = last.nextRef.getOrNull
             while( (next != null) && ((next.tag & mask) == base) ) {
                last     = next
-               next     = next.nextRef.get.orNull
+               next     = next.nextRef.getOrNull
                num     += 1
             }
    //         val inc = (mask + 1) / num
@@ -208,7 +208,7 @@ object TotalOrder {
                next = first
                var cnt = 0; while( cnt < num ) {
                   next.tagVal.set( base )
-                  next        = next.nextRef.get.orNull
+                  next        = next.nextRef.getOrNull
                   base       += inc
                   cnt        += 1
                }
@@ -230,8 +230,8 @@ object TotalOrder {
       private type E = SetEntry[ S ]
 
       def tag( implicit tx: S#Tx )  : Int = tagVal.get
-      def prevOption( implicit tx: S#Tx ) : Option[ E ]   = Option( prevRef.get.orNull )
-      def nextOption( implicit tx: S#Tx ) : Option[ E ]   = Option( nextRef.get.orNull )
+      def prevOption( implicit tx: S#Tx ) : Option[ E ]   = Option( prevRef.getOrNull )
+      def nextOption( implicit tx: S#Tx ) : Option[ E ]   = Option( nextRef.getOrNull )
 
 //      private[TotalOrder] def tag_=( value: Int )( implicit tx: S#Tx ) { tagRef.set( value )}
 //      private[TotalOrder] def prev_=( e: E )( implicit tx: S#Tx ) { prevRef.set( e )}
@@ -278,17 +278,17 @@ object TotalOrder {
       implicit def impl = this
 
       def read( in: DataInput ) : E = {
-         if( in.readUnsignedByte() == 1 ) {
+//         if( in.readUnsignedByte() == 1 ) {
             val tagVal  = system.readVal[ Int ]( in )
             val prevRef = system.readRef[ E ](   in )
             val nextRef = system.readRef[ E ](   in )
             new SetEntryImpl[ S ]( this, tagVal, prevRef, nextRef )
-         } else {
-            null
-         }
+//         } else {
+//            null
+//         }
       }
       def write( e: E, out: DataOutput ) {
-         if( e != null ) {
+//         if( e != null ) {
             out.writeUnsignedByte( 1 )
 //            system.writeRef( e.tagRef,  out )
 //            system.writeRef( e.prevRef, out )
@@ -296,15 +296,15 @@ object TotalOrder {
             e.tagVal.write( out )
             e.prevRef.write( out )
             e.nextRef.write( out )
-         } else {
-            out.writeUnsignedByte( 0 )
-         }
+//         } else {
+//            out.writeUnsignedByte( 0 )
+//         }
       }
 
       def insertAfter( prevM: S#Mut[ E ])( implicit tx: S#Tx ) : S#Mut[ E ] = {
          val prev       = prevM.get
          val nextM      = prev.nextRef.get
-         val next       = if( nextM == null ) null else nextM.get
+         val next       = nextM.orNull
          val nextTag    = if( next == null ) Int.MaxValue else next.tag
          val recPrevRef = system.newRef[ E ]( prevM )
          val recNextRef = system.newRef[ E ]( nextM )
@@ -323,7 +323,7 @@ object TotalOrder {
       def insertBefore( nextM: S#Mut[ E ])( implicit tx: S#Tx ) : S#Mut[ E ] = {
          val next       = nextM.get
          val prevM      = next.prevRef.get
-         val prev       = if( prevM == null ) null else prevM.get
+         val prev       = prevM.orNull
          val prevTag    = if( prev == null ) 0 else prev.tag
          val recPrevRef = system.newRef[ E ]( prevM )
          val recNextRef = system.newRef[ E ]( nextM )
@@ -343,8 +343,8 @@ object TotalOrder {
          val rec     = recM.get
          val prevM   = rec.prevRef.get
          val nextM   = rec.nextRef.get
-         val prev    = if( prevM == null ) null else prevM.get
-         val next    = if( nextM == null ) null else nextM.get
+         val prev    = prevM.orNull
+         val next    = nextM.orNull
          if( prev != null ) prev.nextRef.set( nextM )
          if( next != null ) next.prevRef.set( prevM )
 //         system.disposeRef( rec.tagRef )

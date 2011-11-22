@@ -14,8 +14,8 @@ import java.io.File
  */
 class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
    val MONITOR_LABELING = false
-   val INMEMORY         = false
-   val DATABASE         = true
+   val INMEMORY         = true
+   val DATABASE         = false
 
    val NUM              = 0x80000  // 0x200000
    val RND_SEED         = 0L
@@ -76,8 +76,9 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                val set = system.atomic { implicit tx =>
                   var e = to.root
-                  var coll = Set[ S#Mut[ TotalOrder.SetEntry[ S ]]]( e )
+                  var coll = Set[ S#Mut[ TotalOrder.SetEntry[ S ]]]() // ( e )
                   for( i <- 1 until n ) {
+//println( "i = " + i )
                      if( rnd.nextBoolean() ) {
                         e = to.insertAfter( e ) // to.insertAfter( i )
                      } else {
@@ -115,8 +116,15 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                then( "the resulting set should only contain -1" )
                assert( result == Set( -1 ), result.toString + " -- " + system.atomic( implicit tx => to.head.tagList ))
 
-//               when( "the structure is emptied" )
+               when( "the structure is emptied" )
+               val sz2 = system.atomic { implicit tx =>
+                  set.foreach( to.removeAndDispose( _ ))
+                  to.size
+               }
+               then( "the order should have size 1" )
+               assert( sz2 == 1, "Size is " + sz2 + " and not 1" )
 
+               system.atomic { implicit tx => to.dispose() }
 
             } finally {
                sysCleanUp( system )
