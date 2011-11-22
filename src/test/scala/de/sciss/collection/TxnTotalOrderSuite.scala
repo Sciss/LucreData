@@ -74,15 +74,18 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                val n     = NUM // 113042 // 3041
       //        to        = to.append() // ( 0 )
 
-               system.atomic { implicit tx =>
+               val set = system.atomic { implicit tx =>
                   var e = to.root
+                  var coll = Set[ S#Mut[ TotalOrder.SetEntry[ S ]]]( e )
                   for( i <- 1 until n ) {
                      if( rnd.nextBoolean() ) {
-                        e = e.append() // to.insertAfter( i )
+                        e = to.insertAfter( e ) // to.insertAfter( i )
                      } else {
-                        e = e.prepend() // to.insertBefore( i )
+                        e = to.insertBefore( e ) // e.prepend() // to.insertBefore( i )
                      }
+                     coll += e
                   }
+                  coll
                }
 
                when( "the structure size is determined" )
@@ -99,18 +102,21 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                val result = system.atomic { implicit tx =>
                   var res   = Set.empty[ Int ]
                   var prev  = to.head
-                  var next  = prev.next
+                  var next  = prev.nextOption.orNull
                   while( next != null ) {
 //                  res     += prev compare next
                      res    += prev.tag compare next.tag
                      prev    = next
-                     next    = next.next
+                     next    = next.nextOption.orNull
                   }
                   res
                }
 
                then( "the resulting set should only contain -1" )
                assert( result == Set( -1 ), result.toString + " -- " + system.atomic( implicit tx => to.head.tagList ))
+
+//               when( "the structure is emptied" )
+
 
             } finally {
                sysCleanUp( system )
