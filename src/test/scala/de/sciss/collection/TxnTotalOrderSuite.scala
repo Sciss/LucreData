@@ -14,25 +14,30 @@ import java.io.File
  */
 class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
    val MONITOR_LABELING = false
-   val INMEMORY         = true
-   val DATABASE         = false
+   val INMEMORY         = false
+   val DATABASE         = true
 
-   val NUM              = 0x80000  // 0x200000
+   val NUM              = 0x10000 // 0x80000  // 0x200000
    val RND_SEED         = 0L
 
    if( INMEMORY ) {
       withSys[ InMemory ]( "Mem", () => new InMemory(), _ => () )
    }
    if( DATABASE ) {
+//      BerkeleyDB.DB_CONSOLE_LOG_LEVEL = "ALL"
       withSys[ BerkeleyDB ]( "BDB", () => {
          val dir     = File.createTempFile( "tree", "_database" )
          dir.delete()
          dir.mkdir()
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
-         BerkeleyDB.open( f )
+         val bdb = BerkeleyDB.open( f )
+//         println( "INITIAL DB SIZE = " + bdb.numRefs )
+         bdb
       }, bdb => {
-         println( "FINAL DB SIZE = " + bdb.numRefs )
+         //println( "FINAL   DB SIZE = " + bdb.numRefs )
+         val sz = bdb.numRefs
+         assert( sz == 1, "Final DB size should be 1 (id-ref), but is " + sz )
          bdb.close()
       })
    }
@@ -57,17 +62,19 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
             type E = TotalOrder.SetEntry[ S ]
             implicit val system = sysCreator()
             try {
-               val to = system.atomic { implicit tx => TotalOrder.empty[ S ]( new RelabelObserver[ S#Tx, E ] {
-                  def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
-                     if( MONITOR_LABELING ) {
-//                     Txn.afterCommit( _ =>
-                           println( "...relabeling " + num + " entries" )
-//                     )
+               val to = system.atomic { implicit tx =>
+                  TotalOrder.empty[ S ]( new RelabelObserver[ S#Tx, E ] {
+                     def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
+                        if( MONITOR_LABELING ) {
+   //                     Txn.afterCommit( _ =>
+                              println( "...relabeling " + num + " entries" )
+   //                     )
+                        }
                      }
-                  }
 
-                  def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {}
-               })}
+                     def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {}
+                  })
+               }
                val rnd   = new util.Random( RND_SEED )
                // would be nice to test maximum possible number of labels
                // but we're running out of heap space ...
@@ -78,7 +85,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                   var e = to.root
                   var coll = Set[ S#Mut[ TotalOrder.SetEntry[ S ]]]() // ( e )
                   for( i <- 1 until n ) {
-//println( "i = " + i )
+//if( (i % 1000) == 0 ) println( "i = " + i )
                      if( rnd.nextBoolean() ) {
                         e = to.insertAfter( e ) // to.insertAfter( i )
                      } else {
@@ -88,6 +95,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                   }
                   coll
                }
+//println( "AQUI" )
 
                when( "the structure size is determined" )
                val sz = system.atomic { implicit tx => to.size }

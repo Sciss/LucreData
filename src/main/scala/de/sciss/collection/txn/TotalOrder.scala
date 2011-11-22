@@ -289,7 +289,7 @@ object TotalOrder {
       }
       def write( e: E, out: DataOutput ) {
 //         if( e != null ) {
-            out.writeUnsignedByte( 1 )
+//            out.writeUnsignedByte( 1 )
 //            system.writeRef( e.tagRef,  out )
 //            system.writeRef( e.prevRef, out )
 //            system.writeRef( e.nextRef, out )
