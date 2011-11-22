@@ -827,7 +827,8 @@ object DeterministicSkipOctree {
       private[DeterministicSkipOctree] def dispose()( implicit tx: S#Tx, impl: Impl[ S, D, A]) {
          import impl.system
 //         parentVar   = null
-         system.disposeRef( parentRef )
+         parentRef.dispose()
+//         system.disposeRef( parentRef )
 //            value       = null.asInstanceOf[ A ]
          order.remove()
       }

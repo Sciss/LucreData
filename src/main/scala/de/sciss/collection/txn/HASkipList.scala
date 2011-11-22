@@ -136,7 +136,8 @@ object HASkipList {
       def write( out: DataOutput ) {
          out.writeUnsignedByte( SER_VERSION )
          out.writeInt( minGap )
-         system.writeRef( /* Head. */ downNode, out )
+//         system.writeRef( /* Head. */ downNode, out )
+         downNode.write( out )
       }
 
       override def size( implicit tx: S#Tx ) : Int = {
@@ -376,7 +377,8 @@ object HASkipList {
                   // at bNew's index idxP is now the one formerly at
                   // idxP1, hence the right-most key in csib.
                   bNew        = b.removeColumn( idxP )
-                  system.disposeRef( b.downRef( idxP ))
+//                  system.disposeRef( b.downRef( idxP ))
+                  b.downRef( idxP ).dispose()
 //                  bDownIdx    = idxP
                   cNew        = c.virtualize( ModMergeRight, cSib )
                   isRightNew  = isRight && (idxP == bsz - 2) // ! we might be in the right-most branch now
@@ -425,7 +427,8 @@ object HASkipList {
                   // The parent needs to remove the
                   // entry of the left sibling.
                   bNew        = b.removeColumn( idxPM1 )
-                  system.disposeRef( b.downRef( idxPM1 ))
+//                  system.disposeRef( b.downRef( idxPM1 ))
+                  b.downRef( idxPM1 ).dispose()
                   bDownIdx    = idxPM1
                   cNew        = c.virtualize( ModMergeLeft, cSib )
                } else {                                        // borrow from the left
@@ -1114,7 +1117,8 @@ object HASkipList {
             keySerializer.write( keys( i ), out )
          i += 1 }
          i = 0; while( i < sz ) {
-            system.writeRef( downs( i ), out )
+//            system.writeRef( downs( i ), out )
+            downs( i ).write( out )
          i += 1 }
       }
    }
