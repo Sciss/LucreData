@@ -14,7 +14,7 @@ import java.io.File
  */
 class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
    val MONITOR_LABELING = false
-   val INMEMORY         = false
+   val INMEMORY         = true
    val DATABASE         = true
 
    val NUM              = 0x10000 // 0x80000  // 0x200000
@@ -83,7 +83,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                val set = system.atomic { implicit tx =>
                   var e = to.root
-                  var coll = Set[ S#Mut[ TotalOrder.SetEntry[ S ]]]() // ( e )
+                  var coll = Set[ TotalOrder.SetEntry[ S ]]() // ( e )
                   for( i <- 1 until n ) {
 //if( (i % 1000) == 0 ) println( "i = " + i )
                      if( rnd.nextBoolean() ) {
