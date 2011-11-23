@@ -46,7 +46,7 @@ import de.sciss.lucrestm.{MutableReader, Reader, Disposable, DataOutput, DataInp
  * the amortized time per insertion in an n-item list is O(log n)."
  */
 object TotalOrder {
-   sealed trait Entry[ S <: Sys[ S ], Repr ] extends Disposable[ S#Tx ] with Mutable[ S, Repr ] {
+   sealed trait Entry[ S <: Sys[ S ], Repr ] extends Disposable[ S#Tx ] with Mutable[ S ] {
       def tag( implicit tx: S#Tx ) : Int
 
       def prevOption( implicit tx: S#Tx ) : Option[ Repr ]
