@@ -122,7 +122,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                }
 
                then( "the resulting set should only contain -1" )
-               assert( result == Set( -1 ), result.toString + " -- " + system.atomic( implicit tx => to.head.tagList ))
+               assert( result == Set( -1 ), result.toString + " -- " + system.atomic( implicit tx => to.tagList( to.head )))
 
                when( "the structure is emptied" )
                val sz2 = system.atomic { implicit tx =>

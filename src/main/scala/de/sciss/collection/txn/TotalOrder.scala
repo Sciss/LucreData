@@ -61,11 +61,11 @@ object TotalOrder {
        */
       def dispose()( implicit tx: S#Tx ) : Unit
 
-      /**
-       * Debugging method: Returns a list of the tags
-       * from this entry to the end of the list
-       */
-      def tagList( implicit tx: S#Tx ) : List[ Int ]
+//      /**
+//       * Debugging method: Returns a list of the tags
+//       * from this entry to the end of the list
+//       */
+//      def tagList( implicit tx: S#Tx ) : List[ Int ]
    }
 
    sealed trait SetEntry[ S <: Sys[ S ]] extends Entry[ S, SetEntry[ S ]] {
@@ -223,7 +223,7 @@ object TotalOrder {
       }
    }
 
-   private final class SetEntryImpl[ S <: Sys[ S ]]( impl: SetImpl[ S ], private[TotalOrder] val tagVal: S#Val[ Int ],
+   private final class SetEntryImpl[ S <: Sys[ S ]]( /* impl: SetImpl[ S ], */ private[TotalOrder] val tagVal: S#Val[ Int ],
                                                      private[TotalOrder] val prevRef: S#Ref[ SetEntry[ S ]],
                                                      private[TotalOrder] val nextRef: S#Ref[ SetEntry[ S ]])
    extends SetEntry[ S ] {
@@ -247,7 +247,8 @@ object TotalOrder {
          nextRef.dispose()
       }
 //
-      def tagList( implicit tx: S#Tx ) : List[ Int ] = impl.tagList( this )
+
+//      def tagList( implicit tx: S#Tx ) : List[ Int ] = impl.tagList( this )
    }
 
 //   private final class AssocEntryViewImpl[ S <: Sys[ S ], @specialized( Int, Long ) A ]( val tag: Int, val value : A,
@@ -282,7 +283,7 @@ object TotalOrder {
             val tagVal  = system.readVal[ Int ]( in )
             val prevRef = system.readRef[ E ](   in )
             val nextRef = system.readRef[ E ](   in )
-            new SetEntryImpl[ S ]( this, tagVal, prevRef, nextRef )
+            new SetEntryImpl[ S ]( tagVal, prevRef, nextRef )
 //         } else {
 //            null
 //         }
@@ -311,7 +312,7 @@ object TotalOrder {
          val prevTag    = prev.tag
          val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
          val recTagVal  = system.newVal[ Int ]( recTag )
-         val rec        = new SetEntryImpl[ S ]( this, recTagVal, recPrevRef, recNextRef )
+         val rec        = new SetEntryImpl[ S ]( recTagVal, recPrevRef, recNextRef )
          val recM       = system.newMut[ E ]( rec )
          prev.nextRef.set( recM )
          if( next != null ) next.prevRef.set( recM )
@@ -330,7 +331,7 @@ object TotalOrder {
          val nextTag    = next.tag
          val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
          val recTagVal  = system.newVal[ Int ]( recTag )
-         val rec        = new SetEntryImpl[ S ]( this, recTagVal, recPrevRef, recNextRef )
+         val rec        = new SetEntryImpl[ S ]( recTagVal, recPrevRef, recNextRef )
          val recM       = system.newMut[ E ]( rec )
          next.prevRef.set( recM )
          if( prev != null ) prev.nextRef.set( recM )
@@ -383,7 +384,7 @@ object TotalOrder {
          val tagVal  = system.newVal[ Int ]( 0 )
          val prevRef = system.newRef[ E ]()
          val nextRef = system.newRef[ E ]()
-         system.newMut[ E ]( new SetEntryImpl[ S ]( impl, tagVal, prevRef, nextRef ))
+         system.newMut[ E ]( new SetEntryImpl[ S ]( tagVal, prevRef, nextRef ))
       })
    }
 
@@ -417,4 +418,6 @@ sealed trait TotalOrder[ S <: Sys[ S ], E ] extends Disposable[ S#Tx ] {
     * purpose. The operation is O(1).
     */
    def size( implicit tx: S#Tx ) : Int
+
+   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int  ]
 }
