@@ -29,7 +29,7 @@ package txn
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.tailrec
-import geom.{QueryShape, DistanceMeasure, Space}
+import de.sciss.collection.geom.{QueryShape, DistanceMeasure, Space}
 import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Mutable, Serializer, Sys}
 
 /**
@@ -49,11 +49,12 @@ import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Mutable, Seriali
 object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
                                                  ( implicit view: A => D#Point, tx: S#Tx, system: S,
+                                                   keySerializer: Serializer[ A ],
                                                    smf: Manifest[ S ],
                                                    dmf: Manifest[ D ],
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
-      new Impl[ S, D, A ]( space, hyperCube, view, { implicit impl =>
+      new Impl[ S, D, A ]( space, hyperCube, view, keySerializer, { implicit impl =>
          import impl.{numOrthants, topNodeReader, rightNodeReader}
          val order         = TotalOrder.empty[ S ]()
          val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
@@ -101,7 +102,7 @@ object DeterministicSkipOctree {
    }
 
    private final class Impl[ S <: Sys[ S ], D <: Space[ D ], A ]
-      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#Point,
+      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#Point, val keySerializer: Serializer[ A ],
         _initFun: Impl[ S, D, A ] => (TotalOrder.Set[ S ], TopLeftNode[ S, D, A ], S#Ref[ TopNode[ S, D, A ]], SkipList[ S, Leaf[ S, D, A ]]))
       ( implicit val system: S )
    extends DeterministicSkipOctree[ S, D, A ]
@@ -790,7 +791,7 @@ object DeterministicSkipOctree {
     * Serialization-id: 1
     */
    /* private */ final class Leaf[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
-      val point: D#Point, val value: A, val order: Order[ S ], parentRef: S#Ref[ Node[ S, D, A ]])
+      /* val point: D#Point, */ val value: A, val order: Order[ S ], parentRef: S#Ref[ Node[ S, D, A ]])
    extends LeftInnerNonEmpty[ S, D, A ] with RightInnerNonEmpty[ S, D, A ] /* with Ordered[ Leaf[ S, D, A ]] */ /* with QLeaf */ {
 //      private var parentVar: Node[ S, D, A ] = null
 
@@ -811,8 +812,7 @@ object DeterministicSkipOctree {
 
       protected def writeData( out: DataOutput ) {
          out.writeUnsignedByte( 1 )
-         // point.write( out ) XXX
-         // key.write( out )
+         // key.write( out ) XXX
          order.write( out )
          parentRef.write( out )
       }
@@ -840,8 +840,8 @@ object DeterministicSkipOctree {
        */
       private[DeterministicSkipOctree] def stopOrder : Order[ S ] = order
 
-      def shortString = "leaf(" + point + ")"
-      override def toString = "Leaf(" + point + ", " + value + ")"
+      def shortString = "leaf(" + value + ")"
+      override def toString = "Leaf(" + value + ")"
 
       private[DeterministicSkipOctree] def dispose()( implicit tx: S#Tx, impl: Impl[ S, D, A]) {
          import impl.totalOrder
@@ -1202,7 +1202,7 @@ object DeterministicSkipOctree {
          val qidx = hyperCube.indexOf( point )
          val c    = children( qidx )
          if( c.isEmpty ) {
-            newLeaf( qidx, point, value ) // (this adds it to the children!)
+            newLeaf( qidx, /* point, */ value ) // (this adds it to the children!)
          } else {
             val old = c.asLeftInnerNonEmpty
             // define the greatest interesting square for the new node to insert
@@ -1222,7 +1222,7 @@ object DeterministicSkipOctree {
             // and if so, adjust the parent to point
             // to the new intermediate node `ne`!
             if( old.parent == this ) old.parentLeft_=( n2 )
-            n2.newLeaf( lidx, point, value )
+            n2.newLeaf( lidx, /* point, */ value )
          }
       }
 
@@ -1238,11 +1238,11 @@ object DeterministicSkipOctree {
        *          parent and is already stored in this node's children
        *          at index `qidx`
        */
-      private def newLeaf( qidx: Int, point: D#Point, value: A )
+      private def newLeaf( qidx: Int, /* point: D#Point, */ value: A )
                          ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
          import impl.{nodeReader, system}
          val parentRef  = system.newRef[ Node[ S, D, A ]]( this )
-         val l          = new Leaf( system.newID, point, value, newChildOrder( qidx ), parentRef )
+         val l          = new Leaf( system.newID, /* point, */ value, newChildOrder( qidx ), parentRef )
 //         l.parent = this
          children( qidx ) = l
          l
