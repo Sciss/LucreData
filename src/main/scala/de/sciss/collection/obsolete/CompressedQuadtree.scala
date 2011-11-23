@@ -25,15 +25,18 @@
 
 package de.sciss.collection.obsolete
 
-import de.sciss.collection.geom.{SquareLike, Point2DLike}
+import de.sciss.collection.geom.Space
+
 
 object CompressedQuadtree {
-   def apply[ V ]( quad: SquareLike ) : QNode[ V ] = {
+   import Space.TwoDim._
+
+   def apply[ V ]( quad: HyperCube ) : QNode[ V ] = {
       val quads = new Array[ Q[ V ]]( 4 )
       QNode[ V ]( quad )( quads )
    }
 
-   def fromMap[ V ]( quad: SquareLike, m: Map[ Point2DLike, V ]) : QNode[ V ] = {
+   def fromMap[ V ]( quad: HyperCube, m: Map[ Point, V ]) : QNode[ V ] = {
       val t = QNode[ V ]( quad )()
       m.foreach {
          case (point, value) =>
@@ -44,9 +47,9 @@ object CompressedQuadtree {
 
    sealed trait Q[ +V ]
    case object QEmpty extends Q[ Nothing ]
-   final case class QLeaf[ V ]( point: Point2DLike, value: V ) extends Q[ V ]
+   final case class QLeaf[ V ]( point: Point, value: V ) extends Q[ V ]
 
-   final case class QNode[ V ]( quad: SquareLike )( quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
+   final case class QNode[ V ]( quad: HyperCube )( quads: Array[ Q[ V ]] = new Array[ Q[ V ]]( 4 ))
    extends Q[ V ] {
       // fix null squares
       {
@@ -57,7 +60,7 @@ object CompressedQuadtree {
 
       def child( idx: Int ) : Q[ V ] = quads( idx )
 
-      def insert( point: Point2DLike, value: V ) {
+      def insert( point: Point, value: V ) {
          val qidx = quad.indexOf( point )
          require( qidx >= 0, point.toString + " lies outside of root square " + quad )
          quads( qidx ) match {

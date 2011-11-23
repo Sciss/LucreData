@@ -26,15 +26,18 @@
 package de.sciss.collection.view
 
 import de.sciss.collection.mutable.SkipOctree
-import edu.hendrix.ozark.burch.wireframe.{Polygon, Model, Point, TransformUtility, Transform, Graphics3D, Vector => Vector3D}
-import de.sciss.collection.geom.{CubeLike, Point3DLike, Space}
+import edu.hendrix.ozark.burch.wireframe.{Polygon, Model, Point => WPoint, TransformUtility, Transform, Graphics3D, Vector => Vector3D}
+import de.sciss.collection.geom.Space
 import annotation.switch
 import javax.swing.event.{AncestorEvent, AncestorListener}
 import javax.swing.{Timer, JComponent, BorderFactory}
 import java.awt.event.{ActionEvent, ActionListener, KeyAdapter, KeyEvent, FocusEvent, FocusListener, MouseAdapter, MouseEvent}
 import java.awt.{BasicStroke, RenderingHints, Graphics2D, Dimension, Graphics, Color}
+import Space.ThreeDim
 
-class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JComponent {
+class SkipOctree3DView( t: SkipOctree[ ThreeDim, ThreeDim#Point ]) extends JComponent {
+   import ThreeDim._
+
    setBorder( BorderFactory.createEmptyBorder( 4, 4, 4, 4 ))
    setBackground( Color.white )
    setPreferredSize( new Dimension( 512, 256 ))
@@ -58,7 +61,7 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
 
 //   private var model: Model = Model.EMPTY
 
-   var highlight = Set.empty[ Point3DLike ]
+   var highlight = Set.empty[ Point ]
    private val colrGreen = new Color( 0x00, 0xC0, 0x00 )
    private val strkThick = new BasicStroke( 4f )
 
@@ -70,7 +73,7 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
    }
 
    private def computeView() {
-      viewT = TransformUtility.viewTransform( Point.ORIGIN.addScaled( RADIUS, n ), Point.ORIGIN, u )
+      viewT = TransformUtility.viewTransform( WPoint.ORIGIN.addScaled( RADIUS, n ), WPoint.ORIGIN, u )
       repaint()
    }
 
@@ -202,7 +205,7 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
 
    private class Level( n: t.Q ) {
       var m     = IndexedSeq.empty[ Model ]
-      var pts   = IndexedSeq.empty[ (Point, Color) ]
+      var pts   = IndexedSeq.empty[ (WPoint, Color) ]
 
       addChild( n )
 
@@ -223,15 +226,15 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
 
       def poly( points: (Int, Int, Int)* ) {
          val pts = points.map { case (x, y, z) =>
-            Point.create( (x - extent) * scale, (y - extent) * scale, (z - extent) * scale )
+            WPoint.create( (x - extent) * scale, (y - extent) * scale, (z - extent) * scale )
          }
          val p = new Polygon( pts.toArray )
          m :+= p // (p, colr)
 //      m = if( m == Model.EMPTY ) p else new Composite( Array[ Model ]( m, p ))
       }
 
-      def point( colr: Color, p: Point3DLike ) {
-         val q = Point.create( (p.x - extent) * scale, (p.y - extent) * scale, (p.z - extent) * scale )
+      def point( colr: Color, p: Point ) {
+         val q = WPoint.create( (p.x - extent) * scale, (p.y - extent) * scale, (p.z - extent) * scale )
          pts :+= (q, colr)
       }
 
@@ -251,7 +254,7 @@ class SkipOctree3DView( t: SkipOctree[ Space.ThreeDim, Point3DLike ]) extends JC
          }
       }
 
-      def drawFrame( c: CubeLike /*, colr: Color */) {
+      def drawFrame( c: HyperCube ) {
          poly( // colr,
             (c.cx - c.extent, c.cy - c.extent, c.cz - c.extent),
             (c.cx + c.extent, c.cy - c.extent, c.cz - c.extent),

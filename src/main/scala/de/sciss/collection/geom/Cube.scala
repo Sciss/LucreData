@@ -25,6 +25,8 @@
 
 package de.sciss.collection.geom
 
+import Space.ThreeDim
+
 /**
  * A three dimensional cube.
  *
@@ -57,7 +59,9 @@ package de.sciss.collection.geom
  * - 6 (binary 110) - left-bottom-back
  * - 7 (binary 111) - right-bottom-back
  */
-trait CubeLike extends HyperCube[ Space.ThreeDim ] with QueryShape[ BigInt, Space.ThreeDim ] {
+trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ] {
+   import ThreeDim._
+
    /**
     * X coordinate of the cube's center
     */
@@ -78,30 +82,7 @@ trait CubeLike extends HyperCube[ Space.ThreeDim ] with QueryShape[ BigInt, Spac
     */
    def extent: Int
 
-   def area: BigInt
-
-   /**
-    * The squared euclidean distance of the
-    * closest of the hyper-cube's corners or sides to the point, if the point is outside the hyper-cube,
-    * or zero, if the point is contained
-    */
-   def minDistanceSq( point: Point3DLike ) : BigInt
-
-   /**
-    * Calculates the maximum squared euclidean
-    * distance to a point in the euclidean metric.
-    * This is the distance (pow space) to the corner which is the furthest from
-    * the `point`, no matter if it lies within the hyper-cube or not.
-    */
-   def maxDistanceSq( point: Point3DLike ) : BigInt
-}
-
-final case class Cube( cx: Int, cy: Int, cz: Int, extent: Int )
-extends CubeLike {
-
-   import Space.ThreeDim.bigZero
-
-   def orthant( idx: Int ) : CubeLike = {
+   final def orthant( idx: Int ) : HyperCube = {
       val e    = extent >> 1
       val dx   = if( (idx & 1) == 0 ) -e else e
       val dy   = if( (idx & 2) == 0 ) -e else e
@@ -109,7 +90,7 @@ extends CubeLike {
       Cube( cx + dx, cy + dy, cz + dz, e )
    }
 
-   def contains( point: Point3DLike ) : Boolean = {
+   final def contains( point: Point ) : Boolean = {
       val em1  = extent - 1
       val px   = point.x
       val py   = point.y
@@ -120,7 +101,7 @@ extends CubeLike {
       (cz - extent <= pz) && (cz + em1 >= pz)
    }
 
-   def contains( cube: CubeLike ) : Boolean = {
+   final def contains( cube: HyperCube ) : Boolean = {
       val bcx  = cube.cx
       val bcy  = cube.cy
       val bcz  = cube.cz
@@ -133,14 +114,14 @@ extends CubeLike {
       (bcz - be >= cz - extent) && (bcz + bem1 <= cz + em1)
    }
 
-   def area : BigInt = {
+   final def area : BigInt = {
       val s    = extent.toLong << 1
       BigInt( s * s ) * BigInt( s )
    }
 
    // -- QueryShape --
 
-   def overlapArea( b: CubeLike ) : BigInt = {
+   final def overlapArea( b: HyperCube ) : BigInt = {
       val bcx  = b.cx
       val bcy  = b.cy
       val bcz  = b.cz
@@ -166,15 +147,15 @@ extends CubeLike {
       BigInt( dx * dy ) * BigInt( dz )
    }
 
-   def isAreaGreater( a: CubeLike, b: BigInt ) : Boolean = a.area > b
+   final def isAreaGreater( a: HyperCube, b: BigInt ) : Boolean = a.area > b
 
-   def isAreaNonEmpty( area: BigInt ) : Boolean = area > bigZero
+   final def isAreaNonEmpty( area: BigInt ) : Boolean = area > bigZero
 
-   def minDistance( point: Point3DLike ) : Double = {
+   final def minDistance( point: Point ) : Double = {
       math.sqrt( minDistanceSq( point ).toDouble ) // or use this: http://www.merriampark.com/bigsqrt.htm ?
    }
 
-   def maxDistance( point: Point3DLike ) : Double = {
+   final def maxDistance( point: Point ) : Double = {
       math.sqrt( maxDistanceSq( point ).toDouble )
    }
 
@@ -183,7 +164,7 @@ extends CubeLike {
     * or sides to the point, if the point is outside the cube,
     * or zero, if the point is contained
     */
-   def minDistanceSq( point: Point3DLike ) : BigInt = {
+   final def minDistanceSq( point: Point ) : BigInt = {
       val ax   = point.x
       val ay   = point.y
       val az   = point.z
@@ -227,7 +208,7 @@ extends CubeLike {
     * This is the distance (squared) to the corner which is the furthest from
     * the `point`, no matter if it lies within the hyper-cube or not.
     */
-   def maxDistanceSq( point: Point3DLike ) : BigInt = {
+   final def maxDistanceSq( point: Point ) : BigInt = {
       val ax   = point.x
       val ay   = point.y
       val az   = point.z
@@ -257,7 +238,7 @@ extends CubeLike {
       BigInt( dx * dx + dy * dy ) + BigInt( dz * dz )
    }
 
-   def indexOf( a: Point3DLike ) : Int = {
+   final def indexOf( a: Point ) : Int = {
       val ax   = a.x
       val ay   = a.y
       val az   = a.z
@@ -284,7 +265,7 @@ extends CubeLike {
       xpos | ypos | zpos
    }
 
-   def indexOf( b: CubeLike ) : Int = {
+   final def indexOf( b: HyperCube ) : Int = {
       val bcx  = b.cx
       val bcy  = b.cy
       val bcz  = b.cz
@@ -320,14 +301,14 @@ extends CubeLike {
       xpos | ypos | zpos
    }
 
-   def greatestInteresting( a: Point3DLike, b: Point3DLike ) : CubeLike = gi( a.x, a.y, a.z, 1, b )
+   final def greatestInteresting( a: Point, b: Point ) : HyperCube = gi( a.x, a.y, a.z, 1, b )
 
-   def greatestInteresting( a: CubeLike, b: Point3DLike ) : CubeLike = {
+   final def greatestInteresting( a: HyperCube, b: Point ) : HyperCube = {
       val ae = a.extent
       gi( a.cx - ae, a.cy - ae, a.cz - ae, ae << 1, b )
    }
 
-   private def gi( aleft: Int, atop: Int, afront: Int, asize: Int, b: Point3DLike ) : CubeLike = {
+   private def gi( aleft: Int, atop: Int, afront: Int, asize: Int, b: Point ) : HyperCube = {
       val tlx = cx - extent
       val tly = cy - extent
       val tlz = cz - extent
@@ -400,3 +381,6 @@ extends CubeLike {
       }
    }
 }
+
+final case class Cube( cx: Int, cy: Int, cz: Int, extent: Int )
+extends CubeLike

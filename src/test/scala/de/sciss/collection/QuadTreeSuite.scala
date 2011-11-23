@@ -1,10 +1,11 @@
 package de.sciss.collection
 
-import geom.{SquareLike, DistanceMeasure2D, Point2D, Point2DLike, Square}
+import geom.{Space, SquareLike, DistanceMeasure2D, Point2D, Square}
 import mutable.{RandomizedSkipOctree, SkipQuadtree, RandomizedSkipQuadtree, DeterministicSkipQuadtree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
+import Space.TwoDim
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -30,15 +31,15 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
    val quad          = Square( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED ) {
       rnd.setSeed( RND_SEED )
-      withTree( "randomized", RandomizedSkipQuadtree.empty[ Point2DLike ]( quad,
+      withTree( "randomized", RandomizedSkipQuadtree.empty[ TwoDim#Point ]( quad,
          coin = RandomizedSkipOctree.Coin( 98765L )))
    }
    if( DETERMINISTIC ) {
       rnd.setSeed( RND_SEED )
-      withTree( "deterministic", DeterministicSkipQuadtree.empty[ Point2DLike ]( quad ))
+      withTree( "deterministic", DeterministicSkipQuadtree.empty[ TwoDim#Point ]( quad ))
    }
 
-   def randFill( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
+   def randFill( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       given( "a randomly filled structure" )
 
       // seed = 2
@@ -55,13 +56,13 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   def verifyConsistency( t: SkipQuadtree[ Point2DLike ]) {
+   def verifyConsistency( t: SkipQuadtree[ TwoDim#Point ]) {
       when( "the internals of the structure are checked" )
       then( "they should be consistent with the underlying algorithm" )
       val q = t.hyperCube
       var h = t.lastTree
       var currUnlinkedQuads   = Set.empty[ SquareLike ]
-      var currPoints          = Set.empty[ Point2DLike ]
+      var currPoints          = Set.empty[ TwoDim#Point ]
       var prevs = 0
       do {
          assert( h.hyperCube == q, "Root level quad is " + h.hyperCube + " while it should be " + q + " in level n - " + prevs )
@@ -106,7 +107,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       } while( h != null )
    }
 
-   def verifyElems( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
+   def verifyElems( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "the structure t is compared to an independently maintained map m" )
       val onlyInM  = m.filterNot { e =>
 //         println( "Contains ? " + e._1 )
@@ -123,7 +124,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szT == szM, "quadtree has size " + szT + " / map has size " + szM )
    }
 
-   def verifyContainsNot( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
+   def verifyContainsNot( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "the structure t is queried for keys not in the independently maintained map m" )
       var testSet = Set.empty[ Point2D ]
       while( testSet.size < 100 ) {
@@ -138,7 +139,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       assert( inT.isEmpty, inT.take( 10 ).toString() )
    }
 
-   def verifyAddRemoveAll( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
+   def verifyAddRemoveAll( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "all elements of the independently maintained map are added again to t" )
       val szBefore = t.size
       val newInT   = m.filter( e => t.update( e ).isEmpty )
@@ -157,7 +158,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szAfter2 == 0, szAfter2.toString )
    }
 
-   def verifyRangeSearch( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
+   def verifyRangeSearch( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "the quadtree is range searched" )
       val qs = Seq.fill( n2 )( Square( rnd.nextInt( 0x7FFFFFFF ) - 0x40000000,
                                      rnd.nextInt( 0x7FFFFFFF ) - 0x40000000, rnd.nextInt( 0x40000000 )))
@@ -171,7 +172,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   def verifyNN( t: SkipQuadtree[ Point2DLike ], m: MSet[ Point2DLike ]) {
+   def verifyNN( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( Point2D( rnd.nextInt(), rnd.nextInt() ))
       // tricky: this guarantees that there are no 63 bit overflows,
@@ -181,9 +182,9 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
          val dy = if( p.y < quad.cy ) quad.bottom.toLong - p.y else p.y - quad.top
          dx <= 0xB504F300L && dy <= 0xB504F300L && dx * dx + dy * dy > 0L
       })
-      val nnT: Map[ Point2DLike, Point2DLike ] = ps.map( p => p -> t.nearestNeighbor( p, DistanceMeasure2D.euclideanSq ))( breakOut )
+      val nnT: Map[ TwoDim#Point, TwoDim#Point ] = ps.map( p => p -> t.nearestNeighbor( p, DistanceMeasure2D.euclideanSq ))( breakOut )
       val ks   = m // .keySet
-      val nnM: Map[ Point2DLike, Point2DLike ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )
+      val nnM: Map[ TwoDim#Point, TwoDim#Point ] = ps.map( p => p -> ks.minBy( _.distanceSq( p )))( breakOut )
       then( "the results should match brute force with the corresponding set" )
       assert( nnT == nnM, {
          (nnT.collect { case (q, v) if( nnM( q ) != v ) => (q, v, nnM( q ))}).take( 10 ).toString()
@@ -191,7 +192,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   def withTree( name: String, tf: => SkipQuadtree[ Point2DLike ]) {
+   def withTree( name: String, tf: => SkipQuadtree[ TwoDim#Point ]) {
       feature( "The " + name + " quadtree structure should be consistent" ) {
          info( "Several mass operations on the structure" )
          info( "are tried and expected behaviour verified" )
@@ -199,7 +200,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
          scenario( "Consistency is verified on a randomly filled structure" ) {
             val time1 = System.currentTimeMillis()
             val t  = tf // ( None )
-            val m  = MSet.empty[ Point2DLike ]
+            val m  = MSet.empty[ TwoDim#Point ]
             randFill( t, m )
 //println( ":::::::::::::::::: POINTS ::::::::::::::::::" )
 //m.foreach( tup => println( tup._1 ))

@@ -56,32 +56,35 @@ object InteractiveSkipOctreePanel extends App with Runnable {
    private val sz = 256
 
    private final class Model2D( mode: Mode ) extends Model[ Space.TwoDim ] {
+      import Space.TwoDim
+      import TwoDim._
+
       val tree = mode match {
          case Randomized =>
-            RandomizedSkipQuadtree.empty[    Point2DLike ]( Square( sz, sz, sz ))
+            RandomizedSkipQuadtree.empty[    Point ]( Square( sz, sz, sz ))
          case Deterministic =>
-            DeterministicSkipQuadtree.empty[ Point2DLike ]( Square( sz, sz, sz ), skipGap = 1 )
+            DeterministicSkipQuadtree.empty[ Point ]( Square( sz, sz, sz ), skipGap = 1 )
       }
 
-      def queryShape( sq: SquareLike ) = sq
+      def queryShape( sq: HyperCube ) = sq
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y ) => Point2D( x, y )
       }
-      def coords( p: Point2DLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
+      def coords( p: Point ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
          case IndexedSeq( x, y ) => Square( x, y, ext )
       }
 
       val view = {
-         val res = new SkipQuadtreeView[ Point2DLike ]( tree )
+         val res = new SkipQuadtreeView[ Point ]( tree )
          res.topPainter = Some( topPaint _ )
          res
       }
       def repaint() { view.repaint() }
 //      val baseDistance = DistanceMeasure2D.euclideanSq
 
-      def highlight: Set[ Point2DLike ] = view.highlight
-      def highlight_=( points: Set[ Point2DLike ]) { view highlight = points }
+      def highlight: Set[ Point ] = view.highlight
+      def highlight_=( points: Set[ Point ]) { view highlight = points }
 
       val distanceMeasures = IndexedSeq(
          "Euclidean" -> DistanceMeasure2D.euclideanSq,
@@ -89,7 +92,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          "Minimum" -> DistanceMeasure2D.vehsybehc
       )
 
-      var rangeHyperCube = Option.empty[ SquareLike ]
+      var rangeHyperCube = Option.empty[ HyperCube ]
 
       private val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
       private def topPaint( h: QuadView.PaintHelper ) {
@@ -103,23 +106,26 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
 
       def addPDFSupport( f: JFrame ) {
-         PDFSupport.addMenu[ SkipQuadtreeView[ Point2DLike ]]( f, view :: Nil, _.adjustPreferredSize() )
+         PDFSupport.addMenu[ SkipQuadtreeView[ Point ]]( f, view :: Nil, _.adjustPreferredSize() )
       }
    }
 
    private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim ] {
+      import Space.ThreeDim
+      import ThreeDim._
+
       val tree = mode match {
          case Randomized =>
-            RandomizedSkipOctree.empty[ Space.ThreeDim, Point3DLike ]( Space.ThreeDim, Cube( sz, sz, sz, sz ))
+            RandomizedSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, Cube( sz, sz, sz, sz ))
          case Deterministic =>
-            DeterministicSkipOctree.empty[ Space.ThreeDim, Point3DLike ]( Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
+            DeterministicSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
       }
 
-      def queryShape( c: CubeLike ) = c
+      def queryShape( c: HyperCube ) = c
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y, z ) => Point3D( x, y, z )
       }
-      def coords( p: Point3DLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
+      def coords( p: Point ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
          case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
       }
@@ -127,8 +133,8 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       val view = new SkipOctree3DView( tree )
       def repaint() { view.treeUpdated() }
 //      val baseDistance = DistanceMeasure3D.euclideanSq
-      def highlight: Set[ Point3DLike ] = view.highlight
-      def highlight_=( points: Set[ Point3DLike ]) { view.highlight = points }
+      def highlight: Set[ Point ] = view.highlight
+      def highlight_=( points: Set[ Point ]) { view.highlight = points }
 
       val distanceMeasures = IndexedSeq(
          "Euclidean" -> DistanceMeasure3D.euclideanSq,
@@ -136,7 +142,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          "MinimumXY" -> DistanceMeasure3D.vehsybehcXY
       )
 
-      var rangeHyperCube = Option.empty[ CubeLike ]
+      var rangeHyperCube = Option.empty[ HyperCube ]
 
       def addPDFSupport( f: JFrame ) {
          PDFSupport.addMenu[ JComponent ]( f, view :: Nil, _ => () )

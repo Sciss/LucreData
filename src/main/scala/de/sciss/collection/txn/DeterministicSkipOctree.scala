@@ -30,7 +30,7 @@ import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.tailrec
 import geom.{QueryShape, DistanceMeasure, Space}
-import de.sciss.lucrestm.{Writer, MutableReader, Disposable, DataOutput, DataInput, Mutable, Serializer, Sys}
+import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Mutable, Serializer, Sys}
 
 /**
 * A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
@@ -844,7 +844,7 @@ object DeterministicSkipOctree {
       override def toString = "Leaf(" + point + ", " + value + ")"
 
       private[DeterministicSkipOctree] def dispose()( implicit tx: S#Tx, impl: Impl[ S, D, A]) {
-         import impl.{system, totalOrder}
+         import impl.totalOrder
 //         parentVar   = null
          parentRef.dispose()
 //         system.disposeRef( parentRef )

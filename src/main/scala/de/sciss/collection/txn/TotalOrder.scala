@@ -26,7 +26,7 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{MutableReader, Reader, Disposable, DataOutput, DataInput, Mutable, Serializer, Sys}
+import de.sciss.lucrestm.{MutableReader, Disposable, DataOutput, DataInput, Mutable, Sys}
 
 
 /**

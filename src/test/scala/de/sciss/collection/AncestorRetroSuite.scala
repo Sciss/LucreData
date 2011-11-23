@@ -4,6 +4,7 @@ import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
 import mutable.{RandomizedSkipOctree, DeterministicSkipOctree, LLSkipList, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
+import de.sciss.lucrestm.Writer
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -49,7 +50,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V
 
-      trait VertexLike extends Point3DLike {
+      trait VertexLike extends Point3DLike with Writer {
          def value: A
          def version: Int
          def pre: preOrder.Entry
