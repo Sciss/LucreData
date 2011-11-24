@@ -41,7 +41,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : V
 
-      trait VertexLike extends Point2DLike with Writer {
+      trait VertexLike extends Point2DLike /* with Writer */ {
          def value: A
          def pre: preOrder.Entry
          def post: postOrder.Entry

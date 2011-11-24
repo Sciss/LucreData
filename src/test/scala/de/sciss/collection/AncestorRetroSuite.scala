@@ -50,7 +50,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V
 
-      trait VertexLike extends Point3DLike with Writer {
+      trait VertexLike extends Point3DLike /* with Writer */ {
          def value: A
          def version: Int
          def pre: preOrder.Entry
