@@ -55,9 +55,9 @@ object DeterministicSkipOctree {
                                                    dmf: Manifest[ D ],
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
-      new Impl[ S, D, A ]( space, hyperCube, view, { implicit impl =>
+      new Impl[ S, D, A ]( system.newID, hyperCube, view, { implicit impl =>
          import impl.{numOrthants, topBranchReader, rightBranchReader, leftChildReader, leafReader}
-         val order         = TotalOrder.empty[ S ]()
+         val order         = TotalOrder.Set.empty[ S ]()
 //         val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
          val sz            = numOrthants
          val ch            = system.newRefArray[ LeftChild[ S, D, A ]]( sz )
@@ -83,7 +83,7 @@ object DeterministicSkipOctree {
 //      t
 //   }
 
-   private type Order[ S <: Sys[ S ]] = TotalOrder.SetEntry[ S ]
+   private type Order[ S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
 
    private final class BranchReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, Branch[ S, D, A ]] {
@@ -167,10 +167,12 @@ object DeterministicSkipOctree {
       }
    }
 
+   private val SER_VERSION = 0
+
    private final class Impl[ S <: Sys[ S ], D <: Space[ D ], A ]
-      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#PointLike,
+      ( val id: S#ID, val hyperCube: D#HyperCube, val pointView: A => D#PointLike,
         _initFun: Impl[ S, D, A ] => (TotalOrder.Set[ S ], TopLeftBranch[ S, D, A ], S#Ref[ TopBranch[ S, D, A ]], SkipList[ S, Leaf[ S, D, A ]]))
-      ( implicit val system: S, val keySerializer: Serializer[ A ], val hyperSerializer: Serializer[ D#HyperCube ])
+      ( implicit val system: S, val space: D, val keySerializer: Serializer[ A ], val hyperSerializer: Serializer[ D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ]
    with SkipList.KeyObserver[ S#Tx, Leaf[ S, D, A ]]
    with Ordering[ S#Tx, Leaf[ S, D, A ]]
@@ -201,6 +203,17 @@ object DeterministicSkipOctree {
 
 //      def head : Branch = TopLeftBranch
 //      def lastTree : Branch = lastTree
+
+      protected def writeData( out: DataOutput ) {
+         out.writeUnsignedByte( SER_VERSION )
+         hyperSerializer.write( hyperCube, out )
+         // totalOrder.write( out ) XXX
+         sys.error( "TODO" )
+      }
+
+      protected def disposeData()( implicit tx: S#Tx ) {
+         sys.error( "TODO" )
+      }
 
       def lastTree( implicit tx: S#Tx ) : TopBranch[ S, D, A ] = lastTreeRef.get
       def lastTree_=( node: TopBranch[ S, D, A ])( implicit tx: S#Tx ) {
@@ -747,7 +760,7 @@ object DeterministicSkipOctree {
        * the `startOrder` and `stopOrder` form the interval
        * borders of the sub-tree.
        */
-      private[DeterministicSkipOctree] def startOrder: TotalOrder.SetEntry[ S ]
+      private[DeterministicSkipOctree] def startOrder: Order[ S ]
       /**
        * A marker in the in-order list corresponding to
        * the ending of the objects 'interval'. That is
@@ -758,7 +771,7 @@ object DeterministicSkipOctree {
        * the `startOrder` and `stopOrder` form the interval
        * borders of the sub-tree.
        */
-      private[DeterministicSkipOctree] def stopOrder( implicit tx: S#Tx ): TotalOrder.SetEntry[ S ]
+      private[DeterministicSkipOctree] def stopOrder( implicit tx: S#Tx ): Order[ S ]
    }
 
    /**
@@ -1608,7 +1621,7 @@ object DeterministicSkipOctree {
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 }
 sealed trait DeterministicSkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ]
-extends SkipOctree[ S, D, A ] /* with Mutable[ S ] */ {
+extends SkipOctree[ S, D, A ] with Mutable[ S ] {
    def headTree : DeterministicSkipOctree.Branch[ S, D, A ]
    def lastTree( implicit tx: S#Tx ) : DeterministicSkipOctree.TopBranch[ S, D, A ]
 }

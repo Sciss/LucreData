@@ -46,6 +46,8 @@ import de.sciss.lucrestm.{Reader, MutableReader, Disposable, DataOutput, DataInp
  * the amortized time per insertion in an n-item list is O(log n)."
  */
 object TotalOrder {
+   private val SER_VERSION = 0
+
    sealed trait Entry[ S <: Sys[ S ], Repr ] extends Disposable[ S#Tx ] with Mutable[ S ] {
       def tag( implicit tx: S#Tx ) : Int
 
@@ -69,11 +71,6 @@ object TotalOrder {
 //       * from this entry to the end of the list
 //       */
 //      def tagList( implicit tx: S#Tx ) : List[ Int ]
-   }
-
-   sealed trait SetEntry[ S <: Sys[ S ]] extends Entry[ S, SetEntry[ S ]] {
-//      def append()(  implicit tx: S#Tx ) : S#Mut[ SetEntry[ S ]]
-//      def prepend()( implicit tx: S#Tx ) : S#Mut[ SetEntry[ S ]]
    }
 
    sealed trait AssocEntry[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Entry[ S, AssocEntry[ S, A ]] {
@@ -123,7 +120,7 @@ object TotalOrder {
          e
       }
 
-      final def dispose()( implicit tx: S#Tx ) {
+      final protected def disposeData()( implicit tx: S#Tx ) {
          sizeVal.dispose()
          val r = root
          var m = r.prev
@@ -138,6 +135,12 @@ object TotalOrder {
             m = m.prev
             t.dispose()
          } while( m != null )
+      }
+
+      final protected def writeData( out: DataOutput ) {
+         out.writeUnsignedByte( SER_VERSION )
+         sizeVal.write( out )
+         root.write( out )
       }
 
       final def tagList( _entry: E )( implicit tx: S#Tx ) : List[ Int ] = {
@@ -228,10 +231,10 @@ object TotalOrder {
 
    private final class SetEntryImpl[ S <: Sys[ S ]]( val id: S#ID,
                                                      private[TotalOrder] val tagVal: S#Val[ Int ],
-                                                     private[TotalOrder] val prevRef: S#Ref[ SetEntry[ S ]],
-                                                     private[TotalOrder] val nextRef: S#Ref[ SetEntry[ S ]])
-   extends SetEntry[ S ] {
-      private type E = SetEntry[ S ]
+                                                     private[TotalOrder] val prevRef: S#Ref[ Set.Entry[ S ]],
+                                                     private[TotalOrder] val nextRef: S#Ref[ Set.Entry[ S ]])
+   extends Set.Entry[ S ] {
+      private type E = Set.Entry[ S ]
 
       def tag( implicit tx: S#Tx )  : Int = tagVal.get
       private[TotalOrder] def prev( implicit tx: S#Tx ) : E = prevRef.get
@@ -243,8 +246,8 @@ object TotalOrder {
 //      private[TotalOrder] def prev_=( e: E )( implicit tx: S#Tx ) { prevRef.set( e )}
 //      private[TotalOrder] def next_=( e: E )( implicit tx: S#Tx ) { nextRef.set( e )}
 
-//      def append()(  implicit tx: S#Tx ) : S#Mut[ SetEntry[ S ]] = impl.append( this )
-//      def prepend()( implicit tx: S#Tx ) : S#Mut[ SetEntry[ S ]] = impl.prepend( this )
+//      def append()(  implicit tx: S#Tx ) : S#Mut[ Set.Entry[ S ]] = impl.append( this )
+//      def prepend()( implicit tx: S#Tx ) : S#Mut[ Set.Entry[ S ]] = impl.prepend( this )
 //
       protected def writeData( out: DataOutput ) {
          tagVal.write( out )
@@ -274,17 +277,18 @@ object TotalOrder {
 //   private final class AssocEntryImpl[ S <: Sys[ S ], @specialized( Int, Long ) A ]( impl: AssocImpl[ S ],
 //                                                                                     ref: S#Ref[ AssocEntry.View[ S, A ]])
 //   extends AssocEntry[ S, A ] {
-//      def append( a: A )(  implicit tx: S#Tx ) : SetEntry[ S ] = impl.append( this, a )
-//      def prepend( a: A )( implicit tx: S#Tx ) : SetEntry[ S ] = impl.prepend( this, a )
+//      def append( a: A )(  implicit tx: S#Tx ) : Set.Entry[ S ] = impl.append( this, a )
+//      def prepend( a: A )( implicit tx: S#Tx ) : Set.Entry[ S ] = impl.prepend( this, a )
 //   }
 
-   private final class SetImpl[ S <: Sys[ S ]]( protected val observer: RelabelObserver[ S#Tx, SetEntry[ S ]],
+   private final class SetImpl[ S <: Sys[ S ]]( val id: S#ID,
+                                                protected val observer: RelabelObserver[ S#Tx, Set.Entry[ S ]],
                                                 protected val sizeVal: S#Val[ Int ],
-                                                _rootFun: SetImpl[ S ] => SetEntry[ S ])
+                                                _rootFun: SetImpl[ S ] => Set.Entry[ S ])
                                               ( implicit val system: S )
-   extends Set[ S ] with BasicImpl[ S, SetEntry[ S ]] with MutableReader[ S, SetEntry[ S ]] {
+   extends Set[ S ] with BasicImpl[ S, Set.Entry[ S ]] with MutableReader[ S, Set.Entry[ S ]] {
 
-      private type E = SetEntry[ S ]
+      private type E = Set.Entry[ S ]
 
       val root = _rootFun( this )
 
@@ -355,31 +359,52 @@ object TotalOrder {
 ////            if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
 ////         }
 
-   sealed trait Set[ S <: Sys[ S ]] extends TotalOrder[ S, SetEntry[ S ]] {
-      private type E = SetEntry[ S ]
+   object Set {
+      sealed trait Entry[ S <: Sys[ S ]] extends TotalOrder.Entry[ S, Set.Entry[ S ]]
+
+      def empty[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]] = NoRelabelObserver )
+                               ( implicit tx: S#Tx, system: S ) : Set[ S ] = {
+
+         type E = Set.Entry[ S ]
+
+         new SetImpl[ S ]( system.newID, relabelObserver, system.newInt( 1 ), { implicit impl =>
+            val tagVal  = system.newInt( 0 )
+            val prevRef = system.newRef[ E ]( null )
+            val nextRef = system.newRef[ E ]( null )
+            new SetEntryImpl[ S ]( system.newID, tagVal, prevRef, nextRef )
+         })
+      }
+
+      def reader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]])
+                                ( implicit system: S ) : MutableReader[ S, Set[ S ]] =
+         new SetReader[ S ]( relabelObserver )
+   }
+
+   private final class SetReader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]])
+                                                ( implicit system: S ) extends MutableReader[ S, Set[ S ]] {
+      def readData( in: DataInput, id: S#ID ) : Set[ S ] = {
+         val v = in.readUnsignedByte()
+         require( v == SER_VERSION, "Unsupported version " + v )
+         val sizeVal = system.readInt( in )
+
+         new SetImpl[ S ]( id, relabelObserver, sizeVal, { implicit impl =>
+            system.readMut[ Set.Entry[ S ]]( in )
+         })
+      }
+   }
+
+   sealed trait Set[ S <: Sys[ S ]] extends TotalOrder[ S, Set.Entry[ S ]] {
+      private type E = Set.Entry[ S ]
       def insertAfter(  e: E )( implicit tx: S#Tx ) : E
       def insertBefore( e: E )( implicit tx: S#Tx ) : E
       def removeAndDispose( e: E )( implicit tx: S#Tx ) : Unit
    }
 //   type Assoc[ S <: Sys[ S ], A ]   = TotalOrder[ S, AssocEntry[ S, A ]]
 
-   def empty[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, SetEntry[ S ]] = NoRelabelObserver )
-                            ( implicit tx: S#Tx, system: S ) : Set[ S ] = {
-
-      type E = SetEntry[ S ]
-
-      new SetImpl[ S ]( relabelObserver, system.newInt( 1 ), { implicit impl =>
-         val tagVal  = system.newInt( 0 )
-         val prevRef = system.newRef[ E ]( null )
-         val nextRef = system.newRef[ E ]( null )
-         new SetEntryImpl[ S ]( system.newID, tagVal, prevRef, nextRef )
-      })
-   }
-
 //   def emptyAssoc[ S <: Sys[ S ], A ]( relabelObserver: RelabelObserver[ S#Tx, AssocEntry[ S, A ]] = NoRelabelObserver )
 //                                     ( implicit tx: S#Tx, system: S ) : Assoc[ S, A ] = sys.error( "TODO" )
 }
-sealed trait TotalOrder[ S <: Sys[ S ], E ] extends Disposable[ S#Tx ] with Reader[ E ] {
+sealed trait TotalOrder[ S <: Sys[ S ], E ] extends Disposable[ S#Tx ] with Reader[ E ] with Mutable[ S ] {
    def system: S
 
 //   /**
