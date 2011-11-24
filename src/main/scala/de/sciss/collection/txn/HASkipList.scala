@@ -85,7 +85,7 @@ object HASkipList {
       // no reasonable app would use a node size > 255
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
-//      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newVal[ Node[ S, A ]]( null )( tx, list ))
+//      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newVal[ Branch[ S, A ]]( null )( tx, list ))
       new Impl[ S, A ]( minGap, keyObserver, list => {
 //println( "CALLING NEW REF FOR DOWN NODE" )
          /* val res = */ system.newVal[ Node[ S, A ]]( null )( tx, list )
@@ -490,7 +490,7 @@ object HASkipList {
 //         def next()( implicit tx: S#Tx ) : A = throw new java.util.NoSuchElementException( "next on " + this )
 //      }
 
-      // ---- Serializer[ Node[ S, A ]] ----
+      // ---- Serializer[ Branch[ S, A ]] ----
       def write( v: Node[ S, A ], out: DataOutput ) {
          if( v == null ) {
             out.writeUnsignedByte( 0 ) // Bottom
@@ -500,7 +500,7 @@ object HASkipList {
       }
       def read( in: DataInput ) : Node[ S, A ] = {
          (in.readUnsignedByte(): @switch) match {
-            case 0 => null // .asInstanceOf[ Node[ S, A ]]
+            case 0 => null // .asInstanceOf[ Branch[ S, A ]]
             case 1 => Branch.read( in )
             case 2 => Leaf.read( in )
          }
@@ -576,7 +576,7 @@ object HASkipList {
          val bkeys         = new Array[ A ]( 2 )
          bkeys( 0 )        = splitKey  // left node ends in the split key
 //          bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
-         val bdowns        = system.newValArray[ Node[ S, A ]]( 2 ) // new Array[ S#Val[ Node ]]( 2 )
+         val bdowns        = system.newValArray[ Node[ S, A ]]( 2 ) // new Array[ S#Val[ Branch ]]( 2 )
          bdowns( 0 )       = system.newVal( left )
          bdowns( 1 )       = system.newVal( right )
          new Branch[ S, A ]( bkeys, bdowns ) // new parent branch
@@ -682,7 +682,7 @@ object HASkipList {
                                               ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
    }
 
-   sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int ) A ] /* extends Child[ S, A ] */ {
+   sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int ) A ] /* extends Node[ S, A ] */ {
       private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Node[ S, A ]
       def size : Int
       def key( i: Int ): A
@@ -692,7 +692,7 @@ object HASkipList {
       def asBranchLike : BranchLike[ S, A ]
    }
 
-   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] /* with Child[ S, A ] */ {
+   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] /* with Node[ S, A ] */ {
       private[HASkipList] def virtualize( mod: ModVirtual, sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ]
       private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) : Unit
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
@@ -1083,7 +1083,7 @@ object HASkipList {
          // down, `idx`.
          val bsz           = size + 1
          val bkeys         = new Array[ A ]( bsz )
-         val bdowns        = system.newValArray[ Node[ S, A ]]( bsz ) // new Array[ S#Ref[ Node ]]( bsz )
+         val bdowns        = system.newValArray[ Node[ S, A ]]( bsz ) // new Array[ S#Ref[ Branch ]]( bsz )
          // copy entries left to split index
          if( idx > 0 ) {
             System.arraycopy( keys,  0, bkeys,  0, idx )

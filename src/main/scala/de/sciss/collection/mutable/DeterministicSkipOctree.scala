@@ -196,25 +196,25 @@ object DeterministicSkipOctree {
       }
       /**
        * A left child is one which is stored in Q0.
-       * This is either empty or an object (`LeftInnerNonEmpty`)
+       * This is either empty or an object (`LeftInnerNode`)
        * which provides start and stop markers for its
        * position in the in-order list.
        * That is, `LeftChild` is either of
        *
        * - `Empty`
        * - `Leaf`
-       * - `InnerLeftNode`
+       * - `InnerLeftBranch`
        */
       private sealed trait LeftChild extends Child
 
       /**
        * A right child is one which is stored in Qi, i > 0.
-       * This is either empty or an instance of `RightInnerNonEmpty`.
+       * This is either empty or an instance of `RightChild`.
        * That is, `RightChild` is either of
        *
        * - `Empty`
        * - `Leaf`
-       * - `InnerRightNode`
+       * - `InnerRightBranch`
        */
       private sealed trait RightChild extends Child
 
@@ -280,14 +280,14 @@ object DeterministicSkipOctree {
       }
 
       /**
-       * A common trait used in pattern matching, comprised of `Leaf` and `InnerLeftNode`.
+       * A common trait used in pattern matching, comprised of `Leaf` and `InnerLeftBranch`.
        */
       private sealed trait LeftInnerNonEmpty extends LeftNonEmpty with InnerNonEmpty with LeftChild {
          def parentLeft_=( p: LeftNode ) : Unit
       }
 
       /**
-       * A common trait used in pattern matching, comprised of `Leaf` and `InnerRightNode`.
+       * A common trait used in pattern matching, comprised of `Leaf` and `InnerRightBranch`.
        */
       private sealed trait RightInnerNonEmpty extends InnerNonEmpty with RightChild {
          def parentRight_=( p: RightNode ) : Unit
@@ -350,7 +350,7 @@ object DeterministicSkipOctree {
       /**
        * Nodes are defined by a hyperCube area as well as a list of children,
        * as well as a pointer `next` to the corresponding node in the
-       * next highest tree. A `Node` also provides various search methods.
+       * next highest tree. A `Branch` also provides various search methods.
        */
       private sealed trait Node extends NonEmpty with QNode {
          /**
@@ -571,7 +571,7 @@ object DeterministicSkipOctree {
        */
       private sealed trait LeftNode extends Node with LeftNonEmpty {
          /**
-          * For a `LeftNode`, all its children are more specific
+          * For a `LeftBranch`, all its children are more specific
           * -- they are instances of `LeftChild` and thus support
           * order intervals.
           */

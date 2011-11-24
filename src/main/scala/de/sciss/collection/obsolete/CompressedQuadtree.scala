@@ -80,7 +80,7 @@ object CompressedQuadtree {
 
             /*
                "If the quadrant of p(x) that x is inserted into already contains a point y or
-               an interesting square r, then we insert to Child a new interesting square q ⊂ p
+               an interesting square r, then we insert to Node a new interesting square q ⊂ p
                that contains both x and y (or r) but separates x and y (or r) into different
                quadrants of q."
              */

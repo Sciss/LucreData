@@ -442,7 +442,7 @@ extends JPanel( new BorderLayout() ) {
 //                  case c: t.QNode =>
 //                     val nq = n.hyperCube.orthant( i )
 //                     val cq = c.hyperCube
-//                     assert( nq.contains( cq ), "Child has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
+//                     assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
 //                     assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
 //                     c.nextOption match {
 //                        case Some( next ) =>

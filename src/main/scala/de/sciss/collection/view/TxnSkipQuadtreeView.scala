@@ -31,7 +31,7 @@ import geom.Space
 import de.sciss.lucrestm.Sys
 
 class TxnSkipQuadtreeView[ S <: Sys[ S ], A ]( t: txn.DeterministicSkipOctree[ S, Space.TwoDim, A ]) extends QuadView {
-   private type Child = txn.DeterministicSkipOctree.Child[ S, Space.TwoDim, A ]
+   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.TwoDim, A ]
 
    var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
@@ -71,8 +71,8 @@ class TxnSkipQuadtreeView[ S <: Sys[ S ], A ]( t: txn.DeterministicSkipOctree[ S
          if( quad.isLeaf ) {
             val l = quad.asLeaf
             h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
-         } else if( quad.isNode ) {
-            val n = quad.asNode
+         } else if( quad.isBranch ) {
+            val n = quad.asBranch
             for( idx <- 0 until 4 ) {
                h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
                draw( h, t.system.atomic { implicit tx => n.child( idx )})

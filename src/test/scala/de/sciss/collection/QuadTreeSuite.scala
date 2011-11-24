@@ -78,7 +78,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
                   case c: t.QNode =>
                      val nq = n.hyperCube.orthant( i )
                      val cq = c.hyperCube
-                     assert( nq.contains( cq ), "Child has invalid quad (" + cq + "), expected: " + nq + assertInfo )
+                     assert( nq.contains( cq ), "Node has invalid quad (" + cq + "), expected: " + nq + assertInfo )
                      c.nextOption match {
                         case Some( next ) =>
                            assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
