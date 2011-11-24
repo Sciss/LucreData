@@ -26,7 +26,7 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{Serializer, Sys}
+import de.sciss.lucrestm.{Mutable, Serializer, Sys}
 
 object SkipList {
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ], mf: Manifest[ A ],
@@ -62,7 +62,7 @@ object SkipList {
       def keyDown( key : A )( implicit tx: Any ) {}
    }
 }
-trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
+trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S ] {
 //   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
 
    def system: S

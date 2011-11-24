@@ -51,7 +51,7 @@ object InteractiveTxnSkipListView extends App with Runnable {
          println( f.getAbsolutePath )
          implicit val system = BerkeleyDB.open( f )
          new InteractiveTxnSkipListView[ BerkeleyDB ]( obs => system.atomic { implicit tx =>
-            implicit val ser = txn.HASkipList.serializer[ BerkeleyDB, Int ]( obs )
+            implicit val reader = txn.HASkipList.reader[ BerkeleyDB, Int ]( obs )
             system.root[ txn.HASkipList[ BerkeleyDB, Int ]] {
                txn.HASkipList.empty[ BerkeleyDB, Int ]( minGap = 1, keyObserver = obs )
             }

@@ -29,7 +29,7 @@ package txn
 import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import annotation.{switch, tailrec}
-import de.sciss.lucrestm.{DataOutput, DataInput, Sink, Serializer, Sys}
+import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Sink, Serializer, Sys}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -86,7 +86,7 @@ object HASkipList {
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
 //      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newVal[ Branch[ S, A ]]( null )( tx, list ))
-      new Impl[ S, A ]( minGap, keyObserver, list => {
+      new Impl[ S, A ]( system.newID, minGap, keyObserver, list => {
 //println( "CALLING NEW REF FOR DOWN NODE" )
          /* val res = */ system.newVal[ Node[ S, A ]]( null )( tx, list )
 //res.debug
@@ -94,24 +94,24 @@ object HASkipList {
       })
    }
 
-   def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
-                                     ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
-                                       keySerializer: Serializer[ A ], system: S ): Serializer[ HASkipList[ S, A ]] =
-      new Ser[ S, A ]( keyObserver )
+   def reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
+                                 ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
+                                   keySerializer: Serializer[ A ], system: S ): MutableReader[ S, HASkipList[ S, A ]] =
+      new Reader[ S, A ]( keyObserver )
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
-                                      ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
-                                        keySerializer: Serializer[ A ], system: S )
-   extends Serializer[ HASkipList[ S, A ]] {
-      def read( in: DataInput ) : HASkipList[ S, A ] = {
+   private final class Reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
+                                                 ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
+                                                   keySerializer: Serializer[ A ], system: S )
+   extends MutableReader[ S, HASkipList[ S, A ]] {
+      def readData( in: DataInput, id: S#ID ) : HASkipList[ S, A ] = {
          val version = in.readUnsignedByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
 
          val minGap  = in.readInt()
-         new Impl[ S, A ]( minGap, keyObserver, list => list.system.readVal[ Node[ S, A ]]( in )( list ))
+         new Impl[ S, A ]( id, minGap, keyObserver, list => list.system.readVal[ Node[ S, A ]]( in )( list ))
       }
 
       def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
@@ -120,7 +120,7 @@ object HASkipList {
    private val SER_VERSION = 0
 
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
-      ( val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
+      ( val id: S#ID, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
         _downNode: Impl[ S, A ] => S#Val[ Node[ S, A ]])
       ( implicit val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
         val keySerializer: Serializer[ A ], val system: S )
@@ -133,11 +133,14 @@ object HASkipList {
       def arrMinSz = minGap + 1
       private def arrMaxSz = (minGap + 1) << 1   // aka arrMinSz << 1
 
-      def write( out: DataOutput ) {
+      protected def writeData( out: DataOutput ) {
          out.writeUnsignedByte( SER_VERSION )
          out.writeInt( minGap )
-//         system.writeRef( /* Head. */ downNode, out )
          downNode.write( out )
+      }
+
+      protected def disposeData()( implicit tx: S#Tx ) {
+         sys.error( "TODO" )
       }
 
       override def size( implicit tx: S#Tx ) : Int = {

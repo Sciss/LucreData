@@ -27,7 +27,7 @@ package de.sciss.collection
 package txn
 
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
-import de.sciss.lucrestm.Sys
+import de.sciss.lucrestm.{Mutable, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq}
 
 /**
@@ -36,7 +36,7 @@ import collection.immutable.{IndexedSeq => IIdxSeq}
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] {
+trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    def space: D
    def system: S
 

@@ -207,8 +207,10 @@ object DeterministicSkipOctree {
       protected def writeData( out: DataOutput ) {
          out.writeUnsignedByte( SER_VERSION )
          hyperSerializer.write( hyperCube, out )
-         // totalOrder.write( out ) XXX
-         sys.error( "TODO" )
+         totalOrder.write( out )
+         headTree.write( out )
+         lastTreeRef.write( out )
+         skipList.write( out )
       }
 
       protected def disposeData()( implicit tx: S#Tx ) {
@@ -1621,7 +1623,7 @@ object DeterministicSkipOctree {
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 }
 sealed trait DeterministicSkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ]
-extends SkipOctree[ S, D, A ] with Mutable[ S ] {
+extends SkipOctree[ S, D, A ] {
    def headTree : DeterministicSkipOctree.Branch[ S, D, A ]
    def lastTree( implicit tx: S#Tx ) : DeterministicSkipOctree.TopBranch[ S, D, A ]
 }

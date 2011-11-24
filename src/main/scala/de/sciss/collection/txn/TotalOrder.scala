@@ -383,8 +383,9 @@ object TotalOrder {
    private final class SetReader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]])
                                                 ( implicit system: S ) extends MutableReader[ S, Set[ S ]] {
       def readData( in: DataInput, id: S#ID ) : Set[ S ] = {
-         val v = in.readUnsignedByte()
-         require( v == SER_VERSION, "Unsupported version " + v )
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
          val sizeVal = system.readInt( in )
 
          new SetImpl[ S ]( id, relabelObserver, sizeVal, { implicit impl =>
