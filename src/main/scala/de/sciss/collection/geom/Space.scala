@@ -27,25 +27,26 @@ package de.sciss.collection.geom
 
 object Space {
    sealed trait TwoDim extends Space[ TwoDim ] {
-      type PointLike    = Point2DLike
-      type Point        = Point2D
-      type HyperCube    = SquareLike
+      type PointLike       = Point2DLike
+      type Point           = Point2D
+      type HyperCubeLike   = SquareLike
+      type HyperCube       = Square
    }
    object TwoDim extends TwoDim {
-      val maxPoint      = Point2D( Int.MaxValue, Int.MaxValue )
-      val dim           = 2
+      val maxPoint         = Point2D( Int.MaxValue, Int.MaxValue )
+      val dim              = 2
    }
 
    sealed trait ThreeDim extends Space[ ThreeDim ] {
       type PointLike       = Point3DLike
       type Point           = Point3D
-      type HyperCube       = CubeLike
+      type HyperCubeLike   = CubeLike
+      type HyperCube       = Cube
    }
    object ThreeDim extends ThreeDim {
-      val maxPoint   = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
-      val dim        = 3
-
-      val bigZero    = BigInt( 0 )
+      val maxPoint         = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
+      val dim              = 3
+      val bigZero          = BigInt( 0 )
    }
 
 //   /**
@@ -77,7 +78,8 @@ object Space {
    /**
     * The square or hypercube in the space.
     */
-   type HyperCube <: de.sciss.collection.geom.HyperCube[ D ]
+   type HyperCubeLike <: de.sciss.collection.geom.HyperCube[ D ]
+   type HyperCube <: D#HyperCubeLike
 
 //   /**
 //    * Represents larger values from multiplications

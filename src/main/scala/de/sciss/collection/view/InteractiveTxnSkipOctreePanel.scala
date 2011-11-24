@@ -47,7 +47,6 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
 //            new Model3D[ InMemory ]( tree )
 //         } else {
          import txn.geom.Space.{Point2DSerializer, SquareSerializer}
-implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
 
             val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
                TwoDim, Square( sz, sz, sz ), skipGap = 1 )
@@ -73,7 +72,7 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
    extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
-      def queryShape( sq: SquareLike ) = sq
+      def queryShape( sq: Square ) = sq
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y ) => Point2D( x, y )
       }
@@ -99,7 +98,7 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
          "Minimum" -> DistanceMeasure2D.vehsybehc
       )
 
-      var rangeHyperCube = Option.empty[ SquareLike ]
+      var rangeHyperCube = Option.empty[ Square ]
 
       private val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
       private def topPaint( h: QuadView.PaintHelper ) {
