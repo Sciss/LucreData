@@ -42,7 +42,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] {
 
 //   def headTree: QNode
 //   def lastTree: QNode
-   def pointView : A => D#Point
+   def pointView : A => D#PointLike
 
    def hyperCube : D#HyperCube
 
@@ -55,10 +55,10 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] {
     */
    def numOrthants : Int
 
-   def get( point: D#Point )( implicit tx: S#Tx ) : Option[ A ]
-   def isDefinedAt( point: D#Point )( implicit tx: S#Tx ) : Boolean
+   def get( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ]
+   def isDefinedAt( point: D#PointLike )( implicit tx: S#Tx ) : Boolean
 
-   def removeAt( point: D#Point )( implicit tx: S#Tx ) : Option[ A ]
+   def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ]
 
    /**
     * Adds an element to the tree
@@ -105,10 +105,10 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ])
+   def nearestNeighbor[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                 ( implicit tx: S#Tx ) : A
 
-   def nearestNeighborOption[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ])
+   def nearestNeighborOption[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                       ( implicit tx: S#Tx ) : Option[ A ]
 
    /**

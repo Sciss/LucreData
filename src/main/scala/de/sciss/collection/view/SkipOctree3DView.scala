@@ -35,8 +35,8 @@ import java.awt.event.{ActionEvent, ActionListener, KeyAdapter, KeyEvent, FocusE
 import java.awt.{BasicStroke, RenderingHints, Graphics2D, Dimension, Graphics, Color}
 import Space.ThreeDim
 
-class SkipOctree3DView( t: SkipOctree[ ThreeDim, ThreeDim#Point ]) extends JComponent {
-   import ThreeDim._
+class SkipOctree3DView[ Point <: ThreeDim#PointLike ]( t: SkipOctree[ ThreeDim, Point ]) extends JComponent {
+   import ThreeDim.PointLike
 
    setBorder( BorderFactory.createEmptyBorder( 4, 4, 4, 4 ))
    setBackground( Color.white )
@@ -233,7 +233,7 @@ class SkipOctree3DView( t: SkipOctree[ ThreeDim, ThreeDim#Point ]) extends JComp
 //      m = if( m == Model.EMPTY ) p else new Composite( Array[ Model ]( m, p ))
       }
 
-      def point( colr: Color, p: Point ) {
+      def point( colr: Color, p: PointLike ) {
          val q = WPoint.create( (p.x - extent) * scale, (p.y - extent) * scale, (p.z - extent) * scale )
          pts :+= (q, colr)
       }
@@ -247,14 +247,15 @@ class SkipOctree3DView( t: SkipOctree[ ThreeDim, ThreeDim#Point ]) extends JComp
                }
 
             case l: t.QLeaf =>
-               val p = t.pointView( l.value )
-               point( if( highlight.contains( p )) colrGreen else Color.red, p )
+               val v = l.value
+               val p = t.pointView( v )
+               point( if( highlight.contains( v )) colrGreen else Color.red, p )
 
             case _ =>
          }
       }
 
-      def drawFrame( c: HyperCube ) {
+      def drawFrame( c: ThreeDim#HyperCube ) {
          poly( // colr,
             (c.cx - c.extent, c.cy - c.extent, c.cz - c.extent),
             (c.cx + c.extent, c.cy - c.extent, c.cz - c.extent),

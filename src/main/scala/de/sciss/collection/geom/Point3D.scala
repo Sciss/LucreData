@@ -37,7 +37,7 @@ trait Point3DLike {
 //   final override def right   = x
 //   final override def bottom  = y
 
-   def distanceSq( that: Point ) : BigInt = {
+   def distanceSq( that: PointLike ) : BigInt = {
       val dx = that.x.toLong - x.toLong
       val dy = that.y.toLong - y.toLong
       val dz = that.z.toLong - z.toLong

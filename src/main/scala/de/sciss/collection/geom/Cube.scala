@@ -90,7 +90,7 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
       Cube( cx + dx, cy + dy, cz + dz, e )
    }
 
-   final def contains( point: Point ) : Boolean = {
+   final def contains( point: PointLike ) : Boolean = {
       val em1  = extent - 1
       val px   = point.x
       val py   = point.y
@@ -151,11 +151,11 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
 
    final def isAreaNonEmpty( area: BigInt ) : Boolean = area > bigZero
 
-   final def minDistance( point: Point ) : Double = {
+   final def minDistance( point: PointLike ) : Double = {
       math.sqrt( minDistanceSq( point ).toDouble ) // or use this: http://www.merriampark.com/bigsqrt.htm ?
    }
 
-   final def maxDistance( point: Point ) : Double = {
+   final def maxDistance( point: PointLike ) : Double = {
       math.sqrt( maxDistanceSq( point ).toDouble )
    }
 
@@ -164,7 +164,7 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
     * or sides to the point, if the point is outside the cube,
     * or zero, if the point is contained
     */
-   final def minDistanceSq( point: Point ) : BigInt = {
+   final def minDistanceSq( point: PointLike ) : BigInt = {
       val ax   = point.x
       val ay   = point.y
       val az   = point.z
@@ -208,7 +208,7 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
     * This is the distance (squared) to the corner which is the furthest from
     * the `point`, no matter if it lies within the hyper-cube or not.
     */
-   final def maxDistanceSq( point: Point ) : BigInt = {
+   final def maxDistanceSq( point: PointLike ) : BigInt = {
       val ax   = point.x
       val ay   = point.y
       val az   = point.z
@@ -238,7 +238,7 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
       BigInt( dx * dx + dy * dy ) + BigInt( dz * dz )
    }
 
-   final def indexOf( a: Point ) : Int = {
+   final def indexOf( a: PointLike ) : Int = {
       val ax   = a.x
       val ay   = a.y
       val az   = a.z
@@ -301,14 +301,14 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
       xpos | ypos | zpos
    }
 
-   final def greatestInteresting( a: Point, b: Point ) : HyperCube = gi( a.x, a.y, a.z, 1, b )
+   final def greatestInteresting( a: PointLike, b: PointLike ) : HyperCube = gi( a.x, a.y, a.z, 1, b )
 
-   final def greatestInteresting( a: HyperCube, b: Point ) : HyperCube = {
+   final def greatestInteresting( a: HyperCube, b: PointLike ) : HyperCube = {
       val ae = a.extent
       gi( a.cx - ae, a.cy - ae, a.cz - ae, ae << 1, b )
    }
 
-   private def gi( aleft: Int, atop: Int, afront: Int, asize: Int, b: Point ) : HyperCube = {
+   private def gi( aleft: Int, atop: Int, afront: Int, asize: Int, b: PointLike ) : HyperCube = {
       val tlx = cx - extent
       val tly = cy - extent
       val tlz = cz - extent

@@ -28,6 +28,7 @@ package view
 
 import java.awt.{Color, Dimension}
 import mutable.SkipQuadtree
+import geom.Point2DLike
 
 class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
    var highlight  = Set.empty[ A ]
@@ -72,7 +73,9 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
             }
          case _: t.QEmpty =>
          case l: t.QLeaf =>
-            h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
+            val v = l.value
+            val p = t.pointView( v )
+            h.drawPoint( p, highlight.contains( v ))
       }
    }
 }

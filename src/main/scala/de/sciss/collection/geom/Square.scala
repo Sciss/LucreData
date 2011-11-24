@@ -86,7 +86,7 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
     */
    final def side : Int    = extent << 1
 
-   final def contains( point: Point ) : Boolean = {
+   final def contains( point: PointLike ) : Boolean = {
       val px = point.x
       val py = point.y
       (left <= px) && (right >= px) && (top <= py) && (bottom >= py)
@@ -126,20 +126,20 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
     * Calculates the minimum distance to a point in the euclidean metric.
     * This calls `minDistanceSq` and then takes the square root.
     */
-   final def minDistance( point: Point ) : Double = math.sqrt( minDistanceSq( point ))
+   final def minDistance( point: PointLike ) : Double = math.sqrt( minDistanceSq( point ))
 
    /**
     * Calculates the maximum distance to a point in the euclidean metric.
     * This calls `maxDistanceSq` and then takes the square root.
     */
-   final def maxDistance( point: Point ) : Double = math.sqrt( maxDistanceSq( point ))
+   final def maxDistance( point: PointLike ) : Double = math.sqrt( maxDistanceSq( point ))
 
    /**
     * The squared (euclidean) distance of the closest of the square's corners
     * or sides to the point, if the point is outside the square,
     * or zero, if the point is contained
     */
-   final def minDistanceSq( point: Point ) : Long = {
+   final def minDistanceSq( point: PointLike ) : Long = {
       val ax   = point.x
       val ay   = point.y
       val em1  = extent - 1
@@ -172,7 +172,7 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
     * This is the distance (squared) to the corner which is the furthest from
     * the `point`, no matter if it lies within the square or not.
     */
-   final def maxDistanceSq( point: Point ) : Long = {
+   final def maxDistanceSq( point: PointLike ) : Long = {
       val ax   = point.x
       val ay   = point.y
       val em1  = extent - 1
@@ -200,7 +200,7 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
     * @return  the index of the quadrant (beginning at 0), or -1 if `a` lies
     *          outside of this square.
     */
-   final def indexOf( a: Point ) : Int = {
+   final def indexOf( a: PointLike ) : Int = {
       val ax   = a.x
       val ay   = a.y
       if( ay < cy ) {      // north
@@ -247,12 +247,12 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
       }
    }
 
-   final def greatestInteresting( a: Point, b: Point ) : HyperCube = gi( a.x, a.y, 1, b )
+   final def greatestInteresting( a: PointLike, b: PointLike ) : HyperCube = gi( a.x, a.y, 1, b )
 
-   final def greatestInteresting( a: HyperCube, b: Point ) : HyperCube =
+   final def greatestInteresting( a: HyperCube, b: PointLike ) : HyperCube =
       gi( a.left, a.top, a.extent << 1, b )  // a.extent << 1 can exceed 31 bit -- but it seems to work :-/
 
-   private def gi( aleft: Int, atop: Int, asize: Int, b: Point ) : HyperCube = {
+   private def gi( aleft: Int, atop: Int, asize: Int, b: PointLike ) : HyperCube = {
       val tlx = cx - extent
       val tly = cy - extent
       val akx = aleft - tlx

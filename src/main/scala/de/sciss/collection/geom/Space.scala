@@ -27,7 +27,8 @@ package de.sciss.collection.geom
 
 object Space {
    sealed trait TwoDim extends Space[ TwoDim ] {
-      type Point        = Point2DLike
+      type PointLike    = Point2DLike
+      type Point        = Point2D
       type HyperCube    = SquareLike
    }
    object TwoDim extends TwoDim {
@@ -36,7 +37,8 @@ object Space {
    }
 
    sealed trait ThreeDim extends Space[ ThreeDim ] {
-      type Point           = Point3DLike
+      type PointLike       = Point3DLike
+      type Point           = Point3D
       type HyperCube       = CubeLike
    }
    object ThreeDim extends ThreeDim {
@@ -65,16 +67,17 @@ object Space {
  * Big thanks to Aleksey Nikiforov for figuring out
  * how to plug the types together...
  */
-/* sealed */ trait Space[ Self <: Space[ Self ]] {
+/* sealed */ trait Space[ D <: Space[ D ]] {
    /**
     * The point in the space
     */
-   type Point /* <: Writer */ // <: PointLike[ Self ]
+   type PointLike /* <: Writer */ // <: PointLike[ Self ]
+   type Point <: D#PointLike
 
    /**
     * The square or hypercube in the space.
     */
-   type HyperCube <: de.sciss.collection.geom.HyperCube[ Self ]
+   type HyperCube <: de.sciss.collection.geom.HyperCube[ D ]
 
 //   /**
 //    * Represents larger values from multiplications
@@ -87,7 +90,7 @@ object Space {
     * point in the space, typically which each coordinate component
     * equal to `Int.MaxValue`.
     */
-   def maxPoint : Self#Point
+   def maxPoint : D#Point // Like
 
    /**
     * The number of dimensions in the space.

@@ -55,7 +55,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    private val sz = 256
 
-   private final class Model2D( mode: Mode ) extends Model[ Space.TwoDim ] {
+   private final class Model2D( mode: Mode ) extends Model[ Space.TwoDim, Point2D ] {
       import Space.TwoDim
       import TwoDim._
 
@@ -70,7 +70,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y ) => Point2D( x, y )
       }
-      def coords( p: Point ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
+      def coords( p: PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
          case IndexedSeq( x, y ) => Square( x, y, ext )
       }
@@ -110,7 +110,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
    }
 
-   private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim ] {
+   private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim, Point3D ] {
       import Space.ThreeDim
       import ThreeDim._
 
@@ -125,12 +125,12 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y, z ) => Point3D( x, y, z )
       }
-      def coords( p: Point ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
+      def coords( p: PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
          case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
       }
 
-      val view = new SkipOctree3DView( tree )
+      val view = new SkipOctree3DView[ Point ]( tree )
       def repaint() { view.treeUpdated() }
 //      val baseDistance = DistanceMeasure3D.euclideanSq
       def highlight: Set[ Point ] = view.highlight
@@ -153,19 +153,19 @@ object InteractiveSkipOctreePanel extends App with Runnable {
    case object Randomized extends Mode
    case object Deterministic extends Mode
 
-   trait Model[ D <: Space[ D ]] {
-      def tree: SkipOctree[ D, D#Point ]
+   trait Model[ D <: Space[ D ], Point <: D#PointLike ] {
+      def tree: SkipOctree[ D, Point ]
       def view: JComponent
       final def insets: Insets = view.getInsets
-      def point( coords: IndexedSeq[ Int ]) : D#Point
-      def coords( p: D#Point ) : IndexedSeq[ Int ]
+      def point( coords: IndexedSeq[ Int ]) : Point
+      def coords( p: D#PointLike ) : IndexedSeq[ Int ]
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) : D#HyperCube
 //      def baseDistance: DistanceMeasure[ _, D ]
       def distanceMeasures: IndexedSeq[ (String, DistanceMeasure[ _, D ])]
-      def highlight: Set[ D#Point ]
-      def highlight_=( points: Set[ D#Point ]) : Unit
-      final def pointString( p: D#Point ) : String = coords( p ).mkString( "(", "," , ")" )
-      final def newPanel() : InteractiveSkipOctreePanel[ D ] = new InteractiveSkipOctreePanel( this )
+      def highlight: Set[ Point ]
+      def highlight_=( points: Set[ Point ]) : Unit
+      final def pointString( p: D#PointLike ) : String = coords( p ).mkString( "(", "," , ")" )
+      final def newPanel() : InteractiveSkipOctreePanel[ D, Point ] = new InteractiveSkipOctreePanel( this )
       def queryShape( q: D#HyperCube ) : QueryShape[ _, D ]
       def repaint() : Unit
       def rangeHyperCube : Option[ D#HyperCube ]
@@ -179,7 +179,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def addPDFSupport( f: JFrame ) : Unit
    }
 }
-class InteractiveSkipOctreePanel[ D <: Space[ D ]]( val model: InteractiveSkipOctreePanel.Model[ D ])
+class InteractiveSkipOctreePanel[ D <: Space[ D ], Point <: D#PointLike ]( val model: InteractiveSkipOctreePanel.Model[ D, Point ])
 extends JPanel( new BorderLayout() ) {
    import InteractiveSkipOctreePanel._
 
@@ -204,7 +204,7 @@ extends JPanel( new BorderLayout() ) {
       }
    }
 
-   private def tryPoint( fun: D#Point => Unit ) {
+   private def tryPoint( fun: Point => Unit ) {
       try {
 //         val p = Point2D( ggX.getText.toInt, ggY.getText.toInt )
          val p = model.point( ggCoord.map( _.getText.toInt ))
@@ -291,7 +291,7 @@ extends JPanel( new BorderLayout() ) {
       model.highlight = Set( p )
    }}
 
-   private def rangeString( pt: Set[ D#Point ]) : String = {
+   private def rangeString( pt: Set[ Point ]) : String = {
       val s = pt.map( model.pointString ).mkString( " " )
       if( s.isEmpty ) "(empty)" else s
    }
@@ -426,7 +426,7 @@ extends JPanel( new BorderLayout() ) {
       val q = t.hyperCube
       var h = t.lastTree
       var curreUnlinkedHyperCubes   = Set.empty[ D#HyperCube ]
-      var currPoints                = Set.empty[ D#Point ]
+      var currPoints                = Set.empty[ D#PointLike ]
       var prevs = 0
       do {
          assert( h.hyperCube == q, "Root level hyper-cube is " + h.hyperCube + " while it should be " + q + " in level n - " + prevs )

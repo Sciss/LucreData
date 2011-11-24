@@ -47,5 +47,5 @@ trait QueryShape[ @specialized( Long ) Area, D <: Space[ D ]] {
     * @return  `true` if this shape contains or partly overlaps
     *          the given point
     */
-   def contains( p: D#Point ) : Boolean
+   def contains( p: D#PointLike ) : Boolean
 }

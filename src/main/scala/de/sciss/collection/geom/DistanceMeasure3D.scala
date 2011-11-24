@@ -51,17 +51,17 @@ object DistanceMeasure3D {
 
    private object EuclideanSq extends ImplBigInt {
       override def toString = "DistanceMeasure3D.euclideanSq"
-      def distance( a: Point, b: Point ) = b.distanceSq( a )
-      def minDistance( a: Point, b: HyperCube ) = b.minDistanceSq( a )
-      def maxDistance( a: Point, b: HyperCube ) = b.maxDistanceSq( a )
+      def distance( a: PointLike, b: PointLike ) = b.distanceSq( a )
+      def minDistance( a: PointLike, b: HyperCube ) = b.minDistanceSq( a )
+      def maxDistance( a: PointLike, b: HyperCube ) = b.maxDistanceSq( a )
    }
 
    private sealed trait ClipLike[ @specialized( Long ) Area ] extends DistanceMeasure[ Area, ThreeDim ] {
       protected def underlying: DistanceMeasure[ Area, ThreeDim ]
       protected def clipping: HyperCube
-      def distance( a: Point, b: Point ) : Area = if( clipping.contains( b )) underlying.distance(    a, b ) else maxValue
-      def minDistance( a: Point, b: HyperCube ) : Area = if( clipping.contains( b )) underlying.minDistance( a, b ) else maxValue
-      def maxDistance( a: Point, b: HyperCube ) : Area = if( clipping.contains( b )) underlying.maxDistance( a, b ) else maxValue
+      def distance( a: PointLike, b: PointLike ) : Area = if( clipping.contains( b )) underlying.distance(    a, b ) else maxValue
+      def minDistance( a: PointLike, b: HyperCube ) : Area = if( clipping.contains( b )) underlying.minDistance( a, b ) else maxValue
+      def maxDistance( a: PointLike, b: HyperCube ) : Area = if( clipping.contains( b )) underlying.maxDistance( a, b ) else maxValue
    }
 
    private final class ClipBigInt( protected val underlying: ImplBigInt, protected val clipping: HyperCube )
@@ -71,9 +71,9 @@ object DistanceMeasure3D {
    extends ClipLike[ Long ] with ImplLong
 
    private final class ApproximateBigInt( underlying: ImplBigInt, thresh: BigInt ) extends ImplBigInt {
-      def minDistance( a: Point, b: HyperCube ) : BigInt = underlying.minDistance( a, b )
-      def maxDistance( a: Point, b: HyperCube ) : BigInt = underlying.maxDistance( a, b )
-      def distance( a: Point, b: Point ) : BigInt = {
+      def minDistance( a: PointLike, b: HyperCube ) : BigInt = underlying.minDistance( a, b )
+      def maxDistance( a: PointLike, b: HyperCube ) : BigInt = underlying.maxDistance( a, b )
+      def distance( a: PointLike, b: PointLike ) : BigInt = {
          val res = b.distanceSq( a )
          if( res > thresh ) res else ThreeDim.bigZero
       }
@@ -97,7 +97,7 @@ object DistanceMeasure3D {
       private val bottom   = (idx & 2) != 0
       private val back     = (idx & 4) != 0
 
-      def distance( a: Point, b: Point ) : Area = {
+      def distance( a: PointLike, b: PointLike ) : Area = {
          if( (if( right  ) b.x >= a.x else b.x <= a.x) &&
              (if( bottom ) b.y >= a.y else b.y <= a.y) &&
              (if( back   ) b.z >= a.z else b.z <= a.z) ) {
@@ -106,7 +106,7 @@ object DistanceMeasure3D {
          } else maxValue
       }
 
-      def minDistance( p: Point, q: HyperCube ) : Area = {
+      def minDistance( p: PointLike, q: HyperCube ) : Area = {
          val qe   = q.extent
          val qem1 = qe - 1
 
@@ -118,7 +118,7 @@ object DistanceMeasure3D {
          } else maxValue
       }
 
-      def maxDistance( p: Point, q: HyperCube ) : Area = {
+      def maxDistance( p: PointLike, q: HyperCube ) : Area = {
          val qe   = q.extent
          val qem1 = qe - 1
 
@@ -150,12 +150,12 @@ object DistanceMeasure3D {
    private sealed trait ChebyshevXYLike extends ImplLong {
       protected def apply( dx: Long, dy: Long ) : Long
 
-      def distance( a: Point, b: Point ) : Long = {
+      def distance( a: PointLike, b: PointLike ) : Long = {
          val dx = math.abs( a.x.toLong - b.x.toLong )
          val dy = math.abs( a.y.toLong - b.y.toLong )
          apply( dx, dy )
       }
-      def minDistance( a: Point, q: HyperCube ) : Long = {
+      def minDistance( a: PointLike, q: HyperCube ) : Long = {
          val px   = a.x
          val py   = a.y
          val qe   = q.extent
@@ -214,7 +214,7 @@ object DistanceMeasure3D {
          apply( dx, dy )
       }
 
-      def maxDistance( a: Point, q: HyperCube ) : Long = {
+      def maxDistance( a: PointLike, q: HyperCube ) : Long = {
          val px   = a.x
          val py   = a.y
          val qcx  = q.cx

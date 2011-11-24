@@ -46,7 +46,7 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
 //               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
 //            new Model3D[ InMemory ]( tree )
 //         } else {
-         import txn.geom.Space.Point2DSerializer
+         import txn.geom.Space.{Point2DSerializer, SquareSerializer}
 implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
 
             val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
@@ -77,7 +77,7 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y ) => Point2D( x, y )
       }
-      def coords( p: TwoDim#Point ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
+      def coords( p: TwoDim#PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
          case IndexedSeq( x, y ) => Square( x, y, ext )
       }
@@ -148,18 +148,18 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
 //      }
 //   }
 
-   trait Model[ S <: Sys[ S ], D <: Space[ D ], Point <: D#Point ] {
+   trait Model[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ] {
       def tree: txn.SkipOctree[ S, D, Point ]
       def view: JComponent
       final def insets: Insets = view.getInsets
       def point( coords: IndexedSeq[ Int ]) : Point
-      def coords( p: D#Point ) : IndexedSeq[ Int ]
+      def coords( p: D#PointLike ) : IndexedSeq[ Int ]
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) : D#HyperCube
 //      def baseDistance: DistanceMeasure[ _, D ]
       def distanceMeasures: IndexedSeq[ (String, DistanceMeasure[ _, D ])]
       def highlight: Set[ Point ]
       def highlight_=( points: Set[ Point ]) : Unit
-      final def pointString( p: D#Point ) : String = coords( p ).mkString( "(", "," , ")" )
+      final def pointString( p: D#PointLike ) : String = coords( p ).mkString( "(", "," , ")" )
       final def newPanel() : InteractiveTxnSkipOctreePanel[ S, D, Point ] = new InteractiveTxnSkipOctreePanel( this )
       def queryShape( q: D#HyperCube ) : QueryShape[ _, D ]
       def repaint() : Unit
@@ -174,7 +174,7 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
       def addPDFSupport( f: JFrame ) : Unit
    }
 }
-class InteractiveTxnSkipOctreePanel[ S <: Sys[ S ], D <: Space[ D ], Point <: D#Point ](
+class InteractiveTxnSkipOctreePanel[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ](
    val model: InteractiveTxnSkipOctreePanel.Model[ S, D, Point ])
 extends JPanel( new BorderLayout() ) {
    import InteractiveTxnSkipOctreePanel._

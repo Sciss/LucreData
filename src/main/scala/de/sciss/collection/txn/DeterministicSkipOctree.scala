@@ -48,7 +48,7 @@ import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Mutable, Seriali
 */
 object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
-                                                 ( implicit view: A => D#Point, tx: S#Tx, system: S,
+                                                 ( implicit view: A => D#PointLike, tx: S#Tx, system: S,
                                                    keySerializer: Serializer[ A ],
                                                    hyperSerializer: Serializer[ D#HyperCube ],
                                                    smf: Manifest[ S ],
@@ -166,7 +166,7 @@ object DeterministicSkipOctree {
    }
 
    private final class Impl[ S <: Sys[ S ], D <: Space[ D ], A ]
-      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#Point,
+      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#PointLike,
         _initFun: Impl[ S, D, A ] => (TotalOrder.Set[ S ], TopLeftBranch[ S, D, A ], S#Ref[ TopBranch[ S, D, A ]], SkipList[ S, Leaf[ S, D, A ]]))
       ( implicit val system: S, val keySerializer: Serializer[ A ], val hyperSerializer: Serializer[ D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ]
@@ -220,7 +220,7 @@ object DeterministicSkipOctree {
          oldLeaf != null
       }
 
-      def removeAt( point: D#Point )( implicit tx: S#Tx ) : Option[ A ] = {
+      def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
          val oldLeaf = removeLeaf( point )
          if( oldLeaf == null ) None else Some( oldLeaf.value )
       }
@@ -232,24 +232,24 @@ object DeterministicSkipOctree {
          if( l == null ) false else l.value == elem
       }
 
-      def isDefinedAt( point: D#Point )( implicit tx: S#Tx ) : Boolean = {
+      def isDefinedAt( point: D#PointLike )( implicit tx: S#Tx ) : Boolean = {
          if( !hyperCube.contains( point )) return false
          findLeaf( point ) != null
       }
 
-      def get( point: D#Point )( implicit tx: S#Tx ) : Option[ A ] = {
+      def get( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
          if( !hyperCube.contains( point )) return None
          val l = findLeaf( point )
          if( l == null ) None else Some( l.value )
       }
 
-      def nearestNeighbor[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ])
+      def nearestNeighbor[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                    ( implicit tx: S#Tx ) : A = {
          val res = new NN( point, metric ).find()
          if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
       }
 
-      def nearestNeighborOption[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ])
+      def nearestNeighborOption[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                          ( implicit tx: S#Tx ) : Option[ A ] = {
          val res = new NN( point, metric ).find()
          if( res != null ) Some( res.value ) else None
@@ -295,7 +295,7 @@ object DeterministicSkipOctree {
       def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toSeq
       def toSet(  implicit tx: S#Tx ) : Set[  A ] = iterator.toSet
 
-      private def findLeaf( point: D#Point )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
+      private def findLeaf( point: D#PointLike )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
          val p0 = lastTree.findP0( point )
          p0.findImmediateLeaf( point )
       }
@@ -322,7 +322,7 @@ object DeterministicSkipOctree {
          oldLeaf
       }
 
-      private def removeLeaf( point: D#Point )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
+      private def removeLeaf( point: D#PointLike )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
          if( !hyperCube.contains( point )) return null
 
          // "To insert or delete a point y into or from S, we first search the
@@ -431,7 +431,7 @@ object DeterministicSkipOctree {
    }
 
    private final class NN[ S <: Sys[ S ], D <: Space[ D ], A, @specialized( Long ) M ](
-      point: D#Point, metric: DistanceMeasure[ M, D ])( implicit impl: Impl[ S, D, A ])
+      point: D#PointLike, metric: DistanceMeasure[ M, D ])( implicit impl: Impl[ S, D, A ])
    extends scala.math.Ordering[ VisitedNode[ S, D, A, M ]] {
       private type Vis = VisitedNode[ S, D, A, M ]
 
@@ -720,7 +720,7 @@ object DeterministicSkipOctree {
        * hyper-cube and the given point will be placed in
        * separated orthants of this resulting hyper-cube.
        */
-      private[DeterministicSkipOctree] def union( mq: D#HyperCube, point: D#Point )( implicit impl: Impl[ S, D, A ]) : D#HyperCube
+      private[DeterministicSkipOctree] def union( mq: D#HyperCube, point: D#PointLike )( implicit impl: Impl[ S, D, A ]) : D#HyperCube
 
       /**
        * Queries the orthant index for this (leaf's or node's) hyper-cube
@@ -825,7 +825,7 @@ object DeterministicSkipOctree {
          parentRef.write( out )
       }
 
-      private[DeterministicSkipOctree] def union( mq: D#HyperCube, point2: D#Point )( implicit impl: Impl[ S, D, A ]) = {
+      private[DeterministicSkipOctree] def union( mq: D#HyperCube, point2: D#PointLike )( implicit impl: Impl[ S, D, A ]) = {
          import impl.pointView
          val point   = pointView( value )
          mq.greatestInteresting( point, point2 )
@@ -886,7 +886,7 @@ object DeterministicSkipOctree {
        * @return  the node defined by the given search `point`, or `null`
        *          if no such node exists.
        */
-      private[DeterministicSkipOctree] def findP0( point: D#Point )( implicit tx: S#Tx ) : LeftBranch[ S, D, A ]
+      private[DeterministicSkipOctree] def findP0( point: D#PointLike )( implicit tx: S#Tx ) : LeftBranch[ S, D, A ]
 
       /**
        * Assuming that the given `leaf` is a child of this node,
@@ -924,7 +924,7 @@ object DeterministicSkipOctree {
 
       private[DeterministicSkipOctree] def prev: Branch[ S, D, A ]
 
-      private[DeterministicSkipOctree] final def union( mq: D#HyperCube, point2: D#Point )
+      private[DeterministicSkipOctree] final def union( mq: D#HyperCube, point2: D#PointLike )
                                                       ( implicit impl: Impl[ S, D, A ]) = {
          val q = hyperCube
          mq.greatestInteresting( q, point2 )
@@ -1006,7 +1006,7 @@ object DeterministicSkipOctree {
          children( idx ).set( c )
       }
 
-      private[DeterministicSkipOctree] final def findP0( point: D#Point )( implicit tx: S#Tx ) : LeftBranch[ S, D, A ] = {
+      private[DeterministicSkipOctree] final def findP0( point: D#PointLike )( implicit tx: S#Tx ) : LeftBranch[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
          val c = child( qidx )
          val n = if( c != null && c.isBranch ) {
@@ -1175,7 +1175,7 @@ object DeterministicSkipOctree {
          children( idx ).set( c )
       }
 
-      private[DeterministicSkipOctree] final def findP0( point: D#Point )( implicit tx: S#Tx ) : LeftBranch[ S, D, A ] = {
+      private[DeterministicSkipOctree] final def findP0( point: D#PointLike )( implicit tx: S#Tx ) : LeftBranch[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
          val c    = child( qidx )
          if( c != null && c.isBranch ) {
@@ -1192,7 +1192,7 @@ object DeterministicSkipOctree {
        * @return  the `Leaf` child in this node associated with the given
        *          `point`, or `null` if no such leaf exists.
        */
-      private[DeterministicSkipOctree] final def findImmediateLeaf( point: D#Point )( implicit tx: S#Tx,
+      private[DeterministicSkipOctree] final def findImmediateLeaf( point: D#PointLike )( implicit tx: S#Tx,
                                                                                       impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
          import impl.pointView
          val qidx = hyperCube.indexOf( point )
@@ -1216,7 +1216,7 @@ object DeterministicSkipOctree {
          qidx += 1 }
       }
 
-      private[DeterministicSkipOctree] final def insert( point: D#Point, value: A )
+      private[DeterministicSkipOctree] final def insert( point: D#PointLike, value: A )
                                                        ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
          val old  = child( qidx )
