@@ -282,6 +282,8 @@ object DeterministicSkipOctree {
          lastTreeRef.set( node )
       }
 
+      def size( implicit tx: S#Tx ) : Int = skipList.size
+
       def add( elem: A )( implicit tx: S#Tx ) : Boolean = {
          val oldLeaf = insertLeaf( elem )
          if( oldLeaf == null ) true else oldLeaf.value != elem
@@ -636,7 +638,7 @@ object DeterministicSkipOctree {
          var pi = node
          var i = 0; while( i < sz ) {
             val c = pi.child( i )
-            if( c.isBranch ) {
+            if( c != null && c.isBranch ) {
                val pic = c.asBranch
                val a2 = qs.overlapArea( pic.hyperCube )
                if( a2 == area ) {
@@ -672,7 +674,7 @@ object DeterministicSkipOctree {
          var i = 0
          while( i < sz ) {
             val c = pi.child( i )
-            if( c.isBranch ) {
+            if( c != null && c.isBranch ) {
                val ci = c.asBranch
                val a2 = qs.overlapArea( ci.hyperCube )
                if( a2 == area ) {   // that means node is uncritical
@@ -981,6 +983,8 @@ object DeterministicSkipOctree {
       protected def nextRef: S#Ref[ RightBranch[ S, D, A ]]
 
       private[DeterministicSkipOctree] def prev: Branch[ S, D, A ]
+
+      final def prevOption: Option[ Branch[ S, D, A ]] = Option( prev )
 
       private[DeterministicSkipOctree] final def union( mq: D#HyperCube, point2: D#PointLike )
                                                       ( implicit impl: Impl[ S, D, A ]) = {

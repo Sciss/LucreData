@@ -61,6 +61,12 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ]
 
    /**
+    * Queries the number of leaves in the tree. This may be a very costly action,
+    * so it is recommended to only use it for debugging purposes.
+    */
+   def size( implicit tx: S#Tx ) : Int
+
+   /**
     * Adds an element to the tree
     *
     * @return  true if the element is new in the tree. If a previous entry with the
