@@ -38,7 +38,7 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
 
    EventQueue.invokeLater( this )
    def run() {
-      val xs = args.toSeq
+//      val xs = args.toSeq
       implicit val system  = new InMemory
       val model = system.atomic { implicit tx =>
 //         if( xs.contains( "--3d" )) {
@@ -46,10 +46,10 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
 //               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
 //            new Model3D[ InMemory ]( tree )
 //         } else {
-implicit val pointSer : Serializer[ TwoDim#Point ] = null // XXX
+         import txn.geom.Space.Point2DSerializer
 implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
 
-            val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, TwoDim#Point ](
+            val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
                TwoDim, Square( sz, sz, sz ), skipGap = 1 )
             new Model2D[ InMemory ]( tree )
 //         }
@@ -69,8 +69,8 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
 
    private val sz = 256
 
-   private final class Model2D[ S <: Sys[ S ]]( val tree: txn.DeterministicSkipOctree[ S, TwoDim, TwoDim#Point ])
-   extends Model[ S, TwoDim ] {
+   private final class Model2D[ S <: Sys[ S ]]( val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ])
+   extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
       def queryShape( sq: SquareLike ) = sq
@@ -83,15 +83,15 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
       }
 
       val view = {
-         val res = new TxnSkipQuadtreeView[ S, TwoDim#Point ]( tree )
+         val res = new TxnSkipQuadtreeView[ S, Point2D ]( tree )
          res.topPainter = Some( topPaint _ )
          res
       }
       def repaint() { view.repaint() }
 //      val baseDistance = DistanceMeasure2D.euclideanSq
 
-      def highlight: Set[ TwoDim#Point ] = view.highlight
-      def highlight_=( points: Set[ TwoDim#Point ]) { view highlight = points }
+      def highlight: Set[ Point2D ] = view.highlight
+      def highlight_=( points: Set[ Point2D ]) { view highlight = points }
 
       val distanceMeasures = IndexedSeq(
          "Euclidean" -> DistanceMeasure2D.euclideanSq,
@@ -113,7 +113,7 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
       }
 
       def addPDFSupport( f: JFrame ) {
-         PDFSupport.addMenu[ TxnSkipQuadtreeView[ S, TwoDim#Point ]]( f, view :: Nil, _.adjustPreferredSize() )
+         PDFSupport.addMenu[ TxnSkipQuadtreeView[ S, Point2D ]]( f, view :: Nil, _.adjustPreferredSize() )
       }
    }
 
@@ -148,19 +148,19 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
 //      }
 //   }
 
-   trait Model[ S <: Sys[ S ], D <: Space[ D ]] {
-      def tree: txn.SkipOctree[ S, D, D#Point ]
+   trait Model[ S <: Sys[ S ], D <: Space[ D ], Point <: D#Point ] {
+      def tree: txn.SkipOctree[ S, D, Point ]
       def view: JComponent
       final def insets: Insets = view.getInsets
-      def point( coords: IndexedSeq[ Int ]) : D#Point
+      def point( coords: IndexedSeq[ Int ]) : Point
       def coords( p: D#Point ) : IndexedSeq[ Int ]
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) : D#HyperCube
 //      def baseDistance: DistanceMeasure[ _, D ]
       def distanceMeasures: IndexedSeq[ (String, DistanceMeasure[ _, D ])]
-      def highlight: Set[ D#Point ]
-      def highlight_=( points: Set[ D#Point ]) : Unit
+      def highlight: Set[ Point ]
+      def highlight_=( points: Set[ Point ]) : Unit
       final def pointString( p: D#Point ) : String = coords( p ).mkString( "(", "," , ")" )
-      final def newPanel() : InteractiveTxnSkipOctreePanel[ S, D ] = new InteractiveTxnSkipOctreePanel( this )
+      final def newPanel() : InteractiveTxnSkipOctreePanel[ S, D, Point ] = new InteractiveTxnSkipOctreePanel( this )
       def queryShape( q: D#HyperCube ) : QueryShape[ _, D ]
       def repaint() : Unit
       def rangeHyperCube : Option[ D#HyperCube ]
@@ -174,7 +174,8 @@ implicit val hyperCubeSer : Serializer[ TwoDim#HyperCube ] = null // XXX
       def addPDFSupport( f: JFrame ) : Unit
    }
 }
-class InteractiveTxnSkipOctreePanel[ S <: Sys[ S ], D <: Space[ D ]]( val model: InteractiveTxnSkipOctreePanel.Model[ S, D ])
+class InteractiveTxnSkipOctreePanel[ S <: Sys[ S ], D <: Space[ D ], Point <: D#Point ](
+   val model: InteractiveTxnSkipOctreePanel.Model[ S, D, Point ])
 extends JPanel( new BorderLayout() ) {
    import InteractiveTxnSkipOctreePanel._
 
@@ -199,7 +200,7 @@ extends JPanel( new BorderLayout() ) {
       }
    }
 
-   private def tryPoint( fun: D#Point => Unit ) {
+   private def tryPoint( fun: Point => Unit ) {
       try {
 //         val p = Point2D( ggX.getText.toInt, ggY.getText.toInt )
          val p = model.point( ggCoord.map( _.getText.toInt ))
@@ -286,7 +287,7 @@ extends JPanel( new BorderLayout() ) {
       model.highlight = Set( p )
    }}
 
-   private def rangeString( pt: Set[ D#Point ]) : String = {
+   private def rangeString( pt: Set[ Point ]) : String = {
       val s = pt.map( model.pointString ).mkString( " " )
       if( s.isEmpty ) "(empty)" else s
    }

@@ -56,7 +56,7 @@ object DeterministicSkipOctree {
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
       new Impl[ S, D, A ]( space, hyperCube, view, { implicit impl =>
-         import impl.{numOrthants, topBranchReader, rightBranchReader, leftChildReader}
+         import impl.{numOrthants, topBranchReader, rightBranchReader, leftChildReader, leafReader}
          val order         = TotalOrder.empty[ S ]()
 //         val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
          val sz            = numOrthants
@@ -67,6 +67,7 @@ object DeterministicSkipOctree {
          val headRight     = system.newRef[ RightBranch[ S, D, A ]]( null )
          val head          = new TopLeftBranch[ S, D, A ]( system.newID, hyperCube, order.root, ch, headRight )
          val lastTreeRef   = system.newRef[ TopBranch[ S, D, A ]]( head )
+//         implicit val keySer = Serializer.fromReader[ Leaf[ S, D, A ]]
          val skipList      = HASkipList.empty[ S, Leaf[ S, D, A ]]( skipGap, impl )
          (order, head, lastTreeRef, skipList)
       })
@@ -86,10 +87,10 @@ object DeterministicSkipOctree {
    extends MutableReader[ S, Branch[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : Branch[ S, D, A ] = {
          (in.readUnsignedByte(): @switch) match {
-            case 2 => readTopLeftNode( in, id )
-            case 3 => sys.error( "TODO" ) // LeftChild.read( in, id )
-            case 4 => sys.error( "TODO" ) // TopRightBranch.read( in, id )
-            case 5 => sys.error( "TODO" ) // RightInnerNode.read( in, id )
+            case 2 => readTopLeftBranch( in, id )
+            case 3 => readLeftChildBranch( in, id )
+            case 4 => readTopRightBranch( in, id )
+            case 5 => readRightChildBranch( in, id )
          }
       }
    }
@@ -98,8 +99,8 @@ object DeterministicSkipOctree {
    extends MutableReader[ S, TopBranch[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : TopBranch[ S, D, A ] = {
          (in.readUnsignedByte(): @switch) match {
-            case 2 => readTopLeftNode( in, id )
-            case 4 => sys.error( "TODO" ) // TopRightBranch.read( in, id )
+            case 2 => readTopLeftBranch( in, id )
+            case 4 => readTopRightBranch( in, id )
          }
       }
    }
@@ -109,8 +110,8 @@ object DeterministicSkipOctree {
       def readData( in: DataInput, id: S#ID ) : LeftChild[ S, D, A ] = {
          (in.readUnsignedByte(): @switch) match {
             case 0 => null
-            case 1 => sys.error( "TODO" ) // Leaf.read( in, id )
-            case 3 => sys.error( "TODO" ) // LeftChild.read( in, id )
+            case 1 => readLeaf( in, id )
+            case 3 => readLeftChildBranch( in, id )
          }
       }
    }
@@ -119,40 +120,48 @@ object DeterministicSkipOctree {
    extends MutableReader[ S, LeftBranch[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : LeftBranch[ S, D, A ] = {
          (in.readUnsignedByte(): @switch) match {
-            case 2 => readTopLeftNode( in, id )
-            case 3 => sys.error( "TODO" ) // LeftChild.read( in, id )
+            case 2 => readTopLeftBranch( in, id )
+            case 3 => readLeftChildBranch( in, id )
          }
       }
    }
 
-   private final class RightBranchReader[ S <: Sys[ S ], D <: Space[ D ], A ]
+   private final class RightBranchReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, RightBranch[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : RightBranch[ S, D, A ] = {
          (in.readUnsignedByte(): @switch) match {
-            case 4 => sys.error( "TODO" ) // TopRightBranch.read( in, id )
-            case 5 => sys.error( "TODO" ) // RightInnerNode.read( in, id )
+            case 4 => readTopRightBranch( in, id )
+            case 5 => readRightChildBranch( in, id )
          }
       }
    }
 
-   private final class RightChildReader[ S <: Sys[ S ], D <: Space[ D ], A ]
+   private final class RightChildReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, RightChild[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : RightChild[ S, D, A ] = {
          (in.readUnsignedByte(): @switch) match {
             case 0 => null
-            case 1 => sys.error( "TODO" ) // Leaf.read( in, id )
-            case 4 => sys.error( "TODO" ) // TopRightBranch.read( in, id )
-            case 5 => sys.error( "TODO" ) // RightInnerNode.read( in, id )
+            case 1 => readLeaf( in, id )
+            case 5 => readRightChildBranch( in, id )
          }
       }
    }
 
-   private final class TopRightBranchReader[ S <: Sys[ S ], D <: Space[ D ], A ]
+   private final class TopRightBranchReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, TopRightBranch[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : TopRightBranch[ S, D, A ] = {
          val b = in.readUnsignedByte()
          require( b == 4, b.toString )
-         sys.error( "TODO" ) // TopRightBranch.read( in, id )
+         readTopRightBranch( in, id )
+      }
+   }
+
+   private final class LeafReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
+   extends MutableReader[ S, Leaf[ S, D, A ]] {
+      def readData( in: DataInput, id: S#ID ) : Leaf[ S, D, A ] = {
+         val b = in.readUnsignedByte()
+         require( b == 1, b.toString )
+         readLeaf( in, id )
       }
    }
 
@@ -163,18 +172,19 @@ object DeterministicSkipOctree {
    extends DeterministicSkipOctree[ S, D, A ]
    with SkipList.KeyObserver[ S#Tx, Leaf[ S, D, A ]]
    with Ordering[ S#Tx, Leaf[ S, D, A ]]
-   with Serializer[ Leaf[ S, D, A ]] {
+   /* with Serializer[ Leaf[ S, D, A ]] */ {
       // tree =>
 
       implicit private def impl = this
 
-      implicit val leftBranchReader: MutableReader[ S, LeftBranch[ S, D, A ]]        = new LeftBranchReader[ S, D, A ]
-      implicit val rightBranchReader: MutableReader[ S, RightBranch[ S, D, A ]]      = new RightBranchReader[ S, D, A ]
-      implicit val topBranchReader: MutableReader[ S, TopBranch[ S, D, A ]]          = new TopBranchReader[ S, D, A ]
-      implicit val topRightBranchReader: MutableReader[ S, TopRightBranch[ S, D, A ]]= new TopRightBranchReader[ S, D, A ]
-      implicit val branchReader: MutableReader[ S, Branch[ S, D, A ]]                = new BranchReader[ S, D, A ]
-      implicit val leftChildReader: MutableReader[ S, LeftChild[ S, D, A ]]          = new LeftChildReader[ S, D, A ]
-      implicit val rightChildReader: MutableReader[ S, RightChild[ S, D, A ]]        = new RightChildReader[ S, D, A ]
+      implicit def leftBranchReader: MutableReader[ S, LeftBranch[ S, D, A ]]          = new LeftBranchReader[ S, D, A ]
+      implicit def rightBranchReader: MutableReader[ S, RightBranch[ S, D, A ]]        = new RightBranchReader[ S, D, A ]
+      implicit def topBranchReader: MutableReader[ S, TopBranch[ S, D, A ]]            = new TopBranchReader[ S, D, A ]
+      implicit def topRightBranchReader: MutableReader[ S, TopRightBranch[ S, D, A ]]  = new TopRightBranchReader[ S, D, A ]
+      implicit def branchReader: MutableReader[ S, Branch[ S, D, A ]]                  = new BranchReader[ S, D, A ]
+      implicit def leftChildReader: MutableReader[ S, LeftChild[ S, D, A ]]            = new LeftChildReader[ S, D, A ]
+      implicit def rightChildReader: MutableReader[ S, RightChild[ S, D, A ]]          = new RightChildReader[ S, D, A ]
+      implicit def leafReader: MutableReader[ S, Leaf[ S, D, A ]]                      = new LeafReader[ S, D, A ]
 
       val (totalOrder, headTree, lastTreeRef, skipList) = _initFun( this )
 
@@ -352,15 +362,15 @@ object DeterministicSkipOctree {
 //         def hasNext : Boolean = underlying.hasNext
 //      }
 
-      // ---- Serializer[ Leaf[ ... ]] ----
-
-      def read( in: DataInput ) : Leaf[ S, D, A ] = {
-         sys.error( "TODO" )
-      }
-
-      def write( leaf: Leaf[ S, D, A ], out: DataOutput ) {
-         sys.error( "TODO" )
-      }
+//      // ---- Serializer[ Leaf[ ... ]] ----
+//
+//      def read( in: DataInput ) : Leaf[ S, D, A ] = {
+//         sys.error( "TODO" )
+//      }
+//
+//      def write( leaf: Leaf[ S, D, A ], out: DataOutput ) {
+//         sys.error( "TODO" )
+//      }
 
       // ---- Ordering[ Leaf[ ... ]] ----
 
@@ -750,7 +760,7 @@ object DeterministicSkipOctree {
    }
 
    /**
-    * A common trait used in pattern matching, comprised of `Leaf` and `InnerLeftBranch`.
+    * A common trait used in pattern matching, comprised of `Leaf` and `LeftChildBranch`.
     */
    /* private */ sealed trait LeftChild[ S <: Sys[ S ], D <: Space[ D ], A ]
    extends LeftNode[ S, D, A ] with Child[ S, D, A ] with Mutable[ S ] {
@@ -758,13 +768,24 @@ object DeterministicSkipOctree {
    }
 
    /**
-    * A common trait used in pattern matching, comprised of `Leaf` and `InnerRightBranch`.
+    * A common trait used in pattern matching, comprised of `Leaf` and `RightChildBranch`.
     */
    /* private */ sealed trait RightChild[ S <: Sys[ S ], D <: Space[ D ], A ]
    extends Child[ S, D, A ] with Mutable[ S ] {
       private[DeterministicSkipOctree] def parentRight_=( p: RightBranch[ S, D, A ])( implicit tx: S#Tx ) : Unit
    }
 
+   /*
+    * Serialization-id: 1
+    */
+   private def readLeaf[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, id: S#ID )
+                                                            ( implicit impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
+      import impl.{system, keySerializer, totalOrder, branchReader}
+      val value      = keySerializer.read( in )
+      val order      = totalOrder.read( in )
+      val parentRef  = system.readRef[ Branch[ S, D, A ]]( in )
+      new Leaf[ S, D, A ]( id, value, order, parentRef )
+   }
    /**
     * A leaf in the octree, carrying a map entry
     * in the form of a point and associated value.
@@ -774,14 +795,12 @@ object DeterministicSkipOctree {
     * same leaf, while the parent of a leaf always
     * points into the highest level octree that
     * the leaf resides in, according to the skiplist.
-    *
-    * Serialization-id: 1
     */
    /* private */ final class Leaf[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID, val value: A,
                                                                         val order: Order[ S ],
                                                                         parentRef: S#Ref[ Branch[ S, D, A ]])
                                                                       ( implicit keySerializer: Serializer[ A ])
-   extends LeftChild[ S, D, A ] with RightChild[ S, D, A ] /* with Ordered[ Leaf[ S, D, A ]] */ /* with QLeaf */ {
+   extends LeftChild[ S, D, A ] with RightChild[ S, D, A ] {
 //      private var parentVar: Branch[ S, D, A ] = null
 
       private[DeterministicSkipOctree] def parentLeft_=( p: LeftBranch[ S, D, A ])( implicit tx: S#Tx )   { parent_=( p )}
@@ -956,7 +975,7 @@ object DeterministicSkipOctree {
    /**
     * Utility trait which elements the rightward search `findPN`.
     */
-   private sealed trait InnerBranch[ S <: Sys[ S ], D <: Space[ D ], A ]
+   private sealed trait ChildBranch[ S <: Sys[ S ], D <: Space[ D ], A ]
    extends Branch[ S, D, A ] with Child[ S, D, A ] {
       private[DeterministicSkipOctree] final def findPN( implicit tx: S#Tx ) : RightBranch[ S, D, A ] = {
          val n = next
@@ -1064,7 +1083,7 @@ object DeterministicSkipOctree {
        *          children at index `qidx`.
        */
       @inline private def newNode( qidx: Int, prev: Branch[ S, D, A ], iq: D#HyperCube )
-                                 ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : InnerRightBranch[ S, D, A ] = {
+                                 ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : RightChildBranch[ S, D, A ] = {
          import impl.{system, rightBranchReader, hyperSerializer, rightChildReader}
          val sz         = children.length
 //         val ch         = new Array[ RightChild[ S, D, A ]]( sz )
@@ -1074,7 +1093,7 @@ object DeterministicSkipOctree {
          i += 1 }
          val parentRef  = system.newRef[ RightBranch[ S, D, A ]]( this )
          val rightRef   = system.newRef[ RightBranch[ S, D, A ]]( null )
-         val n          = new InnerRightBranch( system.newID, parentRef, prev, iq, ch, rightRef )
+         val n          = new RightChildBranch( system.newID, parentRef, prev, iq, ch, rightRef )
          prev.next      = n
          updateChild( qidx, n )
          n
@@ -1287,7 +1306,7 @@ object DeterministicSkipOctree {
        *          at index `qidx`
        */
       @inline private def newNode( qidx: Int, iq: D#HyperCube )
-                                 ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : InnerLeftBranch[ S, D, A ] = {
+                                 ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : LeftChildBranch[ S, D, A ] = {
          import impl.{leftBranchReader, rightBranchReader, system, hyperSerializer, leftChildReader}
          val sz         = children.length
 //         val ch         = new Array[ LeftChild[ S, D, A ]]( sz )
@@ -1297,7 +1316,7 @@ object DeterministicSkipOctree {
          i += 1 }
          val parentRef  = system.newRef[ LeftBranch[ S, D, A ]]( this )
          val rightRef   = system.newRef[ RightBranch[ S, D, A ]]( null )
-         val n          = new InnerLeftBranch( system.newID, parentRef, iq, newChildOrder( qidx ), ch, rightRef )
+         val n          = new LeftChildBranch( system.newID, parentRef, iq, newChildOrder( qidx ), ch, rightRef )
          updateChild( qidx, n )
          n
       }
@@ -1312,17 +1331,16 @@ object DeterministicSkipOctree {
    /*
     * Serialization-id: 2
     */
-   private def readTopLeftNode[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, id: S#ID )
+   private def readTopLeftBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, id: S#ID )
                                                                    ( implicit impl: Impl[ S, D, A ]) : TopLeftBranch[ S, D, A ] = {
-      import impl.{hyperCube, totalOrder, system, numOrthants}
+      import impl.{hyperCube, totalOrder, system, numOrthants, leftChildReader, rightBranchReader}
       val startOrder = totalOrder.read( in )
       val sz         = numOrthants
-//      val children   = new Array[ LeftChild[ S, D, A ]]( sz )
       val ch         = system.newRefArray[ LeftChild[ S, D, A ]]( sz )
       var i = 0; while( i < sz ) {
-         ch( i )     = sys.error( "TODO" ) // readLeftChild[ S, D, A ]( in )   XXX
+         ch( i )     = system.readRef[ LeftChild[ S, D, A ]]( in )
       i += 1 }
-      val nextRef    = sys.error( "TODO" ) // system.readRef[ RightBranch[ S, D, A ]]( in )
+      val nextRef    = system.readRef[ RightBranch[ S, D, A ]]( in )
       new TopLeftBranch[ S, D, A ]( id, hyperCube, startOrder, ch, nextRef )
    }
    private final class TopLeftBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
@@ -1357,12 +1375,26 @@ object DeterministicSkipOctree {
    /*
     * Serialization-id: 3
     */
-   private final class InnerLeftBranch[ S <: Sys[ S ], D <: Space[ D ], A ](
+   private def readLeftChildBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, id: S#ID )
+                                                                       ( implicit impl: Impl[ S, D, A ]) : LeftChildBranch[ S, D, A ] = {
+      import impl.{system, hyperSerializer, totalOrder, numOrthants, leftBranchReader, leftChildReader, rightBranchReader}
+      val parentRef  = system.readRef[ LeftBranch[ S, D, A ]]( in )
+      val hyperCube  = hyperSerializer.read( in )
+      val startOrder = totalOrder.read( in )
+      val sz         = numOrthants
+      val ch         = system.newRefArray[ LeftChild[ S, D, A ]]( sz )
+      var i = 0; while( i < sz ) {
+         ch( i )     = system.readRef[ LeftChild[ S, D, A ]]( in )
+      i += 1 }
+      val nextRef    = system.readRef[ RightBranch[ S, D, A ]]( in )
+      new LeftChildBranch[ S, D, A ]( id, parentRef, hyperCube, startOrder, ch, nextRef )
+   }
+   private final class LeftChildBranch[ S <: Sys[ S ], D <: Space[ D ], A ](
       val id: S#ID, parentRef: S#Ref[ LeftBranch[ S, D, A ]], val hyperCube: D#HyperCube,
       val startOrder: Order[ S ], protected val children: Array[ S#Ref[ LeftChild[ S, D, A ]]],
       protected val nextRef: S#Ref[ RightBranch[ S, D, A ]])
    ( implicit hyperSer: Serializer[ D#HyperCube ])
-   extends LeftBranch[ S, D, A ] with InnerBranch[ S, D, A ] with LeftChild[ S, D, A ] {
+   extends LeftBranch[ S, D, A ] with ChildBranch[ S, D, A ] with LeftChild[ S, D, A ] {
       def nodeName = "inner-left"
 
       private[DeterministicSkipOctree] def parentLeft_=( p: LeftBranch[ S, D, A ])( implicit tx: S#Tx ) { parent = p }
@@ -1426,6 +1458,18 @@ object DeterministicSkipOctree {
    /*
     * Serialization-id: 4
     */
+   private def readTopRightBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, id: S#ID )
+                                                                      ( implicit impl: Impl[ S, D, A ]) : TopRightBranch[ S, D, A ] = {
+      import impl.{system, numOrthants, hyperCube, topBranchReader, rightChildReader, rightBranchReader}
+      val prev = system.readMut[ TopBranch[ S, D, A ]]( in )
+      val sz   = numOrthants
+      val ch   = system.newRefArray[ RightChild[ S, D, A ]]( sz )
+      var i = 0; while( i < sz ) {
+         ch( i ) = system.readRef[ RightChild[ S, D, A ]]( in )
+      i += 1 }
+      val nextRef = system.readRef[ RightBranch[ S, D, A ]]( in )
+      new TopRightBranch[ S, D, A ]( id, hyperCube, prev, ch, nextRef )
+   }
    private final class TopRightBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
       val hyperCube: D#HyperCube, val prev: TopBranch[ S, D, A ], protected val children: Array[ S#Ref[ RightChild[ S, D, A ]]],
       protected val nextRef: S#Ref[ RightBranch[ S, D, A ]])
@@ -1478,11 +1522,25 @@ object DeterministicSkipOctree {
    /*
     * Serialization-id: 5
     */
-   private final class InnerRightBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
+   private def readRightChildBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, id: S#ID )
+                                                                        ( implicit impl: Impl[ S, D, A ]) : RightChildBranch[ S, D, A ] = {
+      import impl.{system, numOrthants, hyperSerializer, rightBranchReader, branchReader, rightChildReader}
+      val parentRef  = system.readRef[ RightBranch[ S, D, A ]]( in )
+      val prev       = system.readMut[ Branch[ S, D, A ]]( in )
+      val hyperCube  = hyperSerializer.read( in )
+      val sz         = numOrthants
+      val ch         = system.newRefArray[ RightChild[ S, D, A ]]( sz )
+      var i = 0; while( i < sz ) {
+         ch( i )     = system.readRef[ RightChild[ S, D, A ]]( in )
+      i += 1 }
+      val nextRef    = system.readRef[ RightBranch[ S, D, A ]]( in )
+      new RightChildBranch[ S, D, A ]( id, parentRef, prev, hyperCube, ch, nextRef )
+   }
+   private final class RightChildBranch[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
       parentRef: S#Ref[ RightBranch[ S, D, A ]], val prev: Branch[ S, D, A ], val hyperCube: D#HyperCube,
       protected val children: Array[ S#Ref[ RightChild[ S, D, A ]]], protected val nextRef: S#Ref[ RightBranch[ S, D, A ]])
    ( implicit hyperSer: Serializer[ D#HyperCube ])
-   extends RightBranch[ S, D, A ] with InnerBranch[ S, D, A ] with RightChild[ S, D, A ] {
+   extends RightBranch[ S, D, A ] with ChildBranch[ S, D, A ] with RightChild[ S, D, A ] {
 
 //      prev.next = this
 

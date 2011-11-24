@@ -203,7 +203,7 @@ object DeterministicSkipOctree {
        *
        * - `Empty`
        * - `Leaf`
-       * - `InnerLeftBranch`
+       * - `LeftChildBranch`
        */
       private sealed trait LeftChild extends Child
 
@@ -214,7 +214,7 @@ object DeterministicSkipOctree {
        *
        * - `Empty`
        * - `Leaf`
-       * - `InnerRightBranch`
+       * - `RightChildBranch`
        */
       private sealed trait RightChild extends Child
 
@@ -280,14 +280,14 @@ object DeterministicSkipOctree {
       }
 
       /**
-       * A common trait used in pattern matching, comprised of `Leaf` and `InnerLeftBranch`.
+       * A common trait used in pattern matching, comprised of `Leaf` and `LeftChildBranch`.
        */
       private sealed trait LeftInnerNonEmpty extends LeftNonEmpty with InnerNonEmpty with LeftChild {
          def parentLeft_=( p: LeftNode ) : Unit
       }
 
       /**
-       * A common trait used in pattern matching, comprised of `Leaf` and `InnerRightBranch`.
+       * A common trait used in pattern matching, comprised of `Leaf` and `RightChildBranch`.
        */
       private sealed trait RightInnerNonEmpty extends InnerNonEmpty with RightChild {
          def parentRight_=( p: RightNode ) : Unit
