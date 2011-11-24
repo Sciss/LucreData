@@ -26,7 +26,7 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{MutableReader, Disposable, DataOutput, DataInput, Mutable, Sys}
+import de.sciss.lucrestm.{Reader, MutableReader, Disposable, DataOutput, DataInput, Mutable, Sys}
 
 
 /**
@@ -290,6 +290,8 @@ object TotalOrder {
 
       implicit def impl = this
 
+      def read( in: DataInput ) : E = system.readMut[ E ]( in )
+
       def readData( in: DataInput, id: S#ID ) : E = {
          val tagVal  = system.readInt( in )
          val prevRef = system.readRef[ E ]( in )
@@ -377,7 +379,7 @@ object TotalOrder {
 //   def emptyAssoc[ S <: Sys[ S ], A ]( relabelObserver: RelabelObserver[ S#Tx, AssocEntry[ S, A ]] = NoRelabelObserver )
 //                                     ( implicit tx: S#Tx, system: S ) : Assoc[ S, A ] = sys.error( "TODO" )
 }
-sealed trait TotalOrder[ S <: Sys[ S ], E ] extends Disposable[ S#Tx ] {
+sealed trait TotalOrder[ S <: Sys[ S ], E ] extends Disposable[ S#Tx ] with Reader[ E ] {
    def system: S
 
 //   /**

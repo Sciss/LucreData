@@ -28,7 +28,7 @@ package txn
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
-import annotation.tailrec
+import annotation.{switch, tailrec}
 import de.sciss.collection.geom.{QueryShape, DistanceMeasure, Space}
 import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Mutable, Serializer, Sys}
 
@@ -50,11 +50,12 @@ object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
                                                  ( implicit view: A => D#Point, tx: S#Tx, system: S,
                                                    keySerializer: Serializer[ A ],
+                                                   hyperSerializer: Serializer[ D#HyperCube ],
                                                    smf: Manifest[ S ],
                                                    dmf: Manifest[ D ],
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
-      new Impl[ S, D, A ]( space, hyperCube, view, keySerializer, { implicit impl =>
+      new Impl[ S, D, A ]( space, hyperCube, view, { implicit impl =>
          import impl.{numOrthants, topNodeReader, rightNodeReader}
          val order         = TotalOrder.empty[ S ]()
          val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
@@ -76,35 +77,61 @@ object DeterministicSkipOctree {
 
    private type Order[ S <: Sys[ S ]] = TotalOrder.SetEntry[ S ]
 
-   private final class NodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]
+   private final class NodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, Node[ S, D, A ]] {
-      def readData( in: DataInput, id: S#ID ) : Node[ S, D, A ] = sys.error( "TODO" )
+      def readData( in: DataInput, id: S#ID ) : Node[ S, D, A ] = {
+         (in.readUnsignedByte(): @switch) match {
+            case 2 => readTopLeftNode( in, id )
+            case 3 => sys.error( "TODO" ) // LeftInnerNode.read( in, id )
+            case 4 => sys.error( "TODO" ) // TopRightNode.read( in, id )
+            case 5 => sys.error( "TODO" ) // RightInnerNode.read( in, id )
+         }
+      }
    }
 
-   private final class TopNodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]
+   private final class TopNodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, TopNode[ S, D, A ]] {
-      def readData( in: DataInput, id: S#ID ) : TopNode[ S, D, A ] = sys.error( "TODO" )
+      def readData( in: DataInput, id: S#ID ) : TopNode[ S, D, A ] = {
+         (in.readUnsignedByte(): @switch) match {
+            case 2 => readTopLeftNode( in, id )
+            case 4 => sys.error( "TODO" ) // TopRightNode.read( in, id )
+         }
+      }
    }
 
-   private final class LeftNodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]
+   private final class LeftNodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, LeftNode[ S, D, A ]] {
-      def readData( in: DataInput, id: S#ID ) : LeftNode[ S, D, A ] = sys.error( "TODO" )
+      def readData( in: DataInput, id: S#ID ) : LeftNode[ S, D, A ] = {
+         (in.readUnsignedByte(): @switch) match {
+            case 2 => readTopLeftNode( in, id )
+            case 3 => sys.error( "TODO" ) // LeftInnerNode.read( in, id )
+         }
+      }
    }
 
    private final class RightNodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]
    extends MutableReader[ S, RightNode[ S, D, A ]] {
-      def readData( in: DataInput, id: S#ID ) : RightNode[ S, D, A ] = sys.error( "TODO" )
+      def readData( in: DataInput, id: S#ID ) : RightNode[ S, D, A ] = {
+         (in.readUnsignedByte(): @switch) match {
+            case 4 => sys.error( "TODO" ) // TopRightNode.read( in, id )
+            case 5 => sys.error( "TODO" ) // RightInnerNode.read( in, id )
+         }
+      }
    }
 
    private final class TopRightNodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]
    extends MutableReader[ S, TopRightNode[ S, D, A ]] {
-      def readData( in: DataInput, id: S#ID ) : TopRightNode[ S, D, A ] = sys.error( "TODO" )
+      def readData( in: DataInput, id: S#ID ) : TopRightNode[ S, D, A ] = {
+         val b = in.readUnsignedByte()
+         require( b == 4, b.toString )
+         sys.error( "TODO" ) // TopRightNode.read( in, id )
+      }
    }
 
    private final class Impl[ S <: Sys[ S ], D <: Space[ D ], A ]
-      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#Point, val keySerializer: Serializer[ A ],
+      ( val space: D, val hyperCube: D#HyperCube, val pointView: A => D#Point,
         _initFun: Impl[ S, D, A ] => (TotalOrder.Set[ S ], TopLeftNode[ S, D, A ], S#Ref[ TopNode[ S, D, A ]], SkipList[ S, Leaf[ S, D, A ]]))
-      ( implicit val system: S )
+      ( implicit val system: S, val keySerializer: Serializer[ A ], val hyperSerializer: Serializer[ D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ]
    with SkipList.KeyObserver[ S#Tx, Leaf[ S, D, A ]]
    with Ordering[ S#Tx, Leaf[ S, D, A ]]
@@ -394,13 +421,10 @@ object DeterministicSkipOctree {
             if( n0c.isLeaf ) {
                val l = n0c.asLeaf
                val ldist = metric.distance( point, pointView( l.value ))
-//                  if( space.bigGt( bestDist, ldist )) { ... }
                if( metric.isMeasureGreater( bestDist, ldist )) {
                   bestDist = ldist
                   bestLeaf = l
-//                     if( space.bigGt( rmax, bestDist )) { ... }
                   if( metric.isMeasureGreater( rmax, bestDist )) {
-//println( "      : leaf " + l.point + " - " + bestDist )
                      rmax = bestDist
                   }
                }
@@ -408,12 +432,9 @@ object DeterministicSkipOctree {
                val c             = n0c.asNode
                val cq            = c.hyperCube
                val cMinDist      = metric.minDistance( point, cq )
-//                  if( space.bigGeq( rmax, cMinDist )) { ... }
                if( !metric.isMeasureGreater( cMinDist, rmax )) {   // otherwise we're out already
                   val cMaxDist   = metric.maxDistance( point, cq )
-//                     if( space.bigGt( rmax, cMaxDist )) { ... }
                   if( metric.isMeasureGreater( rmax, cMaxDist )) {
-//println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
                      rmax = cMaxDist
                   }
                   acceptedChildren( numAcceptedChildren ) = new VisitedNode[ S, D, A, M ]( c, cMinDist /*, cMaxDist */)
@@ -790,8 +811,10 @@ object DeterministicSkipOctree {
     *
     * Serialization-id: 1
     */
-   /* private */ final class Leaf[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
-      /* val point: D#Point, */ val value: A, val order: Order[ S ], parentRef: S#Ref[ Node[ S, D, A ]])
+   /* private */ final class Leaf[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID, val value: A,
+                                                                        val order: Order[ S ],
+                                                                        parentRef: S#Ref[ Node[ S, D, A ]])
+                                                                      ( implicit keySerializer: Serializer[ A ])
    extends LeftInnerNonEmpty[ S, D, A ] with RightInnerNonEmpty[ S, D, A ] /* with Ordered[ Leaf[ S, D, A ]] */ /* with QLeaf */ {
 //      private var parentVar: Node[ S, D, A ] = null
 
@@ -812,7 +835,7 @@ object DeterministicSkipOctree {
 
       protected def writeData( out: DataOutput ) {
          out.writeUnsignedByte( 1 )
-         // key.write( out ) XXX
+         keySerializer.write( value, out )
          order.write( out )
          parentRef.write( out )
       }
@@ -1072,7 +1095,7 @@ object DeterministicSkipOctree {
        */
       @inline private def newNode( qidx: Int, prev: Node[ S, D, A ], iq: D#HyperCube )
                                  ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : InnerRightNode[ S, D, A ] = {
-         import impl.{system, rightNodeReader}
+         import impl.{system, rightNodeReader, hyperSerializer}
          val sz         = children.length
          val ch         = new Array[ RightChild[ S, D, A ]]( sz )
          val parentRef  = system.newRef[ RightNode[ S, D, A ]]( this )
@@ -1240,7 +1263,7 @@ object DeterministicSkipOctree {
        */
       private def newLeaf( qidx: Int, /* point: D#Point, */ value: A )
                          ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
-         import impl.{nodeReader, system}
+         import impl.{nodeReader, system, keySerializer}
          val parentRef  = system.newRef[ Node[ S, D, A ]]( this )
          val l          = new Leaf( system.newID, /* point, */ value, newChildOrder( qidx ), parentRef )
 //         l.parent = this
@@ -1288,7 +1311,7 @@ object DeterministicSkipOctree {
        */
       @inline private def newNode( qidx: Int, iq: D#HyperCube )
                                  ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : InnerLeftNode[ S, D, A ] = {
-         import impl.{leftNodeReader, rightNodeReader, system}
+         import impl.{leftNodeReader, rightNodeReader, system, hyperSerializer}
          val sz         = children.length
          val ch         = new Array[ LeftChild[ S, D, A ]]( sz )
          val parentRef  = system.newRef[ LeftNode[ S, D, A ]]( this )
@@ -1308,6 +1331,18 @@ object DeterministicSkipOctree {
    /*
     * Serialization-id: 2
     */
+   private def readTopLeftNode[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, id: S#ID )
+                                                                   ( implicit impl: Impl[ S, D, A ]) : TopLeftNode[ S, D, A ] = {
+      import impl.{hyperCube, totalOrder, system, numOrthants}
+      val startOrder = totalOrder.read( in )
+      val sz         = numOrthants
+      val children   = new Array[ LeftChild[ S, D, A ]]( sz )
+      var i = 0; while( i < sz ) {
+         children( i ) = sys.error( "TODO" ) // readLeftChild[ S, D, A ]( in )
+      i += 1 }
+      val nextRef    = sys.error( "TODO" ) // system.readRef[ RightNode[ S, D, A ]]( in )
+      new TopLeftNode[ S, D, A ]( id, hyperCube, startOrder, children, nextRef )
+   }
    private final class TopLeftNode[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
       val hyperCube: D#HyperCube, val startOrder: Order[ S ],
       val children: Array[ LeftChild[ S, D, A ]], protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
@@ -1340,9 +1375,11 @@ object DeterministicSkipOctree {
    /*
     * Serialization-id: 3
     */
-   private final class InnerLeftNode[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
-      parentRef: S#Ref[ LeftNode[ S, D, A ]], val hyperCube: D#HyperCube, val startOrder: Order[ S ],
-      val children: Array[ LeftChild[ S, D, A ]], protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
+   private final class InnerLeftNode[ S <: Sys[ S ], D <: Space[ D ], A ](
+      val id: S#ID, parentRef: S#Ref[ LeftNode[ S, D, A ]], val hyperCube: D#HyperCube,
+      val startOrder: Order[ S ], val children: Array[ LeftChild[ S, D, A ]],
+      protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
+   ( implicit hyperSer: Serializer[ D#HyperCube ])
    extends LeftNode[ S, D, A ] with InnerNode[ S, D, A ] with LeftInnerNonEmpty[ S, D, A ] {
       def nodeName = "inner-left"
 
@@ -1364,9 +1401,9 @@ object DeterministicSkipOctree {
       protected def writeData( out: DataOutput ) {
          out.writeUnsignedByte( 3 )
          parentRef.write( out )
-         // XXX hyperCube.write( out )
+         hyperSer.write( hyperCube, out )
          startOrder.write( out )
-         var i = 0; val sz = children.size; while( i < sz ) {
+         var i = 0; val sz = children.length; while( i < sz ) {
             children( i ).write( out )
          i += 1 }
          nextRef.write( out )
@@ -1461,6 +1498,7 @@ object DeterministicSkipOctree {
    private final class InnerRightNode[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
       parentRef: S#Ref[ RightNode[ S, D, A ]], val prev: Node[ S, D, A ], val hyperCube: D#HyperCube,
       val children: Array[ RightChild[ S, D, A ]], protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
+   ( implicit hyperSer: Serializer[ D#HyperCube ])
    extends RightNode[ S, D, A ] with InnerNode[ S, D, A ] with RightInnerNonEmpty[ S, D, A ] {
 
 //      prev.next = this
@@ -1482,7 +1520,7 @@ object DeterministicSkipOctree {
          out.writeUnsignedByte( 5 )
          parentRef.write( out )
          prev.write( out )
-         // hyperCube.write( out ) XXX
+         hyperSer.write( hyperCube, out )
          var i = 0; val sz = children.length; while( i < sz ) {
             children( i ).write( out )
          i += 1 }
