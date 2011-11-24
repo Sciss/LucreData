@@ -375,7 +375,7 @@ object TotalOrder {
          })
       }
 
-      def reader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]])
+      def reader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]] = NoRelabelObserver )
                                 ( implicit system: S ) : MutableReader[ S, Set[ S ]] =
          new SetReader[ S ]( relabelObserver )
    }

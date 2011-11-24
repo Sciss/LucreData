@@ -56,32 +56,29 @@ object DeterministicSkipOctree {
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
       new Impl[ S, D, A ]( system.newID, hyperCube, view, { implicit impl =>
-         import impl.{numOrthants, topBranchReader, rightBranchReader, leftChildReader, leafReader}
+         import impl.leafReader
          val order         = TotalOrder.Set.empty[ S ]()
-//         val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
+         val skipList      = HASkipList.empty[ S, Leaf[ S, D, A ]]( skipGap, impl )
+         (order, skipList)
+      }, { implicit impl =>
+         import impl.{numOrthants, topBranchReader, rightBranchReader, leftChildReader, totalOrder}
          val sz            = numOrthants
          val ch            = system.newRefArray[ LeftChild[ S, D, A ]]( sz )
          var i = 0; while( i < sz ) {
             ch( i )        = system.newRef[ LeftChild[ S, D, A ]]( null )
          i += 1 }
          val headRight     = system.newRef[ RightBranch[ S, D, A ]]( null )
-         val head          = new TopLeftBranch[ S, D, A ]( system.newID, hyperCube, order.root, ch, headRight )
+         val head          = new TopLeftBranch[ S, D, A ]( system.newID, hyperCube, totalOrder.root, ch, headRight )
          val lastTreeRef   = system.newRef[ TopBranch[ S, D, A ]]( head )
-//         implicit val keySer = Serializer.fromReader[ Leaf[ S, D, A ]]
-         val skipList      = HASkipList.empty[ S, Leaf[ S, D, A ]]( skipGap, impl )
-         (order, head, lastTreeRef, skipList)
+         (head, lastTreeRef)
       })
    }
 
-//   def reader[ S <: Sys[ S ], D <: Space[ D ], A ]( )
-
-//   def apply[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
-//                                                 ( xs: A* )( implicit view: A => D#Point, tx: S#Tx,
-//                                                  system: S ) : SkipOctree[ S, D, A ] = {
-//      val t = empty[ S, D, A ]( space, hyperCube, skipGap )
-//      xs.foreach( t.+=( _ ))
-//      t
-//   }
+   def reader[ S <: Sys[ S ], D <: Space[ D ], A ](
+      implicit view: A => D#PointLike, system: S, space: D,
+      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ],
+      smf: Manifest[ S ], dmf: Manifest[ D ], amf: Manifest[ A ]
+   ) : MutableReader[ S, DeterministicSkipOctree[ S, D, A ]] = new OctreeReader[ S, D, A ]
 
    private type Order[ S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
 
@@ -149,6 +146,15 @@ object DeterministicSkipOctree {
       }
    }
 
+   private final class TopLeftBranchReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
+   extends MutableReader[ S, TopLeftBranch[ S, D, A ]] {
+      def readData( in: DataInput, id: S#ID ) : TopLeftBranch[ S, D, A ] = {
+         val b = in.readUnsignedByte()
+         require( b == 2, b.toString )
+         readTopLeftBranch( in, id )
+      }
+   }
+
    private final class TopRightBranchReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, TopRightBranch[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : TopRightBranch[ S, D, A ] = {
@@ -169,9 +175,38 @@ object DeterministicSkipOctree {
 
    private val SER_VERSION = 0
 
+   private final class OctreeReader[ S <: Sys[ S ], D <: Space[ D ], A ](
+      implicit view: A => D#PointLike, system: S, space: D,
+      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ],
+      smf: Manifest[ S ], dmf: Manifest[ D ], amf: Manifest[ A ]
+   ) extends MutableReader[ S, DeterministicSkipOctree[ S, D, A ]] {
+      def readData( in: DataInput, id: S#ID ) : DeterministicSkipOctree[ S, D, A ] = {
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+
+         val hyperCube  = hyperSerializer.read( in )
+
+         new Impl[ S, D, A ]( id, hyperCube, view, { implicit impl =>
+            import impl.leafReader
+            implicit val orderReader   = TotalOrder.Set.reader[ S ]()
+            val order                  = system.readMut[ TotalOrder.Set[ S ]]( in )
+            implicit val skipListReader= HASkipList.reader[ S, Leaf[ S, D, A ]]( impl )
+            val skipList               = system.readMut[ HASkipList[ S, Leaf[ S, D, A ]]]( in )
+            (order, skipList)
+         }, { implicit impl =>
+            import impl.{topBranchReader, topLeftBranchReader}
+            val head                   = system.readMut[ TopLeftBranch[ S, D, A ]]( in )
+            val lastTreeRef            = system.readRef[ TopBranch[ S, D, A ]]( in )
+            (head, lastTreeRef)
+         })
+      }
+   }
+
    private final class Impl[ S <: Sys[ S ], D <: Space[ D ], A ]
       ( val id: S#ID, val hyperCube: D#HyperCube, val pointView: A => D#PointLike,
-        _initFun: Impl[ S, D, A ] => (TotalOrder.Set[ S ], TopLeftBranch[ S, D, A ], S#Ref[ TopBranch[ S, D, A ]], SkipList[ S, Leaf[ S, D, A ]]))
+        _scaffFun: Impl[ S, D, A ] => (TotalOrder.Set[ S ], SkipList[ S, Leaf[ S, D, A ]]),
+        _treeFun: Impl[ S, D, A ] => (TopLeftBranch[ S, D, A ], S#Ref[ TopBranch[ S, D, A ]]) )
       ( implicit val system: S, val space: D, val keySerializer: Serializer[ A ], val hyperSerializer: Serializer[ D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ]
    with SkipList.KeyObserver[ S#Tx, Leaf[ S, D, A ]]
@@ -184,13 +219,15 @@ object DeterministicSkipOctree {
       implicit def leftBranchReader: MutableReader[ S, LeftBranch[ S, D, A ]]          = new LeftBranchReader[ S, D, A ]
       implicit def rightBranchReader: MutableReader[ S, RightBranch[ S, D, A ]]        = new RightBranchReader[ S, D, A ]
       implicit def topBranchReader: MutableReader[ S, TopBranch[ S, D, A ]]            = new TopBranchReader[ S, D, A ]
+      implicit def topLeftBranchReader: MutableReader[ S, TopLeftBranch[ S, D, A ]]    = new TopLeftBranchReader[ S, D, A ]
       implicit def topRightBranchReader: MutableReader[ S, TopRightBranch[ S, D, A ]]  = new TopRightBranchReader[ S, D, A ]
       implicit def branchReader: MutableReader[ S, Branch[ S, D, A ]]                  = new BranchReader[ S, D, A ]
       implicit def leftChildReader: MutableReader[ S, LeftChild[ S, D, A ]]            = new LeftChildReader[ S, D, A ]
       implicit def rightChildReader: MutableReader[ S, RightChild[ S, D, A ]]          = new RightChildReader[ S, D, A ]
       implicit def leafReader: MutableReader[ S, Leaf[ S, D, A ]]                      = new LeafReader[ S, D, A ]
 
-      val (totalOrder, headTree, lastTreeRef, skipList) = _initFun( this )
+      val (totalOrder, skipList)    = _scaffFun( this )
+      val (headTree, lastTreeRef)   = _treeFun( this )
 
       def numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
 //      val totalOrder = TotalOrder.empty[ S ]()
@@ -208,13 +245,36 @@ object DeterministicSkipOctree {
          out.writeUnsignedByte( SER_VERSION )
          hyperSerializer.write( hyperCube, out )
          totalOrder.write( out )
+         skipList.write( out )
          headTree.write( out )
          lastTreeRef.write( out )
-         skipList.write( out )
       }
 
       protected def disposeData()( implicit tx: S#Tx ) {
-         sys.error( "TODO" )
+         // dispose tree
+         var t: Branch[ S, D, A ]   = lastTree
+         val sz                     = numOrthants
+
+         def disposeBranch( b: Branch[ S, D, A ]) {
+            var i = 0; while( i < sz ) {
+               val c = b.child( i )
+               if( c != null ) {
+                  if( c.isLeaf ) {
+                     c.asLeaf.dispose()
+                  } else disposeBranch( c.asBranch )
+               }
+            i += 1 }
+         }
+
+         while( t != null ) {
+            val p = t.prev
+            disposeBranch( t )
+            t = p
+         }
+
+         lastTreeRef.dispose()
+         totalOrder.dispose()
+         skipList.dispose()
       }
 
       def lastTree( implicit tx: S#Tx ) : TopBranch[ S, D, A ] = lastTreeRef.get
@@ -282,9 +342,8 @@ object DeterministicSkipOctree {
       }
 
       def numLevels( implicit tx: S#Tx ) : Int = {
-         var n: Branch[ S, D, A ] = headTree
-         val t = lastTree
-         var i = 1; while( !(n eq t) ) {
+         var n: Branch[ S, D, A ] = headTree.next
+         var i = 1; while( n != null ) {
             n = n.next
             i += 1
          }
@@ -370,24 +429,6 @@ object DeterministicSkipOctree {
       }
 
       def iterator( implicit tx: S#Tx ) : Iterator[ A ] = skipList.iterator.map( _.value )
-
-//      private final class Iter( underlying: Iterator[ Leaf[ S, D, A ]]) extends Iterator[ A ] {
-//         def next() : A = {
-//            val leaf = underlying.next()
-//            leaf.value
-//         }
-//         def hasNext : Boolean = underlying.hasNext
-//      }
-
-//      // ---- Serializer[ Leaf[ ... ]] ----
-//
-//      def read( in: DataInput ) : Leaf[ S, D, A ] = {
-//         sys.error( "TODO" )
-//      }
-//
-//      def write( leaf: Leaf[ S, D, A ], out: DataOutput ) {
-//         sys.error( "TODO" )
-//      }
 
       // ---- Ordering[ Leaf[ ... ]] ----
 

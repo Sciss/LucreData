@@ -67,10 +67,11 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
          println( f.getAbsolutePath )
          implicit val system = BerkeleyDB.open( f )
          system.atomic { implicit tx =>
-            val tree = /* system.root[ txn.DeterministicSkipOctree[ BerkeleyDB, TwoDim, Point2D ]] { */
+            implicit val reader = txn.DeterministicSkipOctree.reader[ BerkeleyDB, TwoDim, Point2D ]
+            val tree = system.root[ txn.DeterministicSkipOctree[ BerkeleyDB, TwoDim, Point2D ]] {
                txn.DeterministicSkipOctree.empty[ BerkeleyDB, TwoDim, Point2D ](
                   Square( sz, sz, sz ), skipGap = 1 )
-            /* } */
+            }
             new Model2D[ BerkeleyDB ]( tree )
          }
 

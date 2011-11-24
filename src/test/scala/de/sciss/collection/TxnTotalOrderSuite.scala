@@ -59,11 +59,11 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
          scenarioWithTime( "Ordering is verified on a randomly filled " + sysName + " structure" ) {
             given( "a randomly filled structure (" + sysName + ")" )
 
-            type E = TotalOrder.SetEntry[ S ]
+            type E = TotalOrder.Set.Entry[ S ]
             implicit val system = sysCreator()
             try {
                val to = system.atomic { implicit tx =>
-                  TotalOrder.empty[ S ]( new RelabelObserver[ S#Tx, E ] {
+                  TotalOrder.Set.empty[ S ]( new RelabelObserver[ S#Tx, E ] {
                      def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
                         if( MONITOR_LABELING ) {
    //                     Txn.afterCommit( _ =>
@@ -83,7 +83,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                val set = system.atomic { implicit tx =>
                   var e = to.root
-                  var coll = Set[ TotalOrder.SetEntry[ S ]]() // ( e )
+                  var coll = Set[ TotalOrder.Set.Entry[ S ]]() // ( e )
                   for( i <- 1 until n ) {
 //if( (i % 1000) == 0 ) println( "i = " + i )
                      if( rnd.nextBoolean() ) {

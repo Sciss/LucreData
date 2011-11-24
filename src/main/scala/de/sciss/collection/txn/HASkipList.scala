@@ -94,7 +94,7 @@ object HASkipList {
       })
    }
 
-   def reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
+   def reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                  ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
                                    keySerializer: Serializer[ A ], system: S ): MutableReader[ S, HASkipList[ S, A ]] =
       new Reader[ S, A ]( keyObserver )
@@ -311,11 +311,13 @@ object HASkipList {
       override def remove( v: A )( implicit tx: S#Tx ) : Boolean = {
 //         if( ordering.gteq( v, maxKey )) return false
          val c = topN
-         if( c.isLeaf ) {
+         if( c == null ) {
+            false
+         } else if( c.isLeaf ) {
             removeLeaf(   v, /* Head. */downNode, c.asLeaf, true )
-         } else if( c.isBranch ) {
+         } else {
             removeBranch( v, /* Head. */ downNode, c.asBranch, true )
-         } else false
+         }
       }
 
       private def removeLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: LeafLike[ S, A ],
