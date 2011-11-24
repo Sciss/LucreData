@@ -32,7 +32,7 @@ object Space {
       type HyperCubeLike   = SquareLike
       type HyperCube       = Square
    }
-   object TwoDim extends TwoDim {
+   implicit object TwoDim extends TwoDim {
       val maxPoint         = Point2D( Int.MaxValue, Int.MaxValue )
       val dim              = 2
    }
@@ -43,7 +43,7 @@ object Space {
       type HyperCubeLike   = CubeLike
       type HyperCube       = Cube
    }
-   object ThreeDim extends ThreeDim {
+   implicit object ThreeDim extends ThreeDim {
       val maxPoint         = Point3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
       val dim              = 3
       val bigZero          = BigInt( 0 )

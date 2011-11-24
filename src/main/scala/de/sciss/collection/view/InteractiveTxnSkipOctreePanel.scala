@@ -41,20 +41,19 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
    def run() {
       val a = args.headOption.getOrElse( "" )
 
-      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
-         system.atomic { implicit tx =>
-//         if( xs.contains( "--3d" )) {
-//            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, Point3DLike ](
-//               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
-//            new Model3D[ InMemory ]( tree )
-//         } else {
-            import txn.geom.Space.{Point2DSerializer, SquareSerializer}
+//      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
+//         system.atomic { implicit tx =>
+////         if( xs.contains( "--3d" )) {
+////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, Point3DLike ](
+////               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
+////            new Model3D[ InMemory ]( tree )
+////         } else {
+//            import txn.geom.Space.{Point2DSerializer, SquareSerializer}
+//
+//         }
+//      }
 
-            val tree = txn.DeterministicSkipOctree.empty[ S, TwoDim, Point2D ](
-               TwoDim, Square( sz, sz, sz ), skipGap = 1 )
-            new Model2D[ S ]( tree )
-         }
-      }
+      import txn.geom.Space.{Point2DSerializer, SquareSerializer}
 
       val model = if( a.startsWith( "--db" )) {
          val dir     = if( a == "--dbtmp" ) {
@@ -67,11 +66,21 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
          implicit val system = BerkeleyDB.open( f )
-         createModel
+         system.atomic { implicit tx =>
+            val tree = /* system.root[ txn.DeterministicSkipOctree[ BerkeleyDB, TwoDim, Point2D ]] { */
+               txn.DeterministicSkipOctree.empty[ BerkeleyDB, TwoDim, Point2D ](
+                  Square( sz, sz, sz ), skipGap = 1 )
+            /* } */
+            new Model2D[ BerkeleyDB ]( tree )
+         }
 
       } else {
          implicit val system = new InMemory
-         createModel
+         system.atomic { implicit tx =>
+            val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
+               Square( sz, sz, sz ), skipGap = 1 )
+            new Model2D[ InMemory ]( tree )
+         }
       }
 
       val f    = new JFrame( "Skip Octree" )

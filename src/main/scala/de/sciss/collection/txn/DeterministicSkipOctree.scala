@@ -47,8 +47,8 @@ import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Mutable, Seriali
 * this is `Square( 0x40000000, 0x40000000, 0x40000000 )`.
 */
 object DeterministicSkipOctree {
-   def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
-                                                 ( implicit view: A => D#PointLike, tx: S#Tx, system: S,
+   def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube, skipGap: Int = 2 )
+                                                 ( implicit view: A => D#PointLike, tx: S#Tx, system: S, space: D,
                                                    keySerializer: Serializer[ A ],
                                                    hyperSerializer: Serializer[ D#HyperCube ],
                                                    smf: Manifest[ S ],
@@ -72,6 +72,8 @@ object DeterministicSkipOctree {
          (order, head, lastTreeRef, skipList)
       })
    }
+
+//   def reader[ S <: Sys[ S ], D <: Space[ D ], A ]( )
 
 //   def apply[ S <: Sys[ S ], D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, skipGap: Int = 2 )
 //                                                 ( xs: A* )( implicit view: A => D#Point, tx: S#Tx,
@@ -1606,7 +1608,7 @@ object DeterministicSkipOctree {
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 }
 sealed trait DeterministicSkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ]
-extends SkipOctree[ S, D, A ] {
+extends SkipOctree[ S, D, A ] /* with Mutable[ S ] */ {
    def headTree : DeterministicSkipOctree.Branch[ S, D, A ]
    def lastTree( implicit tx: S#Tx ) : DeterministicSkipOctree.TopBranch[ S, D, A ]
 }

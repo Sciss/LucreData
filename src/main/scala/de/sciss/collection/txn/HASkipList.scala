@@ -101,7 +101,7 @@ object HASkipList {
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-   final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
+   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
                                       ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
                                         keySerializer: Serializer[ A ], system: S )
    extends Serializer[ HASkipList[ S, A ]] {
