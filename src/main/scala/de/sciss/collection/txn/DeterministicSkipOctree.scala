@@ -393,7 +393,7 @@ object DeterministicSkipOctree {
             removeImmediateLeaf( oldLeaf )
             // search anew
             val p0b        = lastTree.findP0( point )
-            assert( p0b.findImmediateLeaf( point ) == null )
+            assert( p0b.findImmediateLeaf( point ) == null ) // XXX
             val leaf = p0.insert( point, elem )
             skipList.add( leaf )
          }
