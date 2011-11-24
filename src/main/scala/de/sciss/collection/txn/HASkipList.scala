@@ -501,8 +501,10 @@ object HASkipList {
       def read( in: DataInput ) : Node[ S, A ] = {
          (in.readUnsignedByte(): @switch) match {
             case 0 => null // .asInstanceOf[ Branch[ S, A ]]
-            case 1 => Branch.read( in )
-            case 2 => Leaf.read( in )
+            case 1 => Branch.read( in, false )
+            case 2 => Leaf.read( in, false )
+            case 5 => Branch.read( in, true )
+            case 6 => Leaf.read( in, true )
          }
       }
 
@@ -759,12 +761,13 @@ object HASkipList {
    }
 
    object Leaf {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput )
+      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, isRight: Boolean )
                                                                           ( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
          import list.{mf, keySerializer}
          val sz: Int = in.readUnsignedByte()
+         val szi  = if( isRight ) sz - 1 else sz
          val keys = new Array[ A ]( sz )
-         var i = 0; while( i < sz ) {
+         var i = 0; while( i < szi ) {
             keys( i ) = keySerializer.read( in )
          i += 1 }
          new Leaf[ S, A ]( keys )
@@ -876,10 +879,13 @@ object HASkipList {
 
       private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
          import list.keySerializer
-         val sz = size
-         out.writeUnsignedByte( 2 )
+         val sz      = size
+         val sz1     = sz - 1
+         val isRight = keys( sz1 ) == null
+         val szi     = if( isRight ) sz1 else sz
+         out.writeUnsignedByte( if( isRight ) 6 else 2 )
          out.writeUnsignedByte( sz )
-         var i = 0; while( i < sz ) {
+         var i = 0; while( i < szi ) {
             keySerializer.write( keys( i ), out )
          i += 1 }
       }
@@ -957,13 +963,14 @@ object HASkipList {
    }
 
    object Branch {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput )
+      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, isRight: Boolean )
                                                                           ( implicit list: Impl[ S, A ]) : Branch[ S, A ] = {
          import list._
          val sz: Int = in.readUnsignedByte()
          val keys    = new Array[ A ]( sz )
          val downs   = system.newValArray[ Node[ S, A ]]( sz )
-         var i = 0; while( i < sz ) {
+         val szi     = if( isRight ) sz - 1 else sz
+         var i = 0; while( i < szi ) {
             keys( i ) = keySerializer.read( in )
          i += 1 }
          i = 0; while( i < sz ) {
@@ -1110,10 +1117,13 @@ object HASkipList {
 
       private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
          import list.{keySerializer, system}
-         out.writeUnsignedByte( 1 )
-         val sz = size
+         val sz      = size
+         val sz1     = sz - 1
+         val isRight = keys( sz1 ) == null
+         val szi     = if( isRight ) sz1 else sz
+         out.writeUnsignedByte( if( isRight ) 5 else 1 )
          out.writeUnsignedByte( sz )
-         var i = 0; while( i < sz ) {
+         var i = 0; while( i < szi ) {
             keySerializer.write( keys( i ), out )
          i += 1 }
          i = 0; while( i < sz ) {

@@ -349,7 +349,7 @@ object DeterministicSkipOctree {
 
          val p = l.parent
          p.removeImmediateLeaf( l )
-         assert( l.parent == null, "Internal error - leaf should be removed by now : " + l )
+//         assert( l.parent == null, "Internal error - leaf should be removed by now : " + l )
       }
 
       def iterator( implicit tx: S#Tx ) : Iterator[ A ] = skipList.iterator.map( _.value )

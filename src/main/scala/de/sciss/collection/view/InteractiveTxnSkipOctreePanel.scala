@@ -28,30 +28,50 @@ package view
 
 import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
-import geom.{QueryShape, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Square}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
+import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
+import java.io.File
+import geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, Point2D, Square}
 import Space.TwoDim
-import de.sciss.lucrestm.{InMemory, Sys}
 
 object InteractiveTxnSkipOctreePanel extends App with Runnable {
    val seed = 0L
 
    EventQueue.invokeLater( this )
    def run() {
-//      val xs = args.toSeq
-      implicit val system  = new InMemory
-      val model = system.atomic { implicit tx =>
+      val a = args.headOption.getOrElse( "" )
+
+      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
+         system.atomic { implicit tx =>
 //         if( xs.contains( "--3d" )) {
 //            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, Point3DLike ](
 //               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
 //            new Model3D[ InMemory ]( tree )
 //         } else {
-         import txn.geom.Space.{Point2DSerializer, SquareSerializer}
+            import txn.geom.Space.{Point2DSerializer, SquareSerializer}
 
-            val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
+            val tree = txn.DeterministicSkipOctree.empty[ S, TwoDim, Point2D ](
                TwoDim, Square( sz, sz, sz ), skipGap = 1 )
-            new Model2D[ InMemory ]( tree )
-//         }
+            new Model2D[ S ]( tree )
+         }
+      }
+
+      val model = if( a.startsWith( "--db" )) {
+         val dir     = if( a == "--dbtmp" ) {
+            File.createTempFile( "octree", "_database" )
+         } else {
+            new File( sys.props( "user.home" ), "octree_database" )
+         }
+         dir.delete()
+         dir.mkdir()
+         val f       = new File( dir, "data" )
+         println( f.getAbsolutePath )
+         implicit val system = BerkeleyDB.open( f )
+         createModel
+
+      } else {
+         implicit val system = new InMemory
+         createModel
       }
 
       val f    = new JFrame( "Skip Octree" )

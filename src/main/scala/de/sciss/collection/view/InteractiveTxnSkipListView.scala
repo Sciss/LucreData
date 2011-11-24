@@ -41,9 +41,9 @@ object InteractiveTxnSkipListView extends App with Runnable {
       val a = args.headOption.getOrElse( "" )
       val iv = if( a.startsWith( "--db" )) {
          val dir     = if( a == "--dbtmp" ) {
-            File.createTempFile( "tree", "_database" )
+            File.createTempFile( "skiplist", "_database" )
          } else {
-            new File( sys.props( "user.home" ), "treetests_database" )
+            new File( sys.props( "user.home" ), "skiplist_database" )
          }
          dir.delete()
          dir.mkdir()
