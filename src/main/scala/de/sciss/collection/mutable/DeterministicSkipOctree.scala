@@ -196,7 +196,7 @@ object DeterministicSkipOctree {
       }
       /**
        * A left child is one which is stored in Q0.
-       * This is either empty or an object (`LeftInnerNode`)
+       * This is either empty or an object (`LeftChild`)
        * which provides start and stop markers for its
        * position in the in-order list.
        * That is, `LeftChild` is either of
