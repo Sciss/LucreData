@@ -56,11 +56,16 @@ object DeterministicSkipOctree {
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
       new Impl[ S, D, A ]( space, hyperCube, view, { implicit impl =>
-         import impl.{numOrthants, topNodeReader, rightNodeReader}
+         import impl.{numOrthants, topNodeReader, rightNodeReader, leftChildReader}
          val order         = TotalOrder.empty[ S ]()
-         val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
+//         val children      = new Array[ LeftChild[ S, D, A ]]( numOrthants )
+         val sz            = numOrthants
+         val ch            = system.newRefArray[ LeftChild[ S, D, A ]]( sz )
+         var i = 0; while( i < sz ) {
+            ch( i )        = system.newRef[ LeftChild[ S, D, A ]]( new Empty[ S, D, A ])
+         i += 1 }
          val headRight     = system.newRef[ RightNode[ S, D, A ]]( null )
-         val head          = new TopLeftNode[ S, D, A ]( system.newID, hyperCube, order.root, children, headRight )
+         val head          = new TopLeftNode[ S, D, A ]( system.newID, hyperCube, order.root, ch, headRight )
          val lastTreeRef   = system.newRef[ TopNode[ S, D, A ]]( head )
          val skipList      = HASkipList.empty[ S, Leaf[ S, D, A ]]( skipGap, impl )
          (order, head, lastTreeRef, skipList)
@@ -99,6 +104,17 @@ object DeterministicSkipOctree {
       }
    }
 
+   private final class LeftChildReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
+   extends MutableReader[ S, LeftChild[ S, D, A ]] {
+      def readData( in: DataInput, id: S#ID ) : LeftChild[ S, D, A ] = {
+         (in.readUnsignedByte(): @switch) match {
+            case 0 => new Empty[ S, D, A ]
+            case 1 => sys.error( "TODO" ) // Leaf.read( in, id )
+            case 3 => sys.error( "TODO" ) // LeftInnerNode.read( in, id )
+         }
+      }
+   }
+
    private final class LeftNodeReader[ S <: Sys[ S ], D <: Space[ D ], A ]( implicit impl: Impl[ S, D, A ])
    extends MutableReader[ S, LeftNode[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : LeftNode[ S, D, A ] = {
@@ -113,6 +129,18 @@ object DeterministicSkipOctree {
    extends MutableReader[ S, RightNode[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : RightNode[ S, D, A ] = {
          (in.readUnsignedByte(): @switch) match {
+            case 4 => sys.error( "TODO" ) // TopRightNode.read( in, id )
+            case 5 => sys.error( "TODO" ) // RightInnerNode.read( in, id )
+         }
+      }
+   }
+
+   private final class RightChildReader[ S <: Sys[ S ], D <: Space[ D ], A ]
+   extends MutableReader[ S, RightChild[ S, D, A ]] {
+      def readData( in: DataInput, id: S#ID ) : RightChild[ S, D, A ] = {
+         (in.readUnsignedByte(): @switch) match {
+            case 0 => new Empty[ S, D, A ]
+            case 1 => sys.error( "TODO" ) // Leaf.read( in, id )
             case 4 => sys.error( "TODO" ) // TopRightNode.read( in, id )
             case 5 => sys.error( "TODO" ) // RightInnerNode.read( in, id )
          }
@@ -145,6 +173,8 @@ object DeterministicSkipOctree {
       implicit val topNodeReader: MutableReader[ S, TopNode[ S, D, A ]]          = new TopNodeReader[ S, D, A ]
       implicit val topRightNodeReader: MutableReader[ S, TopRightNode[ S, D, A ]]= new TopRightNodeReader[ S, D, A ]
       implicit val nodeReader: MutableReader[ S, Node[ S, D, A ]]                = new NodeReader[ S, D, A ]
+      implicit val leftChildReader: MutableReader[ S, LeftChild[ S, D, A ]]      = new LeftChildReader[ S, D, A ]
+      implicit val rightChildReader: MutableReader[ S, RightChild[ S, D, A ]]    = new RightChildReader[ S, D, A ]
 
       val (totalOrder, headTree, lastTreeRef, skipList) = _initFun( this )
 
@@ -364,7 +394,11 @@ object DeterministicSkipOctree {
          val pNext0     = l.parent.findPN // ( path, 0 )
          val pNext      = if( pNext0 == null ) { // create new level
             val sz      = numOrthants
-            val ch      = new Array[ RightChild[ S, D, A ]]( sz )
+//            val ch      = new Array[ RightChild[ S, D, A ]]( sz )
+            val ch      = system.newRefArray[ RightChild[ S, D, A ]]( sz )
+            var i = 0; while( i < sz ) {
+               ch( i )  = system.newRef[ RightChild[ S, D, A ]]( new Empty[ S, D, A ])
+            i += 1 }
             val nextRef = system.newRef[ RightNode[ S, D, A ]]( null )
             val prev    = lastTree
             val res     = new TopRightNode( system.newID, /* impl */ hyperCube, prev, ch, nextRef )
@@ -528,7 +562,7 @@ object DeterministicSkipOctree {
       // "At each square q ∈ Qi we either go to a child square in Qi
       // that covers the same area of R ∪ A as p does, if such a child
       // square exists, or jump to the next level q ∈ Qi−1."
-      @tailrec def findEquiStabbingTail( node: Node[ S, D, A ], area: Area ) : Node[ S, D, A ] = {
+      @tailrec def findEquiStabbingTail( node: Node[ S, D, A ], area: Area )( implicit tx: S#Tx ) : Node[ S, D, A ] = {
          var pi = node
          var i = 0; while( i < sz ) {
             val c = pi.child( i )
@@ -778,7 +812,7 @@ object DeterministicSkipOctree {
        * the `startOrder` and `stopOrder` form the interval
        * borders of the sub-tree.
        */
-      private[DeterministicSkipOctree] def stopOrder: TotalOrder.SetEntry[ S ]
+      private[DeterministicSkipOctree] def stopOrder( implicit tx: S#Tx ): TotalOrder.SetEntry[ S ]
    }
 
    /**
@@ -861,7 +895,7 @@ object DeterministicSkipOctree {
        * For a leaf (which does not have a subtree),
        * the `stopOrder` is identical to its `order`.
        */
-      private[DeterministicSkipOctree] def stopOrder : Order[ S ] = order
+      private[DeterministicSkipOctree] def stopOrder( implicit tx: S#Tx ) : Order[ S ] = order
 
       def shortString = "leaf(" + value + ")"
       override def toString = "Leaf(" + value + ")"
@@ -889,7 +923,7 @@ object DeterministicSkipOctree {
        * Returns the child for a given
        * orthant index
        */
-      def child( idx: Int ) : Child[ S, D, A ]
+      def child( idx: Int )( implicit tx: S#Tx ) : Child[ S, D, A ]
 
       /**
        * Finds to smallest interesting hyper-cube
@@ -901,7 +935,7 @@ object DeterministicSkipOctree {
        * @return  the node defined by the given search `point`, or `null`
        *          if no such node exists.
        */
-      private[DeterministicSkipOctree] def findP0( point: D#Point ) : LeftNode[ S, D, A ]
+      private[DeterministicSkipOctree] def findP0( point: D#Point )( implicit tx: S#Tx ) : LeftNode[ S, D, A ]
 
       /**
        * Assuming that the given `leaf` is a child of this node,
@@ -1006,7 +1040,7 @@ object DeterministicSkipOctree {
    /* private */ sealed trait RightNode[ S <: Sys[ S ], D <: Space[ D ], A ]
    extends Node[ S, D, A ] with NonEmpty[ S, D, A ] with Mutable[ S ] {
 //      final val children = Array.fill[ RightChild[ S, D, A ]]( numOrthants )( Empty )
-      protected def children: Array[ RightChild[ S, D, A ]]
+      protected def children: Array[ S#Ref[ RightChild[ S, D, A ]]]
 //      private[DeterministicSkipOctree] final var next : RightNode[ S, D, A ] = null
 //      final private[DeterministicSkipOctree] def next( implicit tx: S#Tx ) : RightNode[ S, D, A ] = nextRef.get
 //      final private[DeterministicSkipOctree] def next_=( node: RightNode[ S, D, A ])( implicit tx: S#Tx ) {
@@ -1016,14 +1050,14 @@ object DeterministicSkipOctree {
 //      protected def nextRef: S#Ref[ RightNode[ S, D, A ]]
 
       private[DeterministicSkipOctree] def prev : Node[ S, D, A ]
-      final def child( idx: Int ) : RightChild[ S, D, A ] = children( idx )
-      final def updateChild( idx: Int, c: RightChild[ S, D, A ]) {
-         children( idx ) = c  // XXX
+      final def child( idx: Int )( implicit tx: S#Tx ) : RightChild[ S, D, A ] = children( idx ).get
+      final def updateChild( idx: Int, c: RightChild[ S, D, A ])( implicit tx: S#Tx ) {
+         children( idx ).set( c )
       }
 
-      private[DeterministicSkipOctree] final def findP0( point: D#Point ) : LeftNode[ S, D, A ] = {
+      private[DeterministicSkipOctree] final def findP0( point: D#Point )( implicit tx: S#Tx ) : LeftNode[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
-         val c = children( qidx )
+         val c = child( qidx )
          val n = if( c.isNode ) {
             val cn = c.asNode
             if( cn.hyperCube.contains( point )) cn else prev
@@ -1052,9 +1086,9 @@ object DeterministicSkipOctree {
          import impl.pointView
          val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
-         val c       = children( qidx )
+         val c       = child( qidx )
          if( c.isEmpty ) {
-            children( qidx )  = leaf   // XXX
+            updateChild( qidx, leaf )
             leaf.parent       = this
          } else {
             val old = c.asRightInnerNonEmpty
@@ -1100,14 +1134,18 @@ object DeterministicSkipOctree {
        */
       @inline private def newNode( qidx: Int, prev: Node[ S, D, A ], iq: D#HyperCube )
                                  ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : InnerRightNode[ S, D, A ] = {
-         import impl.{system, rightNodeReader, hyperSerializer}
+         import impl.{system, rightNodeReader, hyperSerializer, rightChildReader}
          val sz         = children.length
-         val ch         = new Array[ RightChild[ S, D, A ]]( sz )
+//         val ch         = new Array[ RightChild[ S, D, A ]]( sz )
+         val ch         = system.newRefArray[ RightChild[ S, D, A ]]( sz )
+         var i = 0; while( i < sz ) {
+            ch( i )     = system.newRef[ RightChild[ S, D, A ]]( new Empty[ S, D, A ])
+         i += 1 }
          val parentRef  = system.newRef[ RightNode[ S, D, A ]]( this )
          val rightRef   = system.newRef[ RightNode[ S, D, A ]]( null )
          val n          = new InnerRightNode( system.newID, parentRef, prev, iq, ch, rightRef )
          prev.next      = n
-         children( qidx ) = n // XXX
+         updateChild( qidx, n )
          n
       }
 
@@ -1115,8 +1153,8 @@ object DeterministicSkipOctree {
                                                                     ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
          val sz = children.length
          var qidx = 0; while( qidx < sz /* numOrthants */) {
-            if( children( qidx ) == leaf ) {
-               children( qidx ) = new Empty[ S, D, A ]   // XXX
+            if( child( qidx ) == leaf ) {
+               updateChild( qidx, new Empty[ S, D, A ])
                var newParent  = prev
                var pidx       = qidx
                while( true ) {
@@ -1152,7 +1190,7 @@ object DeterministicSkipOctree {
        * order intervals.
        */
 //      final val children = Array.fill[ LeftChild[ S, D, A ]]( numOrthants )( Empty )
-      protected def children: Array[ LeftChild[ S, D, A ]]
+      protected def children: Array[ S#Ref[ LeftChild[ S, D, A ]]]
 //      private[DeterministicSkipOctree] final var next : RightNode[ S, D, A ] = null
 
       /**
@@ -1163,11 +1201,11 @@ object DeterministicSkipOctree {
        * is used on the order entries, this totally suffices for maintaining
        * the tree's binarization.
        */
-      private[DeterministicSkipOctree] final def stopOrder : Order[ S ] = {
+      private[DeterministicSkipOctree] final def stopOrder( implicit tx: S#Tx ) : Order[ S ] = {
          var res = startOrder
          val sz = children.length
          var i = 0; while( i < sz ) {
-            val c = children( i )
+            val c = child( i )
             if( !c.isEmpty ) {
                res = c.asLeftInnerNonEmpty.stopOrder
             }
@@ -1182,14 +1220,14 @@ object DeterministicSkipOctree {
        */
       private[DeterministicSkipOctree] final def prev : Node[ S, D, A ] = null
 
-      final def child( idx: Int ) : LeftChild[ S, D, A ] = children( idx )
-      final def updateChild( idx: Int, c: LeftChild[ S, D, A ]) {
-         children( idx ) = c  // XXX
+      final def child( idx: Int )( implicit tx: S#Tx ) : LeftChild[ S, D, A ] = children( idx ).get
+      final def updateChild( idx: Int, c: LeftChild[ S, D, A ])( implicit tx: S#Tx ) {
+         children( idx ).set( c )
       }
 
-      private[DeterministicSkipOctree] final def findP0( point: D#Point ) : LeftNode[ S, D, A ] = {
+      private[DeterministicSkipOctree] final def findP0( point: D#Point )( implicit tx: S#Tx ) : LeftNode[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
-         val c    = children( qidx )
+         val c    = child( qidx )
          if( c.isNode ) {
             val n = c.asNode
             if( n.hyperCube.contains( point )) n.findP0( point )
@@ -1204,11 +1242,11 @@ object DeterministicSkipOctree {
        * @return  the `Leaf` child in this node associated with the given
        *          `point`, or `null` if no such leaf exists.
        */
-      private[DeterministicSkipOctree] final def findImmediateLeaf( point: D#Point )
-                                                                  ( implicit impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
+      private[DeterministicSkipOctree] final def findImmediateLeaf( point: D#Point )( implicit tx: S#Tx,
+                                                                                      impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
          import impl.pointView
          val qidx = hyperCube.indexOf( point )
-         val c = children( qidx )
+         val c = child( qidx )
          if( c.isLeaf ) {
             val l = c.asLeaf
             if( pointView( l.value ) == point ) l else null
@@ -1219,8 +1257,8 @@ object DeterministicSkipOctree {
                                                                     ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
          val sz = children.length
          var qidx = 0; while( qidx < sz ) {
-            if( children( qidx ) == leaf ) {
-               children( qidx ) = new Empty[ S, D, A ]   // XXX
+            if( child( qidx ) == leaf ) {
+               updateChild( qidx, new Empty[ S, D, A ])
                leafRemoved()
                leaf.dispose()
                return
@@ -1231,7 +1269,7 @@ object DeterministicSkipOctree {
       private[DeterministicSkipOctree] final def insert( point: D#Point, value: A )
                                                        ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : Leaf[ S, D, A ] = {
          val qidx = hyperCube.indexOf( point )
-         val c    = children( qidx )
+         val c    = child( qidx )
          if( c.isEmpty ) {
             newLeaf( qidx, /* point, */ value ) // (this adds it to the children!)
          } else {
@@ -1276,7 +1314,7 @@ object DeterministicSkipOctree {
          val parentRef  = system.newRef[ Node[ S, D, A ]]( this )
          val l          = new Leaf( system.newID, /* point, */ value, newChildOrder( qidx ), parentRef )
 //         l.parent = this
-         children( qidx ) = l // XXX
+         updateChild( qidx, l )
          l
       }
 
@@ -1298,7 +1336,7 @@ object DeterministicSkipOctree {
          import impl.totalOrder
          var pre = startOrder
          var i = 0; while( i < qidx ) {
-            val c = children( i )
+            val c = child( i )
             if( !c.isEmpty ) {
                pre = c.asLeftInnerNonEmpty.stopOrder
             }
@@ -1320,13 +1358,17 @@ object DeterministicSkipOctree {
        */
       @inline private def newNode( qidx: Int, iq: D#HyperCube )
                                  ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) : InnerLeftNode[ S, D, A ] = {
-         import impl.{leftNodeReader, rightNodeReader, system, hyperSerializer}
+         import impl.{leftNodeReader, rightNodeReader, system, hyperSerializer, leftChildReader}
          val sz         = children.length
-         val ch         = new Array[ LeftChild[ S, D, A ]]( sz )
+//         val ch         = new Array[ LeftChild[ S, D, A ]]( sz )
+         val ch         = system.newRefArray[ LeftChild[ S, D, A ]]( sz )
+         var i = 0; while( i < sz ) {
+            ch( i )     = system.newRef[ LeftChild[ S, D, A ]]( new Empty[ S, D, A ])
+         i += 1 }
          val parentRef  = system.newRef[ LeftNode[ S, D, A ]]( this )
          val rightRef   = system.newRef[ RightNode[ S, D, A ]]( null )
          val n          = new InnerLeftNode( system.newID, parentRef, iq, newChildOrder( qidx ), ch, rightRef )
-         children( qidx ) = n // XXX
+         updateChild( qidx, n )
          n
       }
    }
@@ -1345,16 +1387,17 @@ object DeterministicSkipOctree {
       import impl.{hyperCube, totalOrder, system, numOrthants}
       val startOrder = totalOrder.read( in )
       val sz         = numOrthants
-      val children   = new Array[ LeftChild[ S, D, A ]]( sz )
+//      val children   = new Array[ LeftChild[ S, D, A ]]( sz )
+      val ch         = system.newRefArray[ LeftChild[ S, D, A ]]( sz )
       var i = 0; while( i < sz ) {
-         children( i ) = sys.error( "TODO" ) // readLeftChild[ S, D, A ]( in )   XXX
+         ch( i )     = sys.error( "TODO" ) // readLeftChild[ S, D, A ]( in )   XXX
       i += 1 }
       val nextRef    = sys.error( "TODO" ) // system.readRef[ RightNode[ S, D, A ]]( in )
-      new TopLeftNode[ S, D, A ]( id, hyperCube, startOrder, children, nextRef )
+      new TopLeftNode[ S, D, A ]( id, hyperCube, startOrder, ch, nextRef )
    }
    private final class TopLeftNode[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
       val hyperCube: D#HyperCube, val startOrder: Order[ S ],
-      protected val children: Array[ LeftChild[ S, D, A ]], protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
+      protected val children: Array[ S#Ref[ LeftChild[ S, D, A ]]], protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
    extends LeftNode[ S, D, A ] with TopNode[ S, D, A ] with Mutable[ S ] {
 
       // that's alright, we don't need to do anything special here
@@ -1386,7 +1429,7 @@ object DeterministicSkipOctree {
     */
    private final class InnerLeftNode[ S <: Sys[ S ], D <: Space[ D ], A ](
       val id: S#ID, parentRef: S#Ref[ LeftNode[ S, D, A ]], val hyperCube: D#HyperCube,
-      val startOrder: Order[ S ], protected val children: Array[ LeftChild[ S, D, A ]],
+      val startOrder: Order[ S ], protected val children: Array[ S#Ref[ LeftChild[ S, D, A ]]],
       protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
    ( implicit hyperSer: Serializer[ D#HyperCube ])
    extends LeftNode[ S, D, A ] with InnerNode[ S, D, A ] with LeftInnerNonEmpty[ S, D, A ] {
@@ -1434,7 +1477,7 @@ object DeterministicSkipOctree {
          var numNonEmpty = 0
          val sz = children.length
          var i = 0; while( i < sz ) {
-            val c = children( i )
+            val c = child( i )
             if( !c.isEmpty ) {
                numNonEmpty += 1
                lonely = c.asLeftInnerNonEmpty
@@ -1454,7 +1497,7 @@ object DeterministicSkipOctree {
     * Serialization-id: 4
     */
    private final class TopRightNode[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
-      val hyperCube: D#HyperCube, val prev: TopNode[ S, D, A ], protected val children: Array[ RightChild[ S, D, A ]],
+      val hyperCube: D#HyperCube, val prev: TopNode[ S, D, A ], protected val children: Array[ S#Ref[ RightChild[ S, D, A ]]],
       protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
    extends RightNode[ S, D, A ] with TopNode[ S, D, A ] {
 
@@ -1484,7 +1527,7 @@ object DeterministicSkipOctree {
 
          val sz = children.length
          var i = 0; while( i < sz ) {
-            val c = children( i )
+            val c = child( i )
             if( !c.isEmpty ) return // node not empty, abort the check
          i += 1 }
 
@@ -1507,7 +1550,7 @@ object DeterministicSkipOctree {
     */
    private final class InnerRightNode[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID,
       parentRef: S#Ref[ RightNode[ S, D, A ]], val prev: Node[ S, D, A ], val hyperCube: D#HyperCube,
-      protected val children: Array[ RightChild[ S, D, A ]], protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
+      protected val children: Array[ S#Ref[ RightChild[ S, D, A ]]], protected val nextRef: S#Ref[ RightNode[ S, D, A ]])
    ( implicit hyperSer: Serializer[ D#HyperCube ])
    extends RightNode[ S, D, A ] with InnerNode[ S, D, A ] with RightInnerNonEmpty[ S, D, A ] {
 
@@ -1519,7 +1562,7 @@ object DeterministicSkipOctree {
 
       protected def disposeData()( implicit tx: S#Tx ) {
          parentRef.dispose()
-         prev.dispose()
+//         prev.dispose() NO!
          var i = 0; val sz = children.length; while( i < sz ) {
             children( i ).dispose()
          i += 1 }
@@ -1556,7 +1599,7 @@ object DeterministicSkipOctree {
          var numNonEmpty = 0
          val sz = children.length
          var i = 0; while( i < sz ) {
-            val c = children( i )
+            val c = child( i )
             if( !c.isEmpty ) {
                numNonEmpty += 1
                lonely = c.asRightInnerNonEmpty
