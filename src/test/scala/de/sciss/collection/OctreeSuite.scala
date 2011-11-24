@@ -28,10 +28,10 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val cube          = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED ) {
-      withTree( "randomized", RandomizedSkipOctree.empty[ ThreeDim, ThreeDim#Point ]( ThreeDim, cube, coin ))
+      withTree( "randomized", RandomizedSkipOctree.empty[ ThreeDim, ThreeDim#PointLike ]( ThreeDim, cube, coin ))
    }
    if( DETERMINISTIC ) {
-      withTree( "deterministic", DeterministicSkipOctree.empty[ ThreeDim, ThreeDim#Point ]( ThreeDim, cube ))
+      withTree( "deterministic", DeterministicSkipOctree.empty[ ThreeDim, ThreeDim#PointLike ]( ThreeDim, cube ))
    }
 
    val pointFun3D = (mask: Int) => Point3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )
@@ -153,7 +153,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val queryFun3D = (max: Int, off: Int, ext: Int) =>
       Cube( rnd.nextInt( max ) - off, rnd.nextInt( max ) - off, rnd.nextInt( max ) - off, rnd.nextInt( ext ))
 
-   val sortFun3D = (p: ThreeDim#Point) => (p.x, p.y, p.z)
+   val sortFun3D = (p: ThreeDim#PointLike) => (p.x, p.y, p.z)
 
    def verifyRangeSearch[ A, D <: Space[ D ], S : math.Ordering ]( t: SkipOctree[ D, D#PointLike ], m: MSet[ D#PointLike ],
                           queryFun: (Int, Int, Int) => QueryShape[ A, D ],
@@ -170,7 +170,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   val pointFilter3D = (p: ThreeDim#Point) => {
+   val pointFilter3D = (p: ThreeDim#PointLike) => {
       val dx = if( p.x < cube.cx ) (cube.cx + (cube.extent - 1)).toLong - p.x else p.x - (cube.cx - cube.extent)
       val dy = if( p.y < cube.cy ) (cube.cy + (cube.extent - 1)).toLong - p.y else p.y - (cube.cy - cube.extent)
       val dz = if( p.z < cube.cz ) (cube.cz + (cube.extent - 1)).toLong - p.z else p.z - (cube.cz - cube.extent)
@@ -199,14 +199,14 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   def withTree( name: String, tf: => SkipOctree[ ThreeDim, ThreeDim#Point ]) {
+   def withTree( name: String, tf: => SkipOctree[ ThreeDim, ThreeDim#PointLike ]) {
       feature( "The " + name + " octree structure should be consistent" ) {
          info( "Several mass operations on the structure" )
          info( "are tried and expected behaviour verified" )
 
          scenario( "Consistency is verified on a randomly filled structure" ) {
             val t  = tf // ( None )
-            val m  = MSet.empty[ ThreeDim#Point ]
+            val m  = MSet.empty[ ThreeDim#PointLike ]
             val time1 = System.currentTimeMillis()
 
             randFill[ ThreeDim ]( t, m, pointFun3D )

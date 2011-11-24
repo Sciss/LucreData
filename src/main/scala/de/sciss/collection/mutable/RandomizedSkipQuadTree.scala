@@ -36,10 +36,10 @@ object RandomizedSkipQuadtree {
    import Space.TwoDim
    import TwoDim._
 
-   def empty[ A ]( quad: HyperCube, coin: Coin = Coin() )( implicit view: A => Point ) : SkipQuadtree[ A ] =
+   def empty[ A ]( quad: HyperCube, coin: Coin = Coin() )( implicit view: A => PointLike ) : SkipQuadtree[ A ] =
       RandomizedSkipOctree.empty[ TwoDim, A ]( TwoDim, quad, coin ) // new TreeImpl[ A ]( hyperCube, view )
 
-   def apply[ A <% Point ]( quad: HyperCube, coin: Coin = Coin() )( xs: A* ) : SkipQuadtree[ A ] = {
+   def apply[ A <% PointLike ]( quad: HyperCube, coin: Coin = Coin() )( xs: A* ) : SkipQuadtree[ A ] = {
       val t = empty[ A ]( quad, coin )
       xs.foreach( t.+=( _ ))
       t

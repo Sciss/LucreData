@@ -28,10 +28,10 @@ package view
 
 import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
-import geom.{QueryShape, SquareLike, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Square}
+import geom.{QueryShape, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Square}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import Space.TwoDim
-import de.sciss.lucrestm.{Serializer, InMemory, Sys}
+import de.sciss.lucrestm.{InMemory, Sys}
 
 object InteractiveTxnSkipOctreePanel extends App with Runnable {
    val seed = 0L
