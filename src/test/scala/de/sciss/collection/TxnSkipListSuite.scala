@@ -18,8 +18,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
    val OBSERVATION   = true
    val REMOVAL       = true
-   val TWO_GAP_SIZES = false // true
-   val INMEMORY      = false // true
+   val TWO_GAP_SIZES = true
+   val INMEMORY      = true
    val DATABASE      = true
 
    // large
