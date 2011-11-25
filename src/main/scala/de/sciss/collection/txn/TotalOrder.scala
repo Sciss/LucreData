@@ -183,13 +183,13 @@ object TotalOrder {
          var base       = _first.tag
          do {
             var prev    = first.prev
-            while( (prev != null) && ((prev.tag & mask) == base) ) {
+            while( (prev ne null) && ((prev.tag & mask) == base) ) {
                first    = prev
                prev     = prev.prev
                num     += 1
             }
             var next    = last.next
-            while( (next != null) && ((next.tag & mask) == base) ) {
+            while( (next ne null) && ((next.tag & mask) == base) ) {
                last     = next
                next     = next.next
                num     += 1

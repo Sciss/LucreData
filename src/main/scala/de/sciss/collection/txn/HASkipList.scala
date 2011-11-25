@@ -125,6 +125,7 @@ object HASkipList {
       ( implicit val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
         val keySerializer: Serializer[ A ], val system: S )
    extends HASkipList[ S, A ] with Serializer[ Node[ S, A ]] with HeadOrBranch[ S, A ] {
+      impl =>
 
       implicit private def head = this
 
@@ -145,12 +146,12 @@ object HASkipList {
 
       override def size( implicit tx: S#Tx ) : Int = {
          val c = topN
-         if( c == null ) 0 else c.leafSizeSum - 1
+         if( c eq null ) 0 else c.leafSizeSum - 1
       }
 
       def maxGap : Int = (minGap << 1) + 1 // aka arrMaxSz - 1
 
-      def isEmpty( implicit tx: S#Tx )   = topN == null
+      def isEmpty( implicit tx: S#Tx )   = topN eq null
       def notEmpty( implicit tx: S#Tx )  = !isEmpty
 
       def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ] = fillBuilder( IIdxSeq.newBuilder[ A ])
@@ -160,7 +161,7 @@ object HASkipList {
 
       def height( implicit tx: S#Tx ) : Int = {
          var n = topN
-         if( n == null ) 0 else {
+         if( n eq null ) 0 else {
             var h = 1
             while( n.isBranch ) {
                n = n.asBranch.down( 0 )
@@ -194,7 +195,7 @@ object HASkipList {
          }
 
          val c = topN
-         if( c == null ) false else stepRight( c )
+         if( c eq null ) false else stepRight( c )
       }
 
       /*
@@ -227,9 +228,10 @@ object HASkipList {
       }
 
       override def add( v: A )( implicit tx: S#Tx ) : Boolean = {
+//try {
 //         require( ordering.lt( v, maxKey ))
          val c = topN
-         if( c == null ) {
+         if( c eq null ) {
             val lkeys         = new Array[ A ]( 2 )
             lkeys( 0 )        = v
 //            lkeys( 1 )        = maxKey
@@ -237,10 +239,13 @@ object HASkipList {
             /*Head.*/ downNode.set( l )
             true
          } else if( c.isLeaf ) {
-            addLeaf( v, head, 0, head, 0, c.asLeaf, true )
+            addLeaf( v, impl, 0, impl, 0, c.asLeaf, true )
          } else {
-            addBranch( v, head, 0, head, 0, c.asBranch, true )
+            addBranch( v, impl, 0, impl, 0, c.asBranch, true )
          }
+//} finally {
+//   println( "After adding " + v + " -> " + toList )
+//}
       }
 
       private def addLeaf( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
@@ -310,14 +315,18 @@ object HASkipList {
 
       override def remove( v: A )( implicit tx: S#Tx ) : Boolean = {
 //         if( ordering.gteq( v, maxKey )) return false
+//try {
          val c = topN
-         if( c == null ) {
+         if( c eq null ) {
             false
          } else if( c.isLeaf ) {
             removeLeaf(   v, /* Head. */downNode, c.asLeaf, true )
          } else {
             removeBranch( v, /* Head. */ downNode, c.asBranch, true )
          }
+//} finally {
+//   println( "After removing " + v + " -> " + toList )
+//}
       }
 
       private def removeLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: LeafLike[ S, A ],
@@ -497,7 +506,7 @@ object HASkipList {
 
       // ---- Serializer[ Branch[ S, A ]] ----
       def write( v: Node[ S, A ], out: DataOutput ) {
-         if( v == null ) {
+         if( v eq null ) {
             out.writeUnsignedByte( 0 ) // Bottom
          } else {
             v.write( out )
@@ -539,10 +548,10 @@ object HASkipList {
 
          def init()( implicit tx: S#Tx ) {
             val c = topN
-            if( c != null ) pushDown( c, 0, true )
+            if( c ne null ) pushDown( c, 0, true )
          }
 
-         def hasNext : Boolean = l != null // ordering.nequiv( nextKey, maxKey )
+         def hasNext : Boolean = l ne null // ordering.nequiv( nextKey, maxKey )
          def next() : A = system.atomic( nextTxn( _ ))
 
          def nextTxn( implicit tx: S#Tx ) : A = {

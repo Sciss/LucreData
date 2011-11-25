@@ -15,14 +15,14 @@ import txn.{DeterministicSkipOctree, SkipOctree}
  * }}
  */
 class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
-   val CONSISTENCY   = false     // currently fails
-   val RANGE_SEARCH  = false
-   val NN_SEARCH     = false
+   val CONSISTENCY   = true
+   val RANGE_SEARCH  = true
+   val NN_SEARCH     = true
    val REMOVAL       = true
-   val INMEMORY      = true
-   val DATABASE      = false
+   val INMEMORY      = false
+   val DATABASE      = true
 
-   val n             = 2 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 200 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )
@@ -152,7 +152,11 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
    def verifyAddRemoveAll[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ]) {
       when( "all elements of the independently maintained map are added again to t" )
       val szBefore = t.system.atomic { implicit tx => t.size }
-      val newInT   = t.system.atomic { implicit tx => m.filter( e => t.update( e ).isEmpty )}
+//println( "BEFORE " + t.system.atomic { implicit tx => t.toList })
+      val newInT   = t.system.atomic { implicit tx => m.filter( e =>
+         t.update( e ).isEmpty
+      )}
+//println( "AFTER " + t.system.atomic { implicit tx => t.toList })
       val szAfter  = t.system.atomic { implicit tx => t.size }
       then( "all of the put operations should return 'Some'" )
       assert( newInT.isEmpty, newInT.take( 10 ).toString() )
