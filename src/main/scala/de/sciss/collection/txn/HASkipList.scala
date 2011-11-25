@@ -41,6 +41,21 @@ import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Sink, Serializer
  * pass as in the original algorithm, and is careful about object creations, so that
  * it will be able to persist the data structure without any unnecessary reads or
  * writes to the store.
+ *
+ * Three implementation notes: (1) We treat the nodes as immutable at the moment, storing them
+ * directly in the S#Val child pointers of their parents. While this currently seems to
+ * have a performance advantage (?), we could try to avoid this by using S#Refs for
+ * the child pointers, making the nodes becomes mutables. We could avoid copying the
+ * arrays for each insertion or deletion, at the cost of more space, but maybe better
+ * performance.
+ *
+ * (2) The special treatment of `isRight` kind of sucks. Since now that information is
+ * also persisted, we might just have two types of branches and leaves, and avoid passing
+ * around this flag.
+ *
+ * (3) Since there is a bug with the top-down one-pass removal, we might end up removing
+ * the creation of instances of virtual branches altogether again when replacing the
+ * current algorithm by a two-pass one.
  */
 object HASkipList {
    /**
@@ -140,8 +155,25 @@ object HASkipList {
          downNode.write( out )
       }
 
+      // XXX has high stack usage
       protected def disposeData()( implicit tx: S#Tx ) {
-         sys.error( "TODO" )
+         def disposeNode( n: Node[ S, A ]) {
+            if( n ne null ) {
+               if( n.isBranch ) {
+                  val sz = n.size
+                  val b = n.asBranch
+                  var i = 0; while( i < sz ) {
+                     val ref = b.downRef( i )
+                     disposeNode( ref.get )
+                     ref.dispose()
+                  i += 1 }
+               }
+               // n.dispose()
+            }
+         }
+
+         disposeNode( topN )
+         downNode.dispose()
       }
 
       override def size( implicit tx: S#Tx ) : Int = {
@@ -172,7 +204,7 @@ object HASkipList {
       }
 
       def top( implicit tx: S#Tx ) : Option[ Node[ S, A ]] = Option( topN )
-      private def topN( implicit tx: S#Tx ) : Node[ S, A ] = /* Head.*/ downNode.get
+      @inline private def topN( implicit tx: S#Tx ) : Node[ S, A ] = /* Head.*/ downNode.get
 
       def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( true ).mkString( "\n" )
 
@@ -469,6 +501,7 @@ object HASkipList {
             } else {
                // unfortunately we do not have `p`
 //               assert( p == Head )
+               bNew.downRef( 0 ).dispose()
                pDown
             }
          } else {
@@ -994,7 +1027,7 @@ object HASkipList {
       }
    }
    final class Branch[ S <: Sys[ S ], @specialized( Int ) A ]( keys: Array[ A ],
-                                                                     downs: Array[ S#Val[ Node[ S, A ]]])
+                                                               downs: Array[ S#Val[ Node[ S, A ]]])
    extends BranchLike[ S, A ] with HeadOrBranch[ S, A ] with Node[ S, A ] {
 //      assert( keys.size == downs.size )
 

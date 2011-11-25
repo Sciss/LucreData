@@ -26,6 +26,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val NUM1          = 0x040000  // 0x200000
    val NUM2          = 0x020000  // 0x100000
 
+   require( NUM1 >= 1 && NUM2 >= 6 )
+
    // small
    val NUM3          = 10
 
@@ -58,7 +60,9 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
          println( f.getAbsolutePath )
          BerkeleyDB.open( f )
       }, bdb => {
-         println( "FINAL DB SIZE = " + bdb.numRefs )
+//         println( "FINAL DB SIZE = " + bdb.numUserRecords )
+         val sz = bdb.numUserRecords
+         assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()
       })
    }
@@ -193,6 +197,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
                   verifyElems( l, s )
                   verifyContainsNot( l, s )
                   verifyAddRemoveAll( l, s )
+                  l.system.atomic { implicit tx => l.dispose() }
                } finally {
                   cleanUp()
                }
@@ -260,6 +265,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
                      then( "the number of promotions and demotions for every key is equal" )
                      assert( unbal.isEmpty, unbal.take( 10 ).toString() )
                   }
+                  l.system.atomic { implicit tx => l.dispose() }
+
                } finally {
                   cleanUp()
                }

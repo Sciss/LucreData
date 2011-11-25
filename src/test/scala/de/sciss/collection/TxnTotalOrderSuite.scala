@@ -36,8 +36,8 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
          bdb
       }, bdb => {
          //println( "FINAL   DB SIZE = " + bdb.numRefs )
-         val sz = bdb.numRefs
-         assert( sz == 1, "Final DB size should be 1 (id-ref), but is " + sz )
+         val sz = bdb.numUserRecords
+         assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()
       })
    }

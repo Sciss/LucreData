@@ -54,7 +54,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
          println( f.getAbsolutePath )
          BerkeleyDB.open( f )
       }, bdb => {
-         println( "FINAL DB SIZE = " + bdb.numRefs )
+         println( "FINAL DB SIZE = " + bdb.numUserRecords )
          bdb.close()
       })
    }
