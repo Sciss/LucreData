@@ -5,8 +5,9 @@ import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
 import Space.ThreeDim
-import de.sciss.lucrestm.{InMemory, Sys}
 import txn.{DeterministicSkipOctree, SkipOctree}
+import java.io.File
+import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -19,10 +20,10 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
    val RANGE_SEARCH  = true
    val NN_SEARCH     = true
    val REMOVAL       = true
-   val INMEMORY      = false
+   val INMEMORY      = true
    val DATABASE      = true
 
-   val n             = 200 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )
@@ -42,10 +43,20 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
    }
 
    if( INMEMORY ) {
-      withSys[ InMemory ]( "deterministic", () => new InMemory, _ => () )
+      withSys[ InMemory ]( "Mem", () => new InMemory, _ => () )
    }
    if( DATABASE ) {
-      sys.error( "Not yet implemented" )
+      withSys[ BerkeleyDB ]( "BDB", () => {
+         val dir     = File.createTempFile( "octree", "_database" )
+         dir.delete()
+         dir.mkdir()
+         val f       = new File( dir, "data" )
+         println( f.getAbsolutePath )
+         BerkeleyDB.open( f )
+      }, bdb => {
+         println( "FINAL DB SIZE = " + bdb.numRefs )
+         bdb.close()
+      })
    }
 
    val pointFun3D = (mask: Int) => Point3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )

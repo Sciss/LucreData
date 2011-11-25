@@ -46,10 +46,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       val cp   = f.getContentPane
       val iv   = model.newPanel()
       cp.add( iv, BorderLayout.CENTER )
+      model.addPDFSupport( f )
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      model.addPDFSupport( f )
       f.setVisible( true )
    }
 

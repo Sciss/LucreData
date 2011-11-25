@@ -87,10 +87,10 @@ Options:
          val vs   = views
          cp.setLayout( new BoxLayout( cp, BoxLayout.X_AXIS ))
          vs.foreach( cp.add( _ ))
+         PDFSupport.addMenu( f, vs )
          f.pack()
          f.setLocationRelativeTo( null )
          f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-         PDFSupport.addMenu( f, vs )
 
          f.setVisible( true )
       }

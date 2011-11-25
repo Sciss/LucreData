@@ -370,7 +370,7 @@ object DeterministicSkipOctree {
 
       def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ] = iterator.toIndexedSeq
       def toList( implicit tx: S#Tx ) : List[ A ] = iterator.toList
-      def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toSeq
+      def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toIndexedSeq // note that `toSeq` produces a `Stream` !!
       def toSet(  implicit tx: S#Tx ) : Set[  A ] = iterator.toSet
 
       private def findLeaf( point: D#PointLike )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
@@ -1109,7 +1109,10 @@ object DeterministicSkipOctree {
             val qn2     = old.union( hyperCube.orthant( qidx ), point )
             // find the corresponding node in the lower tree
             var pPrev   = prev
-            while( pPrev.hyperCube != qn2 ) pPrev = pPrev.child( leaf.orthantIndexIn( pPrev.hyperCube )).asBranch
+            while( pPrev.hyperCube != qn2 ) {
+//               pPrev = pPrev.child( leaf.orthantIndexIn( pPrev.hyperCube )).asBranch
+               pPrev = pPrev.child( pPrev.hyperCube.indexOf( point )).asBranch
+            }
             val n2      = newNode( qidx, pPrev, qn2 )
 
 //            val c2      = n2.children
@@ -1125,7 +1128,8 @@ object DeterministicSkipOctree {
             // and if so, adjust the parent to point
             // to the new intermediate node `ne`!
             if( old.parent == this ) old.parentRight_=( n2 )
-            val lidx    = leaf.orthantIndexIn( qn2 )
+//            val lidx    = leaf.orthantIndexIn( qn2 )
+            val lidx    = qn2.indexOf( point )
 //            c2( lidx )  = leaf
             n2.updateChild( lidx, leaf )
             leaf.parent = n2
@@ -1163,29 +1167,29 @@ object DeterministicSkipOctree {
 
       private[DeterministicSkipOctree] final def removeImmediateLeaf( leaf: Leaf[ S, D, A ])
                                                                     ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
-         val sz = children.length
-         var qidx = 0; while( qidx < sz /* numOrthants */) {
-            if( child( qidx ) == leaf ) {
-               updateChild( qidx, null )
-               var newParent  = prev
-               var pidx       = qidx
-               while( true ) {
-                  val c = newParent.child( pidx )
-                  if( c.isBranch ) {
-                     val sn = c.asBranch
-                     newParent   = sn
-                     pidx        = leaf.orthantIndexIn( sn.hyperCube )
-                  } else {
-                     val sl = c.asLeaf
-                     assert( sl == leaf, "Internal error - diverging leaves : " + leaf + " versus " + sl )
-                     leafRemoved()
-                     leaf.parent = newParent
-                     return
-                  }
-               }
+         import impl.pointView
+         val point   = pointView( leaf.value )
+//         val qidx    = leaf.orthantIndexIn( hyperCube )
+         val qidx    = hyperCube.indexOf( point )
+         assert( child( qidx ) == leaf, "Internal error - expected leaf not found" )
+         updateChild( qidx, null )
+         var newParent  = prev
+         var pidx       = qidx
+         while( true ) {
+            val c = newParent.child( pidx )
+            if( c.isBranch ) {
+               val sn = c.asBranch
+               newParent   = sn
+//               pidx        = leaf.orthantIndexIn( sn.hyperCube )
+               pidx        = sn.hyperCube.indexOf( point )
+            } else {
+               val sl = c.asLeaf
+               assert( sl == leaf, "Internal error - diverging leaves : " + leaf + " versus " + sl )
+               leafRemoved()
+               leaf.parent = newParent
+               return
             }
-         qidx += 1 }
-         sys.error( "Internal error - did not find expected leaf" )
+         }
       }
    }
 
@@ -1268,18 +1272,14 @@ object DeterministicSkipOctree {
 
       private[DeterministicSkipOctree] final def removeImmediateLeaf( leaf: Leaf[ S, D, A ])
                                                                     ( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
-         val sz = children.length
-         var qidx = 0; while( qidx < sz ) {
-            if( child( qidx ) == leaf ) {
-//val c = child( qidx )
-//c equals leaf
-               updateChild( qidx, null )
-               leafRemoved()
-               leaf.dispose()
-               return
-            }
-         qidx += 1 }
-         sys.error( "Internal error - did not find expected leaf" )
+         import impl.pointView
+         val point   = pointView( leaf.value )
+         val qidx    = hyperCube.indexOf( point )
+//         val sz      = children.length
+         assert( child( qidx ) == leaf, "Internal error - expected leaf not found" )
+         updateChild( qidx, null )
+         leafRemoved()
+         leaf.dispose()
       }
 
       private[DeterministicSkipOctree] final def insert( point: D#PointLike, value: A )

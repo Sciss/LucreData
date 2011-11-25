@@ -89,10 +89,10 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
       val cp   = f.getContentPane
       val iv   = model.newPanel()
       cp.add( iv, BorderLayout.CENTER )
+      model.addPDFSupport( f )
       f.pack()
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      model.addPDFSupport( f )
       f.setVisible( true )
    }
 
@@ -368,7 +368,8 @@ extends JPanel( new BorderLayout() ) {
 
    private def removePoints( num: Int ) {
       atomic { implicit tx =>
-         val ps = t.iterator.take( num )
+         val ps = t.iterator.take( num ).toList // toList !! otherwise we may end up with a crippled iterator
+//println( ps )
          ps.foreach( t -= _ )
       }
    }

@@ -88,9 +88,28 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
 
    def isEmpty( implicit tx: S#Tx ) : Boolean
 
+   /**
+    * Converts the tree into a linearized indexed sequence. This is not necessarily a
+    * very efficient method, and should usually just be used for debugging.
+    */
    def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ]
+   /**
+    * Converts the tree into a linearized list. This is not necessarily a
+    * very efficient method, and should usually just be used for debugging.
+    */
    def toList( implicit tx: S#Tx ) : List[ A ]
+   /**
+    * Converts the tree into a linearized sequence. This is not necessarily a
+    * very efficient method, and should usually just be used for debugging.
+    * To avoid surprises, this does not call `iterator.toSeq` because that would
+    * produce a `Stream` and thus subject to further changes to the tree while
+    * traversing. The returned seq instead is 'forced' and thus stable.
+    */
    def toSeq(  implicit tx: S#Tx ) : Seq[  A ]
+   /**
+    * Converts the tree into a non-transactional set. This is not necessarily a
+    * very efficient method, and should usually just be used for debugging.
+    */
    def toSet(  implicit tx: S#Tx ) : Set[  A ]
 
    /**
@@ -120,7 +139,10 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    /**
     * An `Iterator` which iterates over the points stored
     * in the octree, using an in-order traversal directed
-    * by the orthant indices of the nodes of the tree
+    * by the orthant indices of the nodes of the tree.
+    *
+    * Great care has to be taken as the iterator might be corrupted if the tree
+    * is successively changed before the iterator is exhausted.
     */
    def iterator( implicit tx: S#Tx ) : Iterator[ A ]
 

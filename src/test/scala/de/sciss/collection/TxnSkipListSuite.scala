@@ -51,7 +51,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    if( INMEMORY ) withSys( "Mem", () => new InMemory, (_: InMemory) => () )
    if( DATABASE ) {
       withSys[ BerkeleyDB ]( "BDB", () => {
-         val dir     = File.createTempFile( "tree", "_database" )
+         val dir     = File.createTempFile( "skiplist", "_database" )
          dir.delete()
          dir.mkdir()
          val f       = new File( dir, "data" )
