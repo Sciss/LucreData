@@ -264,6 +264,7 @@ object DeterministicSkipOctree {
                   } else disposeBranch( c.asBranch )
                }
             i += 1 }
+            b.dispose()
          }
 
          while( t ne null ) {
