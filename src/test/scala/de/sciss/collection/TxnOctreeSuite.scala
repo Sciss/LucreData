@@ -46,6 +46,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
       withSys[ InMemory ]( "Mem", () => new InMemory, _ => () )
    }
    if( DATABASE ) {
+//BerkeleyDB.DB_CONSOLE_LOG_LEVEL = "ALL"
       withSys[ BerkeleyDB ]( "BDB", () => {
          val dir     = File.createTempFile( "octree", "_database" )
          dir.delete()
@@ -54,7 +55,12 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
          println( f.getAbsolutePath )
          BerkeleyDB.open( f )
       }, bdb => {
-         println( "FINAL DB SIZE = " + bdb.numUserRecords )
+         val sz = bdb.numUserRecords
+         println( "FINAL DB SIZE = " + sz )
+         if( sz > 0 ) {
+            val left = bdb.atomic { implicit tx => bdb.debugListUserRecords() }
+            left.foreach( println )
+         }
          bdb.close()
       })
    }
