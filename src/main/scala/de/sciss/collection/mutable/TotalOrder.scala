@@ -41,7 +41,7 @@ package de.sciss.collection.mutable
  * Original note: "Due to rebalancing on the integer tags used to maintain order,
  * the amortized time per insertion in an n-item list is O(log n)."
  */
-object TotalOrder extends /* SeqFactory[ TotalOrder ] */ {
+object TotalOrder /* extends SeqFactory[ TotalOrder ] */ {
 //   type Tag = Int // Long
 
 //   class Record[ T ]( private[ TotalOrder ] var v: Tag ) {
@@ -333,6 +333,6 @@ sealed trait TotalOrder
          base    &= mask
          thresh  *= mul
       } while( mask != 0 )
-      throw new RuntimeException( "label overflow" )
+      sys.error( "label overflow" )
    }
 }

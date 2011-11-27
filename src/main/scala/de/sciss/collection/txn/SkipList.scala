@@ -26,23 +26,11 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{Serializer, Sys}
+import de.sciss.lucrestm.{Mutable, Serializer, Sys}
 
 object SkipList {
-   def empty[ S <: Sys[ S ], A ]( implicit ord: Ordering[ A ], m: MaxKey[ A ], mf: Manifest[ A ],
+   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ], mf: Manifest[ A ],
                                   serKey: Serializer[ A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
-
-//   private type CC[ A ] = SkipList[ A ]
-//   private type Coll = CC[ _ ]
-//
-//   implicit def canBuildFrom[ A : Ordering : MaxKey ] : CanBuildFrom[ Coll, A, CC[ A ]] = new SkipListCanBuildFrom
-//
-//   private class SkipListCanBuildFrom[ A : Ordering : MaxKey ] extends CanBuildFrom[ Coll, A, CC[ A ]] {
-//      def apply( from: Coll ) = newBuilder[ A ]
-//      def apply() = newBuilder[ A ]
-//   }
-//
-//   def newBuilder[ A : Ordering : MaxKey ]: MBuilder[ A, CC[ A ]] = new MSetBuilder( empty[ A ])
 
    /**
     * A trait for observing the promotion and demotion of a key
@@ -52,26 +40,29 @@ object SkipList {
     * undo the specialization?? you could one otherwise pass in
     * NoKeyObserver to a SkipList[ Int ]?
     */
-   trait KeyObserver[ S <: Sys[ S ], @specialized( Int, Long ) -A ] {
+   trait KeyObserver[ -Tx, @specialized( Int, Long ) -A ] {
       /**
        * Notifies the observer that a given key
        * is promoted to a higher (more sparse) level
        */
-      def keyUp( key : A )( implicit tx: S#Tx ) : Unit
+      def keyUp( key : A )( implicit tx: Tx ) : Unit
       /**
        * Notifies the observer that a given key
        * is demoted to a lower (more dense) level
        */
-      def keyDown( key : A )( implicit tx: S#Tx ) : Unit
+      def keyDown( key : A )( implicit tx: Tx ) : Unit
    }
 
-   def NoKeyObserver[ S <: Sys[ S ], A ] : KeyObserver[ S, A ] = new NoKeyObserver[ S, A ]
-   private final class NoKeyObserver[ S <: Sys[ S ], A ] extends KeyObserver[ S, A ] {
-      def keyUp( key : A )( implicit tx: S#Tx ) {}
-      def keyDown( key : A )( implicit tx: S#Tx ) {}
+   // Note: We could also have `object NoKeyObserver extends KeyObserver[ Any, Any ]` if
+   // `A` was made contravariant, too. But I guess we would end up in boxing since
+   // that wouldn't be specialized any more?
+   def NoKeyObserver[ A ] : KeyObserver[ Any, A ] = new NoKeyObserver[ A ]
+   private final class NoKeyObserver[ A ] extends KeyObserver[ Any, A ] {
+      def keyUp( key : A )( implicit tx: Any ) {}
+      def keyDown( key : A )( implicit tx: Any ) {}
    }
 }
-trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
+trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S ] {
 //   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
 
    def system: S
@@ -138,18 +129,18 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] {
     */
    def size( implicit tx: S#Tx ) : Int
 
-   /**
-    * The 'maximum' key. In the ordering of the skip list,
-    * no is allowed to be greater or equal to this maximum key.
-    */
-   def maxKey : A
-
-   implicit def maxKeyHolder : MaxKey[ A ] // = MaxKey( maxKey )
+//   /**
+//    * The 'maximum' key. In the ordering of the skip list,
+//    * no is allowed to be greater or equal to this maximum key.
+//    */
+//   def maxKey : A
+//
+//   implicit def maxKeyHolder : MaxKey[ A ] // = MaxKey( maxKey )
 
    /**
     * The ordering used for the keys of this list.
     */
-   implicit def ordering : de.sciss.collection.Ordering[ A ]
+   implicit def ordering : Ordering[ S#Tx, A ]
 
    /**
     * The minimum gap within elements of each skip level

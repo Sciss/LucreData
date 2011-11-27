@@ -39,7 +39,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
 
    def headTree: QNode
    def lastTree: QNode
-   def pointView : A => D#Point
+   def pointView : A => D#PointLike
 
    def hyperCube : D#HyperCube
 
@@ -52,11 +52,11 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     */
    def numOrthants : Int
 
-   def get( point: D#Point ) : Option[ A ]
+   def get( point: D#PointLike ) : Option[ A ]
 //   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
-   def isDefinedAt( point: D#Point ) : Boolean
+   def isDefinedAt( point: D#PointLike ) : Boolean
 
-   def removeAt( point: D#Point ) : Option[ A ]
+   def removeAt( point: D#PointLike ) : Option[ A ]
 
    /**
     * Adds an element to the tree
@@ -94,9 +94,9 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-   def nearestNeighbor[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : A
+   def nearestNeighbor[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ]) : A
 
-   def nearestNeighborOption[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : Option[ A ]
+   def nearestNeighborOption[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ]) : Option[ A ]
 
    /**
     * An `Iterator` which iterates over the points stored

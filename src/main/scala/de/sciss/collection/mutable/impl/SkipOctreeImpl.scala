@@ -57,7 +57,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       oldLeaf != null
    }
 
-   final def removeAt( point: D#Point ) : Option[ A ] = {
+   final def removeAt( point: D#PointLike ) : Option[ A ] = {
       val oldLeaf = removeLeaf( point )
       if( oldLeaf == null ) None else Some( oldLeaf.value )
    }
@@ -74,23 +74,23 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       if( l == null ) false else l.value == elem
    }
 
-   final override def isDefinedAt( point: D#Point ) : Boolean = {
+   final override def isDefinedAt( point: D#PointLike ) : Boolean = {
       if( !hyperCube.contains( point )) return false
       findLeaf( point ) != null
    }
 
-   final def get( point: D#Point ) : Option[ A ] = {
+   final def get( point: D#PointLike ) : Option[ A ] = {
       if( !hyperCube.contains( point )) return None
       val l = findLeaf( point )
       if( l == null ) None else Some( l.value )
    }
 
-   final override def nearestNeighbor[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : A = {
+   final override def nearestNeighbor[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ]) : A = {
       val res = new NN( point, metric ).find
       if( res != null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
    }
 
-   final def nearestNeighborOption[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) : Option[ A ] = {
+   final def nearestNeighborOption[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ]) : Option[ A ] = {
       val res = new NN( point, metric ).find
       if( res != null ) Some( res.value ) else None
    }
@@ -119,8 +119,8 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
    final def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) : Iterator[ A ] = new RangeQuery( qs )
 
    protected def insertLeaf( elem: A ) : QLeaf
-   protected def removeLeaf( point: D#Point ) : QLeaf
-   protected def findLeaf( point: D#Point ) : QLeaf
+   protected def removeLeaf( point: D#PointLike ) : QLeaf
+   protected def findLeaf( point: D#PointLike ) : QLeaf
 
    private final class RangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) extends Iterator[ A ] {
       val stabbing      = MQueue.empty[ (QNode, Area) ]  // Tuple2 is specialized for Long, too!
@@ -244,7 +244,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       }}
    }
 
-   private final class NN[ @specialized( Long ) M ]( point: D#Point, metric: DistanceMeasure[ M, D ]) {
+   private final class NN[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ]) {
       private var bestLeaf: QLeaf     = null
       private var bestDist            = metric.maxValue // Long.MaxValue   // all distances here are squared!
       private val pri                 = PriorityQueue.empty[ VisitedNode ]

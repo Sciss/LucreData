@@ -28,11 +28,13 @@ package de.sciss.collection.obsolete
 import scala.collection.breakOut
 import java.awt.EventQueue
 import javax.swing.{BoxLayout, JComponent, WindowConstants, JFrame}
-import de.sciss.collection.geom.{DistanceMeasure2D, Point2DLike, Square, Point2D}
 import de.sciss.collection.view.{PDFSupport, SkipQuadtreeView}
 import de.sciss.collection.mutable.{RandomizedSkipOctree, DeterministicSkipQuadtree, RandomizedSkipQuadtree, SkipQuadtree}
+import de.sciss.collection.geom.{Space, DistanceMeasure2D, Square, Point2D}
 
 object QuadtreeTest extends App {
+   import Space.TwoDim._
+
    args.headOption match {
       case Some( "-fig1" ) => new Figure1
       case Some( "-fig2" ) => new Figure2
@@ -73,10 +75,10 @@ Options:
       )
       lazy val quad0 = Square( center.x, center.y, extent )
 
-      if( doRun ) EventQueue.invokeLater( this )
+      if( shouldRun ) EventQueue.invokeLater( this )
 
       def views : Seq[ JComponent ]
-      def doRun = true
+      def shouldRun = true
 
       def run() {
          val f    = new JFrame( "Quadtrees" )
@@ -85,10 +87,10 @@ Options:
          val vs   = views
          cp.setLayout( new BoxLayout( cp, BoxLayout.X_AXIS ))
          vs.foreach( cp.add( _ ))
+         PDFSupport.addMenu( f, vs )
          f.pack()
          f.setLocationRelativeTo( null )
          f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-         PDFSupport.addMenu( f, vs )
 
          f.setVisible( true )
       }
@@ -96,7 +98,7 @@ Options:
 
    class Figure1 extends Figure {
       def views = {
-         val map: Map[ Point2DLike, Unit ]  = points1.map( p => p -> () )( breakOut )
+         val map: Map[ Point, Unit ]  = points1.map( p => p -> () )( breakOut )
          val t    = Quadtree.fromMap( center, extent, map )
          val v    = new UncompressedQuadtreeView( t )
 
@@ -121,7 +123,7 @@ Options:
 //         val cv   = new CompressedQuadtreeView( ct )
 //         Seq( cv )
 
-         val rt   = RandomizedSkipQuadtree[ Point2DLike ]( quad0 )( map.toSeq: _* )
+         val rt   = RandomizedSkipQuadtree[ Point ]( quad0 )( map.toSeq: _* )
 //         @tailrec def add( no: Option[ rt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
 //            no match {
 //               case None => vs
@@ -142,35 +144,35 @@ Options:
       assert( ord == List(Point2D(488,  8), Point2D(504, 24), Point2D(216,296), Point2D(200,312), Point2D(240,304),
                           Point2D( 80,410), Point2D(400,332), Point2D(424,368), Point2D(300,460), Point2D(272,496)) )
 
-      override val doRun = false
+      override val shouldRun = false
       def views = Nil
    }
 
    class Test2 extends Figure {
       def views = {
-         val map = points2.toIndexedSeq
-         val map2 = map ++ IndexedSeq(
-            Point2D(279,  4) -> (),
-            Point2D( 75,361) -> (),
-            Point2D(195,308) -> (),
-            Point2D(170,129) -> (),
-            Point2D(374,425) -> (),
-            Point2D(326,158) -> (),
-            Point2D(320,146) -> (),
-            Point2D( 53,129) -> (),
-            Point2D(481, 90) -> (),
-            Point2D(504,503) -> (),
-            Point2D(123,310) -> (),
-            Point2D( 11,  0) -> (),
-            Point2D(493,288) -> (),
-            Point2D(305,400) -> (),
-            Point2D(210,  7) -> (),
-            Point2D(281, 59) -> (),
-            Point2D( 65,188) -> (),
-            Point2D(140,160) -> (),
-            Point2D(450, 11) -> (),
-            Point2D(397,500) -> ()
-         )
+//         val map = points2.toIndexedSeq
+//         val map2 = map ++ IndexedSeq(
+//            Point2D(279,  4) -> (),
+//            Point2D( 75,361) -> (),
+//            Point2D(195,308) -> (),
+//            Point2D(170,129) -> (),
+//            Point2D(374,425) -> (),
+//            Point2D(326,158) -> (),
+//            Point2D(320,146) -> (),
+//            Point2D( 53,129) -> (),
+//            Point2D(481, 90) -> (),
+//            Point2D(504,503) -> (),
+//            Point2D(123,310) -> (),
+//            Point2D( 11,  0) -> (),
+//            Point2D(493,288) -> (),
+//            Point2D(305,400) -> (),
+//            Point2D(210,  7) -> (),
+//            Point2D(281, 59) -> (),
+//            Point2D( 65,188) -> (),
+//            Point2D(140,160) -> (),
+//            Point2D(450, 11) -> (),
+//            Point2D(397,500) -> ()
+//         )
 
          val rnd     = new util.Random( 0 )
 //         val set3    = /* map2.map(_._1).toSet ++ */ IndexedSeq.fill( 10000 )( Point2D( rnd.nextInt( 512 ), rnd.nextInt( 512 ))).toSet
@@ -178,52 +180,52 @@ Options:
                                                        (math.log( rnd.nextDouble() * 8886109.0 + 1 ) * 32).toInt )).toSet
          val keys3   = set3.toSeq
 
-         val keys3b  = Seq(
-            Point2D(300,460),
-            Point2D(279,4),
-            Point2D(75,361),
-            Point2D(197,313),
-            Point2D(216,296),
-            Point2D(272,496),
-            Point2D(170,129),
-            Point2D(374,425),
-            Point2D(424,368),
-            Point2D(429,211),
-            Point2D(375,291),
-            Point2D(326,158),
-            Point2D(195,308),
-            Point2D(320,146),
-            Point2D(269,371),
-            Point2D(382,502),
-            Point2D(53,129),
-            Point2D(240,304),
-            Point2D(504,24),
-            Point2D(481,90),
-            Point2D(504,503),
-            Point2D(460,504),
-            Point2D(249,444),
-            Point2D(123,310),
-            Point2D(11,0),
-            Point2D(493,288),
-            Point2D(305,400),
-            Point2D(200,312)
-//            Point2D(210,7)
-//            Point2D(80,410),
-//            Point2D(281,59),
-//            Point2D(507,352),
-//            Point2D(65,188),
-//            Point2D(140,160),
-//            Point2D(450,11)
-//            Point2D(397,500)
-//            Point2D(400,332)
-//            Point2D(488,8)
-//            Point2D(418,6)
-         )
+//         val keys3b  = Seq(
+//            Point2D(300,460),
+//            Point2D(279,4),
+//            Point2D(75,361),
+//            Point2D(197,313),
+//            Point2D(216,296),
+//            Point2D(272,496),
+//            Point2D(170,129),
+//            Point2D(374,425),
+//            Point2D(424,368),
+//            Point2D(429,211),
+//            Point2D(375,291),
+//            Point2D(326,158),
+//            Point2D(195,308),
+//            Point2D(320,146),
+//            Point2D(269,371),
+//            Point2D(382,502),
+//            Point2D(53,129),
+//            Point2D(240,304),
+//            Point2D(504,24),
+//            Point2D(481,90),
+//            Point2D(504,503),
+//            Point2D(460,504),
+//            Point2D(249,444),
+//            Point2D(123,310),
+//            Point2D(11,0),
+//            Point2D(493,288),
+//            Point2D(305,400),
+//            Point2D(200,312)
+////            Point2D(210,7)
+////            Point2D(80,410),
+////            Point2D(281,59),
+////            Point2D(507,352),
+////            Point2D(65,188),
+////            Point2D(140,160),
+////            Point2D(450,11)
+////            Point2D(397,500)
+////            Point2D(400,332)
+////            Point2D(488,8)
+////            Point2D(418,6)
+//         )
 
          val seq3    = keys3 // .map( _ -> () )
 //println( keys3 )
 
-         val dt   = DeterministicSkipQuadtree[ Point2DLike ]( quad0 )( seq3: _* )
+         val dt   = DeterministicSkipQuadtree[ Point ]( quad0 )( seq3: _* )
 //         dt += Point2D(397,500) -> ()
 //         dt += Point2D(418,6) -> ()
 //         @tailrec def add( no: Option[ dt.QNode ], vs: List[ JComponent ]) : List[ JComponent ] = {
@@ -234,7 +236,7 @@ Options:
 //         }
 //         add( Some( dt.lastTree ), Nil )
          val v = new SkipQuadtreeView( dt )
-         v.adjustPreferredSize
+         v.adjustPreferredSize()
          v :: Nil
       }
    }
@@ -327,7 +329,7 @@ Options:
          )
          val q = Square( 0x40000000, 0x40000000, 0x40000000 )
 //         RandomizedSkipQuadtree.random.setSeed( 0L )
-         val t = RandomizedSkipQuadtree[ Point2DLike ]( q, coin = RandomizedSkipOctree.Coin( 0L ))( pts: _* )
+         val t = RandomizedSkipQuadtree[ Point ]( q, coin = RandomizedSkipOctree.Coin( 0L ))( pts: _* )
          // query Point2D(1609162490,1507881173), wrong result Point2D(1598649701,1592263107), correct result Point2D(1657161143,1524021651)
          // query Point2D( 310852551,1213007527), wrong result Point2D( 257112136,1084105610), correct result Point2D( 226535009,1195010500)
          val q1   = Point2D(1609162490,1507881173)
@@ -341,7 +343,7 @@ Options:
             v.highlight = Set( /* Point2D(1609162490,1507881173), */ Point2D(1598649701,1592263107), Point2D(1657161143,1524021651) )
          v.scale = 256.0 / 0x40000000
 //         v.gridColor = new Color( 0x00, 0x00, 0x00, 0x30 )
-         v.adjustPreferredSize
+         v.adjustPreferredSize()
          v :: Nil
       }
    }

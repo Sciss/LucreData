@@ -48,10 +48,10 @@
 //      new Impl( maxKey.value, minGap, keyObserver )
 //   }
 //
-//   sealed trait Node[ @specialized( Int, Long ) A ] {
+//   sealed trait Branch[ @specialized( Int, Long ) A ] {
 //      def size( implicit tx: InTxn ) : Int
 //      def key( i: Int )( implicit tx: InTxn ) : A // Int
-//      def down( i: Int )( implicit tx: InTxn ) : Node[ A ]
+//      def down( i: Int )( implicit tx: InTxn ) : Branch[ A ]
 //      def isBottom : Boolean // = this eq Bottom
 //   }
 //
@@ -102,7 +102,7 @@
 //         while( iter.hasNext ) b += iter.next()
 //      }
 //
-//      private def leafSizeSum( n: Node[ _ ])( implicit tx: InTxn ) : Int = {
+//      private def leafSizeSum( n: Branch[ _ ])( implicit tx: InTxn ) : Int = {
 //         var res = 0
 //         val sz = n.size
 //         var i = 0; while( i < sz ) {
@@ -148,7 +148,7 @@
 //         i
 //      }
 //
-//      def top( implicit tx: InTxn ) : Node[ A ] = Head.downNode()
+//      def top( implicit tx: InTxn ) : Branch[ A ] = Head.downNode()
 //
 ////      def isomorphicQuery( compare: A => Int ) : A = sys.error( "not yet implemented" )
 //
@@ -440,12 +440,12 @@
 //      }
 //
 //      private final class IteratorImpl extends Iterator[ A ] {
-//         private val xRef        = Ref[ Node[ A ]]( null )
+//         private val xRef        = Ref[ Branch[ A ]]( null )
 //         private val idxRef      = Ref( 0 )
-//         private val stackRef    = Ref( collection.immutable.Stack.empty[ (Int, Node[ A ])])
+//         private val stackRef    = Ref( collection.immutable.Stack.empty[ (Int, Branch[ A ])])
 ////         pushDown( 0, Head )
 //
-//         def pushDown( idx0: Int, n: Node[ A ])( implicit tx: InTxn ) {
+//         def pushDown( idx0: Int, n: Branch[ A ])( implicit tx: InTxn ) {
 //            var pred    = n
 //            var pidx    = idx0
 //            var dn      = pred.down( pidx )
@@ -486,7 +486,7 @@
 //         }
 //      }
 //
-//      private sealed trait NodeImpl extends Node[ A ] {
+//      private sealed trait NodeImpl extends Branch[ A ] {
 //         override def down( i: Int )( implicit tx: InTxn ) : NodeImpl
 //
 //         /**
@@ -589,5 +589,5 @@
 //   }
 //}
 //sealed trait HASkipList[ @specialized( Int, Long ) A ] extends SkipList[ A ] {
-//   def top( implicit tx: InTxn ) : HASkipList.Node[ A ]
+//   def top( implicit tx: InTxn ) : HASkipList.Branch[ A ]
 //}

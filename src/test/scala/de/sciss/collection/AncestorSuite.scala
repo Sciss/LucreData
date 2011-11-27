@@ -3,6 +3,7 @@ package de.sciss.collection
 import geom.{DistanceMeasure2D, Point2D, Square, Point2DLike}
 import mutable.{HASkipList, RandomizedSkipOctree, DeterministicSkipOctree, DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
+import de.sciss.lucrestm.Writer
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -40,7 +41,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : V
 
-      trait VertexLike extends Point2DLike {
+      trait VertexLike extends Point2DLike /* with Writer */ {
          def value: A
          def pre: preOrder.Entry
          def post: postOrder.Entry

@@ -29,28 +29,39 @@ package view
 import java.awt.event.{ActionListener, ActionEvent}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
 import javax.swing.{Box, JLabel, SwingConstants, WindowConstants, JFrame, JTextField, JButton, JPanel}
-import concurrent.stm.ccstm.CCSTM
-import concurrent.stm.{TxnExecutor, InTxn}
 import java.io.File
 import de.sciss.lucrestm.{BerkeleyDB, Sys, InMemory}
 
 /**
- * Simple GUI app to probe the txn.HASkipList interactively.
- */
+* Simple GUI app to probe the txn.HASkipList interactively.
+*/
 object InteractiveTxnSkipListView extends App with Runnable {
    EventQueue.invokeLater( this )
    def run() {
-      val iv = args.headOption match {
-         case Some( "--db" ) =>
-            val dir     = File.createTempFile( "tree", "_database" )
-            dir.delete()
-            dir.mkdir()
-            val f       = new File( dir, "data" )
-            println( f.getAbsolutePath )
-            new InteractiveTxnSkipListView[ BerkeleyDB ]( BerkeleyDB.open( f ))
+      val a = args.headOption.getOrElse( "" )
+      val iv = if( a.startsWith( "--db" )) {
+         val dir     = if( a == "--dbtmp" ) {
+            File.createTempFile( "skiplist", "_database" )
+         } else {
+            new File( sys.props( "user.home" ), "skiplist_database" )
+         }
+         dir.delete()
+         dir.mkdir()
+         val f       = new File( dir, "data" )
+         println( f.getAbsolutePath )
+         implicit val system = BerkeleyDB.open( f )
+         new InteractiveTxnSkipListView[ BerkeleyDB ]( obs => system.atomic { implicit tx =>
+            implicit val reader = txn.HASkipList.reader[ BerkeleyDB, Int ]( obs )
+            system.root[ txn.HASkipList[ BerkeleyDB, Int ]] {
+               txn.HASkipList.empty[ BerkeleyDB, Int ]( minGap = 1, keyObserver = obs )
+            }
+         })
 
-         case _ =>
-            new InteractiveTxnSkipListView[ InMemory ]( new InMemory )
+      } else {
+         implicit val system = new InMemory
+         new InteractiveTxnSkipListView[ InMemory ]( obs => system.atomic { implicit tx =>
+            txn.HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = obs )
+         })
       }
 
       val f    = new JFrame( "SkipList" )
@@ -66,18 +77,19 @@ object InteractiveTxnSkipListView extends App with Runnable {
       f.setVisible( true )
    }
 }
-class InteractiveTxnSkipListView[ S <: Sys[ S ]]( val system: S )
-extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S, Int ] {
+class InteractiveTxnSkipListView[ S <: Sys[ S ]]( _create: txn.SkipList.KeyObserver[ S#Tx, Int ] => txn.HASkipList[ S, Int ])
+extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S#Tx, Int ] {
    view =>
 
    private val rnd   = new util.Random( 1L )
    private var obsUp = IndexedSeq.empty[ Int ]
    private var obsDn = IndexedSeq.empty[ Int ]
 
-   val l = {
-      implicit val sys = system
-      txn.HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = view )
-   }
+//   val l = {
+//      implicit val sys = system
+//      sys.atomic { implicit tx => txn.HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = view )}
+//   }
+   val l = _create( this )
    val slv = new TxnHASkipListView( l )
 
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
@@ -112,7 +124,7 @@ extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S, Int ] {
    def butAddRemove( name: String )( fun: (S#Tx, Int) => Boolean ) { but( name ) { tryNum { i =>
       obsUp = IndexedSeq.empty
       obsDn = IndexedSeq.empty
-      val res = system.atomic( tx => fun( tx, i ))
+      val res = l.system.atomic( tx => fun( tx, i ))
       status( res.toString )
       slv.highlight = (obsUp.map( _ -> colrGreen ) ++ obsDn.map( _ -> Color.red )).toMap + (i -> Color.blue)
    }}}
@@ -129,7 +141,7 @@ extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S, Int ] {
    }
 
    but( "Contains" ) { tryNum { key =>
-      val res = system.atomic { implicit tx => l.contains( key )}
+      val res = l.system.atomic { implicit tx => l.contains( key )}
       status( res.toString )
       slv.highlight = Map( key -> Color.blue )
    }}
@@ -141,8 +153,9 @@ extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S, Int ] {
       obsUp = IndexedSeq.empty
       obsDn = IndexedSeq.empty
       val ps = Seq.fill( num )( rnd.nextInt( 100 ))
+println( ps )
       status( ps.lastOption.map( _.toString ).getOrElse( "" ))
-      system.atomic { implicit tx =>
+      l.system.atomic { implicit tx =>
          ps.foreach( l add _ )
       }
       slv.highlight = (obsUp.map( _ -> colrGreen ) ++ obsDn.map( _ -> Color.red ) ++ ps.map( _ -> Color.blue )).toMap
@@ -150,6 +163,11 @@ extends JPanel( new BorderLayout() ) with txn.SkipList.KeyObserver[ S, Int ] {
 
    but( "Add 1x" )  { addRandom(  1 )}
    but( "Add 10x" ) { addRandom( 10 )}
+
+   space()
+   but( "Print List" ) {
+      println( l.system.atomic( implicit tx => l.toList ))
+   }
 
    p.add( ggStatus )
    add( p, BorderLayout.SOUTH )

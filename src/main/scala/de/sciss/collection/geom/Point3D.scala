@@ -25,7 +25,9 @@
 
 package de.sciss.collection.geom
 
-trait Point3DLike /* extends PointLike[ Space.ThreeDim ] */ {
+trait Point3DLike {
+   import Space.ThreeDim._
+
    def x: Int
    def y: Int
    def z: Int
@@ -35,7 +37,7 @@ trait Point3DLike /* extends PointLike[ Space.ThreeDim ] */ {
 //   final override def right   = x
 //   final override def bottom  = y
 
-   def distanceSq( that: Point3DLike ) : BigInt = {
+   def distanceSq( that: PointLike ) : BigInt = {
       val dx = that.x.toLong - x.toLong
       val dy = that.y.toLong - y.toLong
       val dz = that.z.toLong - z.toLong

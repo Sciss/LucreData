@@ -31,17 +31,20 @@ import de.sciss.lucrestm.Sys
 
 class TxnHASkipListView[ S <: Sys[ S ], A ]( private val l: txn.HASkipList[ S, A ])
 extends SkipListView[ A ] {
+   import txn.HASkipList.Node
+
    private val stm      = l.system
 
-   private def buildBoxMap( n: l.Node )( implicit tx: S#Tx ) : (Box, NodeBox) = {
-      val keys = IndexedSeq.tabulate( n.size ) { i =>
+   private def buildBoxMap( n: Node[ S, A ], isRight: Boolean )( implicit tx: S#Tx ) : (Box, NodeBox) = {
+      val sz   = n.size
+      val szm  = sz - 1
+      val keys = IndexedSeq.tabulate( sz ) { i =>
          val key     = n.key( i )
-         (key, (if( key == Int.MaxValue ) "M" else key.toString))
+         (key, if( isRight && i == szm ) "M" else key.toString)
       }
-      val chbo = n match {
-         case _: l.Leaf => None
-         case nb: l.Branch =>
-            Some( IndexedSeq.tabulate( n.size )( i => buildBoxMap( nb.down( i ))))
+      val chbo = if( n.isLeaf ) None else {
+         val nb = n.asBranch
+         Some( IndexedSeq.tabulate( sz )( i => buildBoxMap( nb.down( i ), isRight && (i == szm) )))
       }
       val b    = NodeBox( n, keys, chbo.map( _.map( _._2 )))
       val bb   = chbo match {
@@ -58,8 +61,8 @@ extends SkipListView[ A ] {
    protected def paintList( g2: Graphics2D ) {
       stm.atomic { implicit tx =>
          l.top match {
-            case n: l.Node =>
-               val (bb, nb) = buildBoxMap( n )
+            case Some( n ) =>
+               val (bb, nb) = buildBoxMap( n, true )
                bb.moveTo( 0, 0 )
                drawNode( g2, nb )
             case _ =>
@@ -84,7 +87,7 @@ extends SkipListView[ A ] {
       for( i <- 0 until b.keys.size ) {
          val x1 = x + (i * 23)
          val (key, keyStr) = b.keys( i )
-         g2.setColor( highlight.getOrElse( key, Color.black ))
+         g2.setColor( if( keyStr != "M" ) highlight.getOrElse( key, Color.black ) else Color.black )
          g2.drawString( keyStr, x1 + 4, y + 17 )
          b.downs.foreach { downs =>
             drawNode( g2, downs( i ), Some( new Point( x1 + 11, y + 36 )))
@@ -129,13 +132,10 @@ extends SkipListView[ A ] {
       }
    }
 
-   private final case class NodeBox( n: l.Node, keys: IndexedSeq[ (A, String) ], downs: Option[ IndexedSeq[ NodeBox ]])
+   private final case class NodeBox( n: Node[ S, A ], keys: IndexedSeq[ (A, String) ], downs: Option[ IndexedSeq[ NodeBox ]])
    extends Box {
       r.width  = 23 * (l.maxGap + 1) + 1
-      r.height = n match {
-         case _: l.Leaf => 23
-         case _ => 46
-      }
+      r.height = if( n.isLeaf ) 23 else 46
 
       def updateChildren() {}
    }

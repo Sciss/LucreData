@@ -58,7 +58,7 @@ trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
    /**
     * Calculates the distance between two points.
     */
-   def distance( a: D#Point, b: D#Point ) : M
+   def distance( a: D#PointLike, b: D#PointLike ) : M
 
    /**
     * Calculates the minimum distance between a point and
@@ -67,7 +67,7 @@ trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
     * is closest to the point `a`, if `a` lies outside of `b`,
     * or zero, if `a` lies within `b`.
     */
-   def minDistance( a: D#Point, b: D#HyperCube ) : M
+   def minDistance( a: D#PointLike, b: D#HyperCube ) : M
 
    /**
     * Calculates the maximum distance between a point and
@@ -76,7 +76,7 @@ trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
     * is furthest to the point `a`, no matter whether `a`
     * is contained in `b` or not.
     */
-   def maxDistance( a: D#Point, b: D#HyperCube ) : M
+   def maxDistance( a: D#PointLike, b: D#HyperCube ) : M
 
    /**
     * Applies a filter to this measure by constraining distances

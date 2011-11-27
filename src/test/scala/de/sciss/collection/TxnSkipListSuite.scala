@@ -26,6 +26,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val NUM1          = 0x040000  // 0x200000
    val NUM2          = 0x020000  // 0x100000
 
+   require( NUM1 >= 1 && NUM2 >= 6 )
+
    // small
    val NUM3          = 10
 
@@ -34,31 +36,33 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    val rnd           = new util.Random( SEED )
 
    def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: S => Unit ) {
-      withList[ S ]( "HA-1 (" + sysName + ")", oo => {
-         implicit val sys = sysCreator()
-         val l = HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )
-         (l, () => sysCleanUp( sys ))
-      })
       if( TWO_GAP_SIZES ) {
-         withList[ S ]( "HA-2 (" + sysName + ")", oo => {
+         withList[ S ]( "HA-1 (" + sysName + ")", oo => {
             implicit val sys = sysCreator()
-            val l = HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )
+            val l = sys.atomic { implicit tx => HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )}
             (l, () => sysCleanUp( sys ))
          })
       }
+      withList[ S ]( "HA-2 (" + sysName + ")", oo => {
+         implicit val sys = sysCreator()
+         val l = sys.atomic { implicit tx => HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )}
+         (l, () => sysCleanUp( sys ))
+      })
    }
 
    if( INMEMORY ) withSys( "Mem", () => new InMemory, (_: InMemory) => () )
    if( DATABASE ) {
       withSys[ BerkeleyDB ]( "BDB", () => {
-         val dir     = File.createTempFile( "tree", "_database" )
+         val dir     = File.createTempFile( "skiplist", "_database" )
          dir.delete()
          dir.mkdir()
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
          BerkeleyDB.open( f )
       }, bdb => {
-         println( "FINAL DB SIZE = " + bdb.numRefs )
+//         println( "FINAL DB SIZE = " + bdb.numUserRecords )
+         val sz = bdb.numUserRecords
+         assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()
       })
    }
@@ -169,7 +173,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
    }
 
    private def withList[ S <: Sys[ S ]]( name: String,
-                                         lf: SkipList.KeyObserver[ S, Int ] => (SkipList[ S, Int ], () => Unit) ) {
+                                         lf: SkipList.KeyObserver[ InTxn, Int ] => (SkipList[ S, Int ], () => Unit) ) {
       def scenarioWithTime( descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
@@ -193,6 +197,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
                   verifyElems( l, s )
                   verifyContainsNot( l, s )
                   verifyAddRemoveAll( l, s )
+                  l.system.atomic { implicit tx => l.dispose() }
                } finally {
                   cleanUp()
                }
@@ -206,7 +211,7 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
             info( "observer monitors key promotions and demotions" )
 
             scenarioWithTime( "Observation is verified on a randomly filled structure" ) {
-               val obs   = new Obs[ S ]
+               val obs   = new Obs
                val (l, cleanUp) = lf( obs )
                try {
                   val s     = randFill2 // randFill3
@@ -260,6 +265,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
                      then( "the number of promotions and demotions for every key is equal" )
                      assert( unbal.isEmpty, unbal.take( 10 ).toString() )
                   }
+                  l.system.atomic { implicit tx => l.dispose() }
+
                } finally {
                   cleanUp()
                }
@@ -268,17 +275,17 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   class Obs[ S <: Sys[ S ]] extends SkipList.KeyObserver[ S, Int ] {
+   final class Obs extends SkipList.KeyObserver[ InTxn, Int ] {
       var allUp = Ref( IntMap.empty[ Int ])
       var allDn = Ref( IntMap.empty[ Int ])
       var oneUp = Ref( IntMap.empty[ Int ])
 
-      def keyUp( key: Int )( implicit tx: S#Tx ) {
+      def keyUp( key: Int )( implicit tx: InTxn ) {
          allUp.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
          oneUp.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
       }
 
-      def keyDown( key: Int )( implicit tx: S#Tx ) {
+      def keyDown( key: Int )( implicit tx: InTxn ) {
          allDn.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
       }
    }

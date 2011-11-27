@@ -58,7 +58,7 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     */
 //   def side : Int //   = extent << 1
 
-   def contains( point: D#Point ) : Boolean
+   def contains( point: D#PointLike ) : Boolean
 
    /**
     * Checks whether a given hyper-cube is fully contained in this hyper-cube.
@@ -74,13 +74,13 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * Calculates the minimum distance to a point in the euclidean metric.
     * This calls `minDistanceSq` and then takes the square root.
     */
-   def minDistance( point: D#Point ) : Double
+   def minDistance( point: D#PointLike ) : Double
 
    /**
     * Calculates the maximum distance to a point in the euclidean metric.
     * This calls `maxDistanceSq` and then takes the square root.
     */
-   def maxDistance( point: D#Point ) : Double
+   def maxDistance( point: D#PointLike ) : Double
 
 //   /**
 //    * The squared euclidean distance of the
@@ -103,7 +103,7 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * @return  the index of the orthant (beginning at 0), or -1 if `point` lies
     *          outside of this hyper-cube.
     */
-   def indexOf( point: D#Point ) : Int
+   def indexOf( point: D#PointLike ) : Int
 
    /**
     * Determines the orthant index of another internal hyper-cube `inner`.
@@ -117,11 +117,11 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * Calculates the greatest interesting hyper-cube inside this hyper-cube which
     * contains both points `a` and `b`, and they occupy distinct orthants.
     */
-   def greatestInteresting( a: D#Point, b: D#Point ) : D#HyperCube
+   def greatestInteresting( a: D#PointLike, b: D#PointLike ) : D#HyperCube
 
    /**
     * Calculates the greatest interesting hyper-cube inside this hyper-cube which
     * contains both hyper-cube `a` and point `b`, and they occupy distinct orthants.
     */
-   def greatestInteresting( a: D#HyperCube, b: D#Point ) : D#HyperCube
+   def greatestInteresting( a: D#HyperCube, b: D#PointLike ) : D#HyperCube
 }

@@ -51,8 +51,8 @@ object LLSkipList {
    private class Impl[ /* @specialized( Int, Long ) */ A ]( val maxKey: A, keyObserver: SkipList.KeyObserver[ A ])
                                                           ( implicit val ordering: de.sciss.collection.Ordering[ A ])
    extends LLSkipList[ A ] {
-      // XXX fucking shit : scala has a specialization bug; we needed to add lazy here when Node was an instance trait of
-      // LLSkipList -- now that we have put Node back into the object, the access error is gone again.
+      // XXX fucking shit : scala has a specialization bug; we needed to add lazy here when Branch was an instance trait of
+      // LLSkipList -- now that we have put Branch back into the object, the access error is gone again.
 
       val bottom = {
          val res     = new NodeImpl

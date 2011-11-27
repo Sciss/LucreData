@@ -58,10 +58,10 @@ object RandomizedSkipOctree {
    }
 
    def empty[ D <: Space[ D ], A ]( space: D, hyperCube: D#HyperCube, coin: Coin = Coin() )
-                                  ( implicit view: A => D#Point ) : SkipOctree[ D, A ] =
+                                  ( implicit view: A => D#PointLike ) : SkipOctree[ D, A ] =
       new TreeImpl[ D, A ]( space, hyperCube, coin, view )
 
-   def apply[ D <: Space[ D ], A <% D#Point ]( space: D, hyperCube: D#HyperCube, coin: Coin = Coin() )
+   def apply[ D <: Space[ D ], A <% D#PointLike ]( space: D, hyperCube: D#HyperCube, coin: Coin = Coin() )
                                              ( xs: A* ) : SkipOctree[ D, A ] = {
       val t = empty[ D, A ]( space, hyperCube, coin )
       xs.foreach( t.+=( _ ))
@@ -69,7 +69,7 @@ object RandomizedSkipOctree {
    }
 
    private final class TreeImpl[ D <: Space[ D ], A ]( val space: D, val hyperCube: D#HyperCube, coin: Coin,
-                                                       val pointView: A => D#Point )
+                                                       val pointView: A => D#PointLike )
    extends impl.SkipOctreeImpl[ D, A ] {
       val numOrthants = 1 << space.dim
       private val headNode = new Node( hyperCube, null, null )
@@ -78,7 +78,7 @@ object RandomizedSkipOctree {
       def headTree: QNode  = headNode
       def lastTree: QNode  = tailVar
 
-      protected def findLeaf( point: D#Point ) : QLeaf = tailVar.findLeaf( point )
+      protected def findLeaf( point: D#PointLike ) : QLeaf = tailVar.findLeaf( point )
 
       protected def insertLeaf( value: A ) : QLeaf = {
          val point = pointView( value )
@@ -112,7 +112,7 @@ object RandomizedSkipOctree {
          l
       }
 
-      protected def removeLeaf( point: D#Point ) : QLeaf = {
+      protected def removeLeaf( point: D#PointLike ) : QLeaf = {
          if( !hyperCube.contains( point )) {
 //println( "wooops " + point )
             return null
@@ -186,7 +186,7 @@ object RandomizedSkipOctree {
 
          def child( idx: Int ) : Child = children( idx )
 
-         def findP0( point: D#Point, ns: MStack[ Node ]) /* : Leaf = */ {
+         def findP0( point: D#PointLike, ns: MStack[ Node ]) /* : Leaf = */ {
             val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
                case n: Node if( n.hyperCube.contains( point )) => n.findP0( point, ns )
@@ -199,7 +199,7 @@ object RandomizedSkipOctree {
             }
          }
 
-         def findLeaf( point: D#Point ) : Leaf = {
+         def findLeaf( point: D#PointLike ) : Leaf = {
             val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
                case n: Node if( n.hyperCube.contains( point )) => n.findLeaf( point )
@@ -210,7 +210,7 @@ object RandomizedSkipOctree {
 
          def findSameHyperCube( iq: D#HyperCube ) : Node = if( hyperCube == iq ) this else parent.findSameHyperCube( iq )
 
-         def remove( point: D#Point ) : Leaf = {
+         def remove( point: D#PointLike ) : Leaf = {
             val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
                case n: Node if( n.hyperCube.contains( point )) => n.remove( point )
@@ -249,7 +249,7 @@ object RandomizedSkipOctree {
           * If a leaf with the given point exists in this node,
           * updates its value accordingly.
           */
-         def update( point: D#Point, value: A ) {
+         def update( point: D#PointLike, value: A ) {
             val qidx = hyperCube.indexOf( point )
             children( qidx ) match {
                case l: Leaf if( pointView( l.value ) == point ) => children( qidx ) = Leaf( value )
@@ -257,7 +257,7 @@ object RandomizedSkipOctree {
             }
          }
 
-         def insert( point: D#Point, value: A, prevP: Node ) : Node = {
+         def insert( point: D#PointLike, value: A, prevP: Node ) : Node = {
             val qidx = hyperCube.indexOf( point )
             val l    = Leaf( value )
             children( qidx ) match {

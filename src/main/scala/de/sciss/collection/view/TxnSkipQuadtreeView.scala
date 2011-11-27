@@ -27,10 +27,12 @@ package de.sciss.collection
 package view
 
 import java.awt.{Color, Dimension}
-import mutable.SkipQuadtree
-import geom.Point2DLike
+import geom.Space
+import de.sciss.lucrestm.Sys
 
-class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
+class TxnSkipQuadtreeView[ S <: Sys[ S ], A ]( t: txn.DeterministicSkipOctree[ S, Space.TwoDim, A ]) extends QuadView {
+//   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.TwoDim, A ]
+
    var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
    private var scaleVar = 1.0
@@ -49,7 +51,7 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
    }
 
    def adjustPreferredSize() {
-      setPrefSz( t.numLevels )
+      setPrefSz( t.system.atomic { implicit tx => t.numLevels })
    }
 
    protected def draw( h: QuadView.PaintHelper ) {
@@ -60,22 +62,21 @@ class SkipQuadtreeView[ A ]( t: SkipQuadtree[ A ]) extends QuadView {
       while( n != null ) {
          draw( h, n )
          h.translate( dx, 0 )
-         n = n.nextOption.orNull
+         n = t.system.atomic { implicit tx => n.nextOption.orNull }
       }
    }
 
-   private def draw( h: QuadView.PaintHelper, quad: t.Q ) {
-      quad match {
-         case n: t.QNode =>
-            for( idx <- 0 until 4 ) {
-               h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
-               draw( h, n.child( idx ))
-            }
-         case _: t.QEmpty =>
-         case l: t.QLeaf =>
-            val v = l.value
-            val p = t.pointView( v )
-            h.drawPoint( p, highlight.contains( v ))
+   private def draw( h: QuadView.PaintHelper, quad: t.Child ) {
+      if( quad != null ) {
+         quad match {
+            case l: t.Leaf =>
+               h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
+            case n: t.Branch =>
+               for( idx <- 0 until 4 ) {
+                  h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
+                  draw( h, t.system.atomic { implicit tx => n.child( idx )})
+               }
+         }
       }
    }
 }

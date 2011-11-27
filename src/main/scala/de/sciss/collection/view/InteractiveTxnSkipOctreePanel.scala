@@ -1,5 +1,5 @@
 /*
- *  InteractiveSkipOctreePanel.scala
+ *  InteractiveTxnSkipOctreePanel.scala
  *  (TreeTests)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
@@ -27,19 +27,62 @@ package de.sciss.collection
 package view
 
 import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
-import mutable.{DeterministicSkipOctree, RandomizedSkipOctree, SkipOctree, DeterministicSkipQuadtree, RandomizedSkipQuadtree}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
-import geom.{DistanceMeasure3D, Point3D, CubeLike, QueryShape, Cube, Point3DLike, SquareLike, DistanceMeasure2D, Space, DistanceMeasure, Point2D, Point2DLike, Square}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
+import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
+import java.io.File
+import geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, Point2D, Square}
+import Space.TwoDim
 
-object InteractiveSkipOctreePanel extends App with Runnable {
+object InteractiveTxnSkipOctreePanel extends App with Runnable {
    val seed = 0L
 
    EventQueue.invokeLater( this )
    def run() {
-      val xs = args.toSeq
-      val mode  = if( xs.contains( "--det" )) Deterministic else Randomized
-      val model = if( xs.contains( "--3d" )) new Model3D( mode ) else new Model2D( mode )
+      val a = args.headOption.getOrElse( "" )
+
+//      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
+//         system.atomic { implicit tx =>
+////         if( xs.contains( "--3d" )) {
+////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, Point3DLike ](
+////               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
+////            new Model3D[ InMemory ]( tree )
+////         } else {
+//            import txn.geom.Space.{Point2DSerializer, SquareSerializer}
+//
+//         }
+//      }
+
+      import txn.geom.Space.{Point2DSerializer, SquareSerializer}
+
+      val model = if( a.startsWith( "--db" )) {
+         val dir     = if( a == "--dbtmp" ) {
+            File.createTempFile( "octree", "_database" )
+         } else {
+            new File( sys.props( "user.home" ), "octree_database" )
+         }
+         dir.delete()
+         dir.mkdir()
+         val f       = new File( dir, "data" )
+         println( f.getAbsolutePath )
+         implicit val system = BerkeleyDB.open( f )
+         system.atomic { implicit tx =>
+            implicit val reader = txn.DeterministicSkipOctree.reader[ BerkeleyDB, TwoDim, Point2D ]
+            val tree = system.root[ txn.DeterministicSkipOctree[ BerkeleyDB, TwoDim, Point2D ]] {
+               txn.DeterministicSkipOctree.empty[ BerkeleyDB, TwoDim, Point2D ](
+                  Square( sz, sz, sz ), skipGap = 1 )
+            }
+            new Model2D[ BerkeleyDB ]( tree )
+         }
+
+      } else {
+         implicit val system = new InMemory
+         system.atomic { implicit tx =>
+            val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
+               Square( sz, sz, sz ), skipGap = 1 )
+            new Model2D[ InMemory ]( tree )
+         }
+      }
 
       val f    = new JFrame( "Skip Octree" )
 //      f.setResizable( false )
@@ -55,36 +98,29 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    private val sz = 256
 
-   private final class Model2D( mode: Mode ) extends Model[ Space.TwoDim, Point2D ] {
-      import Space.TwoDim
-      import TwoDim._
+   private final class Model2D[ S <: Sys[ S ]]( val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ])
+   extends Model[ S, TwoDim, Point2D ] {
+//      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
-      val tree = mode match {
-         case Randomized =>
-            RandomizedSkipQuadtree.empty[    Point ]( Square( sz, sz, sz ))
-         case Deterministic =>
-            DeterministicSkipQuadtree.empty[ Point ]( Square( sz, sz, sz ), skipGap = 1 )
-      }
-
-      def queryShape( sq: HyperCube ) = sq
+      def queryShape( sq: Square ) = sq
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y ) => Point2D( x, y )
       }
-      def coords( p: PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
+      def coords( p: TwoDim#PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
          case IndexedSeq( x, y ) => Square( x, y, ext )
       }
 
       val view = {
-         val res = new SkipQuadtreeView[ Point ]( tree )
+         val res = new TxnSkipQuadtreeView[ S, Point2D ]( tree )
          res.topPainter = Some( topPaint _ )
          res
       }
       def repaint() { view.repaint() }
 //      val baseDistance = DistanceMeasure2D.euclideanSq
 
-      def highlight: Set[ Point ] = view.highlight
-      def highlight_=( points: Set[ Point ]) { view highlight = points }
+      def highlight: Set[ Point2D ] = view.highlight
+      def highlight_=( points: Set[ Point2D ]) { view highlight = points }
 
       val distanceMeasures = IndexedSeq(
          "Euclidean" -> DistanceMeasure2D.euclideanSq,
@@ -92,7 +128,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          "Minimum" -> DistanceMeasure2D.vehsybehc
       )
 
-      var rangeHyperCube = Option.empty[ HyperCube ]
+      var rangeHyperCube = Option.empty[ Square ]
 
       private val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
       private def topPaint( h: QuadView.PaintHelper ) {
@@ -106,55 +142,43 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
 
       def addPDFSupport( f: JFrame ) {
-         PDFSupport.addMenu[ SkipQuadtreeView[ Point ]]( f, view :: Nil, _.adjustPreferredSize() )
+         PDFSupport.addMenu[ TxnSkipQuadtreeView[ S, Point2D ]]( f, view :: Nil, _.adjustPreferredSize() )
       }
    }
 
-   private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim, Point3D ] {
-      import Space.ThreeDim
-      import ThreeDim._
+//   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.ThreeDim, Point3DLike ])
+//   extends Model[ S, Space.ThreeDim ] {
+//
+//      def queryShape( c: CubeLike ) = c
+//      def point( coords: IndexedSeq[ Int ]) = coords match {
+//         case IndexedSeq( x, y, z ) => Point3D( x, y, z )
+//      }
+//      def coords( p: Point3DLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
+//      def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
+//         case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
+//      }
+//
+//      val view = new SkipOctree3DView( tree )
+//      def repaint() { view.treeUpdated() }
+////      val baseDistance = DistanceMeasure3D.euclideanSq
+//      def highlight: Set[ Point3DLike ] = view.highlight
+//      def highlight_=( points: Set[ Point3DLike ]) { view.highlight = points }
+//
+//      val distanceMeasures = IndexedSeq(
+//         "Euclidean" -> DistanceMeasure3D.euclideanSq,
+//         "MaximumXY" -> DistanceMeasure3D.chebyshevXY,
+//         "MinimumXY" -> DistanceMeasure3D.vehsybehcXY
+//      )
+//
+//      var rangeHyperCube = Option.empty[ CubeLike ]
+//
+//      def addPDFSupport( f: JFrame ) {
+//         PDFSupport.addMenu[ JComponent ]( f, view :: Nil, _ => () )
+//      }
+//   }
 
-      val tree = mode match {
-         case Randomized =>
-            RandomizedSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, Cube( sz, sz, sz, sz ))
-         case Deterministic =>
-            DeterministicSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
-      }
-
-      def queryShape( c: HyperCube ) = c
-      def point( coords: IndexedSeq[ Int ]) = coords match {
-         case IndexedSeq( x, y, z ) => Point3D( x, y, z )
-      }
-      def coords( p: PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
-      def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
-         case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
-      }
-
-      val view = new SkipOctree3DView[ Point ]( tree )
-      def repaint() { view.treeUpdated() }
-//      val baseDistance = DistanceMeasure3D.euclideanSq
-      def highlight: Set[ Point ] = view.highlight
-      def highlight_=( points: Set[ Point ]) { view.highlight = points }
-
-      val distanceMeasures = IndexedSeq(
-         "Euclidean" -> DistanceMeasure3D.euclideanSq,
-         "MaximumXY" -> DistanceMeasure3D.chebyshevXY,
-         "MinimumXY" -> DistanceMeasure3D.vehsybehcXY
-      )
-
-      var rangeHyperCube = Option.empty[ HyperCube ]
-
-      def addPDFSupport( f: JFrame ) {
-         PDFSupport.addMenu[ JComponent ]( f, view :: Nil, _ => () )
-      }
-   }
-
-   sealed trait Mode
-   case object Randomized extends Mode
-   case object Deterministic extends Mode
-
-   trait Model[ D <: Space[ D ], Point <: D#PointLike ] {
-      def tree: SkipOctree[ D, Point ]
+   trait Model[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ] {
+      def tree: txn.SkipOctree[ S, D, Point ]
       def view: JComponent
       final def insets: Insets = view.getInsets
       def point( coords: IndexedSeq[ Int ]) : Point
@@ -165,7 +189,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def highlight: Set[ Point ]
       def highlight_=( points: Set[ Point ]) : Unit
       final def pointString( p: D#PointLike ) : String = coords( p ).mkString( "(", "," , ")" )
-      final def newPanel() : InteractiveSkipOctreePanel[ D, Point ] = new InteractiveSkipOctreePanel( this )
+      final def newPanel() : InteractiveTxnSkipOctreePanel[ S, D, Point ] = new InteractiveTxnSkipOctreePanel( this )
       def queryShape( q: D#HyperCube ) : QueryShape[ _, D ]
       def repaint() : Unit
       def rangeHyperCube : Option[ D#HyperCube ]
@@ -179,9 +203,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def addPDFSupport( f: JFrame ) : Unit
    }
 }
-class InteractiveSkipOctreePanel[ D <: Space[ D ], Point <: D#PointLike ]( val model: InteractiveSkipOctreePanel.Model[ D, Point ])
+class InteractiveTxnSkipOctreePanel[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ](
+   val model: InteractiveTxnSkipOctreePanel.Model[ S, D, Point ])
 extends JPanel( new BorderLayout() ) {
-   import InteractiveSkipOctreePanel._
+   import InteractiveTxnSkipOctreePanel._
 
    val t = model.tree
    private val rnd = new util.Random( seed )
@@ -275,19 +300,19 @@ extends JPanel( new BorderLayout() ) {
    }
 
    but( "Dump" ) {
-      println( t.toList )
+      println( atomic { implicit tx => t.toList })
    }
 
    ggCoord.foreach( p.add )
    p.add( ggExt )
 
    private val ggAdd = but( "Add" ) { tryPoint { p =>
-      t += p
+      atomic { implicit tx => t += p }
       model.highlight = Set( p )
    }}
-   private val ggRemove = but( "Remove" ) { tryPoint( t -= _ )}
+   private val ggRemove = but( "Remove" ) { tryPoint( p => atomic( implicit tx => t -= p ))}
    but( "Contains" ) { tryPoint { p =>
-      status( t.contains( p ).toString )
+      status( atomic { implicit tx => t.contains( p )}.toString )
       model.highlight = Set( p )
    }}
 
@@ -296,8 +321,10 @@ extends JPanel( new BorderLayout() ) {
       if( s.isEmpty ) "(empty)" else s
    }
 
+   private def atomic[ Z ]( block: S#Tx => Z ) : Z = t.system.atomic( block )
+
    def findNN() { tryPoint { p =>
-      val set = t.nearestNeighborOption( p, metric = distMeasure ).map( Set( _ )).getOrElse( Set.empty )
+      val set = atomic { implicit tx => t.nearestNeighborOption( p, metric = distMeasure ).map( Set( _ )).getOrElse( Set.empty )}
       model.highlight = set
       status( rangeString( set ))
    }}
@@ -319,7 +346,7 @@ extends JPanel( new BorderLayout() ) {
    but( "NN" )( findNN() )
 
    but( "Range" ) { tryHyperCube { q =>
-      val set = t.rangeQuery( model.queryShape( q )).toSet
+      val set = atomic { implicit tx => t.rangeQuery( model.queryShape( q )).toSet }
       status( rangeString( set.take( 3 )))
       println( rangeString( set ))
    }}
@@ -329,7 +356,7 @@ extends JPanel( new BorderLayout() ) {
 
    private def addPoints( num: Int ) {
       val ps = Seq.fill( num )( model.point( IndexedSeq.fill( t.space.dim )( rnd.nextInt( 512 ))))
-      t ++= ps
+      atomic { implicit tx => ps.foreach( t += _ )}
       model.highlight = ps.toSet
    }
 
@@ -340,7 +367,11 @@ extends JPanel( new BorderLayout() ) {
    label( "In order:" )
 
    private def removePoints( num: Int ) {
-      t --= t.iterator.take( num ).toList
+      atomic { implicit tx =>
+         val ps = t.iterator.take( num ).toList // toList !! otherwise we may end up with a crippled iterator
+//println( ps )
+         ps.foreach( t -= _ )
+      }
    }
 
    but( "Remove 1x" )  {
@@ -351,9 +382,9 @@ extends JPanel( new BorderLayout() ) {
 
    space()
 
-   but( "Consistency" ) {
-      verifyConsistency()
-   }
+//   but( "Consistency" ) {
+//      verifyConsistency()
+//   }
 
    private val ma = new MouseAdapter {
       var drag = Option.empty[ (MouseEvent, Option[ MouseEvent ])]
@@ -377,7 +408,7 @@ extends JPanel( new BorderLayout() ) {
          ggExt.setText( ext.toString )
          tryHyperCube { q =>
             model.rangeHyperCube = Some( q )
-            val set = t.rangeQuery( model.queryShape( q )).toSet
+            val set = atomic { implicit tx => t.rangeQuery( model.queryShape( q )).toSet }
             model.highlight = set
             model.repaint()
             status( rangeString( set.take( 3 )))
@@ -422,55 +453,55 @@ extends JPanel( new BorderLayout() ) {
 //addPoints( 20 )
 //removePoints( 14 )
 
-   def verifyConsistency() {
-      val q = t.hyperCube
-      var h = t.lastTree
-      var curreUnlinkedHyperCubes   = Set.empty[ D#HyperCube ]
-      var currPoints                = Set.empty[ D#PointLike ]
-      var prevs = 0
-      do {
-         assert( h.hyperCube == q, "Root level hyper-cube is " + h.hyperCube + " while it should be " + q + " in level n - " + prevs )
-         val nextUnlinkedQuad2Ds   = curreUnlinkedHyperCubes
-         val nextPoints             = currPoints
-         curreUnlinkedHyperCubes    = Set.empty
-         currPoints                 = Set.empty
-         def checkChildren( n: t.QNode, depth: Int ) {
-            def assertInfo = " in level n-" + prevs + " / depth " + depth
-
-            var i = 0; while( i < t.numOrthants ) {
-               n.child( i ) match {
-                  case c: t.QNode =>
-                     val nq = n.hyperCube.orthant( i )
-                     val cq = c.hyperCube
-                     assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
-                     assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
-                     c.nextOption match {
-                        case Some( next ) =>
-                           assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
-                           assert( next.hyperCube == cq, "Next hyper-cube does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
-                        case None =>
-                           assert( !nextUnlinkedQuad2Ds.contains( cq ), "Double missing link for " + cq + assertInfo )
-                     }
-                     c.prevOption match {
-                        case Some( prev ) =>
-                           assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + assertInfo )
-                           assert( prev.hyperCube == cq, "Next hyper-cube do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
-                        case None => curreUnlinkedHyperCubes += cq
-                     }
-                     checkChildren( c, depth + 1 )
-                  case l: t.QLeaf =>
-                     currPoints += l.value
-                  case _: t.QEmpty =>
-               }
-            i += 1 }
-         }
-         checkChildren( h, 0 )
-         val pointsOnlyInNext    = nextPoints.filterNot( currPoints.contains( _ ))
-         assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + "); in level n-" + prevs )
-         h                       = h.prevOption.orNull
-         prevs += 1
-      } while( h != null )
-
-      println( "Consistency check successful." )
-   }
+//   def verifyConsistency() {
+//      val q = t.hyperCube
+//      var h = t.lastTree
+//      var curreUnlinkedHyperCubes   = Set.empty[ D#HyperCube ]
+//      var currPoints                = Set.empty[ D#Point ]
+//      var prevs = 0
+//      do {
+//         assert( h.hyperCube == q, "Root level hyper-cube is " + h.hyperCube + " while it should be " + q + " in level n - " + prevs )
+//         val nextUnlinkedQuad2Ds   = curreUnlinkedHyperCubes
+//         val nextPoints             = currPoints
+//         curreUnlinkedHyperCubes    = Set.empty
+//         currPoints                 = Set.empty
+//         def checkChildren( n: t.QNode, depth: Int ) {
+//            def assertInfo = " in level n-" + prevs + " / depth " + depth
+//
+//            var i = 0; while( i < t.numOrthants ) {
+//               n.child( i ) match {
+//                  case c: t.QNode =>
+//                     val nq = n.hyperCube.orthant( i )
+//                     val cq = c.hyperCube
+//                     assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
+//                     assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
+//                     c.nextOption match {
+//                        case Some( next ) =>
+//                           assert( next.prevOption == Some( c ), "Asymmetric next link " + cq + assertInfo )
+//                           assert( next.hyperCube == cq, "Next hyper-cube does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
+//                        case None =>
+//                           assert( !nextUnlinkedQuad2Ds.contains( cq ), "Double missing link for " + cq + assertInfo )
+//                     }
+//                     c.prevOption match {
+//                        case Some( prev ) =>
+//                           assert( prev.nextOption == Some( c ), "Asymmetric prev link " + cq + assertInfo )
+//                           assert( prev.hyperCube == cq, "Next hyper-cube do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
+//                        case None => curreUnlinkedHyperCubes += cq
+//                     }
+//                     checkChildren( c, depth + 1 )
+//                  case l: t.QLeaf =>
+//                     currPoints += l.value
+//                  case _: t.QEmpty =>
+//               }
+//            i += 1 }
+//         }
+//         checkChildren( h, 0 )
+//         val pointsOnlyInNext    = nextPoints.filterNot( currPoints.contains( _ ))
+//         assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + "); in level n-" + prevs )
+//         h                       = h.prevOption.orNull
+//         prevs += 1
+//      } while( h != null )
+//
+//      println( "Consistency check successful." )
+//   }
 }

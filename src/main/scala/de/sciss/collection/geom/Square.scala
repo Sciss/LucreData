@@ -25,7 +25,12 @@
 
 package de.sciss.collection.geom
 
+import de.sciss.lucrestm.{DataOutput, Writer}
+
+
 trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.TwoDim ] {
+   import Space.TwoDim._
+
    /**
     * X coordinate of the square's center
     */
@@ -41,33 +46,9 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
     */
    def extent: Int
 
-   def top : Int
-   def left : Int
-   def right : Int
-   def bottom : Int
-
-   def area : Long
-
-   /**
-    * The squared euclidean distance of the
-    * closest of the hyper-cube's corners or sides to the point, if the point is outside the hyper-cube,
-    * or zero, if the point is contained
-    */
-   def minDistanceSq( point: Point2DLike ) : Long
-
-   /**
-    * Calculates the maximum squared euclidean
-    * distance to a point in the euclidean metric.
-    * This is the distance (pow space) to the corner which is the furthest from
-    * the `point`, no matter if it lies within the hyper-cube or not.
-    */
-   def maxDistanceSq( point: Point2DLike ) : Long
-
 //   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : SquareLike
-}
 
-final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
-   def orthant( idx: Int ) : SquareLike = {
+   final def orthant( idx: Int ) : HyperCube = {
       val e = extent >> 1
       idx match {
          case 0 => Square( cx + e, cy - e, e ) // ne
@@ -78,11 +59,8 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
       }
    }
 
-   def top : Int     = cy - extent
-   def left : Int    = cx - extent
-
-//   def width : Int   = extent << 1
-//   def height : Int  = extent << 1
+   final def top : Int     = cy - extent
+   final def left : Int    = cx - extent
 
    /**
     * The bottom is defined as the center y coordinate plus
@@ -92,7 +70,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
     * 31 bit signed int space for a square without resorting
     * to long conversion.
     */
-   override def bottom : Int  = cy + (extent - 1)
+   final def bottom : Int  = cy + (extent - 1)
    /**
     * The right is defined as the center x coordinate plus
     * the extent minus one, it thus designed the 'last pixel'
@@ -101,14 +79,14 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
     * 31 bit signed int space for a square without resorting
     * to long conversion.
     */
-   override def right : Int   = cx + (extent - 1)
+   final def right : Int   = cx + (extent - 1)
 
    /**
     * The side length is two times the extent.
     */
-   def side : Int    = extent << 1
+   final def side : Int    = extent << 1
 
-   def contains( point: Point2DLike ) : Boolean = {
+   final def contains( point: PointLike ) : Boolean = {
       val px = point.x
       val py = point.y
       (left <= px) && (right >= px) && (top <= py) && (bottom >= py)
@@ -118,17 +96,17 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
     * Checks whether a given square is fully contained in this square.
     * This is also the case if their bounds full match.
     */
-   def contains( quad: SquareLike ) : Boolean =
+   final def contains( quad: HyperCube ) : Boolean =
       quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
 
-   def area : Long = {
+   final def area : Long = {
       val sd = side.toLong
       sd * sd
    }
 
    // -- QueryShape --
 
-   def overlapArea( q: SquareLike ) : Long = {
+   final def overlapArea( q: HyperCube ) : Long = {
       val l = math.max( q.left, left ).toLong
       val r = math.min( q.right, right ).toLong
       val w = r - l + 1 // (r - l).toLong + 1
@@ -140,28 +118,28 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
       w * h
    }
 
-   def isAreaGreater( a: SquareLike, b: Long ) : Boolean = a.area > b
+   final def isAreaGreater( a: HyperCube, b: Long ) : Boolean = a.area > b
 
-   def isAreaNonEmpty( area: Long ) : Boolean = area > 0L
+   final def isAreaNonEmpty( area: Long ) : Boolean = area > 0L
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.
     * This calls `minDistanceSq` and then takes the square root.
     */
-   def minDistance( point: Point2DLike ) : Double = math.sqrt( minDistanceSq( point ))
+   final def minDistance( point: PointLike ) : Double = math.sqrt( minDistanceSq( point ))
 
    /**
     * Calculates the maximum distance to a point in the euclidean metric.
     * This calls `maxDistanceSq` and then takes the square root.
     */
-   def maxDistance( point: Point2DLike ) : Double = math.sqrt( maxDistanceSq( point ))
+   final def maxDistance( point: PointLike ) : Double = math.sqrt( maxDistanceSq( point ))
 
    /**
     * The squared (euclidean) distance of the closest of the square's corners
     * or sides to the point, if the point is outside the square,
     * or zero, if the point is contained
     */
-   def minDistanceSq( point: Point2DLike ) : Long = {
+   final def minDistanceSq( point: PointLike ) : Long = {
       val ax   = point.x
       val ay   = point.y
       val em1  = extent - 1
@@ -194,7 +172,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
     * This is the distance (squared) to the corner which is the furthest from
     * the `point`, no matter if it lies within the square or not.
     */
-   def maxDistanceSq( point: Point2DLike ) : Long = {
+   final def maxDistanceSq( point: PointLike ) : Long = {
       val ax   = point.x
       val ay   = point.y
       val em1  = extent - 1
@@ -222,7 +200,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
     * @return  the index of the quadrant (beginning at 0), or -1 if `a` lies
     *          outside of this square.
     */
-   def indexOf( a: Point2DLike ) : Int = {
+   final def indexOf( a: PointLike ) : Int = {
       val ax   = a.x
       val ay   = a.y
       if( ay < cy ) {      // north
@@ -246,7 +224,7 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
     * @return  the index of the quadrant (beginning at 0), or -1 if `aq` lies
     *          outside of this square.
     */
-   def indexOf( aq: SquareLike ) : Int = {
+   final def indexOf( aq: HyperCube ) : Int = {
       val atop = aq.top
       if( atop < cy ) {       // north
          if( top <= atop && aq.bottom < cy ) {
@@ -269,13 +247,12 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
       }
    }
 
-   def greatestInteresting( a: Point2DLike, b: Point2DLike ) : SquareLike =
-      gi( a.x, a.y, 1, b )
+   final def greatestInteresting( a: PointLike, b: PointLike ) : HyperCube = gi( a.x, a.y, 1, b )
 
-   def greatestInteresting( a: SquareLike, b: Point2DLike ) : SquareLike =
+   final def greatestInteresting( a: HyperCube, b: PointLike ) : HyperCube =
       gi( a.left, a.top, a.extent << 1, b )  // a.extent << 1 can exceed 31 bit -- but it seems to work :-/
 
-   private def gi( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : SquareLike = {
+   private def gi( aleft: Int, atop: Int, asize: Int, b: PointLike ) : HyperCube = {
       val tlx = cx - extent
       val tly = cy - extent
       val akx = aleft - tlx
@@ -319,3 +296,5 @@ final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike {
       }
    }
 }
+
+final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike

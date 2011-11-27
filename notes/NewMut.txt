@@ -1,0 +1,88 @@
+trait Identifier {
+
+}
+
+trait Sys[ S <: Sys[ S ]] {
+   type ID <: Identifier
+}
+
+trait Mutable[ S <: Sys[ S ]] {
+   def id: S#ID
+   def write( out: DataOutput ) : Unit
+}
+
+trait Node extends Mutable[ S ] {
+   def id: S#ID
+}
+
+class NodeImpl( val id: S#ID ) extends Node
+
+def newRef[ A <: Mutable[ S ]]( init: A ) : S#Ref[ A ]
+def newMut : S#ID
+
+:::::::::::
+
+note: a `Ref[S] extends Mutable[S]` is the probably condition for allowing 'fluent references'
+
+:::::::::::
+
+system.newNode { implicit f =>
+    val sizeRef = f.newVal[ Int ]( 1 )
+    val root    = f.newNode { implicit f =>
+       ...
+    }
+    val rootRef = f.newRef( root )
+    new Order( f.id, sizeRef, root )
+}
+
+how about
+
+trait Identifier {
+   type Tx
+   type Ref[U] <: SomeRef[Tx,U]
+   def newVal[U] : Ref[U]
+}
+
+system.newNode { implicit id =>
+   val sizeRef = id.newVal[ Int ]( 1 )
+   
+   new Order( id, sizeRef, root )
+}
+
+alternatively, id could be going in some TxnLocal ?
+such that
+
+def newNode[ A ]( block: => A ) : Mutable[ A ] = {
+   val oldID = idLocal.swap( newID )
+   try {
+       val res = block
+       new Mutable( res )
+   } finally {
+      idLocal.set( oldID )
+   }
+}
+
+or
+
+def newNode[ A ] = Builder[ A ]
+
+trait Builder[ A ] {
+   type Tx
+   type Fact <: RefFactory[ Tx ]
+   def apply( block: Fact => A ) : Mutable[ A ] = ...
+}
+
+
+class Order[ ID ]( id: ID, sizeRef: ID#Val[ Int ]) {
+   def size( implicit tx: ID#Tx ) : Int
+}
+
+system.newNode { implicit id =>
+   val sizeRef = id.newVal[ Int ]( 1 )
+   
+   new Order( id, sizeRef, root )
+}
+
+:::
+
+def newNode( implicit tx: S#Txn )( fun: tx.Txn => A ) : Node[ A ]
