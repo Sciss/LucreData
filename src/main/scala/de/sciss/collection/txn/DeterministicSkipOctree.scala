@@ -931,7 +931,7 @@ object DeterministicSkipOctree {
       private[DeterministicSkipOctree] def stopOrder( implicit tx: S#Tx ) : Order[ S ] = order
 
       def shortString = "leaf(" + value + ")"
-      override def toString = "Leaf(" + value + ")"
+      override def toString() = "Leaf(" + value + ")"
 
       private[DeterministicSkipOctree] def removeAndDispose()( implicit tx: S#Tx, impl: Impl[ S, D, A]) {
          import impl.totalOrder
