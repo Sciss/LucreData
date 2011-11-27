@@ -304,6 +304,12 @@ extends SkipOctree[ S, D, A ] {
 
    def numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
 
+//   sealed trait Child
+//
+//   sealed trait Branch extends Child
+//
+//   sealed trait Leaf extends Child
+
    protected def writeData( out: DataOutput ) {
       out.writeUnsignedByte( SER_VERSION )
       hyperSerializer.write( hyperCube, out )
@@ -842,14 +848,14 @@ extends SkipOctree[ S, D, A ] {
    /**
     * A common trait used in pattern matching, comprised of `Leaf` and `LeftChildBranch`.
     */
-   protected sealed trait LeftChild extends LeftNode with Child with Mutable[ S ] {
+   protected sealed trait LeftChild extends LeftNode with ChildImpl with Mutable[ S ] {
       def updateParentLeft( p: LeftBranch )( implicit tx: S#Tx ) : Unit
    }
 
    /**
     * A common trait used in pattern matching, comprised of `Leaf` and `RightChildBranch`.
     */
-   protected sealed trait RightChild extends Child with Mutable[ S ] {
+   protected sealed trait RightChild extends ChildImpl with Mutable[ S ] {
       def updateParentRight( p: RightBranch )( implicit tx: S#Tx ) : Unit
    }
 
@@ -1025,14 +1031,14 @@ extends SkipOctree[ S, D, A ] {
    /**
     * An inner non empty tree element has a mutable parent node.
     */
-   sealed trait Child extends Node {
+   sealed trait ChildImpl extends Node {
       def parent( implicit tx: S#Tx ): BranchImpl
    }
 
    /**
     * Utility trait which elements the rightward search `findPN`.
     */
-   protected sealed trait ChildBranch extends BranchImpl with Child {
+   protected sealed trait ChildBranch extends BranchImpl with ChildImpl {
       final def findPN( implicit tx: S#Tx ) : RightBranch = {
          val n = next
          if( n eq null ) parent.findPN else n
