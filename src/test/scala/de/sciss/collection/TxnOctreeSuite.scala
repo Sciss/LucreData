@@ -78,10 +78,8 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
       when( "the internals of the structure are checked" )
       then( "they should be consistent with the underlying algorithm" )
 
-      import DeterministicSkipOctree.{Branch}
-
       val q = t.hyperCube
-      var h: Branch[ S, D, D#Point ] = t.system.atomic { implicit tx => t.lastTree }
+      var h: t.Branch = t.system.atomic { implicit tx => t.lastTreeImpl }
       var currUnlinkedOcs  = Set.empty[ D#HyperCube ]
       var currPoints       = Set.empty[ D#PointLike ]
       var prevs = 0
@@ -92,35 +90,35 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
          currUnlinkedOcs      = Set.empty
          currPoints           = Set.empty
 
-         def checkChildren( n: Branch[ S, D, D#Point ], depth: Int )( implicit tx: S#Tx ) {
+         def checkChildren( n: t.Branch, depth: Int )( implicit tx: S#Tx ) {
             def assertInfo = " in level n-" + prevs + " / depth " + depth
 
             var i = 0; while( i < t.numOrthants ) {
                val c = n.child( i )
                if( c != null ) {
-                  if( c.isBranch ) {
-                     val cb = c.asBranch
-                     val nq = n.hyperCube.orthant( i )
-                     val cq = cb.hyperCube
-                     assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
-                     assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
-                     cb.nextOption match {
-                        case Some( next ) =>
-                           assert( next.prevOption == Some( cb ), "Asymmetric next link " + cq + assertInfo )
-                           assert( next.hyperCube == cq, "Next hyper-cube does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
-                        case None =>
-                           assert( !nextUnlinkedOcs.contains( cq ), "Double missing link for " + cq + assertInfo )
-                     }
-                     cb.prevOption match {
-                        case Some( prev ) =>
-                           assert( prev.nextOption == Some( cb ), "Asymmetric prev link " + cq + assertInfo )
-                           assert( prev.hyperCube == cq, "Next hyper-cube do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
-                        case None => currUnlinkedOcs += cq
-                     }
-                     checkChildren( cb, depth + 1 )
-                  } else {
-                     val l = c.asLeaf
-                     currPoints += l.value
+                  c match {
+                     case cb: t.Branch =>
+                        val nq = n.hyperCube.orthant( i )
+                        val cq = cb.hyperCube
+                        assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
+                        assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
+                        cb.nextOption match {
+                           case Some( next ) =>
+                              assert( next.prevOption == Some( cb ), "Asymmetric next link " + cq + assertInfo )
+                              assert( next.hyperCube == cq, "Next hyper-cube does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
+                           case None =>
+                              assert( !nextUnlinkedOcs.contains( cq ), "Double missing link for " + cq + assertInfo )
+                        }
+                        cb.prevOption match {
+                           case Some( prev ) =>
+                              assert( prev.nextOption == Some( cb ), "Asymmetric prev link " + cq + assertInfo )
+                              assert( prev.hyperCube == cq, "Next hyper-cube do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
+                           case None => currUnlinkedOcs += cq
+                        }
+                        checkChildren( cb, depth + 1 )
+
+                     case l: t.Leaf =>
+                        currPoints += l.value
                   }
                }
             i += 1 }
