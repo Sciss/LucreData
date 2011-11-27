@@ -287,22 +287,37 @@ object DeterministicSkipOctree {
 
       def add( elem: A )( implicit tx: S#Tx ) : Boolean = {
          val oldLeaf = insertLeaf( elem )
-         if( oldLeaf eq null ) true else oldLeaf.value != elem
+         if( oldLeaf eq null ) true else {
+            val res = oldLeaf.value != elem
+            oldLeaf.dispose()
+            res
+         }
       }
 
       def update( elem: A )( implicit tx: S#Tx ) : Option[ A ] = {
          val oldLeaf = insertLeaf( elem )
-         if( oldLeaf eq null ) None else Some( oldLeaf.value )
+         if( oldLeaf eq null ) None else {
+            val res = Some( oldLeaf.value )
+            oldLeaf.dispose()
+            res
+         }
       }
 
       def remove( elem: A )( implicit tx: S#Tx ) : Boolean = {
          val oldLeaf = removeLeaf( pointView( elem ))
-         oldLeaf ne null
+         if( oldLeaf eq null ) false else {
+            oldLeaf.dispose()
+            true
+         }
       }
 
       def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
          val oldLeaf = removeLeaf( point )
-         if( oldLeaf eq null ) None else Some( oldLeaf.value )
+         if( oldLeaf eq null ) None else {
+            val res = Some( oldLeaf.value )
+            oldLeaf.dispose()
+            res
+         }
       }
 
       def contains( elem: A )( implicit tx: S#Tx ) : Boolean = {
@@ -354,12 +369,14 @@ object DeterministicSkipOctree {
       }
 
       def +=( elem: A )( implicit tx: S#Tx ) : this.type = {
-         insertLeaf( elem )
+         val oldLeaf = insertLeaf( elem )
+         if( oldLeaf ne null ) oldLeaf.dispose()
          this
       }
 
       def -=( elem: A )( implicit tx: S#Tx ) : this.type = {
-         removeLeaf( pointView( elem ))
+         val oldLeaf = removeLeaf( pointView( elem ))
+         if( oldLeaf ne null ) oldLeaf.dispose()
          this
       }
 
@@ -379,6 +396,8 @@ object DeterministicSkipOctree {
          p0.findImmediateLeaf( point )
       }
 
+      // WARNING: if the returned oldLeaf is defined, the caller is
+      // responsible for disposing it (after extracting useful information such as its value)
       private def insertLeaf( elem: A )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
          val point   = pointView( elem )
          require( hyperCube.contains( point ), point.toString + " lies out of root hyper-cube " + hyperCube )
@@ -401,6 +420,8 @@ object DeterministicSkipOctree {
          oldLeaf
       }
 
+      // WARNING: if the returned oldLeaf is defined, the caller is
+      // responsible for disposing it (after extracting useful information such as its value)
       private def removeLeaf( point: D#PointLike )( implicit tx: S#Tx ) : Leaf[ S, D, A ] = {
          if( !hyperCube.contains( point )) return null
 
@@ -1544,7 +1565,10 @@ object DeterministicSkipOctree {
 //      def hyperCube = impl.hyperCube
 
       protected def disposeData()( implicit tx: S#Tx ) {
-         prev
+         var i = 0; val sz = children.length; while( i < sz ) {
+            children( i ).dispose()
+         i += 1 }
+         nextRef.dispose()
       }
 
       protected def writeData( out: DataOutput ) {
@@ -1568,16 +1592,16 @@ object DeterministicSkipOctree {
          i += 1 }
 
          // ok, we are the right most tree and the node is empty...
-         dispose()
+         removeAndDispose()
       }
 
-      private[DeterministicSkipOctree] def dispose()( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
+      private def removeAndDispose()( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
          import impl.lastTree
          assert( next eq null )
          assert( lastTree == this )
-         lastTree     = prev
+         lastTree    = prev
          prev.next   = null
-//            prev        = null
+         dispose()
       }
    }
 

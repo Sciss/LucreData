@@ -16,14 +16,14 @@ import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
  * }}
  */
 class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
-   val CONSISTENCY   = false
-   val RANGE_SEARCH  = false
-   val NN_SEARCH     = false
-   val REMOVAL       = false
-   val INMEMORY      = false
+   val CONSISTENCY   = true
+   val RANGE_SEARCH  = true
+   val NN_SEARCH     = true
+   val REMOVAL       = true
+   val INMEMORY      = true
    val DATABASE      = true
 
-   val n             = 6 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )
@@ -55,12 +55,9 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
          println( f.getAbsolutePath )
          BerkeleyDB.open( f )
       }, bdb => {
+//         println( "FINAL DB SIZE = " + bdb.numUserRecords )
          val sz = bdb.numUserRecords
-         println( "FINAL DB SIZE = " + sz )
-         if( sz > 0 ) {
-            val left = bdb.atomic { implicit tx => bdb.debugListUserRecords() }
-            left.foreach( println )
-         }
+         assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()
       })
    }
@@ -170,7 +167,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
       when( "all elements of the independently maintained map are added again to t" )
       val szBefore = t.system.atomic { implicit tx => t.size }
 //println( "BEFORE " + t.system.atomic { implicit tx => t.toList })
-      val newInT   = t.system.atomic { implicit tx => m.filter( e =>
+      val newInT   = t.system.atomic { implicit tx => m.take(1).filter( e =>
          t.update( e ).isEmpty
       )}
 //println( "AFTER " + t.system.atomic { implicit tx => t.toList })
