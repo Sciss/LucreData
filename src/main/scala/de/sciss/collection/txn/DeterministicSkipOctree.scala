@@ -875,7 +875,7 @@ object DeterministicSkipOctree {
       def asBranch : Branch[ S, D, A ]  = opNotSupported
 
       protected def disposeData()( implicit tx: S#Tx ) {
-         // order already disposed...
+         order.dispose()
          parentRef.dispose()
       }
 
@@ -912,15 +912,10 @@ object DeterministicSkipOctree {
       def shortString = "leaf(" + value + ")"
       override def toString = "Leaf(" + value + ")"
 
-      private[DeterministicSkipOctree] def dispose()( implicit tx: S#Tx, impl: Impl[ S, D, A]) {
+      private[DeterministicSkipOctree] def removeAndDispose()( implicit tx: S#Tx, impl: Impl[ S, D, A]) {
          import impl.totalOrder
-//         parentVar   = null
-         parentRef.dispose()
-//         system.disposeRef( parentRef )
-//            value       = null.asInstanceOf[ A ]
-
-//         order.remove()
-         totalOrder.removeAndDispose( order )
+         totalOrder.remove( order )
+         dispose()
       }
    }
 
@@ -1280,7 +1275,7 @@ object DeterministicSkipOctree {
          assert( child( qidx ) == leaf, "Internal error - expected leaf not found" )
          updateChild( qidx, null )
          leafRemoved()
-         leaf.dispose()
+         leaf.removeAndDispose()
       }
 
       private[DeterministicSkipOctree] final def insert( point: D#PointLike, value: A )
@@ -1472,7 +1467,7 @@ object DeterministicSkipOctree {
 
       protected def disposeData()( implicit tx: S#Tx ) {
          parentRef.dispose()
-         // startOrder has already been disposed
+         startOrder.dispose()
          var i = 0; val sz = children.length; while( i < sz ) {
             children( i ).dispose()
          i += 1 }
@@ -1494,8 +1489,7 @@ object DeterministicSkipOctree {
       private def removeAndDispose()( implicit tx: S#Tx, impl: Impl[ S, D, A ]) {
          import impl.totalOrder
          assert( next eq null )
-//         startOrder.remove()
-         totalOrder.removeAndDispose( startOrder )
+         totalOrder.remove( startOrder )
          dispose()
       }
 

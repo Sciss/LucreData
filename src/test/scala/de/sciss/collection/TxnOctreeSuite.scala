@@ -23,7 +23,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
    val INMEMORY      = false
    val DATABASE      = true
 
-   val n             = 2 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 6 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )
@@ -270,7 +270,9 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
                if( NN_SEARCH ) verifyNN[ S, BigInt, ThreeDim ]( t, m, pointFun3D, pointFilter3D, euclideanDist3D )
                if( REMOVAL ) verifyAddRemoveAll[ S, ThreeDim ]( t, m )
 
-               t.system.atomic { implicit tx => t.dispose() }
+               t.system.atomic { implicit tx =>
+                  t.dispose()
+               }
 
             } finally {
                cleanUp()

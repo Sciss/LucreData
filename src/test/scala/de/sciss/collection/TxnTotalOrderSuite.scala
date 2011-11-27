@@ -126,13 +126,16 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                when( "the structure is emptied" )
                val sz2 = system.atomic { implicit tx =>
-                  set.foreach( to.removeAndDispose( _ ))
+                  set.foreach( to.remove( _ ))
                   to.size
                }
                then( "the order should have size 1" )
                assert( sz2 == 1, "Size is " + sz2 + " and not 1" )
 
-               system.atomic { implicit tx => to.dispose() }
+               system.atomic { implicit tx =>
+                  set.foreach( _.dispose() )
+                  to.dispose()
+               }
 
             } finally {
                sysCleanUp( system )

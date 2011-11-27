@@ -61,10 +61,10 @@ object TotalOrder {
       private[TotalOrder] def prev( implicit tx: S#Tx ) : Repr
       private[TotalOrder] def next( implicit tx: S#Tx ) : Repr
 
-      /**
-       * Removes and disposes this element from the order.
-       */
-      def dispose()( implicit tx: S#Tx ) : Unit
+//      /**
+//       * Removes and disposes this element from the order.
+//       */
+//      def dispose()( implicit tx: S#Tx ) : Unit
 
 //      /**
 //       * Debugging method: Returns a list of the tags
@@ -335,20 +335,29 @@ object TotalOrder {
          rec
       }
 
-      def removeAndDispose( rec: E )( implicit tx: S#Tx ) {
+      def remove( rec: E )( implicit tx: S#Tx ) {
          val prev   = rec.prev
          val next   = rec.next
          if( prev != null ) prev.nextRef.set( next )
          if( next != null ) next.prevRef.set( prev )
-//         system.disposeRef( rec.tagRef )
-//         system.disposeRef( rec.prevRef )
-//         system.disposeRef( rec.nextRef )
-         rec.dispose()
-//         rec.tagVal.dispose()
-//         rec.prevRef.dispose()
-//         rec.nextRef.dispose()
+//         rec.dispose()
          sizeVal.transform( _ - 1 )
       }
+
+//      def removeAndDispose( rec: E )( implicit tx: S#Tx ) {
+//         val prev   = rec.prev
+//         val next   = rec.next
+//         if( prev != null ) prev.nextRef.set( next )
+//         if( next != null ) next.prevRef.set( prev )
+////         system.disposeRef( rec.tagRef )
+////         system.disposeRef( rec.prevRef )
+////         system.disposeRef( rec.nextRef )
+//         rec.dispose()
+////         rec.tagVal.dispose()
+////         rec.prevRef.dispose()
+////         rec.nextRef.dispose()
+//         sizeVal.transform( _ - 1 )
+//      }
    }
 
 ////         /**
@@ -398,7 +407,8 @@ object TotalOrder {
       private type E = Set.Entry[ S ]
       def insertAfter(  e: E )( implicit tx: S#Tx ) : E
       def insertBefore( e: E )( implicit tx: S#Tx ) : E
-      def removeAndDispose( e: E )( implicit tx: S#Tx ) : Unit
+      def remove( e: E )( implicit tx: S#Tx ) : Unit
+//      def removeAndDispose( e: E )( implicit tx: S#Tx ) : Unit
    }
 //   type Assoc[ S <: Sys[ S ], A ]   = TotalOrder[ S, AssocEntry[ S, A ]]
 
