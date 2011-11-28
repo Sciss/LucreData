@@ -26,7 +26,7 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
+import de.sciss.lucrestm.{MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
 
 
 /**
@@ -65,36 +65,43 @@ object TotalOrder {
          new SetNew( system.newID, system.newInt( 1 ))
       }
 
-//      def reader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, _ /* Set.Entry[ S ]*/] = NoRelabelObserver )
-//                                ( implicit system: S ) : MutableReader[ S, Set[ S ]] =
-//         new SetReader[ S ]( relabelObserver )
+      def reader[ S <: Sys[ S ]] /* ( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]] = NoRelabelObserver ) */
+                                ( implicit system: S ) : MutableReader[ S, Set[ S ]] =
+         new SetReader[ S ] // ( relabelObserver )
    }
 
-//   private final class SetReader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, _ /*Set.Entry[ S ]*/])
-//                                                ( implicit system: S )
-//   extends MutableReader[ S, Set[ S ]] {
-//      def readData( in: DataInput, id: S#ID ) : Set[ S ] = {
-//         val version = in.readUnsignedByte()
-//         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-//            ", required " + SER_VERSION + ")." )
-//         val sizeVal = system.readInt( in )
-//
-//         new SetImpl[ S ]( id, relabelObserver, sizeVal, { implicit impl =>
-////            system.readOptionMut[ SetEOpt[ S ]]( in )
-//            system.readMut[ Set.Entry[ S ]]( in )( impl.RootReader )
-//         })
-//      }
-//   }
+   private final class SetReader[ S <: Sys[ S ]] /* ( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]]) */
+                                                ( implicit system: S )
+   extends MutableReader[ S, Set[ S ]] {
+      def readData( in: DataInput, id: S#ID ) : Set[ S ] = {
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+         val sizeVal = system.readInt( in )
+
+         new SetRead[ S ]( id, sizeVal, in )
+      }
+   }
+
+   private final class SetRead[ S <: Sys[ S ]]( val id: S#ID, protected val sizeVal: S#Val[ Int ], in: DataInput )
+                                              ( implicit val system: S ) extends Set[ S ] {
+
+      val root = system.readMut[ Entry ]( in )( EntryReader )
+   }
 
    private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, protected val sizeVal: S#Val[ Int ])
                                              ( implicit tx: S#Tx, val system: S ) extends Set[ S ] {
       val root: Entry = {
          val tagVal  = system.newInt( 0 )
-         val prevRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryReader )
-         val nextRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryReader )
+         val prevRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryOptionReader )
+         val nextRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryOptionReader )
          new Entry( system.newID, tagVal, prevRef, nextRef )
       }
    }
+
+//   private sealed trait SetImpl[ S <: Sys[ S ]] extends Set[ S ] with MutableReader[ S, Set[ S ]#Entry ] {
+//      def readEntry( in: DataInput ) : Entry = system.readMut[ Entry ]( in )( this )
+//   }
 
    sealed trait Set[ S <: Sys[ S ]] extends Mutable[ S ] /* extends TotalOrder[ S ] */ /* with Reader[ Set[ S ]#E ] */ {
       protected type EOpt = EntryOption with MutableOption[ S ]
@@ -104,17 +111,22 @@ object TotalOrder {
       def system: S
       def root: Entry
 
-      protected implicit object EntryReader extends MutableOptionReader[ S, EOpt ] {
-         def read( in: DataInput ) : EOpt = system.readOptionMut[ EOpt ]( in )
+      final def readEntry( in: DataInput ) : Entry = system.readMut[ Entry ]( in )( EntryReader )
 
-         def empty = EmptyEntry
-
+      protected implicit object EntryReader extends MutableReader[ S, Entry ] {
          def readData( in: DataInput, id: S#ID ) : Entry = {
             val tagVal  = system.readInt( in )
             val prevRef = system.readOptionRef[ EOpt ]( in )
             val nextRef = system.readOptionRef[ EOpt ]( in )
             new Entry( id, tagVal, prevRef, nextRef )
          }
+      }
+
+      protected implicit object EntryOptionReader extends MutableOptionReader[ S, EOpt ] {
+         def read( in: DataInput ) : EOpt = system.readOptionMut[ EOpt ]( in )
+
+         def empty = EmptyEntry
+         def readData( in: DataInput, id: S#ID ) : Entry = EntryReader.readData( in, id )
       }
 
       sealed trait EntryOption {
