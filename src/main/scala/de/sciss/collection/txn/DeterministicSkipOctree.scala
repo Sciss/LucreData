@@ -205,7 +205,6 @@ extends SkipOctree[ S, D, A ] {
       def empty = EmptyValue
       def readData( in: DataInput, id: S#ID ) : LeftChildOption = {
          (in.readUnsignedByte(): @switch) match {
-//            case 0 => null
             case 1 => readLeaf( in, id )
             case 3 => readLeftChildBranch( in, id )
          }
@@ -225,7 +224,6 @@ extends SkipOctree[ S, D, A ] {
       def empty = EmptyValue
       def readData( in: DataInput, id: S#ID ) : RightChildOption = {
          (in.readUnsignedByte(): @switch) match {
-//            case 0 => null
             case 1 => readLeaf( in, id )
             case 5 => readRightChildBranch( in, id )
          }
@@ -244,8 +242,6 @@ extends SkipOctree[ S, D, A ] {
       def empty = EmptyValue
       def readData( in: DataInput, id: S#ID ) : NextOption = {
          (in.readUnsignedByte(): @switch) match {
-//            case 0 => null
-//            case 1 => readLeaf( in, id )
             case 4 => readRightTopBranch( in, id )
             case 5 => readRightChildBranch( in, id )
          }
@@ -280,7 +276,7 @@ extends SkipOctree[ S, D, A ] {
           * The reverse process of `findP0`: Finds the lowest
           * common ancestor interesting node of this node
           * which is also contained in Qi+1. Returns this node
-          * in Qi+1, or null if no such node exists.
+          * in Qi+1, or empty if no such node exists.
           */
          @tailrec def findPN( b: BranchLike ) : NextOption = b match {
             case tb: TopBranch   => tb.next
@@ -361,11 +357,6 @@ extends SkipOctree[ S, D, A ] {
                case b: BranchLike => disposeBranch( b )
                case _ =>
             }
-//            if( c ne null ) {
-//               if( c.isLeaf ) {
-//                  c.asLeaf.dispose()
-//               } else disposeBranch( c.asBranch )
-//            }
          i += 1 }
          b.dispose()
       }
@@ -550,7 +541,7 @@ extends SkipOctree[ S, D, A ] {
    // WARNING: if the returned oldLeaf is defined, the caller is
    // responsible for disposing it (after extracting useful information such as its value)
    private def removeLeafAt( point: D#PointLike )( implicit tx: S#Tx ) : LeafOrEmpty = {
-      if( !hyperCube.contains( point )) return null
+      if( !hyperCube.contains( point )) return EmptyValue
 
       // "To insert or delete a point y into or from S, we first search the
       // quadtree structure to locate y in each Qi ..."
@@ -574,7 +565,7 @@ extends SkipOctree[ S, D, A ] {
     * the given point to an actual leaf.
     *
     * @return  the `Leaf` child in this node associated with the given
-    *          `point`, or `null` if no such leaf exists.
+    *          `point`, or `empty` if no such leaf exists.
     */
    private def findLeafInP0( b: LeftBranch, point: D#PointLike )( implicit tx: S#Tx ) : LeafOrEmpty = {
       val qidx = b.hyperCube.indexOf( point )
@@ -591,7 +582,7 @@ extends SkipOctree[ S, D, A ] {
     * if the "bottom" has been reached, tries to
     * continue in Qi-1.
     *
-    * @return  the node defined by the given search `point`, or `null`
+    * @return  the node defined by the given search `point`, or `empty`
     *          if no such node exists.
     */
    private def findP0( point: D#PointLike )( implicit tx: S#Tx ) : LeftBranch = {
@@ -1053,18 +1044,6 @@ extends SkipOctree[ S, D, A ] {
        */
       def child( idx: Int )( implicit tx: S#Tx ) : ChildOption
 
-//      /**
-//       * Finds to smallest interesting hyper-cube
-//       * in Q0, containing a given point. This method
-//       * traverses downwards into its children, or,
-//       * if the "bottom" has been reached, tries to
-//       * continue in Qi-1.
-//       *
-//       * @return  the node defined by the given search `point`, or `null`
-//       *          if no such node exists.
-//       */
-//      def findP0( point: D#PointLike )( implicit tx: S#Tx ) : LeftBranch
-
       /**
        * Assuming that the given `leaf` is a child of this node,
        * removes the child from this node's children. This method
@@ -1081,7 +1060,7 @@ extends SkipOctree[ S, D, A ] {
 
       /**
        * Returns the corresponding interesting
-       * node in Qi+1, or `null` if no such
+       * node in Qi+1, or `empty` if no such
        * node exists.
        */
       final def next( implicit tx: S#Tx ) : NextOption = nextRef.get
@@ -1095,7 +1074,7 @@ extends SkipOctree[ S, D, A ] {
        * Sets the corresponding interesting
        * node in Qi+1.
        */
-      final def next_=( node: RightBranch )( implicit tx: S#Tx ) {
+      final def next_=( node: NextOption )( implicit tx: S#Tx ) {
          nextRef.set( node )
       }
 
@@ -1111,14 +1090,6 @@ extends SkipOctree[ S, D, A ] {
       }
 
       final def orthantIndexIn( iq: D#HyperCube ) : Int = iq.indexOf( hyperCube )
-
-//      /**
-//       * The reverse process of `findP0`: Finds the lowest
-//       * common ancestor interesting node of this node
-//       * which is also contained in Qi+1. Returns this node
-//       * in Qi+1, or null if no such node exists.
-//       */
-//      def findPN( implicit tx: S#Tx ) : RightBranch
 
       /**
        * Called when a leaf has been removed from the node.
@@ -1156,15 +1127,7 @@ extends SkipOctree[ S, D, A ] {
    /**
     * Utility trait which elements the rightward search `findPN`.
     */
-   protected sealed trait ChildBranch extends BranchLike with NonEmptyChild {
-//      final def findPN( implicit tx: S#Tx ) : RightBranch = {
-//         val n = next
-//         if( n eq null ) parent.findPN else n
-//      }
-   }
-
-//   protected sealed trait Prev
-//   protected sealed trait LeftBranchOption
+   protected sealed trait ChildBranch extends BranchLike with NonEmptyChild
 
    protected sealed trait Next // { def toOption: Option[ RightBranch ]}
    protected type NextOption = Next with MutableOption[ S ]
@@ -1276,7 +1239,7 @@ extends SkipOctree[ S, D, A ] {
       final def demoteLeaf( leaf: LeafImpl )( implicit tx: S#Tx ) {
          val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
-         updateChild( qidx, null )
+         updateChild( qidx, EmptyValue )
 
          @tailrec def findParent( b: BranchLike, idx: Int ) : BranchLike = b.child( idx ) match {
             case sl: LeafImpl if( sl == leaf ) => b
@@ -1322,24 +1285,16 @@ extends SkipOctree[ S, D, A ] {
          step( 0 )
       }
 
-      /**
-       * Note that `prev` will not be called as part of this octree implementation
-       * which smartly distinguishes between left and right nodes. It is merely here
-       * to satisfy the `Branch` interface of `SkipOctree`.
-       */
-      final def prev : BranchLike = null
-
       final def child( idx: Int )( implicit tx: S#Tx ) : LeftChildOption = children( idx ).get
-      final def updateChild( idx: Int, c: LeftNonEmptyChild )( implicit tx: S#Tx ) {
+      final def updateChild( idx: Int, c: LeftChildOption )( implicit tx: S#Tx ) {
          children( idx ).set( c )
       }
 
       final def demoteLeaf( leaf: LeafImpl )( implicit tx: S#Tx ) {
          val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
-//         val sz      = children.length
          assert( child( qidx ) == leaf, "Internal error - expected leaf not found" )
-         updateChild( qidx, null )
+         updateChild( qidx, EmptyValue )
          leafRemoved()
          leaf.removeAndDispose()
       }
@@ -1539,7 +1494,6 @@ extends SkipOctree[ S, D, A ] {
       }
 
       private def removeAndDispose()( implicit tx: S#Tx ) {
-         assert( next eq null )
          startOrder.remove() // totalOrder.remove( startOrder )
          dispose()
       }
@@ -1608,12 +1562,12 @@ extends SkipOctree[ S, D, A ] {
 
       // remove this node if it empty now and right-node tree
       protected def leafRemoved()( implicit tx: S#Tx ) {
-         if( next ne null ) return
+         if( next != EmptyValue ) return
 
          val sz = children.length
          var i = 0; while( i < sz ) {
             val c = child( i )
-            if( c ne null ) return // node not empty, abort the check
+            if( c != EmptyValue ) return // node not empty, abort the check
          i += 1 }
 
          // ok, we are the right most tree and the node is empty...
@@ -1621,10 +1575,9 @@ extends SkipOctree[ S, D, A ] {
       }
 
       private def removeAndDispose()( implicit tx: S#Tx ) {
-         assert( next eq null )
          assert( lastTreeImpl == this )
          lastTreeImpl= prev
-         prev.next   = null
+         prev.next   = EmptyValue
          dispose()
       }
    }
@@ -1674,9 +1627,7 @@ extends SkipOctree[ S, D, A ] {
       }
 
       private def removeAndDispose()( implicit tx: S#Tx ) {
-         assert( next eq null )
-         prev.next   = null
-//            prev        = null
+         prev.next = EmptyValue
          dispose()
       }
 
