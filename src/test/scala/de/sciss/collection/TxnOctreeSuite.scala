@@ -16,7 +16,7 @@ import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 * }}
 */
 class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
-   val CONSISTENCY   = true
+   val CONSISTENCY   = false
    val RANGE_SEARCH  = true
    val NN_SEARCH     = true
    val REMOVAL       = true
@@ -94,32 +94,31 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
             def assertInfo = " in level n-" + prevs + " / depth " + depth
 
             var i = 0; while( i < t.numOrthants ) {
-               val c = n.child( i )
-               if( c != null ) {
-                  c match {
-                     case cb: t.Branch =>
-                        val nq = n.hyperCube.orthant( i )
-                        val cq = cb.hyperCube
-                        assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
-                        assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
-                        cb.nextOption match {
-                           case Some( next ) =>
-                              assert( next.prevOption == Some( cb ), "Asymmetric next link " + cq + assertInfo )
-                              assert( next.hyperCube == cq, "Next hyper-cube does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
-                           case None =>
-                              assert( !nextUnlinkedOcs.contains( cq ), "Double missing link for " + cq + assertInfo )
-                        }
-                        cb.prevOption match {
-                           case Some( prev ) =>
-                              assert( prev.nextOption == Some( cb ), "Asymmetric prev link " + cq + assertInfo )
-                              assert( prev.hyperCube == cq, "Next hyper-cube do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
-                           case None => currUnlinkedOcs += cq
-                        }
-                        checkChildren( cb, depth + 1 )
+               n.child( i ) match {
+                  case cb: t.Branch =>
+                     val nq = n.hyperCube.orthant( i )
+                     val cq = cb.hyperCube
+                     assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
+                     assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
+                     cb.nextOption match {
+                        case Some( next ) =>
+                           assert( next.prevOption == Some( cb ), "Asymmetric next link " + cq + assertInfo )
+                           assert( next.hyperCube == cq, "Next hyper-cube does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
+                        case None =>
+                           assert( !nextUnlinkedOcs.contains( cq ), "Double missing link for " + cq + assertInfo )
+                     }
+                     cb.prevOption match {
+                        case Some( prev ) =>
+                           assert( prev.nextOption == Some( cb ), "Asymmetric prev link " + cq + assertInfo )
+                           assert( prev.hyperCube == cq, "Next hyper-cube do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
+                        case None => currUnlinkedOcs += cq
+                     }
+                     checkChildren( cb, depth + 1 )
 
-                     case l: t.Leaf =>
-                        currPoints += l.value
-                  }
+                  case l: t.Leaf =>
+                     currPoints += l.value
+
+                  case _ =>
                }
             i += 1 }
          }

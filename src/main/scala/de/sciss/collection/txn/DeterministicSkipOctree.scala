@@ -699,7 +699,7 @@ extends SkipOctree[ S, D, A ] {
                   case EmptyValue => cand
                   case next: BranchLike =>
                      next.child( acceptedQidx ) match {
-                        case EmptyValue => cand
+                        case _: LeafOrEmpty => cand
                         case cb: BranchLike =>
                            if( cb.hyperCube != qdn ) cand else findRight( cb, next )
                      }
@@ -884,7 +884,10 @@ extends SkipOctree[ S, D, A ] {
     * stored in a orthant of a branch.
     */
    protected sealed trait NonEmpty /* extends Down with Child */ {
-      def shortString : String
+      protected def shortString : String
+
+      override def toString  = shortString
+
 //      def isEmpty : Boolean
 //      def isLeaf : Boolean
 //      def isBranch : Boolean
@@ -1021,16 +1024,13 @@ extends SkipOctree[ S, D, A ] {
        */
       def stopOrder( implicit tx: S#Tx ) : Order = order
 
-      def shortString = "leaf(" + value + ")"
-      override def toString() = "Leaf(" + value + ")"
+      def shortString = "Leaf(" + value + ")"
 
       def removeAndDispose()( implicit tx: S#Tx ) {
          order.remove() // totalOrder.remove( order )
          dispose()
       }
    }
-
-//   protected sealed trait BranchOption
 
    /**
     * Nodes are defined by a hyperCube area as well as a list of children,
@@ -1080,10 +1080,6 @@ extends SkipOctree[ S, D, A ] {
 
       protected def nextRef: S#Ref[ NextOption ]
 
-//      def prev: BranchLike
-
-//      final def prevOption: Option[ BranchLike ] = Option( prev )
-
       final def union( mq: D#HyperCube, point2: D#PointLike ) = {
          val q = hyperCube
          mq.greatestInteresting( q, point2 )
@@ -1098,12 +1094,8 @@ extends SkipOctree[ S, D, A ] {
        */
       protected def leafRemoved()( implicit tx: S#Tx ) : Unit
 
-      def nodeName : String
-      final def shortString = nodeName + "(" + hyperCube + ")"
-
-//      override def toString = shortString +
-//         Seq.tabulate( numOrthants )( i => child( i ).shortString )
-//            .mkString( " : children = [", ", ", "]" )
+      protected def nodeName : String
+      final protected def shortString = nodeName + "(" + hyperCube + ")"
 
       final def isLeaf  = false
       final def isBranch  = true
@@ -1119,10 +1111,10 @@ extends SkipOctree[ S, D, A ] {
    }
 
    protected sealed trait LeafOrEmpty extends LeftChild
-   //sealed trait LeafOption extends LeftChild with MutableOption[ S ]
-//   protected type LeafOption = LeafOrEmpty with MutableOption[ S ]
 
-   case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with EmptyMutable
+   case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with EmptyMutable {
+      override def toString = "-"
+   }
 
    /**
     * Utility trait which elements the rightward search `findPN`.
@@ -1185,10 +1177,6 @@ extends SkipOctree[ S, D, A ] {
                }
                val pPrev = findInPrev( prev )
 
-//               var pPrev   = prev
-//               while( pPrev.hyperCube != qn2 ) {
-//                  pPrev = pPrev.child( pPrev.hyperCube.indexOf( point )).asBranch
-//               }
                val n2      = newNode( qidx, pPrev, qn2 )
 
                val oidx    = old.orthantIndexIn( qn2 )
@@ -1223,7 +1211,6 @@ extends SkipOctree[ S, D, A ] {
       @inline private def newNode( qidx: Int, prev: BranchLike, iq: D#HyperCube )
                                  ( implicit tx: S#Tx ) : RightChildBranch = {
          val sz         = children.length
-//         val ch         = new Array[ RightChild[ S, D, A ]]( sz )
          val ch         = system.newRefArray[ RightChildOption ]( sz )
          var i = 0; while( i < sz ) {
             ch( i )     = system.newOptionRef[ RightChildOption ]( EmptyValue )
@@ -1242,7 +1229,7 @@ extends SkipOctree[ S, D, A ] {
          updateChild( qidx, EmptyValue )
 
          @tailrec def findParent( b: BranchLike, idx: Int ) : BranchLike = b.child( idx ) match {
-            case sl: LeafImpl if( sl == leaf ) => b
+            case sl: LeafImpl   => assert( sl == leaf ); b
             case cb: BranchLike => findParent( cb, cb.hyperCube.indexOf( point ))
          }
 
@@ -1312,7 +1299,6 @@ extends SkipOctree[ S, D, A ] {
                // create the new node (this adds it to the children!)
                val n2               = newNode( qidx, qn2 )
                val oidx             = old.orthantIndexIn( qn2 )
-   //            n2.children( oidx )  = old
                n2.updateChild( oidx, old )
                val lidx             = qn2.indexOf( point )
                // This is a tricky bit! And a reason
@@ -1324,7 +1310,7 @@ extends SkipOctree[ S, D, A ] {
                // and if so, adjust the parent to point
                // to the new intermediate node `ne`!
                if( old.parent == this ) old.updateParentLeft( n2 )
-               n2.newLeaf( lidx, /* point, */ value )
+               n2.newLeaf( lidx, value )
          }
       }
 
@@ -1399,9 +1385,7 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   protected sealed trait TopBranch extends BranchLike with Mutable[ S ] {
-//      final def findPN( implicit tx: S#Tx ) : RightBranch = next
-   }
+   protected sealed trait TopBranch extends BranchLike with Mutable[ S ]
 
    /*
     * Serialization-id: 2
@@ -1425,7 +1409,7 @@ extends SkipOctree[ S, D, A ] {
       protected def leafRemoved()( implicit tx: S#Tx ) {}
 
       protected def disposeData()( implicit tx: S#Tx ) {
-         // startOrder.dispose() -- no, because tree will call totalOrder.dispose anyway!
+         // startOrder.dispose() -- no, because tree will call totalOrder.dispose anyway, and it was not yet removed!
          var i = 0; val sz = children.length; while( i < sz ) {
             children( i ).dispose()
          i += 1 }
@@ -1442,7 +1426,7 @@ extends SkipOctree[ S, D, A ] {
          nextRef.write( out )
       }
 
-      def nodeName = "top-left"
+      protected def nodeName = "LeftTop"
    }
 
    /*
@@ -1465,7 +1449,7 @@ extends SkipOctree[ S, D, A ] {
                                         protected val children: Array[ S#Ref[ LeftChildOption ]],
                                         protected val nextRef: S#Ref[ NextOption ])
    extends LeftBranch with ChildBranch with LeftNonEmptyChild {
-      def nodeName = "inner-left"
+      protected def nodeName = "LeftInner"
 
       def updateParentLeft( p: LeftBranch )( implicit tx: S#Tx ) { parent = p }
       def parent( implicit tx: S#Tx ) : LeftBranch = parentRef.get
@@ -1502,22 +1486,27 @@ extends SkipOctree[ S, D, A ] {
       // we need to merge upwards
       protected def leafRemoved()( implicit tx: S#Tx ) {
          val sz = children.length
-         @tailrec def findLonely( found: LeftChild, i: Int ) : LeftChild = {
-            if( i == sz ) found else child( i ) match {
-               case n: LeftNonEmptyChild =>
-                  if( found != EmptyValue ) EmptyValue else findLonely( n, i + 1 )
+         @tailrec def removeIfLonely( i: Int ) {
+            if( i < sz ) child( i ) match {
+               case lonely: LeftNonEmptyChild =>
+                  @tailrec def isLonely( j: Int ) : Boolean = {
+                     (j == sz) || (child( j ) match {
+                        case _: RightNonEmptyChild => false
+                        case _ => isLonely( j + 1 )
+                     })
+                  }
+                  if( isLonely( i + 1 )) {
+                     val myIdx = parent.hyperCube.indexOf( hyperCube )
+                     val p = parent
+                     p.updateChild( myIdx, lonely )
+                     if( lonely.parent == this ) lonely.updateParentLeft( p )
+                     removeAndDispose()
+                  }
+
+               case _ => removeIfLonely( i + 1 )
             }
          }
-
-         findLonely( EmptyValue, 0 ) match {
-            case lonely: LeftNonEmptyChild =>
-               val myIdx = parent.hyperCube.indexOf( hyperCube )
-               val p = parent
-               p.updateChild( myIdx, lonely )
-               if( lonely.parent == this ) lonely.updateParentLeft( p )
-               removeAndDispose()
-            case _ =>
-         }
+         removeIfLonely( 0 )
       }
    }
 
@@ -1539,7 +1528,7 @@ extends SkipOctree[ S, D, A ] {
                                        protected val nextRef: S#Ref[ NextOption ])
    extends RightBranch with TopBranch {
 
-      def nodeName = "top-right"
+      protected def nodeName = "RightTop"
 
 //      def hyperCube = impl.hyperCube
 
@@ -1603,7 +1592,7 @@ extends SkipOctree[ S, D, A ] {
                                          protected val nextRef: S#Ref[ NextOption ])
    extends RightBranch with ChildBranch with RightNonEmptyChild {
 
-      def nodeName = "inner-right"
+      protected def nodeName = "RightInner"
 
       def updateParentRight( p: RightBranch )( implicit tx: S#Tx ) { parent = p }
 
@@ -1640,22 +1629,27 @@ extends SkipOctree[ S, D, A ] {
       // we need to merge upwards
       protected def leafRemoved()( implicit tx: S#Tx ) {
          val sz = children.length
-         @tailrec def findLonely( found: RightChild, i: Int ) : RightChild = {
-            if( i == sz ) found else child( i ) match {
-               case n: RightNonEmptyChild =>
-                  if( found != EmptyValue ) EmptyValue else findLonely( n, i + 1 )
+         @tailrec def removeIfLonely( i: Int ) {
+            if( i < sz ) child( i ) match {
+               case lonely: RightNonEmptyChild =>
+                  @tailrec def isLonely( j: Int ) : Boolean = {
+                     (j == sz) || (child( j ) match {
+                        case _: RightNonEmptyChild => false
+                        case _ => isLonely( j + 1 )
+                     })
+                  }
+                  if( isLonely( i + 1 )) {
+                     val myIdx = parent.hyperCube.indexOf( hyperCube )
+                     val p = parent
+                     p.updateChild( myIdx, lonely )
+                     if( lonely.parent == this ) lonely.updateParentRight( p )
+                     removeAndDispose()
+                  }
+
+               case _ => removeIfLonely( i + 1 )
             }
          }
-
-         findLonely( EmptyValue, 0 ) match {
-            case lonely: RightNonEmptyChild =>
-               val myIdx = parent.hyperCube.indexOf( hyperCube )
-               val p = parent
-               p.updateChild( myIdx, lonely )
-               if( lonely.parent == this ) lonely.updateParentRight( p )
-               removeAndDispose()
-            case _ =>
-         }
+         removeIfLonely( 0 )
       }
    }
 }

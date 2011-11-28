@@ -67,16 +67,15 @@ class TxnSkipQuadtreeView[ S <: Sys[ S ], A ]( t: txn.DeterministicSkipOctree[ S
    }
 
    private def draw( h: QuadView.PaintHelper, quad: t.Child ) {
-      if( quad != null ) {
-         quad match {
-            case l: t.Leaf =>
-               h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
-            case n: t.Branch =>
-               for( idx <- 0 until 4 ) {
-                  h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
-                  draw( h, t.system.atomic { implicit tx => n.child( idx )})
-               }
-         }
+      quad match {
+         case l: t.Leaf =>
+            h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
+         case n: t.Branch =>
+            for( idx <- 0 until 4 ) {
+               h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
+               draw( h, t.system.atomic { implicit tx => n.child( idx )})
+            }
+         case _ =>
       }
    }
 }
