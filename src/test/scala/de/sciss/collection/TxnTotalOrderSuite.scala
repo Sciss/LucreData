@@ -2,7 +2,6 @@ package de.sciss.collection
 
 import txn.TotalOrder
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import TotalOrder.{RelabelObserver}
 import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 import java.io.File
 
@@ -17,7 +16,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
    val INMEMORY         = true
    val DATABASE         = true
 
-   val NUM              = 0x10000 // 0x80000  // 0x200000
+   val NUM              = 0x400 // 0x10000 // 0x80000  // 0x200000
    val RND_SEED         = 0L
 
    if( INMEMORY ) {
@@ -59,11 +58,11 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
          scenarioWithTime( "Ordering is verified on a randomly filled " + sysName + " structure" ) {
             given( "a randomly filled structure (" + sysName + ")" )
 
-            type E = TotalOrder.Set.Entry[ S ]
+//            type E = TotalOrder.Set.Entry[ S ]
             implicit val system = sysCreator()
             try {
                val to = system.atomic { implicit tx =>
-                  TotalOrder.Set.empty[ S ]( new RelabelObserver[ S#Tx, E ] {
+                  TotalOrder.Set.empty[ S ] /* ( new RelabelObserver[ S#Tx, E ] {
                      def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
                         if( MONITOR_LABELING ) {
    //                     Txn.afterCommit( _ =>
@@ -73,7 +72,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                      }
 
                      def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {}
-                  })
+                  }) */
                }
                val rnd   = new util.Random( RND_SEED )
                // would be nice to test maximum possible number of labels
@@ -83,13 +82,13 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                val set = system.atomic { implicit tx =>
                   var e = to.root
-                  var coll = Set[ TotalOrder.Set.Entry[ S ]]() // ( e )
+                  var coll = Set[ to.Entry ]() // ( e )
                   for( i <- 1 until n ) {
 //if( (i % 1000) == 0 ) println( "i = " + i )
                      if( rnd.nextBoolean() ) {
-                        e = to.insertAfter( e ) // to.insertAfter( i )
+                        e = e.append() // to.insertAfter( e ) // to.insertAfter( i )
                      } else {
-                        e = to.insertBefore( e ) // e.prepend() // to.insertBefore( i )
+                        e = e.prepend() // to.insertBefore( e ) // e.prepend() // to.insertBefore( i )
                      }
                      coll += e
                   }
@@ -111,12 +110,12 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                val result = system.atomic { implicit tx =>
                   var res   = Set.empty[ Int ]
                   var prev  = to.head
-                  var next  = prev.nextOption.orNull
+                  var next  = prev.next.orNull
                   while( next != null ) {
 //                  res     += prev compare next
                      res    += prev.tag compare next.tag
                      prev    = next
-                     next    = next.nextOption.orNull
+                     next    = next.next.orNull
                   }
                   res
                }
@@ -126,7 +125,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                when( "the structure is emptied" )
                val sz2 = system.atomic { implicit tx =>
-                  set.foreach( to.remove( _ ))
+                  set.foreach( _.remove() )
                   to.size
                }
                then( "the order should have size 1" )

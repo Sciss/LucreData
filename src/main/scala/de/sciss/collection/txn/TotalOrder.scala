@@ -26,8 +26,7 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{EmptyMutable, MutableOptionReader, MutableOption, Reader, MutableReader, Disposable, DataOutput, DataInput, Mutable, Sys}
-import annotation.tailrec
+import de.sciss.lucrestm.{DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
 
 
 /**
@@ -49,94 +48,184 @@ import annotation.tailrec
 object TotalOrder {
    private val SER_VERSION = 0
 
-   sealed trait Entry[ S <: Sys[ S ], Repr ] extends Disposable[ S#Tx ] with Mutable[ S ] {
-      def tag( implicit tx: S#Tx ) : Int
+//   trait RelabelObserver[ -Tx, -E ] {
+//      def beforeRelabeling( first: E, num: Int )( implicit tx: Tx ) : Unit
+//      def afterRelabeling(  first: E, num: Int )( implicit tx: Tx ) : Unit
+//   }
+//
+//   object NoRelabelObserver extends RelabelObserver[ Any, Any ] {
+//      def beforeRelabeling( first: Any, num: Int )( implicit tx: Any ) {}
+//      def afterRelabeling(  first: Any, num: Int )( implicit tx: Any ) {}
+//   }
 
-      def prevOption( implicit tx: S#Tx ) : Option[ Repr ]
-      def nextOption( implicit tx: S#Tx ) : Option[ Repr ]
+//   private type EOption[ S <: Sys[ S ]] = Set.EntryOption[ S ] with MutableOption[ S ]
 
-      private[TotalOrder] def tagVal  : S#Val[ Int ]
+   object Set {
+      def empty[ S <: Sys[ S ]]( implicit tx: S#Tx, system: S ) : Set[ S ] = {
+         new SetNew( system.newID, system.newInt( 1 ))
+      }
 
-//      /**
-//       * Removes and disposes this element from the order.
-//       */
-//      def dispose()( implicit tx: S#Tx ) : Unit
-
-//      /**
-//       * Debugging method: Returns a list of the tags
-//       * from this entry to the end of the list
-//       */
-//      def tagList( implicit tx: S#Tx ) : List[ Int ]
+//      def reader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, _ /* Set.Entry[ S ]*/] = NoRelabelObserver )
+//                                ( implicit system: S ) : MutableReader[ S, Set[ S ]] =
+//         new SetReader[ S ]( relabelObserver )
    }
 
-   sealed trait AssocEntry[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Entry[ S, AssocEntry[ S, A ]] {
-      /**
-       * Returns the 'payload' of the node.
-       */
-      def value( implicit tx: S#Tx ) : A
-//      /**
-//       * Inserts a new element after this node.
-//       *
-//       * @param   a  the 'payload' for the new node
-//       */
-//      def append( value: A )( implicit tx: S#Tx ) : AssocEntry[ S, A ]
-//      /**
-//       * Inserts a new element before this node.
-//       *
-//       * @param   a  the 'payload' for the new node
-//       */
-//      def prepend( value: A )( implicit tx: S#Tx ) : AssocEntry[ S, A ]
+//   private final class SetReader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, _ /*Set.Entry[ S ]*/])
+//                                                ( implicit system: S )
+//   extends MutableReader[ S, Set[ S ]] {
+//      def readData( in: DataInput, id: S#ID ) : Set[ S ] = {
+//         val version = in.readUnsignedByte()
+//         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+//            ", required " + SER_VERSION + ")." )
+//         val sizeVal = system.readInt( in )
+//
+//         new SetImpl[ S ]( id, relabelObserver, sizeVal, { implicit impl =>
+////            system.readOptionMut[ SetEOpt[ S ]]( in )
+//            system.readMut[ Set.Entry[ S ]]( in )( impl.RootReader )
+//         })
+//      }
+//   }
+
+   private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, protected val sizeVal: S#Val[ Int ])
+                                             ( implicit tx: S#Tx, val system: S ) extends Set[ S ] {
+      val root: Entry = {
+         val tagVal  = system.newInt( 0 )
+         val prevRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryReader )
+         val nextRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryReader )
+         new Entry( system.newID, tagVal, prevRef, nextRef )
+      }
    }
 
-   trait RelabelObserver[ -Tx, -E ] {
-      def beforeRelabeling( first: E, num: Int )( implicit tx: Tx ) : Unit
-      def afterRelabeling(  first: E, num: Int )( implicit tx: Tx ) : Unit
-   }
+   sealed trait Set[ S <: Sys[ S ]] extends Mutable[ S ] /* extends TotalOrder[ S ] */ /* with Reader[ Set[ S ]#E ] */ {
+      protected type EOpt = EntryOption with MutableOption[ S ]
 
-   object NoRelabelObserver extends RelabelObserver[ Any, Any ] {
-      def beforeRelabeling( first: Any, num: Int )( implicit tx: Any ) {}
-      def afterRelabeling(  first: Any, num: Int )( implicit tx: Any ) {}
-   }
+      protected def sizeVal: S#Val[ Int ]
+//      protected implicit def optReader: MutableOptionReader[ S, EOpt ]
+      def system: S
+      def root: Entry
 
-   private sealed trait BasicImpl[ S <: Sys[ S ], E <: Set.Entry[ S ]] {
-      me: TotalOrder[ S, E ] =>
+      protected implicit object EntryReader extends MutableOptionReader[ S, EOpt ] {
+         def read( in: DataInput ) : EOpt = system.readOptionMut[ EOpt ]( in )
 
-      protected def sizeVal : S#Val[ Int ]
-      protected def observer : RelabelObserver[ S#Tx, E ]
+         def empty = EmptyEntry
 
-      final def size( implicit tx: S#Tx ) : Int = sizeVal.get
+         def readData( in: DataInput, id: S#ID ) : Entry = {
+            val tagVal  = system.readInt( in )
+            val prevRef = system.readOptionRef[ EOpt ]( in )
+            val nextRef = system.readOptionRef[ EOpt ]( in )
+            new Entry( id, tagVal, prevRef, nextRef )
+         }
+      }
 
-      final def head( implicit tx: S#Tx ) : E = {
-         @tailrec def step( e: E ) : E = {
-            e.prev match {
-               case p: Set.Entry{}
-            }
+      sealed trait EntryOption {
+//         def toOption: Option[ Entry ]
+         def tag( implicit tx: S#Tx ) : Int
+         private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) : Unit
+         private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) : Unit
+         private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
+         def orNull : Entry
+      }
+
+      sealed trait EmptyEntryLike extends EntryOption with EmptyMutable {
+         private[Set] final def updatePrev( e: EOpt )( implicit tx: S#Tx ) {}
+         private[Set] final def updateNext( e: EOpt )( implicit tx: S#Tx ) {}
+         final def orNull : Entry = null
+         private[Set] final def updateTag( value: Int )( implicit tx: S#Tx ) {
+            sys.error( "Internal error - shouldn't be here" )
+         }
+         final def tag( implicit tx: S#Tx ) = Int.MaxValue
+      }
+      case object EmptyEntry extends EmptyEntryLike
+
+      final class Entry private[TotalOrder]( val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Ref[ EOpt ], nextRef: S#Ref[ EOpt ])
+      extends EntryOption with Mutable[ S ] {
+         def tag( implicit tx: S#Tx ) : Int = tagVal.get
+
+         def prev( implicit tx: S#Tx ) : EOpt = prevRef.get
+         def next( implicit tx: S#Tx ) : EOpt = prevRef.get
+         private[Set] def prevOrNull( implicit tx: S#Tx ) : Entry = prevRef.get.orNull
+         private[Set] def nextOrNull( implicit tx: S#Tx ) : Entry = nextRef.get.orNull
+         def orNull : Entry = this
+
+         private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) { prevRef.set( e )}
+         private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) { nextRef.set( e )}
+         private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) { tagVal.set( value )}
+
+         protected def writeData( out: DataOutput ) {
+            tagVal.write( out )
+            prevRef.write( out )
+            nextRef.write( out )
          }
 
-         var e    = root
-         var prev = e.prev
-         while( prev != null ) {
-            e     = prev
-            prev  = prev.prev
+         protected def disposeData()( implicit tx: S#Tx ) {
+            tagVal.dispose()
+            prevRef.dispose()
+            nextRef.dispose()
          }
-         e
+
+         def append()( implicit tx: S#Tx ) : Entry = {
+            val p          = this
+            val n          = next
+            val nextTag    = n.tag // if( next == null ) Int.MaxValue else next.tag
+            val recPrevRef = system.newOptionRef[ EOpt ]( p )
+            val recNextRef = system.newOptionRef[ EOpt ]( n )
+            val prevTag    = p.tag
+            val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
+            val recTagVal  = system.newInt( recTag )
+            val rec        = new Entry( system.newID, recTagVal, recPrevRef, recNextRef )
+            p.updateNext( rec )
+            n.updatePrev( rec )
+            sizeVal.transform( _ + 1 )
+            if( recTag == nextTag ) relabel( rec )
+            rec
+         }
+
+         def prepend()( implicit tx: S#Tx ) : Entry = {
+            val n          = this
+            val p          = n.prev
+            val prevTag    = p.tag
+            val recPrevRef = system.newOptionRef[ EOpt ]( p )
+            val recNextRef = system.newOptionRef[ EOpt ]( n )
+            val nextTag    = n.tag
+            val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
+            val recTagVal  = system.newInt( recTag )
+            val rec        = new Entry( system.newID, recTagVal, recPrevRef, recNextRef )
+            n.updatePrev( rec )
+            p.updateNext( rec )
+            sizeVal.transform( _ + 1 )
+            if( recTag == nextTag ) relabel( rec )
+            rec
+         }
+
+         def remove()( implicit tx: S#Tx ) {
+            val p = prev
+            val n = next
+            p.updateNext( n )
+            n.updatePrev( p )
+            sizeVal.transform( _ - 1 )
+         }
+
+         def removeAndDispose()( implicit tx: S#Tx ) {
+            remove()
+            dispose()
+         }
       }
 
       final protected def disposeData()( implicit tx: S#Tx ) {
          sizeVal.dispose()
          val r = root
-         var m = r.prev
-         while( m != null ) {
+         var m = r.prevOrNull
+         while( m ne null ) {
             val t = m
-            m = m.prev
+            m = m.prevOrNull
             t.dispose()
          }
          m = r
          do {
             val t = m
-            m = m.prev
+            m = m.prevOrNull
             t.dispose()
-         } while( m != null )
+         } while( m ne null )
       }
 
       final protected def writeData( out: DataOutput ) {
@@ -145,12 +234,24 @@ object TotalOrder {
          root.write( out )
       }
 
-      final def tagList( _entry: E )( implicit tx: S#Tx ) : List[ Int ] = {
+      final def size( implicit tx: S#Tx ) : Int = sizeVal.get
+
+      final def head( implicit tx: S#Tx ) : Entry = {
+         var e = root
+         var p = e.prevOrNull
+         while( p ne null ) {
+            e = p
+            p = p.prevOrNull
+         }
+         e
+      }
+
+      final def tagList( from: Entry )( implicit tx: S#Tx ) : List[ Int ] = {
          val b       = List.newBuilder[ Int ]
-         var entry   = _entry
-         while( entry != null ) {
+         var entry   = from
+         while( entry ne null ) {
             b       += entry.tag
-            entry    = entry.next
+            entry    = entry.nextOrNull
          }
          b.result()
       }
@@ -174,7 +275,7 @@ object TotalOrder {
        * multiplier dynamically to allow it to be as large as possible
        * without producing integer overflows."
        */
-      protected final def relabel( _first: E )( implicit tx: S#Tx ) {
+      private def relabel( _first: Entry )( implicit tx: S#Tx ) {
          var mask       = -1
          var thresh     = 1.0
          var num        = 1
@@ -184,16 +285,16 @@ object TotalOrder {
          var last       = _first
          var base       = _first.tag
          do {
-            var prev    = first.prev
+            var prev    = first.prevOrNull
             while( (prev ne null) && ((prev.tag & mask) == base) ) {
                first    = prev
-               prev     = prev.prev
+               prev     = prev.prevOrNull
                num     += 1
             }
-            var next    = last.next
+            var next    = last.nextOrNull
             while( (next ne null) && ((next.tag & mask) == base) ) {
                last     = next
-               next     = next.next
+               next     = next.nextOrNull
                num     += 1
             }
    //         val inc = (mask + 1) / num
@@ -206,7 +307,9 @@ object TotalOrder {
             // will obviously leave the tag unchanged! thus we must add
             // the additional condition that num is greater than 1!
             if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-               observer.beforeRelabeling( first, num )
+//               observer.beforeRelabeling( first, num )
+//sys.error( "TODO" )
+
    //            while( !(item eq last) ) {
                // Note: this was probably a bug in Eppstein's code
                // -- it ran for one iteration less which made
@@ -215,12 +318,13 @@ object TotalOrder {
                // of last in the tag updating.
                next = first
                var cnt = 0; while( cnt < num ) {
-                  next.tagVal.set( base )
-                  next        = next.next
+                  next.updateTag( base )
+                  next        = next.nextOrNull
                   base       += inc
                   cnt        += 1
                }
-               observer.afterRelabeling( first, num )
+//sys.error( "TODO" )
+//               observer.afterRelabeling( first, num )
                return
             }
             mask   <<= 1      // next coarse step
@@ -231,256 +335,55 @@ object TotalOrder {
       }
    }
 
-//   private type SetEOpt[ S ] = Set.Entry[ S ] /* SetEntryOption[ S ] */ with MutableOption[ S ]
-
-   private type EOption[ S <: Sys[ S ]] = Set.EntryOption[ S ] with MutableOption[ S ]
-
-   private final class SetEntryImpl[ S <: Sys[ S ]]( val id: S#ID,
-      private[TotalOrder] val tagVal: S#Val[ Int ],
-      private[TotalOrder] val prevRef: S#Ref[ EOption[ S ]],
-      private[TotalOrder] val nextRef: S#Ref[ EOption[ S ]])
-   extends Set.Entry[ S ] {
-      private type E    = Set.Entry[ S ]
-      private type EOpt = EOption[ S ]
-
-      def toOption = Some[ E ]( this )
-
-      def tag( implicit tx: S#Tx )  : Int = tagVal.get
-      private[TotalOrder] def prev( implicit tx: S#Tx ) : EOpt = prevRef.get
-      private[TotalOrder] def next( implicit tx: S#Tx ) : EOpt = nextRef.get
-      def prevOption( implicit tx: S#Tx ) : Option[ E ]   = prev.toOption
-      def nextOption( implicit tx: S#Tx ) : Option[ E ]   = next.toOption
-
-//      private[TotalOrder] def tag_=( value: Int )( implicit tx: S#Tx ) { tagRef.set( value )}
-//      private[TotalOrder] def prev_=( e: E )( implicit tx: S#Tx ) { prevRef.set( e )}
-//      private[TotalOrder] def next_=( e: E )( implicit tx: S#Tx ) { nextRef.set( e )}
-
-//      def append()(  implicit tx: S#Tx ) : S#Mut[ Set.Entry[ S ]] = impl.append( this )
-//      def prepend()( implicit tx: S#Tx ) : S#Mut[ Set.Entry[ S ]] = impl.prepend( this )
+//   private final class SetImpl[ S <: Sys[ S ]]( val id: S#ID,
+//                                                protected val observer: RelabelObserver[ S#Tx, _ /* Set.Entry[ S ] */ ],
+//                                                protected val sizeVal: S#Val[ Int ] /*, _rootFun: SetImpl[ S ] => Set.Entry[ S ]*/)
+//                                              ( implicit val system: S )
+//   extends Set[ S ] with MutableOptionReader[ S, Set.EntryOption[ S ] with MutableOption[ S ]] {
+//      object RootReader extends MutableReader[ S, Entry ] {
 //
-      protected def writeData( out: DataOutput ) {
-         tagVal.write( out )
-         prevRef.write( out )
-         nextRef.write( out )
-      }
-
-      protected def disposeData()( implicit tx: S#Tx ) {
-//         impl.remove( this )
-         tagVal.dispose()
-         prevRef.dispose()
-         nextRef.dispose()
-      }
-//
-
-//      def tagList( implicit tx: S#Tx ) : List[ Int ] = impl.tagList( this )
-   }
-
-//   private final class AssocEntryViewImpl[ S <: Sys[ S ], @specialized( Int, Long ) A ]( val tag: Int, val value : A,
-//                                                     private[TotalOrder] val prevRef: S#Ref[ AssocEntry.View[ S, A ]],
-//                                                     private[TotalOrder] val nextRef: S#Ref[ AssocEntry.View[ S, A ]])
-//   extends AssocEntry.View[ S, A ] {
-//      def prev( implicit tx: S#Tx ) : AssocEntry.View[ S, A ] = prevRef.get
-//      def next( implicit tx: S#Tx ) : AssocEntry.View[ S, A ] = nextRef.get
-//   }
-//
-//   private final class AssocEntryImpl[ S <: Sys[ S ], @specialized( Int, Long ) A ]( impl: AssocImpl[ S ],
-//                                                                                     ref: S#Ref[ AssocEntry.View[ S, A ]])
-//   extends AssocEntry[ S, A ] {
-//      def append( a: A )(  implicit tx: S#Tx ) : Set.Entry[ S ] = impl.append( this, a )
-//      def prepend( a: A )( implicit tx: S#Tx ) : Set.Entry[ S ] = impl.prepend( this, a )
-//   }
-
-   private final class SetImpl[ S <: Sys[ S ]]( val id: S#ID,
-                                                protected val observer: RelabelObserver[ S#Tx, Set.Entry[ S ]],
-                                                protected val sizeVal: S#Val[ Int ],
-                                                _rootFun: SetImpl[ S ] => Set.Entry[ S ])
-                                              ( implicit val system: S )
-   extends Set[ S ] with BasicImpl[ S, Set.Entry[ S ]]
-   with MutableOptionReader[ S, Set.EntryOption[ S ] with MutableOption[ S ]] {
-      object RootReader extends MutableReader[ S, Set.Entry[ S ]] {
-
-      }
-
-      private type E    = Set.Entry[ S ]
-      private type EOpt = Set.EntryOption[ S ] with MutableOption[ S ]
-
-      val root = _rootFun( this )
-
-      implicit def impl = this
-
-      def read( in: DataInput ) : EOpt = system.readOptionMut[ EOpt ]( in )
-
-      def readData( in: DataInput, id: S#ID ) : E = {
-         val tagVal  = system.readInt( in )
-         val prevRef = system.readOptionRef[ EOpt ]( in )
-         val nextRef = system.readOptionRef[ EOpt ]( in )
-         new SetEntryImpl[ S ]( id, tagVal, prevRef, nextRef )
-      }
-
-      def insertAfter( prev: E )( implicit tx: S#Tx ) : E = {
-         val next       = prev.next
-         val nextTag    = next.tag // if( next == null ) Int.MaxValue else next.tag
-         val recPrevRef = system.newOptionRef[ EOpt ]( prev )
-         val recNextRef = system.newOptionRef[ EOpt ]( next )
-         val prevTag    = prev.tag
-         val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal  = system.newInt( recTag )
-         val rec        = new SetEntryImpl[ S ]( system.newID, recTagVal, recPrevRef, recNextRef )
-//         prev.nextRef.set( rec )
-         prev.updateNext( rec )
-//         if( next != null ) next.prevRef.set( rec )
-         next.updatePrev( rec )
-         sizeVal.transform( _ + 1 )
-         if( recTag == nextTag ) relabel( rec )
-         rec
-      }
-
-      def insertBefore( next: E )( implicit tx: S#Tx ) : E = {
-         val prev       = next.prev
-         val prevTag    = if( prev == null ) 0 else prev.tag
-         val recPrevRef = system.newOptionRef[ EOpt ]( prev )
-         val recNextRef = system.newOptionRef[ EOpt ]( next )
-         val nextTag    = next.tag
-         val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal  = system.newInt( recTag )
-         val rec        = new SetEntryImpl[ S ]( system.newID, recTagVal, recPrevRef, recNextRef )
-//         next.prevRef.set( rec )
-         next.updatePrev( rec )
-//         if( prev != null ) prev.nextRef.set( rec )
-         prev.updateNext( rec )
-         sizeVal.transform( _ + 1 )
-         if( recTag == nextTag ) relabel( rec )
-         rec
-      }
-
-      def remove( rec: E )( implicit tx: S#Tx ) {
-         val prev   = rec.prev
-         val next   = rec.next
-//         if( prev != null ) prev.nextRef.set( next )
-         prev.updateNext( next )
-//         if( next != null ) next.prevRef.set( prev )
-         next.updatePrev( prev )
-//         rec.dispose()
-         sizeVal.transform( _ - 1 )
-      }
-
-//      def removeAndDispose( rec: E )( implicit tx: S#Tx ) {
-//         val prev   = rec.prev
-//         val next   = rec.next
-//         if( prev != null ) prev.nextRef.set( next )
-//         if( next != null ) next.prevRef.set( prev )
-////         system.disposeRef( rec.tagRef )
-////         system.disposeRef( rec.prevRef )
-////         system.disposeRef( rec.nextRef )
-//         rec.dispose()
-////         rec.tagVal.dispose()
-////         rec.prevRef.dispose()
-////         rec.nextRef.dispose()
-//         sizeVal.transform( _ - 1 )
 //      }
-   }
-
-////         /**
-////          * Compares the positions of x and y in the sequence
-////         */
-////         def compare( that: Entry ) : Int = {
-////            val thatTag = that.tag
-////            if( tag < thatTag ) -1 else if( tag > thatTag ) 1 else 0
-////         }
-
-   object Set {
-      private[TotalOrder] case object EmptyEntry
-      extends Set.EntryOption[ Nothing ] with EmptyMutable { def toOption = None }
-
-      sealed trait EntryOption[ +S <: Sys[ S ]] {
-         def toOption: Option[ Set.Entry[ S ]]
-         def tag( implicit tx: S#Tx ) : Int
-         private[TotalOrder] def updatePrev( e: EntryOption[ S ])( implicit tx: S#Tx ) : Unit
-         private[TotalOrder] def updateNext( e: EntryOption[ S ])( implicit tx: S#Tx ) : Unit
-      }
-      sealed trait Entry[ S <: Sys[ S ]] extends TotalOrder.Entry[ S, Set.Entry[ S ]] with EntryOption[ S ] {
-//         private[TotalOrder] def prevRef : S#Ref[ EOption[ S ]]
-//         private[TotalOrder] def nextRef : S#Ref[ EOption[ S ]]
-         private[TotalOrder] def prev( implicit tx: S#Tx ) : EOption[ S ]
-         private[TotalOrder] def next( implicit tx: S#Tx ) : EOption[ S ]
-      }
-
-      def empty[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]] = NoRelabelObserver )
-                               ( implicit tx: S#Tx, system: S ) : Set[ S ] = {
-
-         type E      = Entry[ S ]
-         type EOpt   = EntryOption[ S ] with MutableOption[ S ]
-
-         new SetImpl[ S ]( system.newID, relabelObserver, system.newInt( 1 ), { implicit impl =>
-            val tagVal  = system.newInt( 0 )
-            val prevRef = system.newOptionRef[ EOpt ]( EmptyEntry )
-            val nextRef = system.newOptionRef[ EOpt ]( EmptyEntry )
-            new SetEntryImpl[ S ]( system.newID, tagVal, prevRef, nextRef )
-         })
-      }
-
-      def reader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]] = NoRelabelObserver )
-                                ( implicit system: S ) : MutableReader[ S, Set[ S ]] =
-         new SetReader[ S ]( relabelObserver )
-   }
-
-   private final class SetReader[ S <: Sys[ S ]]( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]])
-                                                ( implicit system: S )
-   extends MutableReader[ S, Set[ S ]] {
-      def readData( in: DataInput, id: S#ID ) : Set[ S ] = {
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
-         val sizeVal = system.readInt( in )
-
-         new SetImpl[ S ]( id, relabelObserver, sizeVal, { implicit impl =>
-//            system.readOptionMut[ SetEOpt[ S ]]( in )
-            system.readMut[ Set.Entry[ S ]]( in )( impl.RootReader )
-         })
-      }
-   }
-
-   sealed trait Set[ S <: Sys[ S ]] extends TotalOrder[ S ] {
-      private type E = Set.Entry[ S ]
-      def insertAfter(  e: E )( implicit tx: S#Tx ) : E
-      def insertBefore( e: E )( implicit tx: S#Tx ) : E
-      def remove( e: E )( implicit tx: S#Tx ) : Unit
-//      def removeAndDispose( e: E )( implicit tx: S#Tx ) : Unit
-   }
-//   type Assoc[ S <: Sys[ S ], A ]   = TotalOrder[ S, AssocEntry[ S, A ]]
-
-//   def emptyAssoc[ S <: Sys[ S ], A ]( relabelObserver: RelabelObserver[ S#Tx, AssocEntry[ S, A ]] = NoRelabelObserver )
-//                                     ( implicit tx: S#Tx, system: S ) : Assoc[ S, A ] = sys.error( "TODO" )
+//
+//      private type EOpt = Set.EntryOption[ S ] with MutableOption[ S ]
+//
+////      val root = _rootFun( this )
+//      val root: Entry = null //XXX
+//
+//      implicit def impl = this
+//
+//      def read( in: DataInput ) : EOpt = system.readOptionMut[ EOpt ]( in )
+//
+//      def readData( in: DataInput, id: S#ID ) : Entry = {
+//         val tagVal  = system.readInt( in )
+//         val prevRef = system.readOptionRef[ EOpt ]( in )
+//         val nextRef = system.readOptionRef[ EOpt ]( in )
+//         new EntryImpl( id, tagVal, prevRef, nextRef )
+//      }
+//   }
 }
-sealed trait TotalOrder[ S <: Sys[ S ]] extends Disposable[ S#Tx ] /* with Reader[ E ] */ with Mutable[ S ] {
-   def system: S
-
-   type E
-
+//sealed trait TotalOrder[ S <: Sys[ S ]] extends Disposable[ S#Tx ] /* with Reader[ E ] */ with Mutable[ S ] {
+//   def system: S
+//
+//   type E
+//
 //   /**
-//    * Return the 'tail' of order, that is, the element which is higher
-//    * than all user elements. It can be used for comparisons.
+//    * The initial element created from which you can start to append and prepend.
 //    */
-//   def max : E // Entry[ S ]
-
-   /**
-    * The initial element created from which you can start to append and prepend.
-    */
-   def root : E // Entry[ S ]
-
-   /**
-    * Returns the head element of the structure. Note that this
-    * is O(n) worst case.
-    */
-   def head( implicit tx: S#Tx ) : E // Entry[ S ]
-
-   /**
-    * The number of elements in the order. This is `1` for a newly
-    * created order (consisting only of the root element).
-    * You will rarely need this information except for debugging
-    * purpose. The operation is O(1).
-    */
-   def size( implicit tx: S#Tx ) : Int
-
-   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int  ]
-}
+//   def root : E // Entry[ S ]
+//
+//   /**
+//    * Returns the head element of the structure. Note that this
+//    * is O(n) worst case.
+//    */
+//   def head( implicit tx: S#Tx ) : E // Entry[ S ]
+//
+//   /**
+//    * The number of elements in the order. This is `1` for a newly
+//    * created order (consisting only of the root element).
+//    * You will rarely need this information except for debugging
+//    * purpose. The operation is O(1).
+//    */
+//   def size( implicit tx: S#Tx ) : Int
+//
+//   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int  ]
+//}

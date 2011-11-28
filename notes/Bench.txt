@@ -1,0 +1,17 @@
+test-only de.sciss.collection.TxnOctreeSuite
+
+27-nov-11
+
+1. run: txn.octree with inner classes
+For Mem the tests took 2.506s
+For BDB the tests took 14.040s
+
+2. run: txn.octree with outer classes
+For Mem the tests took 2.641s
+For BDB the tests took 12.982s
+
+3. run: txn.octree with inner classes
+For Mem the tests took 2.472s
+For BDB the tests took 12.634s
+
+obviously no significant performance diff
