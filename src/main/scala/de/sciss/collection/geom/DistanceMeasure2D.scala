@@ -132,12 +132,12 @@ object DistanceMeasure2D {
    private sealed trait ChebyshevLike extends Impl {
       protected def apply( dx: Long, dy: Long ) : Long
 
-      def distance( a: PointLike, b: PointLike ) = {
+      final def distance( a: PointLike, b: PointLike ) = {
          val dx = math.abs( a.x.toLong - b.x.toLong )
          val dy = math.abs( a.y.toLong - b.y.toLong )
          apply( dx, dy )
       }
-      def minDistance( a: PointLike, q: HyperCube ) : Long = {
+      final def minDistance( a: PointLike, q: HyperCube ) : Long = {
          val px   = a.x
          val py   = a.y
          val l    = q.left
@@ -192,7 +192,7 @@ object DistanceMeasure2D {
          apply( dx, dy )
       }
 
-      def maxDistance( a: PointLike, q: HyperCube ) : Long = {
+      final def maxDistance( a: PointLike, q: HyperCube ) : Long = {
          val px = a.x
          val py = a.y
          if( px < q.cx ) {
@@ -216,6 +216,8 @@ object DistanceMeasure2D {
    }
 
    private sealed trait Impl extends DistanceMeasure[ Long, TwoDim ] {
+      final def manifest : Manifest[ Long ] = Manifest.Long
+
       final def maxValue : Long = Long.MaxValue
       final def isMeasureZero( m: Long ) : Boolean = m == 0L
       final def isMeasureGreater( a: Long, b: Long ) : Boolean = a > b

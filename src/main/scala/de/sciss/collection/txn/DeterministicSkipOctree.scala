@@ -98,8 +98,8 @@ object DeterministicSkipOctree {
          system.readMut[ HASkipList[ S, LeafImpl ]]( in )
       }
       val head = {
-         implicit val r3   = TopLeftBranchReader
-         system.readMut[ TopLeftBranch ]( in )
+         implicit val r3   = LeftTopBranchReader
+         system.readMut[ LeftTopBranch ]( in )
       }
       val lastTreeRef = {
          implicit val r4   = TopBranchReader
@@ -124,13 +124,13 @@ object DeterministicSkipOctree {
       val head = {
          val sz            = numOrthants
          val ch            = system.newRefArray[ LeftChildOption ]( sz )
-         implicit val r1   = LeftChildReader
+         implicit val r1   = LeftChildOptionReader
          var i = 0; while( i < sz ) {
-            ch( i )        = system.newOptionRef[ LeftChildOption ]( EmptyImpl )
+            ch( i )        = system.newOptionRef[ LeftChildOption ]( EmptyValue )
          i += 1 }
-         implicit val r2   = RightBranchReader
-         val headRight     = system.newOptionRef[ RightOption ]( EmptyImpl )
-         new TopLeftBranch( system.newID, hyperCube, totalOrder.root, ch, headRight )
+         implicit val r2   = RightOptionReader
+         val headRight     = system.newOptionRef[ NextOption ]( EmptyValue )
+         new LeftTopBranch( system.newID, hyperCube, totalOrder.root, ch, headRight )
       }
       val lastTreeRef = {
          implicit val r3   = TopBranchReader
@@ -153,7 +153,7 @@ extends SkipOctree[ S, D, A ] {
 
    protected def totalOrder: TotalOrder.Set[ S ]
    protected def skipList: HASkipList[ S, LeafImpl ]
-   protected def head: TopLeftBranch
+   protected def head: LeftTopBranch
    protected def lastTreeRef: S#Ref[ TopBranch ]
 
    implicit protected object LeafOrdering extends Ordering[ S#Tx, LeafImpl ] {
@@ -172,14 +172,10 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   implicit def LeftChildOptionReader : MutableOptionReader[ S, LeftChildOption ] = sys.error( "TODO" )
-   implicit def RightChildOptionReader : MutableOptionReader[ S, RightChildOption ] = sys.error( "TODO" )
-   implicit def RightOptionReader: MutableOptionReader[ S, RightOption ] = sys.error( "TODO" )
-
    implicit protected object RightBranchReader extends MutableReader[ S, RightBranch ] {
       def readData( in: DataInput, id: S#ID ) : RightBranch = {
          (in.readUnsignedByte(): @switch) match {
-            case 4 => readTopRightBranch( in, id )
+            case 4 => readRightTopBranch( in, id )
             case 5 => readRightChildBranch( in, id )
          }
       }
@@ -188,9 +184,9 @@ extends SkipOctree[ S, D, A ] {
    implicit protected object BranchReader extends MutableReader[ S, BranchLike ] {
       def readData( in: DataInput, id: S#ID ) : BranchLike = {
          (in.readUnsignedByte(): @switch) match {
-            case 2 => readTopLeftBranch( in, id )
+            case 2 => readLeftTopBranch( in, id )
             case 3 => readLeftChildBranch( in, id )
-            case 4 => readTopRightBranch( in, id )
+            case 4 => readRightTopBranch( in, id )
             case 5 => readRightChildBranch( in, id )
          }
       }
@@ -199,16 +195,17 @@ extends SkipOctree[ S, D, A ] {
    implicit protected object TopBranchReader extends MutableReader[ S, TopBranch ] {
       def readData( in: DataInput, id: S#ID ) : TopBranch = {
          (in.readUnsignedByte(): @switch) match {
-            case 2 => readTopLeftBranch( in, id )
-            case 4 => readTopRightBranch( in, id )
+            case 2 => readLeftTopBranch( in, id )
+            case 4 => readRightTopBranch( in, id )
          }
       }
    }
 
-   implicit protected object LeftChildReader extends MutableReader[ S, LeftNonEmptyChild ] {
-      def readData( in: DataInput, id: S#ID ) : LeftNonEmptyChild = {
+   implicit protected object LeftChildOptionReader extends MutableOptionReader[ S, LeftChildOption ] {
+      def empty = EmptyValue
+      def readData( in: DataInput, id: S#ID ) : LeftChildOption = {
          (in.readUnsignedByte(): @switch) match {
-            case 0 => null
+//            case 0 => null
             case 1 => readLeaf( in, id )
             case 3 => readLeftChildBranch( in, id )
          }
@@ -218,35 +215,40 @@ extends SkipOctree[ S, D, A ] {
    implicit protected object LeftBranchReader extends MutableReader[ S, LeftBranch ] {
       def readData( in: DataInput, id: S#ID ) : LeftBranch = {
          (in.readUnsignedByte(): @switch) match {
-            case 2 => readTopLeftBranch( in, id )
+            case 2 => readLeftTopBranch( in, id )
             case 3 => readLeftChildBranch( in, id )
          }
       }
    }
 
-   implicit protected object RightChildReader extends MutableReader[ S, RightChild ] {
-      def readData( in: DataInput, id: S#ID ) : RightChild = {
+   implicit protected object RightChildOptionReader extends MutableOptionReader[ S, RightChildOption ] {
+      def empty = EmptyValue
+      def readData( in: DataInput, id: S#ID ) : RightChildOption = {
          (in.readUnsignedByte(): @switch) match {
-            case 0 => null
+//            case 0 => null
             case 1 => readLeaf( in, id )
             case 5 => readRightChildBranch( in, id )
          }
       }
    }
 
-   implicit protected object TopLeftBranchReader extends MutableReader[ S, TopLeftBranch ] {
-      def readData( in: DataInput, id: S#ID ) : TopLeftBranch = {
+   implicit protected object LeftTopBranchReader extends MutableReader[ S, LeftTopBranch ] {
+      def readData( in: DataInput, id: S#ID ) : LeftTopBranch = {
          val b = in.readUnsignedByte()
          require( b == 2, b.toString )
-         readTopLeftBranch( in, id )
+         readLeftTopBranch( in, id )
       }
    }
 
-   implicit protected object TopRightBranchReader extends MutableReader[ S, TopRightBranch ] {
-      def readData( in: DataInput, id: S#ID ) : TopRightBranch = {
-         val b = in.readUnsignedByte()
-         require( b == 4, b.toString )
-         readTopRightBranch( in, id )
+   implicit protected object RightOptionReader extends MutableOptionReader[ S, NextOption ] {
+      def empty = EmptyValue
+      def readData( in: DataInput, id: S#ID ) : NextOption = {
+         (in.readUnsignedByte(): @switch) match {
+//            case 0 => null
+//            case 1 => readLeaf( in, id )
+            case 4 => readRightTopBranch( in, id )
+            case 5 => readRightChildBranch( in, id )
+         }
       }
    }
 
@@ -280,24 +282,24 @@ extends SkipOctree[ S, D, A ] {
           * which is also contained in Qi+1. Returns this node
           * in Qi+1, or null if no such node exists.
           */
-         @tailrec def findPN( b: BranchLike ) : RightOption = b match {
+         @tailrec def findPN( b: BranchLike ) : NextOption = b match {
             case tb: TopBranch   => tb.next
             case cb: ChildBranch => cb.next match {
                case nb: BranchLike => nb
-               case EmptyImpl => findPN( cb.parent )
+               case EmptyValue => findPN( cb.parent )
             }
          }
 
          val pNext = findPN( l.parent ) match {
-            case EmptyImpl => // create new level
+            case EmptyValue => // create new level
                val sz      = numOrthants
                val ch      = system.newRefArray[ RightChildOption ]( sz )
                var i = 0; while( i < sz ) {
-                  ch( i )  = system.newOptionRef[ RightChildOption ]( EmptyImpl )
+                  ch( i )  = system.newOptionRef[ RightChildOption ]( EmptyValue )
                i += 1 }
-               val nextRef = system.newOptionRef[ RightOption ]( EmptyImpl )
+               val nextRef = system.newOptionRef[ NextOption ]( EmptyValue )
                val prev    = lastTreeImpl
-               val res     = new TopRightBranch( system.newID, /* impl */ hyperCube, prev, ch, nextRef )
+               val res     = new RightTopBranch( system.newID, /* impl */ hyperCube, prev, ch, nextRef )
                prev.next   = res
                lastTreeImpl= res
                res
@@ -350,9 +352,7 @@ extends SkipOctree[ S, D, A ] {
    }
 
    protected def disposeData()( implicit tx: S#Tx ) {
-      // dispose tree
-      var t: BranchLike  = lastTreeImpl
-      val sz         = numOrthants
+      val sz = numOrthants
 
       def disposeBranch( b: BranchLike ) {
          var i = 0; while( i < sz ) {
@@ -370,11 +370,14 @@ extends SkipOctree[ S, D, A ] {
          b.dispose()
       }
 
-      while( t ne null ) {
-         val p = t.prev
-         disposeBranch( t )
-         t = p
+      @tailrec def disposeTree( b: BranchLike ) {
+         disposeBranch( b )
+         b match {
+            case _: LeftBranch   =>
+            case rb: RightBranch => disposeTree( rb.prev )
+         }
       }
+      disposeTree( lastTreeImpl )
 
       lastTreeRef.dispose()
       totalOrder.dispose()
@@ -390,7 +393,7 @@ extends SkipOctree[ S, D, A ] {
 
    def add( elem: A )( implicit tx: S#Tx ) : Boolean = {
       insertLeaf( elem ) match {
-         case EmptyImpl => true
+         case EmptyValue => true
          case oldLeaf: LeafImpl =>
             val res = oldLeaf.value != elem
             oldLeaf.dispose()
@@ -400,7 +403,7 @@ extends SkipOctree[ S, D, A ] {
 
    def update( elem: A )( implicit tx: S#Tx ) : Option[ A ] = {
       insertLeaf( elem ) match {
-         case EmptyImpl => None
+         case EmptyValue => None
          case oldLeaf: LeafImpl =>
             val res = Some( oldLeaf.value )
             oldLeaf.dispose()
@@ -410,7 +413,7 @@ extends SkipOctree[ S, D, A ] {
 
    def remove( elem: A )( implicit tx: S#Tx ) : Boolean = {
       removeLeafAt( pointView( elem )) match {
-         case EmptyImpl => false
+         case EmptyValue => false
          case oldLeaf: LeafImpl =>
             oldLeaf.dispose()
             true
@@ -419,7 +422,7 @@ extends SkipOctree[ S, D, A ] {
 
    def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
       removeLeafAt( point ) match {
-         case EmptyImpl => None
+         case EmptyValue => None
          case oldLeaf: LeafImpl =>
             val res = Some( oldLeaf.value )
             oldLeaf.dispose()
@@ -438,7 +441,7 @@ extends SkipOctree[ S, D, A ] {
 
    def isDefinedAt( point: D#PointLike )( implicit tx: S#Tx ) : Boolean = {
       if( !hyperCube.contains( point )) return false
-      findAt( point ) != EmptyImpl
+      findAt( point ) != EmptyValue
    }
 
    def get( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
@@ -451,29 +454,34 @@ extends SkipOctree[ S, D, A ] {
 
    def nearestNeighbor[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                 ( implicit tx: S#Tx ) : A = {
-      val res = new NN( point, metric ).find()
-      if( res ne null ) res.value else throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
+      new NN( point, metric ).find() match {
+         case EmptyValue   => throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
+         case l: LeafImpl  => l.value
+      }
    }
 
    def nearestNeighborOption[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                       ( implicit tx: S#Tx ) : Option[ A ] = {
-      val res = new NN( point, metric ).find()
-      if( res ne null ) Some( res.value ) else None
+      new NN( point, metric ).find() match {
+         case EmptyValue   => None
+         case l: LeafImpl  => Some( l.value )
+      }
    }
 
    def isEmpty( implicit tx: S#Tx ) : Boolean = {
       val n = head
       val sz = numOrthants
-      var i = 0; while( i < sz ) {
-         if( n.child( i ) ne null ) return false
-      i += 1 }
-      true
+      @tailrec def step( i: Int ) : Boolean = if( i == sz ) true else n.child( i ) match {
+         case n: NonEmptyChild => false
+         case _ => step( i + 1 )
+      }
+      step( 0 )
    }
 
    def numLevels( implicit tx: S#Tx ) : Int = {
       @tailrec def step( b: BranchLike, num: Int ) : Int = {
          b.next match {
-            case EmptyImpl       => num
+            case EmptyValue      => num
             case n: BranchLike   => step( n, num + 1 )
          }
       }
@@ -507,14 +515,14 @@ extends SkipOctree[ S, D, A ] {
    def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toIndexedSeq // note that `toSeq` produces a `Stream` !!
    def toSet(  implicit tx: S#Tx ) : Set[  A ] = iterator.toSet
 
-   private def findAt( point: D#PointLike )( implicit tx: S#Tx ) : LeafOption = {
+   private def findAt( point: D#PointLike )( implicit tx: S#Tx ) : LeafOrEmpty = {
       val p0 = findP0( point ) // lastTreeImpl.findP0( point )
       findLeafInP0( p0, point )   // p0.findImmediateLeaf( point )
    }
 
    // WARNING: if the returned oldLeaf is defined, the caller is
    // responsible for disposing it (after extracting useful information such as its value)
-   private def insertLeaf( elem: A )( implicit tx: S#Tx ) : LeafOption = {
+   private def insertLeaf( elem: A )( implicit tx: S#Tx ) : LeafOrEmpty = {
       val point   = pointView( elem )
       require( hyperCube.contains( point ), point.toString + " lies out of root hyper-cube " + hyperCube )
 
@@ -522,7 +530,7 @@ extends SkipOctree[ S, D, A ] {
       val res     = findLeafInP0( p0, point )
 
       res match {
-         case EmptyImpl =>
+         case EmptyValue =>
             val leaf = p0.insert( point, elem )
             skipList.add( leaf )
 
@@ -531,7 +539,7 @@ extends SkipOctree[ S, D, A ] {
             removeLeaf( oldLeaf )
             // search anew
             val p0b = findP0( point ) // lastTreeImpl.findP0( point )
-            assert( findLeafInP0( p0b, point ) == EmptyImpl )
+            assert( findLeafInP0( p0b, point ) == EmptyValue )
             val leaf = p0b.insert( point, elem )
             skipList.add( leaf )
       }
@@ -541,7 +549,7 @@ extends SkipOctree[ S, D, A ] {
 
    // WARNING: if the returned oldLeaf is defined, the caller is
    // responsible for disposing it (after extracting useful information such as its value)
-   private def removeLeafAt( point: D#PointLike )( implicit tx: S#Tx ) : LeafOption = {
+   private def removeLeafAt( point: D#PointLike )( implicit tx: S#Tx ) : LeafOrEmpty = {
       if( !hyperCube.contains( point )) return null
 
       // "To insert or delete a point y into or from S, we first search the
@@ -568,11 +576,11 @@ extends SkipOctree[ S, D, A ] {
     * @return  the `Leaf` child in this node associated with the given
     *          `point`, or `null` if no such leaf exists.
     */
-   private def findLeafInP0( b: LeftBranch, point: D#PointLike )( implicit tx: S#Tx ) : LeafOption = {
+   private def findLeafInP0( b: LeftBranch, point: D#PointLike )( implicit tx: S#Tx ) : LeafOrEmpty = {
       val qidx = b.hyperCube.indexOf( point )
       b.child( qidx ) match {
          case l: LeafImpl if( pointView( l.value ) == point ) => l
-         case _ => EmptyImpl
+         case _ => EmptyValue
       }
    }
 
@@ -590,8 +598,8 @@ extends SkipOctree[ S, D, A ] {
       @tailrec def stepLeft( lb: LeftBranch ) : LeftBranch = {
          val qidx = lb.hyperCube.indexOf( point )
          lb.child( qidx ) match {
-            case _:  LeafOption => lb
-            case cb: LeftBranch =>
+            case _:  LeafOrEmpty => lb
+            case cb: LeftBranch  =>
                if( !cb.hyperCube.contains( point )) lb else stepLeft( cb )
          }
       }
@@ -619,35 +627,28 @@ extends SkipOctree[ S, D, A ] {
 
    def iterator( implicit tx: S#Tx ) : Iterator[ A ] = skipList.iterator.map( _.value )
 
+   private final class NNIter[ @specialized( Long ) M ]( val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M )
+
    private final class NN[ @specialized( Long ) M ](
       point: D#PointLike, metric: DistanceMeasure[ M, D ])
    extends scala.math.Ordering[ VisitedNode[ M ]] {
-      private type Vis = VisitedNode[ M ]
 
-      private val sz                         = numOrthants
-      private var bestLeaf: LeafImpl             = null
-      private var bestDist                   = metric.maxValue // Long.MaxValue   // all distances here are squared!
-      private val pri                        = PriorityQueue.empty[ VisitedNode[ M ]]( this )
-      private val acceptedChildren           = new Array[ Vis ]( sz )
-      private var numAcceptedChildren        = 0
-      private var rmax                       = metric.maxValue // Long.MaxValue
-
-      def recheckRMax() {
-         var j = 0; while( j < numAcceptedChildren ) {
-//            if( space.bigGt( acceptedChildren( j ).minDist, rmax )) { ... }
-            if( metric.isMeasureGreater( acceptedChildren( j ).minDist, rmax )) {  // immediately kick it out
-               numAcceptedChildren -= 1
-               var k = j; while( k < numAcceptedChildren ) {
-                  acceptedChildren( k ) = acceptedChildren( k + 1 )
-               k += 1 }
-            }
-         j += 1 }
+      private val sz                = numOrthants
+      private val acceptedChildren  = new Array[ LeftBranch ]( sz )
+      private val acceptedDists     = {
+         implicit val mf = metric.manifest
+         new Array[ M ]( sz )
       }
 
-      @tailrec def findNNTail( n0: BranchLike )( implicit tx: S#Tx ) {
-         numAcceptedChildren = 0
-         var accept1Idx = 0
-         val oldRMax1 = rmax
+      @tailrec def findNNTail( n0: LeftBranch, pri: PriorityQueue[ VisitedNode[ M ]], _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M )
+                             ( implicit tx: S#Tx ) : NNIter[ M ] = {
+         var numAccepted   = 0
+         var acceptedQidx  = 0
+
+         var bestLeaf      = _bestLeaf
+         var bestDist      = _bestDist
+         var rmax          = _rmax
+
          var i = 0; while( i < sz ) {
             n0.child( i ) match {
                case l: LeafImpl =>
@@ -659,100 +660,100 @@ extends SkipOctree[ S, D, A ] {
                         rmax = bestDist
                      }
                   }
-               case c: BranchLike =>
+               case c: LeftBranch =>
                   val cq            = c.hyperCube
                   val cMinDist      = metric.minDistance( point, cq )
                   if( !metric.isMeasureGreater( cMinDist, rmax )) {   // otherwise we're out already
                      val cMaxDist   = metric.maxDistance( point, cq )
                      if( metric.isMeasureGreater( rmax, cMaxDist )) {
-                        rmax = cMaxDist
+                        rmax        = cMaxDist
                      }
-                     acceptedChildren( numAcceptedChildren ) = new VisitedNode[ M ]( c, cMinDist /*, cMaxDist */)
-                     accept1Idx = i
-                     numAcceptedChildren += 1
+                     acceptedChildren( numAccepted ) = c
+                     acceptedDists(    numAccepted ) = cMinDist
+                     numAccepted   += 1
+                     acceptedQidx   = i
                   }
                case _ =>
             }
          i += 1 }
 
-         if( rmax != oldRMax1 ) recheckRMax()
+         if( rmax != _rmax ) {
+            // recheck
+            var j = 0; while( j < numAccepted ) {
+               if( metric.isMeasureGreater( acceptedDists( j ), rmax )) {  // immediately kick it out
+                  numAccepted -= 1
+                  var k = j; while( k < numAccepted ) {
+                     val k1 = k + 1
+                     acceptedChildren( k ) = acceptedChildren( k1 )
+                     acceptedDists(    k ) = acceptedDists( k1 )
+                  k = k1 }
+               }
+            j += 1 }
+         }
 
          // Unless exactly one child is accepted, round is over
-         if( numAcceptedChildren != 1 ) return
+         if( numAccepted != 1 ) {
+            var i = 0; while( i < numAccepted ) {
+               pri += new VisitedNode[ M ]( acceptedChildren( i ), acceptedDists( i ))
+            i += 1 }
+            new NNIter[ M ]( bestLeaf, bestDist, rmax )
 
-         // Otherwise find corresponding node in highest level, and descend
-//         var dn   = acceptedChildren( 0 ).n
-         val dn0  = acceptedChildren( 0 ).n
-         val qdn  = dn0.hyperCube
+         } else {
+            // Otherwise find corresponding node in highest level, and descend
+            val dn0  = acceptedChildren( 0 )
+            val qdn  = dn0.hyperCube
 
-         @tailrec def findRight( cand: BranchLike, prev: BranchLike ) : BranchLike = {
-            prev.next match {
-               case EmptyImpl => cand
-               case next: BranchLike =>
-                  next.child( accept1Idx ) match {
-                     case EmptyImpl => cand
-                     case cb: BranchLike =>
-                        if( cb.hyperCube != qdn ) cand else findRight( cb, next )
+            @tailrec def findRight( cand: BranchLike, prev: BranchLike ) : BranchLike = {
+               prev.next match {
+                  case EmptyValue => cand
+                  case next: BranchLike =>
+                     next.child( acceptedQidx ) match {
+                        case EmptyValue => cand
+                        case cb: BranchLike =>
+                           if( cb.hyperCube != qdn ) cand else findRight( cb, next )
+                     }
+               }
+            }
+
+            val dn = findRight( dn0, n0 )
+
+            // now go left
+            @tailrec def findLeft( n: BranchLike ) : LeftBranch = n match {
+               case lb: LeftBranch  => lb
+               case rb: RightBranch => findLeft( rb.prev )
+            }
+            findNNTail( findLeft( dn ), pri, bestLeaf, bestDist, rmax )
+         }
+      }
+
+      def find()( implicit tx: S#Tx ) : LeafOrEmpty = {
+         val pri = PriorityQueue.empty[ VisitedNode[ M ]]( this )
+         @tailrec def step( n0: LeftBranch, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M ) : LeafOrEmpty = {
+            val res = findNNTail( n0, pri, bestLeaf, bestDist, rmax )
+            if( metric.isMeasureZero( res.bestDist )) {
+               res.bestLeaf
+            } else {
+               @tailrec def pop() : Left = {
+                  if( pri.isEmpty ) res.bestLeaf else {
+                     val vis = pri.dequeue()
+                     if( !metric.isMeasureGreater( vis.minDist, res.rmax )) vis.n else pop()
                   }
+               }
+
+               pop() match {
+                  case l:  LeafOrEmpty => l
+                  case lb: LeftBranch => step( lb, res.bestLeaf, res.bestDist, res.rmax )
+               }
             }
          }
 
-         val dn = findRight( dn0, n0 )
-
-//         var succ = n0.next
-//         while( succ ne null ) {
-//            val c = succ.child( accept1Idx )
-//            succ  = if( (c ne null) && c.isBranch ) {
-//               val dn2 = c.asBranch
-//               if( dn2.hyperCube == qdn ) {
-//                  dn    = dn2
-//                  succ.next
-//               } else {
-//                  null
-//               }
-//            } else {
-//               null
-//            }
-//         }
-
-         // now go left
-         @tailrec def findLeft( n: BranchLike ) : BranchLike = {
-            val prev = n.prev
-            if( prev eq null ) n else findLeft( prev )
-         }
-//         while( dn.prev ne null ) dn = dn.prev
-//         findNNTail( dn )
-         findNNTail( findLeft( dn ))
+         step( head, EmptyValue, metric.maxValue, metric.maxValue )
       }
 
-      def find()( implicit tx: S#Tx ) : LeafImpl = {
-         var n0: BranchLike = head
-         while( true ) {
-            findNNTail( n0 )
-//            if( space.bigLeqZero( bestDist )) return bestLeaf
-//            if( bestDist == metric.minValue ) return bestLeaf
-            if( metric.isMeasureZero( bestDist )) return bestLeaf
-            var i = 0; while( i < numAcceptedChildren ) {
-               pri += acceptedChildren( i )
-            i += 1 }
-            var vis: Vis = null
-            do {
-               if( pri.isEmpty ) {
-                  return bestLeaf
-               } else {
-                  vis = pri.dequeue()
-               }
-//            while( space.bigGt( vis.minDist, rmax ))
-            } while( metric.isMeasureGreater( vis.minDist, rmax ))
-            n0 = vis.n
-         }
-         sys.error( "never here" )
-      }
-
-      def compare( a: Vis, b: Vis ) = metric.compareMeasure( b.minDist, a.minDist )
+      def compare( a: VisitedNode[ M ], b: VisitedNode[ M ]) = metric.compareMeasure( b.minDist, a.minDist )
    }
 
-   private final class VisitedNode[ @specialized( Long ) M ]( val n: BranchLike, val minDist: M )
+   private final class VisitedNode[ @specialized( Long ) M ]( val n: LeftBranch, val minDist: M )
 
    // note: Iterator is not specialized, hence we can safe use the effort to specialize in A anyway
    private final class RangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) extends Iterator[ A ] {
@@ -769,7 +770,7 @@ extends SkipOctree[ S, D, A ] {
       // "At each square q ∈ Qi we either go to a child square in Qi
       // that covers the same area of R ∪ A as p does, if such a child
       // square exists, or jump to the next level q ∈ Qi−1."
-      @tailrec def findEquiStabbingTail( node: BranchLike, area: Area )( implicit tx: S#Tx ) : BranchLike = {
+      @tailrec def findEquiStabbingTail( node: BranchLike, area: Area )( implicit tx: S#Tx ) : LeftBranch = {
          var pi = node
          var i = 0; while( i < sz ) {
             pi.child( i ) match {
@@ -785,8 +786,10 @@ extends SkipOctree[ S, D, A ] {
             }
          }
          // ... or jump to the next (previous) level
-         val prev = pi.prev
-         if( prev eq null ) pi else findEquiStabbingTail( prev, area )
+         pi match {
+            case lb: LeftBranch => lb
+            case rb: RightBranch => findEquiStabbingTail( rb.prev, area )
+         }
       }
 
       // the movement from Q0 to Qj
@@ -810,7 +813,7 @@ extends SkipOctree[ S, D, A ] {
          }
 
          p0.next match {
-            case EmptyImpl => p0
+            case EmptyValue => p0
             case pi: BranchLike => if( isCritical( pi, 0 )) p0 else findHighestUncritical( pi, area )
          }
       }
@@ -917,7 +920,7 @@ extends SkipOctree[ S, D, A ] {
     * A tree element in Q0 has markers for the
     * in-order traversal.
     */
-   protected sealed trait LeftNonEmpty extends NonEmpty {
+   protected sealed trait LeftNonEmpty extends Left with NonEmpty {
       /**
        * A marker in the in-order list corresponding to
        * the beginning of the objects 'interval'. That is
@@ -942,7 +945,8 @@ extends SkipOctree[ S, D, A ] {
       def stopOrder( implicit tx: S#Tx ): Order
    }
 
-   protected sealed trait LeftChild extends Child
+   protected sealed trait Left
+   protected sealed trait LeftChild extends Left with Child
    protected type LeftChildOption = LeftChild with MutableOption[ S ]
 
    /**
@@ -982,7 +986,7 @@ extends SkipOctree[ S, D, A ] {
     * the leaf resides in, according to the skiplist.
     */
    protected final class LeafImpl( val id: S#ID, val value: A, val order: Order, parentRef: S#Ref[ BranchLike ])
-   extends LeftNonEmptyChild with RightNonEmptyChild with LeafOption with Leaf {
+   extends LeftNonEmptyChild with RightNonEmptyChild with LeafOrEmpty with Leaf {
       def updateParentLeft( p: LeftBranch )( implicit tx: S#Tx )   { parent_=( p )}
       def updateParentRight( p: RightBranch )( implicit tx: S#Tx ) { parent_=( p )}
       def parent( implicit tx: S#Tx ): BranchLike = parentRef.get
@@ -1035,6 +1039,8 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
+//   protected sealed trait BranchOption
+
    /**
     * Nodes are defined by a hyperCube area as well as a list of children,
     * as well as a pointer `next` to the corresponding node in the
@@ -1078,10 +1084,10 @@ extends SkipOctree[ S, D, A ] {
        * node in Qi+1, or `null` if no such
        * node exists.
        */
-      final def next( implicit tx: S#Tx ) : RightOption = nextRef.get
+      final def next( implicit tx: S#Tx ) : NextOption = nextRef.get
 
       final def nextOption( implicit tx: S#Tx ) : Option[ BranchLike ] = next match {
-         case EmptyImpl       => None
+         case EmptyValue       => None
          case b: BranchLike   => Some( b )
       }
 
@@ -1093,11 +1099,11 @@ extends SkipOctree[ S, D, A ] {
          nextRef.set( node )
       }
 
-      protected def nextRef: S#Ref[ RightOption ]
+      protected def nextRef: S#Ref[ NextOption ]
 
-      def prev: BranchLike
+//      def prev: BranchLike
 
-      final def prevOption: Option[ BranchLike ] = Option( prev )
+//      final def prevOption: Option[ BranchLike ] = Option( prev )
 
       final def union( mq: D#HyperCube, point2: D#PointLike ) = {
          val q = hyperCube
@@ -1141,9 +1147,11 @@ extends SkipOctree[ S, D, A ] {
       def parent( implicit tx: S#Tx ): BranchLike
    }
 
-   sealed trait LeafOption
+   protected sealed trait LeafOrEmpty extends LeftChild
+   //sealed trait LeafOption extends LeftChild with MutableOption[ S ]
+//   protected type LeafOption = LeafOrEmpty with MutableOption[ S ]
 
-   case object EmptyImpl extends LeftChild with RightChild with Right with LeafOption with Empty with EmptyMutable
+   case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with EmptyMutable
 
    /**
     * Utility trait which elements the rightward search `findPN`.
@@ -1155,34 +1163,27 @@ extends SkipOctree[ S, D, A ] {
 //      }
    }
 
-   protected sealed trait Right // { def toOption: Option[ RightBranch ]}
-   protected type RightOption = Right with MutableOption[ S ]
+//   protected sealed trait Prev
+//   protected sealed trait LeftBranchOption
+
+   protected sealed trait Next // { def toOption: Option[ RightBranch ]}
+   protected type NextOption = Next with MutableOption[ S ]
 
    /**
     * A right tree node implementation provides more specialized child nodes
     * of type `RightChild`. It furthermore defines the node in Qi-1 via the
     * `prev` method.
     */
-   protected sealed trait RightBranch extends Right with BranchLike with Mutable[ S ] {
+   protected sealed trait RightBranch extends Next with BranchLike with Mutable[ S ] {
       protected def children: Array[ S#Ref[ RightChildOption ]]
+
+      final def prevOption: Option[ Branch ] = Some( this: Branch )
 
       def prev : BranchLike
       final def child( idx: Int )( implicit tx: S#Tx ) : RightChildOption = children( idx ).get
       final def updateChild( idx: Int, c: RightChildOption )( implicit tx: S#Tx ) {
          children( idx ).set( c )
       }
-
-//      final def findP0( point: D#PointLike )( implicit tx: S#Tx ) : LeftBranch = {
-//         val qidx = hyperCube.indexOf( point )
-//         val c = child( qidx )
-//         val n = if( (c ne null) && c.isBranch ) {
-//            val cn = c.asBranch
-//            if( cn.hyperCube.contains( point )) cn else prev
-//         } else {
-//            prev
-//         }
-//         n.findP0( point )
-//      }
 
       /**
        * Promotes a leaf that exists in Qi-1 to this
@@ -1202,7 +1203,7 @@ extends SkipOctree[ S, D, A ] {
          val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
          child( qidx ) match {
-            case EmptyImpl =>
+            case EmptyValue =>
                updateChild( qidx, leaf )
                leaf.parent       = this
             case old: RightNonEmptyChild =>
@@ -1214,8 +1215,7 @@ extends SkipOctree[ S, D, A ] {
                   if( b.hyperCube == qn2 ) b else {
                      val idx = b.hyperCube.indexOf( point )
                      b.child( idx ) match {
-//                        case EmptyImpl       => sys.error( "Internal error - cannot find sub-cube in prev" )
-//                        case _: LeafImpl     => sys.error( "Internal error - cannot find sub-cube in prev" )
+                        case _: LeafOrEmpty  => sys.error( "Internal error - cannot find sub-cube in prev" )
                         case cb: BranchLike  => findInPrev( cb )
                      }
                   }
@@ -1263,10 +1263,10 @@ extends SkipOctree[ S, D, A ] {
 //         val ch         = new Array[ RightChild[ S, D, A ]]( sz )
          val ch         = system.newRefArray[ RightChildOption ]( sz )
          var i = 0; while( i < sz ) {
-            ch( i )     = system.newOptionRef[ RightChildOption ]( EmptyImpl )
+            ch( i )     = system.newOptionRef[ RightChildOption ]( EmptyValue )
          i += 1 }
          val parentRef  = system.newRef[ RightBranch ]( this )
-         val rightRef   = system.newOptionRef[ RightOption ]( EmptyImpl )
+         val rightRef   = system.newOptionRef[ NextOption ]( EmptyValue )
          val n          = new RightChildBranch( system.newID, parentRef, prev, iq, ch, rightRef )
          prev.next      = n
          updateChild( qidx, n )
@@ -1295,13 +1295,15 @@ extends SkipOctree[ S, D, A ] {
     * `findImmediateLeaf` which is typically called after arriving here
     * from a `findP0` call.
     */
-   protected sealed trait LeftBranch extends BranchLike with LeftNonEmpty with Mutable[ S ] {
+   protected sealed trait LeftBranch extends /* LeftBranchOption with */ BranchLike with LeftNonEmpty with Mutable[ S ] {
       /**
        * For a `LeftBranch`, all its children are more specific
        * -- they are instances of `LeftChild` and thus support
        * order intervals.
        */
       protected def children: Array[ S#Ref[ LeftChildOption ]]
+
+      final def prevOption: Option[ Branch ] = None
 
       /**
        * The stop-order of a left node is now always implicitly defined.
@@ -1332,31 +1334,6 @@ extends SkipOctree[ S, D, A ] {
          children( idx ).set( c )
       }
 
-//      final def findP0( point: D#PointLike )( implicit tx: S#Tx ) : LeftBranch = {
-//         val qidx = hyperCube.indexOf( point )
-//         val c    = child( qidx )
-//         if( (c ne null) && c.isBranch ) {
-//            val n = c.asBranch
-//            if( n.hyperCube.contains( point )) n.findP0( point )
-//            else this
-//         } else this
-//      }
-
-//      /**
-//       * After arriving at this node from a `findP0` call, this resolves
-//       * the given point to an actual leaf.
-//       *
-//       * @return  the `Leaf` child in this node associated with the given
-//       *          `point`, or `null` if no such leaf exists.
-//       */
-//      final def findImmediateLeaf( point: D#PointLike )( implicit tx: S#Tx ) : LeafOption = {
-//         val qidx = hyperCube.indexOf( point )
-//         child( qidx ) match {
-//            case l: LeafImpl if( pointView( l.value ) == point ) => l
-//            case _ => EmptyImpl
-//         }
-//      }
-
       final def demoteLeaf( leaf: LeafImpl )( implicit tx: S#Tx ) {
          val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
@@ -1370,7 +1347,7 @@ extends SkipOctree[ S, D, A ] {
       final def insert( point: D#PointLike, value: A )( implicit tx: S#Tx ) : LeafImpl = {
          val qidx = hyperCube.indexOf( point )
          child( qidx ) match {
-            case EmptyImpl =>
+            case EmptyValue =>
                newLeaf( qidx, /* point, */ value ) // (this adds it to the children!)
 
             case old: LeftNonEmptyChild =>
@@ -1457,10 +1434,10 @@ extends SkipOctree[ S, D, A ] {
          val sz         = children.length
          val ch         = system.newRefArray[ LeftChildOption ]( sz )
          var i = 0; while( i < sz ) {
-            ch( i )     = system.newOptionRef[ LeftChildOption ]( EmptyImpl )
+            ch( i )     = system.newOptionRef[ LeftChildOption ]( EmptyValue )
          i += 1 }
          val parentRef  = system.newRef[ LeftBranch ]( this )
-         val rightRef   = system.newOptionRef[ RightOption ]( EmptyImpl )
+         val rightRef   = system.newOptionRef[ NextOption ]( EmptyValue )
          val n          = new LeftChildBranch( system.newID, parentRef, iq, newChildOrder( qidx ), ch, rightRef )
          updateChild( qidx, n )
          n
@@ -1474,19 +1451,19 @@ extends SkipOctree[ S, D, A ] {
    /*
     * Serialization-id: 2
     */
-   private def readTopLeftBranch( in: DataInput, id: S#ID ) : TopLeftBranch = {
+   private def readLeftTopBranch( in: DataInput, id: S#ID ) : LeftTopBranch = {
       val startOrder = totalOrder.readEntry( in )
       val sz         = numOrthants
       val ch         = system.newRefArray[ LeftChildOption ]( sz )
       var i = 0; while( i < sz ) {
          ch( i )     = system.readOptionRef[ LeftChildOption ]( in )
       i += 1 }
-      val nextRef    = system.readOptionRef[ RightOption ]( in )
-      new TopLeftBranch( id, hyperCube, startOrder, ch, nextRef )
+      val nextRef    = system.readOptionRef[ NextOption ]( in )
+      new LeftTopBranch( id, hyperCube, startOrder, ch, nextRef )
    }
-   protected final class TopLeftBranch( val id: S#ID, val hyperCube: D#HyperCube, val startOrder: Order,
+   protected final class LeftTopBranch( val id: S#ID, val hyperCube: D#HyperCube, val startOrder: Order,
                                       protected val children: Array[ S#Ref[ LeftChildOption ]],
-                                      protected val nextRef: S#Ref[ RightOption ])
+                                      protected val nextRef: S#Ref[ NextOption ])
    extends LeftBranch with TopBranch with Mutable[ S ] {
 
       // that's alright, we don't need to do anything special here
@@ -1525,13 +1502,13 @@ extends SkipOctree[ S, D, A ] {
       var i = 0; while( i < sz ) {
          ch( i )     = system.readOptionRef[ LeftChildOption ]( in )
       i += 1 }
-      val nextRef    = system.readOptionRef[ RightOption ]( in )
+      val nextRef    = system.readOptionRef[ NextOption ]( in )
       new LeftChildBranch( id, parentRef, hyperCube, startOrder, ch, nextRef )
    }
    private final class LeftChildBranch( val id: S#ID, parentRef: S#Ref[ LeftBranch ], val hyperCube: D#HyperCube,
                                         val startOrder: Order,
                                         protected val children: Array[ S#Ref[ LeftChildOption ]],
-                                        protected val nextRef: S#Ref[ RightOption ])
+                                        protected val nextRef: S#Ref[ NextOption ])
    extends LeftBranch with ChildBranch with LeftNonEmptyChild {
       def nodeName = "inner-left"
 
@@ -1574,11 +1551,11 @@ extends SkipOctree[ S, D, A ] {
          @tailrec def findLonely( found: LeftChild, i: Int ) : LeftChild = {
             if( i == sz ) found else child( i ) match {
                case n: LeftNonEmptyChild =>
-                  if( found != EmptyImpl ) EmptyImpl else findLonely( n, i + 1 )
+                  if( found != EmptyValue ) EmptyValue else findLonely( n, i + 1 )
             }
          }
 
-         findLonely( EmptyImpl, 0 ) match {
+         findLonely( EmptyValue, 0 ) match {
             case lonely: LeftNonEmptyChild =>
                val myIdx = parent.hyperCube.indexOf( hyperCube )
                val p = parent
@@ -1593,19 +1570,19 @@ extends SkipOctree[ S, D, A ] {
    /*
     * Serialization-id: 4
     */
-   private def readTopRightBranch( in: DataInput, id: S#ID ) : TopRightBranch = {
+   private def readRightTopBranch( in: DataInput, id: S#ID ) : RightTopBranch = {
       val prev = system.readMut[ TopBranch ]( in )
       val sz   = numOrthants
       val ch   = system.newRefArray[ RightChildOption ]( sz )
       var i = 0; while( i < sz ) {
          ch( i ) = system.readOptionRef[ RightChildOption ]( in )
       i += 1 }
-      val nextRef = system.readOptionRef[ RightOption ]( in )
-      new TopRightBranch( id, hyperCube, prev, ch, nextRef )
+      val nextRef = system.readOptionRef[ NextOption ]( in )
+      new RightTopBranch( id, hyperCube, prev, ch, nextRef )
    }
-   protected final class TopRightBranch( val id: S#ID, val hyperCube: D#HyperCube, val prev: TopBranch,
+   protected final class RightTopBranch( val id: S#ID, val hyperCube: D#HyperCube, val prev: TopBranch,
                                        protected val children: Array[ S#Ref[ RightChildOption ]],
-                                       protected val nextRef: S#Ref[ RightOption ])
+                                       protected val nextRef: S#Ref[ NextOption ])
    extends RightBranch with TopBranch {
 
       def nodeName = "top-right"
@@ -1664,13 +1641,13 @@ extends SkipOctree[ S, D, A ] {
       var i = 0; while( i < sz ) {
          ch( i )     = system.readOptionRef[ RightChildOption ]( in )
       i += 1 }
-      val nextRef    = system.readOptionRef[ RightOption ]( in )
+      val nextRef    = system.readOptionRef[ NextOption ]( in )
       new RightChildBranch( id, parentRef, prev, hyperCube, ch, nextRef )
    }
    private final class RightChildBranch( val id: S#ID, parentRef: S#Ref[ RightBranch ],
                                          val prev: BranchLike, val hyperCube: D#HyperCube,
                                          protected val children: Array[ S#Ref[ RightChildOption ]],
-                                         protected val nextRef: S#Ref[ RightOption ])
+                                         protected val nextRef: S#Ref[ NextOption ])
    extends RightBranch with ChildBranch with RightNonEmptyChild {
 
       def nodeName = "inner-right"
@@ -1715,11 +1692,11 @@ extends SkipOctree[ S, D, A ] {
          @tailrec def findLonely( found: RightChild, i: Int ) : RightChild = {
             if( i == sz ) found else child( i ) match {
                case n: RightNonEmptyChild =>
-                  if( found != EmptyImpl ) EmptyImpl else findLonely( n, i + 1 )
+                  if( found != EmptyValue ) EmptyValue else findLonely( n, i + 1 )
             }
          }
 
-         findLonely( EmptyImpl, 0 ) match {
+         findLonely( EmptyValue, 0 ) match {
             case lonely: RightNonEmptyChild =>
                val myIdx = parent.hyperCube.indexOf( hyperCube )
                val p = parent

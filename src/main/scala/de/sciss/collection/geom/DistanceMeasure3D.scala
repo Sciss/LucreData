@@ -242,6 +242,8 @@ object DistanceMeasure3D {
    }
 
    private sealed trait ImplBigInt extends DistanceMeasure[ BigInt, ThreeDim ] {
+      final val manifest : Manifest[ BigInt ] = Manifest.classType[ BigInt ]( classOf[ BigInt ])
+
       final val maxValue : BigInt = BigInt( 0x7FFFFFFFFFFFFFFFL ) * BigInt( 0x7FFFFFFFFFFFFFFFL )
       final def isMeasureZero( m: BigInt ) : Boolean = m == ThreeDim.bigZero
       final def isMeasureGreater( a: BigInt, b: BigInt ) : Boolean = a > b
@@ -256,6 +258,8 @@ object DistanceMeasure3D {
    }
 
    private sealed trait ImplLong extends DistanceMeasure[ Long, ThreeDim ] {
+      final def manifest : Manifest[ Long ] = Manifest.Long
+
       final def maxValue : Long = Long.MaxValue
       final def isMeasureZero( m: Long ) : Boolean = m == 0L
       final def isMeasureGreater( a: Long, b: Long ) : Boolean = a > b

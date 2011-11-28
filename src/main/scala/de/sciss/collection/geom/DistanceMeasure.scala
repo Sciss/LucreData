@@ -39,6 +39,8 @@ package de.sciss.collection.geom
  * the ordering between the possible results.
  */
 trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
+   def manifest: Manifest[ M ]
+
    /**
     * A value which will never be exceeded by the measure
     */
