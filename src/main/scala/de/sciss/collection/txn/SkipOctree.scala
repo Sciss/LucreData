@@ -105,12 +105,14 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
     * produce a `Stream` and thus subject to further changes to the tree while
     * traversing. The returned seq instead is 'forced' and thus stable.
     */
-   def toSeq(  implicit tx: S#Tx ) : Seq[  A ]
+   def toSeq( implicit tx: S#Tx ) : Seq[  A ]
    /**
     * Converts the tree into a non-transactional set. This is not necessarily a
     * very efficient method, and should usually just be used for debugging.
     */
-   def toSet(  implicit tx: S#Tx ) : Set[  A ]
+   def toSet( implicit tx: S#Tx ) : Set[  A ]
+
+   def clear()( implicit tx: S#Tx ) : Unit
 
    /**
     * Reports the nearest neighbor entry with respect to

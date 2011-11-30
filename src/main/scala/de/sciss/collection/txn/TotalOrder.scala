@@ -151,7 +151,7 @@ object TotalOrder {
 
       final class Entry private[TotalOrder]( val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Ref[ EOpt ], nextRef: S#Ref[ EOpt ])
       extends EntryOption with Mutable[ S ] {
-private var disposed = false
+//private var disposed = false
 //private var removed = false
 
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
@@ -173,9 +173,9 @@ private var disposed = false
          }
 
          protected def disposeData()( implicit tx: S#Tx ) {
-require( !disposed, "DUPLICATE DISPOSAL" )
-//require( removed, "DISPOSAL WITHOUT REMOVAL" )
-disposed = true
+//require( !disposed, "DUPLICATE DISPOSAL" )
+////require( removed, "DISPOSAL WITHOUT REMOVAL" )
+//disposed = true
             // first unlink this node
             val p = prev
             val n = next
@@ -184,9 +184,9 @@ disposed = true
             sizeVal.transform( _ - 1 )
 
             // then free the refs
-            tagVal.dispose()
             prevRef.dispose()
             nextRef.dispose()
+            tagVal.dispose()
          }
 
          def append()( implicit tx: S#Tx ) : Entry = {
@@ -223,36 +223,39 @@ disposed = true
             rec
          }
 
-//         def remove()( implicit tx: S#Tx ) {
+         def remove()( implicit tx: S#Tx ) {
 //require( !removed, "DUPLICATE REMOVAL" )
 //removed = true
-//            val p = prev
-//            val n = next
-//            p.updateNext( n )
-//            n.updatePrev( p )
-//            sizeVal.transform( _ - 1 )
-//         }
-//
-//         def removeAndDispose()( implicit tx: S#Tx ) {
-//            remove()
+            val p = prev
+            val n = next
+            p.updateNext( n )
+            n.updatePrev( p )
+            sizeVal.transform( _ - 1 )
+
 //            dispose()
-//         }
+         }
+
+         def removeAndDispose()( implicit tx: S#Tx ) {
+            remove()
+            dispose()
+         }
       }
 
       final protected def disposeData()( implicit tx: S#Tx ) {
-         val r = root
-         var m = r.prevOrNull
-         while( m ne null ) {
-            val t = m
-            m = m.prevOrNull
-            t.dispose()
-         }
-         m = r
-         do {
-            val t = m
-            m = m.prevOrNull
-            t.dispose()
-         } while( m ne null )
+//         val r = root
+//         var m = r.prevOrNull
+//         while( m ne null ) {
+//            val t = m
+//            m = m.prevOrNull
+//            t.dispose()
+//         }
+//         m = r
+//         do {
+//            val t = m
+//            m = m.prevOrNull
+//            t.dispose()
+//         } while( m ne null )
+         root.dispose()
          sizeVal.dispose()
       }
 

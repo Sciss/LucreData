@@ -157,22 +157,22 @@ object HASkipList {
 
       // XXX has high stack usage
       protected def disposeData()( implicit tx: S#Tx ) {
-         def disposeNode( n: Node[ S, A ]) {
-            if( n ne null ) {
-               if( n.isBranch ) {
-                  val sz = n.size
-                  val b = n.asBranch
-                  var i = 0; while( i < sz ) {
-                     val ref = b.downRef( i )
-                     disposeNode( ref.get )
-                     ref.dispose()
-                  i += 1 }
-               }
-               // n.dispose()
-            }
-         }
-
-         disposeNode( topN )
+//         def disposeNode( n: Node[ S, A ]) {
+//            if( n ne null ) {
+//               if( n.isBranch ) {
+//                  val sz = n.size
+//                  val b = n.asBranch
+//                  var i = 0; while( i < sz ) {
+//                     val ref = b.downRef( i )
+//                     disposeNode( ref.get )
+//                     ref.dispose()
+//                  i += 1 }
+//               }
+//               // n.dispose()
+//            }
+//         }
+//
+//         disposeNode( topN )
          downNode.dispose()
       }
 

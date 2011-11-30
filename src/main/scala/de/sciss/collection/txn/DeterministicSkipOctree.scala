@@ -349,30 +349,60 @@ extends SkipOctree[ S, D, A ] {
       lastTreeRef.write( out )
    }
 
-   protected def disposeData()( implicit tx: S#Tx ) {
+   def clear()( implicit tx: S#Tx ) {
       val sz = numOrthants
-
-      def disposeBranch( b: BranchLike ) {
-         var i = 0; while( i < sz ) {
-            b.child( i ) match {
-               case l: LeafImpl => l.dispose()
-               case b: BranchLike => disposeBranch( b )
-               case _ =>
+      @tailrec def removeAllLeaves( b: BranchLike ) {
+         @tailrec def stepB( down: BranchLike, i: Int ) : ChildOption = {
+            if( i == sz ) down else b.child( i ) match {
+               case l: LeafImpl =>
+                  removeLeaf( l )
+                  lastTreeImpl
+               case _ => stepB( down, i + 1 )
             }
-         i += 1 }
-         b.dispose()
-      }
+         }
 
-      @tailrec def disposeTree( b: BranchLike ) {
-         disposeBranch( b )
-         b match {
-            case _: LeftBranch   =>
-            case rb: RightBranch => disposeTree( rb.prev )
+         @tailrec def step( i: Int ) : ChildOption = {
+            if( i == sz ) EmptyValue else b.child( i ) match {
+               case cb: BranchLike => stepB( cb, i + 1 )
+               case l: LeafImpl =>
+                  removeLeaf( l )
+                  lastTreeImpl
+               case _ => step( i + 1 )
+            }
+         }
+
+         step( 0 ) match {
+            case _: LeafOrEmpty =>
+            case next: BranchLike  => removeAllLeaves( next )
          }
       }
-      disposeTree( lastTreeImpl )
+      removeAllLeaves( lastTreeImpl )
+   }
 
+   protected def disposeData()( implicit tx: S#Tx ) {
+//      val sz = numOrthants
+//
+//      def disposeBranch( b: BranchLike ) {
+//         var i = 0; while( i < sz ) {
+//            b.child( i ) match {
+//               case l: LeafImpl => l.remove()
+//               case b: BranchLike => disposeBranch( b )
+//               case _ =>
+//            }
+//         i += 1 }
+//         b.remove()
+//      }
+//
+//      @tailrec def disposeTree( b: BranchLike ) {
+//         disposeBranch( b )
+//         b match {
+//            case _: LeftBranch   =>
+//            case rb: RightBranch => disposeTree( rb.prev )
+//         }
+//      }
+//      disposeTree( lastTreeImpl )
       lastTreeRef.dispose()
+      head.dispose()
       totalOrder.dispose()
       skipList.dispose()
    }
@@ -468,10 +498,11 @@ extends SkipOctree[ S, D, A ] {
    }
 
    def +=( elem: A )( implicit tx: S#Tx ) : this.type = {
-      insertLeaf( elem ) match {
-         case oldLeaf: LeafImpl => oldLeaf.dispose()
-         case _ =>
-      }
+      insertLeaf( elem )
+//      match {
+//         case oldLeaf: LeafImpl => oldLeaf.dispose()
+//         case _ =>
+//      }
       this
    }
 
@@ -1019,10 +1050,10 @@ extends SkipOctree[ S, D, A ] {
 
       def shortString = "Leaf(" + value + ")"
 
-//      def removeAndDispose()( implicit tx: S#Tx ) {
-//         order.remove() // totalOrder.remove( order )
-//         dispose()
-//      }
+      def remove()( implicit tx: S#Tx ) {
+         order.remove()
+         dispose()
+      }
    }
 
    /**
@@ -1276,7 +1307,7 @@ extends SkipOctree[ S, D, A ] {
          assert( child( qidx ) == leaf, "Internal error - expected leaf not found" )
          updateChild( qidx, EmptyValue )
          leafRemoved()
-         leaf.dispose()
+         leaf.remove() // dispose()
       }
 
       final def insert( point: D#PointLike, value: A )( implicit tx: S#Tx ) : LeafImpl = {
@@ -1404,7 +1435,7 @@ extends SkipOctree[ S, D, A ] {
       protected def leafRemoved()( implicit tx: S#Tx ) {}
 
       protected def disposeData()( implicit tx: S#Tx ) {
-         // startOrder.dispose() -- no, because tree will call totalOrder.dispose anyway, and it was not yet removed!
+         // startOrder.dispose() -- no, because tree will call totalOrder.dispose which will do this!
          var i = 0; val sz = children.length; while( i < sz ) {
             children( i ).dispose()
          i += 1 }
@@ -1472,10 +1503,10 @@ extends SkipOctree[ S, D, A ] {
          nextRef.write( out )
       }
 
-//      private def removeAndDispose()( implicit tx: S#Tx ) {
-//         startOrder.remove() // totalOrder.remove( startOrder )
-//         dispose()
-//      }
+      private def remove()( implicit tx: S#Tx ) {
+         startOrder.remove() // totalOrder.remove( startOrder )
+         dispose()
+      }
 
       // make sure the node is not becoming uninteresting, in which case
       // we need to merge upwards
@@ -1495,7 +1526,7 @@ extends SkipOctree[ S, D, A ] {
                      val p = parent
                      p.updateChild( myIdx, lonely )
                      if( lonely.parent == this ) lonely.updateParentLeft( p )
-                     dispose() // removeAndDispose()
+                     remove() // dispose() // removeAndDispose()
                   }
 
                case _ => removeIfLonely( i + 1 )
@@ -1527,11 +1558,19 @@ extends SkipOctree[ S, D, A ] {
 
 //      def hyperCube = impl.hyperCube
 
-      protected def disposeData()( implicit tx: S#Tx ) {
+      private def remove()( implicit tx: S#Tx ) {
          // first unlink
          assert( lastTreeImpl == this )
          lastTreeImpl= prev
          prev.next   = EmptyValue
+         dispose()
+      }
+
+      protected def disposeData()( implicit tx: S#Tx ) {
+//         // first unlink
+//         assert( lastTreeImpl == this )
+//         lastTreeImpl= prev
+//         prev.next   = EmptyValue
 
          // then dispose refs
          var i = 0; val sz = children.length; while( i < sz ) {
@@ -1561,7 +1600,7 @@ extends SkipOctree[ S, D, A ] {
          i += 1 }
 
          // ok, we are the right most tree and the node is empty...
-         dispose() // removeAndDispose()
+         remove()
       }
 
 //      private def removeAndDispose()( implicit tx: S#Tx ) {
@@ -1597,9 +1636,15 @@ extends SkipOctree[ S, D, A ] {
 
       def updateParentRight( p: RightBranch )( implicit tx: S#Tx ) { parent = p }
 
-      protected def disposeData()( implicit tx: S#Tx ) {
+      private def remove()( implicit tx: S#Tx ) {
          // first unlink
          prev.next = EmptyValue
+         dispose()
+      }
+
+      protected def disposeData()( implicit tx: S#Tx ) {
+//         // first unlink
+//         prev.next = EmptyValue
 
          // then dispose refs
          parentRef.dispose()
@@ -1648,7 +1693,7 @@ extends SkipOctree[ S, D, A ] {
                      val p = parent
                      p.updateChild( myIdx, lonely )
                      if( lonely.parent == this ) lonely.updateParentRight( p )
-                     dispose() // removeAndDispose()
+                     remove()
                   }
 
                case _ => removeIfLonely( i + 1 )
