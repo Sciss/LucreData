@@ -25,8 +25,8 @@
 
 package de.sciss.collection.view
 
-import de.sciss.collection.mutable.SkipOctree
 import edu.hendrix.ozark.burch.wireframe.{Polygon, Model, Point => WPoint, TransformUtility, Transform, Graphics3D, Vector => Vector3D}
+import de.sciss.collection.mutable.SkipOctree
 import de.sciss.collection.geom.Space
 import annotation.switch
 import javax.swing.event.{AncestorEvent, AncestorListener}

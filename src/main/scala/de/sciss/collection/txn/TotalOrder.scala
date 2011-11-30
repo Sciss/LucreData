@@ -157,7 +157,7 @@ object TotalOrder {
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
 
          def prev( implicit tx: S#Tx ) : EOpt = prevRef.get
-         def next( implicit tx: S#Tx ) : EOpt = prevRef.get
+         def next( implicit tx: S#Tx ) : EOpt = nextRef.get
          private[Set] def prevOrNull( implicit tx: S#Tx ) : Entry = prevRef.get.orNull
          private[Set] def nextOrNull( implicit tx: S#Tx ) : Entry = nextRef.get.orNull
          def orNull : Entry = this
@@ -176,12 +176,12 @@ object TotalOrder {
 //require( !disposed, "DUPLICATE DISPOSAL" )
 ////require( removed, "DISPOSAL WITHOUT REMOVAL" )
 //disposed = true
-            // first unlink this node
-            val p = prev
-            val n = next
-            p.updateNext( n )
-            n.updatePrev( p )
-            sizeVal.transform( _ - 1 )
+//            // first unlink this node
+//            val p = prev
+//            val n = next
+//            p.updateNext( n )
+//            n.updatePrev( p )
+//            sizeVal.transform( _ - 1 )
 
             // then free the refs
             prevRef.dispose()

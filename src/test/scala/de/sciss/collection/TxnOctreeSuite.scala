@@ -19,7 +19,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = false
    val RANGE_SEARCH  = false
    val NN_SEARCH     = false
-   val REMOVAL       = false // true
+   val REMOVAL       = false  // true
    val INMEMORY      = false  // true
    val DATABASE      = true
 
