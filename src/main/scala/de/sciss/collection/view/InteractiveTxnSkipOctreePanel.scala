@@ -319,7 +319,11 @@ extends JPanel( new BorderLayout() ) {
          model.highlight = Set( p )
       }
    }
-   private val ggRemove = but( "Remove" ) { tryPoint( p => atomic( implicit tx => t -= p ))}
+   private val ggRemove = but( "Remove" ) {
+      tryPoint( p => atomic { implicit tx =>
+         t -= p
+      })
+   }
    but( "Contains" ) { tryPoint { p =>
       status( atomic { implicit tx => t.contains( p )}.toString )
       model.highlight = Set( p )

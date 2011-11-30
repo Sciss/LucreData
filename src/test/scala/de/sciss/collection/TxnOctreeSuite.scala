@@ -10,20 +10,21 @@ import java.io.File
 import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 
 /**
-* To run this test copy + paste the following into sbt:
-* {{
-* test-only de.sciss.collection.TxnOctreeSuite
-* }}
-*/
+ *
+ * To run this test copy + paste the following into sbt:
+ * {{
+ * test-only de.sciss.collection.TxnOctreeSuite
+ * }}
+ */
 class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
-   val CONSISTENCY   = false
-   val RANGE_SEARCH  = false
-   val NN_SEARCH     = false
+   val CONSISTENCY   = true
+   val RANGE_SEARCH  = true
+   val NN_SEARCH     = true
    val REMOVAL       = true
-   val INMEMORY      = false  // true
+   val INMEMORY      = true
    val DATABASE      = true
 
-   val n             = 22 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )

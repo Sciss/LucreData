@@ -1516,7 +1516,7 @@ extends SkipOctree[ S, D, A ] {
                case lonely: LeftNonEmptyChild =>
                   @tailrec def isLonely( j: Int ) : Boolean = {
                      (j == sz) || (child( j ) match {
-                        case _: RightNonEmptyChild => false
+                        case _: LeftNonEmptyChild => false
                         case _ => isLonely( j + 1 )
                      })
                   }
