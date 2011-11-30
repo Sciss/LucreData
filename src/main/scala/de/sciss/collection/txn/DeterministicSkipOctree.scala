@@ -1156,7 +1156,7 @@ extends SkipOctree[ S, D, A ] {
    protected sealed trait RightBranch extends Next with BranchLike with Mutable[ S ] {
       protected def children: Array[ S#Ref[ RightChildOption ]]
 
-      final def prevOption: Option[ Branch ] = Some( this: Branch )
+      final def prevOption: Option[ Branch ] = Some( prev: Branch )
 
       def prev : BranchLike
       final def child( idx: Int )( implicit tx: S#Tx ) : RightChildOption = children( idx ).get

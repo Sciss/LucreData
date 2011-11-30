@@ -16,14 +16,14 @@ import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 * }}
 */
 class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
-   val CONSISTENCY   = false
-   val RANGE_SEARCH  = false
-   val NN_SEARCH     = false
-   val REMOVAL       = false  // true
+   val CONSISTENCY   = true
+   val RANGE_SEARCH  = true
+   val NN_SEARCH     = true
+   val REMOVAL       = true
    val INMEMORY      = false  // true
    val DATABASE      = true
 
-   val n             = 2 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 6 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )
