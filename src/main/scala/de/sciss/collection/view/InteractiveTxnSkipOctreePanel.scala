@@ -72,7 +72,9 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
                txn.DeterministicSkipOctree.empty[ BerkeleyDB, TwoDim, Point2D ](
                   Square( sz, sz, sz ), skipGap = 1 )
             }
-            new Model2D[ BerkeleyDB ]( tree )
+            new Model2D[ BerkeleyDB ]( tree, { () =>
+               system.atomic( implicit tx => system.debugListUserRecords() ).foreach( println )
+            })
          }
 
       } else {
@@ -80,7 +82,7 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
          system.atomic { implicit tx =>
             val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
                Square( sz, sz, sz ), skipGap = 1 )
-            new Model2D[ InMemory ]( tree )
+            new Model2D[ InMemory ]( tree, { () => println( "(Consistency not checked)" )})
          }
       }
 
@@ -98,7 +100,7 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
 
    private val sz = 256
 
-   private final class Model2D[ S <: Sys[ S ]]( val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ])
+   private final class Model2D[ S <: Sys[ S ]]( val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ], cons: () => Unit )
    extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
@@ -110,6 +112,8 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
          case IndexedSeq( x, y ) => Square( x, y, ext )
       }
+
+      def consistency() { cons() }
 
       val view = {
          val res = new TxnSkipQuadtreeView[ S, Point2D ]( tree )
@@ -178,6 +182,7 @@ object InteractiveTxnSkipOctreePanel extends App with Runnable {
 //   }
 
    trait Model[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ] {
+      def consistency() : Unit
       def tree: txn.SkipOctree[ S, D, Point ]
       def view: JComponent
       final def insets: Insets = view.getInsets
@@ -306,10 +311,14 @@ extends JPanel( new BorderLayout() ) {
    ggCoord.foreach( p.add )
    p.add( ggExt )
 
-   private val ggAdd = but( "Add" ) { tryPoint { p =>
-      atomic { implicit tx => t += p }
-      model.highlight = Set( p )
-   }}
+   private val ggAdd = but( "Add" ) {
+      tryPoint { p =>
+         atomic { implicit tx =>
+            t += p
+         }
+         model.highlight = Set( p )
+      }
+   }
    private val ggRemove = but( "Remove" ) { tryPoint( p => atomic( implicit tx => t -= p ))}
    but( "Contains" ) { tryPoint { p =>
       status( atomic { implicit tx => t.contains( p )}.toString )
@@ -382,9 +391,9 @@ extends JPanel( new BorderLayout() ) {
 
    space()
 
-//   but( "Consistency" ) {
-//      verifyConsistency()
-//   }
+   but( "Consistency" ) {
+      model.consistency()
+   }
 
    private val ma = new MouseAdapter {
       var drag = Option.empty[ (MouseEvent, Option[ MouseEvent ])]

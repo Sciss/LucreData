@@ -1199,10 +1199,8 @@ extends SkipOctree[ S, D, A ] {
                      }
                   }
                }
-               val pPrev = findInPrev( prev )
-
+               val pPrev   = findInPrev( prev )
                val n2      = newNode( qidx, pPrev, qn2 )
-
                val oidx    = old.orthantIndexIn( qn2 )
                n2.updateChild( oidx, old )
                // This is a tricky bit! And a reason
@@ -1289,11 +1287,13 @@ extends SkipOctree[ S, D, A ] {
        */
       final def stopOrder( implicit tx: S#Tx ) : Order = {
          val sz = children.length
-         @tailrec def step( i: Int ) : Order = if( i == sz ) startOrder else child( i ) match {
-            case n: LeftNonEmpty => n.stopOrder
-            case _ => step( i + 1 )
+         @tailrec def step( found: Order, i: Int ) : Order = if( i == sz ) found else {
+            step( child( i ) match {
+               case n: LeftNonEmpty => n.stopOrder
+               case _ => found
+            }, i + 1 )
          }
-         step( 0 )
+         step( startOrder, 0 )
       }
 
       final def child( idx: Int )( implicit tx: S#Tx ) : LeftChildOption = children( idx ).get
@@ -1372,13 +1372,12 @@ extends SkipOctree[ S, D, A ] {
        *          (in the case of a node, the start-order)
        */
       private def newChildOrder( qidx: Int )( implicit tx: S#Tx ) : Order = {
-         @tailrec def step( pre: Order, i: Int ) : Order = {
-            if( i == qidx ) pre else {
-               val next = child( i ) match {
+         @tailrec def step( found: Order, i: Int ) : Order = {
+            if( i == qidx ) found else {
+               step( child( i ) match {
                   case n: LeftNonEmptyChild => n.stopOrder
-                  case _ => pre
-               }
-               step( next, i + 1 )
+                  case _ => found
+               }, i + 1 )
             }
          }
          step( startOrder, 0 ).append()
