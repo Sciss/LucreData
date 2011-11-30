@@ -151,6 +151,9 @@ object TotalOrder {
 
       final class Entry private[TotalOrder]( val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Ref[ EOpt ], nextRef: S#Ref[ EOpt ])
       extends EntryOption with Mutable[ S ] {
+private var disposed = false
+//private var removed = false
+
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
 
          def prev( implicit tx: S#Tx ) : EOpt = prevRef.get
@@ -170,6 +173,17 @@ object TotalOrder {
          }
 
          protected def disposeData()( implicit tx: S#Tx ) {
+require( !disposed, "DUPLICATE DISPOSAL" )
+//require( removed, "DISPOSAL WITHOUT REMOVAL" )
+disposed = true
+            // first unlink this node
+            val p = prev
+            val n = next
+            p.updateNext( n )
+            n.updatePrev( p )
+            sizeVal.transform( _ - 1 )
+
+            // then free the refs
             tagVal.dispose()
             prevRef.dispose()
             nextRef.dispose()
@@ -209,22 +223,23 @@ object TotalOrder {
             rec
          }
 
-         def remove()( implicit tx: S#Tx ) {
-            val p = prev
-            val n = next
-            p.updateNext( n )
-            n.updatePrev( p )
-            sizeVal.transform( _ - 1 )
-         }
-
-         def removeAndDispose()( implicit tx: S#Tx ) {
-            remove()
-            dispose()
-         }
+//         def remove()( implicit tx: S#Tx ) {
+//require( !removed, "DUPLICATE REMOVAL" )
+//removed = true
+//            val p = prev
+//            val n = next
+//            p.updateNext( n )
+//            n.updatePrev( p )
+//            sizeVal.transform( _ - 1 )
+//         }
+//
+//         def removeAndDispose()( implicit tx: S#Tx ) {
+//            remove()
+//            dispose()
+//         }
       }
 
       final protected def disposeData()( implicit tx: S#Tx ) {
-         sizeVal.dispose()
          val r = root
          var m = r.prevOrNull
          while( m ne null ) {
@@ -238,6 +253,7 @@ object TotalOrder {
             m = m.prevOrNull
             t.dispose()
          } while( m ne null )
+         sizeVal.dispose()
       }
 
       final protected def writeData( out: DataOutput ) {

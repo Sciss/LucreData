@@ -17,20 +17,20 @@ import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 */
 class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = false
-   val RANGE_SEARCH  = true
-   val NN_SEARCH     = true
-   val REMOVAL       = true
-   val INMEMORY      = true
+   val RANGE_SEARCH  = false
+   val NN_SEARCH     = false
+   val REMOVAL       = false // true
+   val INMEMORY      = false  // true
    val DATABASE      = true
 
-   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+   val n             = 2 // 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
    val n2            = n >> 3    // 0x1000    // range query and nn
 
    val rnd           = new util.Random( 2L ) // ( 12L )
 
    val cube          = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: S => Unit )
+   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit )
                               ( implicit smf: Manifest[ S ]) {
       withTree[ S ]( sysName, () => {
          implicit val sys = sysCreator()
@@ -38,12 +38,12 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
             import txn.geom.Space.{Point3DSerializer, CubeSerializer}
             txn.DeterministicSkipOctree.empty[ S, ThreeDim, Point3D ]( cube )
          }
-         (t, () => sysCleanUp( sys ))
+         (t, succ => sysCleanUp( sys, succ ))
       })
    }
 
    if( INMEMORY ) {
-      withSys[ InMemory ]( "Mem", () => new InMemory, _ => () )
+      withSys[ InMemory ]( "Mem", () => new InMemory, (_, _) => () )
    }
    if( DATABASE ) {
 //BerkeleyDB.DB_CONSOLE_LOG_LEVEL = "ALL"
@@ -54,10 +54,13 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
          BerkeleyDB.open( f )
-      }, bdb => {
+      }, { case (bdb, success) =>
 //         println( "FINAL DB SIZE = " + bdb.numUserRecords )
-         val sz = bdb.numUserRecords
-         assert( sz == 0, "Final DB user size should be 0, but is " + sz )
+         if( success ) {
+            val sz = bdb.numUserRecords
+            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
+            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
+         }
          bdb.close()
       })
    }
@@ -236,7 +239,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   def withTree[ S <: Sys[ S ]]( name: String, tf: () => (DeterministicSkipOctree[ S, ThreeDim, ThreeDim#Point ], () => Unit) ) {
+   def withTree[ S <: Sys[ S ]]( name: String, tf: () => (DeterministicSkipOctree[ S, ThreeDim, ThreeDim#Point ], Boolean => Unit) ) {
       feature( "The " + name + " octree structure should be consistent" ) {
          info( "Several mass operations on the structure" )
          info( "are tried and expected behaviour verified" )
@@ -252,6 +255,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
 
          scenarioWithTime( "Consistency is verified on a randomly filled structure" ) {
             val (t, cleanUp)  = tf()
+            var success = false
             try {
                val m  = MSet.empty[ ThreeDim#Point ]
 
@@ -265,11 +269,18 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
                if( REMOVAL ) verifyAddRemoveAll[ S, ThreeDim ]( t, m )
 
                t.system.atomic { implicit tx =>
-                  t.dispose()
+                  try {
+                     t.dispose()
+                  } catch {
+                     case e =>
+                        e.printStackTrace()
+                        throw e
+                  }
                }
+               success = true
 
             } finally {
-               cleanUp()
+               cleanUp( success )
             }
          }
       }
