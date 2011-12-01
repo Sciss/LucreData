@@ -62,7 +62,7 @@ object TotalOrder {
 
    object Set {
       def empty[ S <: Sys[ S ]]( implicit tx: S#Tx, system: S ) : Set[ S ] = {
-         new SetNew( system.newID, system.newInt( 1 ))
+         new SetNew( system.newID(), system.newInt( 1 ))
       }
 
       def reader[ S <: Sys[ S ]] /* ( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]] = NoRelabelObserver ) */
@@ -95,7 +95,7 @@ object TotalOrder {
          val tagVal  = system.newInt( 0 )
          val prevRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryOptionReader )
          val nextRef = system.newOptionRef[ EOpt ]( EmptyEntry )( tx, EntryOptionReader )
-         new Entry( system.newID, tagVal, prevRef, nextRef )
+         new Entry( system.newID(), tagVal, prevRef, nextRef )
       }
    }
 
@@ -198,7 +198,7 @@ object TotalOrder {
             val prevTag    = p.tag
             val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
             val recTagVal  = system.newInt( recTag )
-            val rec        = new Entry( system.newID, recTagVal, recPrevRef, recNextRef )
+            val rec        = new Entry( system.newID(), recTagVal, recPrevRef, recNextRef )
             p.updateNext( rec )
             n.updatePrev( rec )
             sizeVal.transform( _ + 1 )
@@ -215,7 +215,7 @@ object TotalOrder {
             val nextTag    = n.tag
             val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
             val recTagVal  = system.newInt( recTag )
-            val rec        = new Entry( system.newID, recTagVal, recPrevRef, recNextRef )
+            val rec        = new Entry( system.newID(), recTagVal, recPrevRef, recNextRef )
             n.updatePrev( rec )
             p.updateNext( rec )
             sizeVal.transform( _ + 1 )

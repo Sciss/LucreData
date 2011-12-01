@@ -22,6 +22,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
    if( INMEMORY ) {
       withSys[ InMemory ]( "Mem", () => new InMemory(), _ => () )
    }
+
    if( DATABASE ) {
 //      BerkeleyDB.DB_CONSOLE_LOG_LEVEL = "ALL"
       withSys[ BerkeleyDB ]( "BDB", () => {
@@ -126,14 +127,14 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
                when( "the structure is emptied" )
                val sz2 = system.atomic { implicit tx =>
 //                  set.foreach( _.remove() )
-                  set.foreach( _.dispose() )
+                  set.foreach( _.removeAndDispose() )
                   to.size
                }
                then( "the order should have size 1" )
                assert( sz2 == 1, "Size is " + sz2 + " and not 1" )
 
                system.atomic { implicit tx =>
-                  set.foreach( _.dispose() )
+//                  set.foreach( _.removeAndDispose() )
                   to.dispose()
                }
 

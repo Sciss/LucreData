@@ -59,8 +59,8 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
 //         println( "FINAL DB SIZE = " + bdb.numUserRecords )
          if( success ) {
             val sz = bdb.numUserRecords
-            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
-//            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
+//            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
+            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          }
          bdb.close()
       })

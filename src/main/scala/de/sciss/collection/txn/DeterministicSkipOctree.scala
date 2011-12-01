@@ -55,7 +55,7 @@ object DeterministicSkipOctree {
                                                    dmf: Manifest[ D ],
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
-      new ImplNew[ S, D, A ]( skipGap, system.newID, hyperCube, view )
+      new ImplNew[ S, D, A ]( skipGap, system.newID(), hyperCube, view )
    }
 
    def reader[ S <: Sys[ S ], D <: Space[ D ], A ](
@@ -130,7 +130,7 @@ object DeterministicSkipOctree {
          i += 1 }
          implicit val r2   = RightOptionReader
          val headRight     = system.newOptionRef[ NextOption ]( EmptyValue )
-         new LeftTopBranch( system.newID, totalOrder.root, ch, headRight )
+         new LeftTopBranch( system.newID(), totalOrder.root, ch, headRight )
       }
       val lastTreeRef = {
          implicit val r3   = TopBranchReader
@@ -297,7 +297,7 @@ extends SkipOctree[ S, D, A ] {
                i += 1 }
                val nextRef = system.newOptionRef[ NextOption ]( EmptyValue )
                val prev    = lastTreeImpl
-               val res     = new RightTopBranch( system.newID, prev, ch, nextRef )
+               val res     = new RightTopBranch( system.newID(), prev, ch, nextRef )
                prev.next   = res
                lastTreeImpl= res
                res
@@ -1239,7 +1239,7 @@ extends SkipOctree[ S, D, A ] {
          i += 1 }
          val parentRef  = system.newRef[ RightBranch ]( this )
          val rightRef   = system.newOptionRef[ NextOption ]( EmptyValue )
-         val n          = new RightChildBranch( system.newID, parentRef, prev, iq, ch, rightRef )
+         val n          = new RightChildBranch( system.newID(), parentRef, prev, iq, ch, rightRef )
          prev.next      = n
          updateChild( qidx, n )
          n
@@ -1352,7 +1352,7 @@ extends SkipOctree[ S, D, A ] {
        */
       private def newLeaf( qidx: Int, value: A )( implicit tx: S#Tx ) : LeafImpl = {
          val parentRef  = system.newRef[ BranchLike ]( this )
-         val l          = new LeafImpl( system.newID, value, newChildOrder( qidx ), parentRef )
+         val l          = new LeafImpl( system.newID(), value, newChildOrder( qidx ), parentRef )
          updateChild( qidx, l )
          l
       }
@@ -1402,7 +1402,7 @@ extends SkipOctree[ S, D, A ] {
          i += 1 }
          val parentRef  = system.newRef[ LeftBranch ]( this )
          val rightRef   = system.newOptionRef[ NextOption ]( EmptyValue )
-         val n          = new LeftChildBranch( system.newID, parentRef, iq, newChildOrder( qidx ), ch, rightRef )
+         val n          = new LeftChildBranch( system.newID(), parentRef, iq, newChildOrder( qidx ), ch, rightRef )
          updateChild( qidx, n )
          n
       }

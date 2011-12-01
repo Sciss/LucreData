@@ -101,7 +101,7 @@ object HASkipList {
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
 //      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newVal[ Branch[ S, A ]]( null )( tx, list ))
-      new Impl[ S, A ]( system.newID, minGap, keyObserver, list => {
+      new Impl[ S, A ]( system.newID(), minGap, keyObserver, list => {
 //println( "CALLING NEW REF FOR DOWN NODE" )
          /* val res = */ system.newVal[ Node[ S, A ]]( null )( tx, list )
 //res.debug
