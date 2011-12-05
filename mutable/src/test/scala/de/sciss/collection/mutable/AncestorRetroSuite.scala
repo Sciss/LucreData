@@ -1,19 +1,19 @@
 package de.sciss.collection
 package mutable
 
-import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
+import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
 
 /**
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.AncestorRetroSuite
+ * test-only de.sciss.collection.mutable.AncestorRetroSuite
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long            = 12345L
-   val TREE_SIZE              = 100000    // 150000
+   val TREE_SIZE              = 23 // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.2       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1
    val RETRO_PARENT_PERCENTAGE= 0.1
@@ -166,6 +166,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                val ref     = treeSeq( rnd.nextInt( i ))
                val retro   = rnd.nextDouble()
                if( retro <= RETRO_CHILD_PERCENTAGE ) {
+//println( "retro child : " + i )
                   val child = t.insertRetroChild( ref, i )
                   treeSeq :+= child
                   parents += child -> ref
@@ -174,10 +175,12 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                   oldChildren.foreach { c2 => parents += c2 -> child }  // update parent for old children
                   children += child -> oldChildren
                } else if( retro <= (RETRO_CHILD_PERCENTAGE + RETRO_PARENT_PERCENTAGE) ) {
+//println( "retro parent : " + i )
                   val parent = t.insertRetroParent( ref, i )
                   treeSeq :+= parent
                   val oldParentO = parents.get( ref )
                   parents += ref -> parent   // overwrites previous entry
+                  oldParentO.foreach( op => parents += parent -> op )
                   children += parent -> Set( ref )
                   oldParentO.foreach { oldParent =>
                      children += oldParent -> (children.getOrElse( oldParent, Set.empty) - ref + parent) // replace child
@@ -330,26 +333,31 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
             println( sb.toString() )
          }
 
-// XXX TODO
-//         when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
-//         then( "the results should be identical to those obtained from independent brute force" )
-//
-//         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
-//         treeSeq.foreach { child =>
-//            val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare( child.pre  )).getOrElse( 1 )}
-//            val postIso = mPostList.isomorphicQuery { e => postTagIsoMap.get( e ).map( _.compare( child.post )).getOrElse( 1 )}
-//            val atPreIso= preTagIsoMap.get( preIso )
-//            val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
-//            val y       = postIso.tag
-//            val point   = Point2D( x, y )
-//
-//            val found = tm.t.nearestNeighborOption( point, metric ).map( _.value )
-//            val parent = {
-//               var p = child; while( !markSet.contains( p.value )) { p = parents( p )}
-//               p.value
-//            }
-//            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
-//         }
+         when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
+         then( "the results should be identical to those obtained from independent brute force" )
+
+//println( "\n-----TREE-----" ); treeSeq.foreach( println )
+//println( "\n-----MARK-----" ); markSet.foreach( println )
+//println( "\n-----PARE-----" ); parents.foreach( println )
+//println()
+
+         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 ) // XXX THIS IS WRONG ???
+         treeSeq.foreach { child =>
+println( " -- testing " + child )
+            val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare( child.pre  )).getOrElse( 1 )}
+            val postIso = mPostList.isomorphicQuery { e => postTagIsoMap.get( e ).map( _.compare( child.post )).getOrElse( 1 )}
+            val atPreIso= preTagIsoMap.get( preIso )
+            val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
+            val y       = postIso.tag
+            val point   = Point3D( x, y, child.version )
+
+            val found = tm.t.nearestNeighborOption( point, metric ).map( _.value )
+            val parent = {
+               var p = child; while( p.version > child.version || !markSet.contains( p.value )) { p = parents( p )}
+               p.value
+            }
+            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
+         }
       }
    }
 }

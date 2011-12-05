@@ -202,53 +202,11 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
             val t  = tf // ( None )
             val m  = MSet.empty[ TwoDim#Point ]
             randFill( t, m )
-//println( ":::::::::::::::::: POINTS ::::::::::::::::::" )
-//m.foreach( tup => println( tup._1 ))
-//println( "::::::::::::::::::        ::::::::::::::::::" )
-
-//            {
-//               val q1   = Point2D(1609162490,1507881173)
-//               val res1 = t.nearestNeighbor( q1 ).get
-//               println( "HALOCHILA 1" )
-//               println( q1 -> res1 )
-//            }
 
             verifyConsistency( t )
-
-//            {
-//               val q1   = Point2D(1609162490,1507881173)
-//               val res1 = t.nearestNeighbor( q1 ).get
-//               println( "HALOCHILA 2" )
-//               println( q1 -> res1 )
-//            }
-
             verifyElems( t, m )
-
-//            {
-//               val q1   = Point2D(1609162490,1507881173)
-//               val res1 = t.nearestNeighbor( q1 ).get
-//               println( "HALOCHILA 3" )
-//               println( q1 -> res1 )
-//            }
-
             verifyContainsNot( t, m )
-
-//            {
-//               val q1   = Point2D(1609162490,1507881173)
-//               val res1 = t.nearestNeighbor( q1 ).get
-//               println( "HALOCHILA 4" )
-//               println( q1 -> res1 )
-//            }
-
             if( RANGE_SEARCH ) verifyRangeSearch( t, m )
-
-//            {
-//               val q1   = Point2D(1609162490,1507881173)
-//               val res1 = t.nearestNeighbor( q1 ).get
-//               println( "HALOCHILA 5" )
-//               println( q1 -> res1 )
-//            }
-
             if( NN_SEARCH ) verifyNN( t, m )
             if( REMOVAL ) verifyAddRemoveAll( t, m )
 
