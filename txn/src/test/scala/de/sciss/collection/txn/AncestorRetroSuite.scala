@@ -144,7 +144,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          def pre: FullOrder       = preO.root
-         def post: FullOrder      = postO.root
+//         def post: FullOrder      = postO.root
+def post: FullOrder      = t.system.atomic { implicit tx => postO.root.append( this )}  // XXX
          def preTail: FullOrder   = t.system.atomic { implicit tx => pre.append( this )}
 
          val version = 0
@@ -165,6 +166,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //         if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + value + " ; pre compare = " +
 //            parent.pre.compare( pre ) + "; post compare = " + parent.post.compare( post ))
 
+println( "INSERT x = " + x + ", y = " + y + ", z = " + z )
          t.add( this )
       }
 
@@ -255,7 +257,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          }
       }
 
-      implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
+      implicit lazy val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
          Serializer.fromMutableReader( Root.preO.EntryReader, system )
 
       val t: SkipOctree[ S, Space.ThreeDim, V ] = system.atomic { implicit tx =>
