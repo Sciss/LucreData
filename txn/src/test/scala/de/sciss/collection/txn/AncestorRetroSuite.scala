@@ -6,7 +6,6 @@ import annotation.tailrec
 import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
 import de.sciss.lucrestm.{Serializer, InMemory}
 import concurrent.stm.Ref
-import txn.AncestorRetroSuite.FullTree.OrderObserver
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -114,8 +113,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       t.system.atomic { implicit tx => t += root }
 
       private object Root extends V {
-         val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, new OrderObserver )}
-         val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, new OrderObserver )}
+         val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
+         val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          def pre: Order       = preO.root
          def post: Order      = postO.root
          def preTail: Order   = t.system.atomic { implicit tx => pre.append( this )}
@@ -172,7 +171,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //            "post-observer size (" + postObserver.map.size + ") is different from quad size (" + qsz + ")" )
       }
 
-      private final class OrderObserver extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
+      private object OrderObserver extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
          type E = TotalOrder.Map.Entry[ S, V ]
 //         // XXX could eventually add again elem to total order
 //         // (would be Option[ V ] for pre order and V for post order)
@@ -204,9 +203,14 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       sealed trait Vertex extends VertexLike
 
 //      lazy val root = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
+
+      implicit val vertexSer = new Serializer[ V ] {
+
+      }
+
       lazy val root : V = new Vertex {
-         private val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, preObserver )}
-         private val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, postObserver )}
+         private val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
+         private val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          def pre: Order       = preO.root
          def post: Order      = postO.root
       }
@@ -214,6 +218,29 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //      def newVertex( pre: Order, post: Order, version: Int ) : V = new Vertex( pre, post, version )
 
 //      override def add( v: V )( implicit tx: S#Tx ) : V = super.add( v )
+
+      private object OrderObserver extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
+         type E = TotalOrder.Map.Entry[ S, V ]
+//         // XXX could eventually add again elem to total order
+//         // (would be Option[ V ] for pre order and V for post order)
+//         var map = Map.empty[ TotalOrder.EntryLike, V ]
+         def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
+            var e = first
+            var i = 0; while( i < num ) {
+               t.remove( e.value )
+               e = e.next.orNull
+               i += 1
+            }
+         }
+         def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
+            var e = first
+            var i = 0; while( i < num ) {
+               t.add( e.value )
+               e = e.next.orNull
+               i += 1
+            }
+         }
+      }
    }
 
 //   type V = Tree[ Unit ]#Vertex // [ Unit ]
@@ -341,13 +368,21 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          val tm      = new MarkTree
          val rnd     = new util.Random( seed )
 
+         implicit val ord: Ordering[ S#Tx, tm.Order ] = new Ordering[ S#Tx, tm.Order ] {
+            def compare( a: tm.Order, b: tm.Order )( implicit tx: S#Tx ) : Int = {
+               val ta = a.tag
+               val tb = b.tag
+               if( ta < tb ) -1 else if( ta > tb ) 1 else 0
+            }
+         }
+
          val mPreList   = {
-            val res = SkipList.empty[ tm.Order ] // [ tm.preOrder.Entry ] // ( ord, m )
+            val res = tm.t.system.atomic { implicit tx => SkipList.empty[ S, tm.Order ]}
             res.add( tm.preOrder.root )
             res
          }
          val mPostList = {
-            val res = SkipList.empty[ tm.Order ] // [ tm.postOrder.Entry ] // ( ord, m )
+            val res = tm.t.system.atomic { implicit tx => SkipList.empty[ S, tm.Order ]}
             res.add( tm.postOrder.root )
             res
          }
