@@ -10,12 +10,12 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
 /**
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.mutable.AncestorRetroSuite
+ * test-only de.sciss.collection.txn.AncestorRetroSuite
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long            = 12345L
-   val TREE_SIZE              = 100000    // 150000
+   val TREE_SIZE              = 100 // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.2       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1
    val RETRO_PARENT_PERCENTAGE= 0.1
@@ -207,7 +207,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //         // (would be Option[ V ] for pre order and V for post order)
 //         var map = Map.empty[ TotalOrder.EntryLike, V ]
          def beforeRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            sys.error( "TODO" )
+            iter.foreach( t -= _ )
 //            var e = first
 //            var i = 0; while( i < num ) {
 //               t.remove( e.value )
@@ -216,7 +216,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //            }
          }
          def afterRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            sys.error( "TODO" )
+            iter.foreach( t += _ )
 //            var e = first
 //            var i = 0; while( i < num ) {
 //               t.add( e.value )
@@ -304,7 +304,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //         // (would be Option[ V ] for pre order and V for post order)
 //         var map = Map.empty[ TotalOrder.EntryLike, V ]
          def beforeRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            sys.error( "TODO" )
+            iter.foreach( t -= _ )
 //            var e = first
 //            var i = 0; while( i < num ) {
 //               t.remove( e.value )
@@ -313,7 +313,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //            }
          }
          def afterRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            sys.error( "TODO" )
+            iter.foreach( t += _ )
 //            var e = first
 //            var i = 0; while( i < num ) {
 //               t.add( e.value )

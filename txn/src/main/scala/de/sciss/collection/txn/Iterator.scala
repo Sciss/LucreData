@@ -57,6 +57,10 @@ trait Iterator[ -Tx, @specialized( Unit, Boolean, Int, Float, Long, Double ) +A 
    def hasNext : Boolean
    def next()( implicit tx: Tx ) : A
 
+   final def foreach( fun: A => Unit )( implicit tx: Tx ) {
+      while( hasNext ) fun( next() )
+   }
+
    final def toIndexedSeq( implicit tx: Tx ) : IIdxSeq[ A ] = fromBuilder( IIdxSeq.newBuilder[ A ])
    final def toList( implicit tx: Tx ) : List[ A ] = fromBuilder( List.newBuilder[ A ])
    final def toSeq( implicit tx: Tx ) : Seq[ A ] = fromBuilder( Seq.newBuilder[ A ])
