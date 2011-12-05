@@ -103,18 +103,20 @@ object TotalOrder {
 //      def readEntry( in: DataInput ) : Entry = system.readMut[ Entry ]( in )( this )
 //   }
 
-   sealed trait Set[ S <: Sys[ S ]] extends Mutable[ S ] /* extends TotalOrder[ S ] */ /* with Reader[ Set[ S ]#E ] */ {
+   sealed trait Set[ S <: Sys[ S ]] extends TotalOrder[ S ] /* with Reader[ Set[ S ]#E ] */ {
+      type E = Entry
+
       protected type EOpt = EntryOption with MutableOption[ S ]
 
       protected def sizeVal: S#Val[ Int ]
 //      protected implicit def optReader: MutableOptionReader[ S, EOpt ]
-      def system: S
-      def root: Entry
+//      def system: S
+      def root: E
 
-      final def readEntry( in: DataInput ) : Entry = system.readMut[ Entry ]( in )( EntryReader )
+      final def readEntry( in: DataInput ) : E = system.readMut[ E ]( in )( EntryReader )
 
-      protected implicit object EntryReader extends MutableReader[ S, Entry ] {
-         def readData( in: DataInput, id: S#ID ) : Entry = {
+      protected implicit object EntryReader extends MutableReader[ S, E ] {
+         def readData( in: DataInput, id: S#ID ) : E = {
             val tagVal  = system.readInt( in )
             val prevRef = system.readOptionRef[ EOpt ]( in )
             val nextRef = system.readOptionRef[ EOpt ]( in )
@@ -126,7 +128,7 @@ object TotalOrder {
          def read( in: DataInput ) : EOpt = system.readOptionMut[ EOpt ]( in )
 
          def empty = EmptyEntry
-         def readData( in: DataInput, id: S#ID ) : Entry = EntryReader.readData( in, id )
+         def readData( in: DataInput, id: S#ID ) : E = EntryReader.readData( in, id )
       }
 
       sealed trait EntryOption {
@@ -135,13 +137,13 @@ object TotalOrder {
          private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) : Unit
          private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) : Unit
          private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
-         def orNull : Entry
+         def orNull : E
       }
 
       sealed trait EmptyEntryLike extends EntryOption with EmptyMutable {
          private[Set] final def updatePrev( e: EOpt )( implicit tx: S#Tx ) {}
          private[Set] final def updateNext( e: EOpt )( implicit tx: S#Tx ) {}
-         final def orNull : Entry = null
+         final def orNull : E = null
          private[Set] final def updateTag( value: Int )( implicit tx: S#Tx ) {
             sys.error( "Internal error - shouldn't be here" )
          }
@@ -158,9 +160,9 @@ object TotalOrder {
 
          def prev( implicit tx: S#Tx ) : EOpt = prevRef.get
          def next( implicit tx: S#Tx ) : EOpt = nextRef.get
-         private[Set] def prevOrNull( implicit tx: S#Tx ) : Entry = prevRef.get.orNull
-         private[Set] def nextOrNull( implicit tx: S#Tx ) : Entry = nextRef.get.orNull
-         def orNull : Entry = this
+         private[Set] def prevOrNull( implicit tx: S#Tx ) : E = prevRef.get.orNull
+         private[Set] def nextOrNull( implicit tx: S#Tx ) : E = nextRef.get.orNull
+         def orNull : E = this
 
          private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) { prevRef.set( e )}
          private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) { nextRef.set( e )}
@@ -189,7 +191,7 @@ object TotalOrder {
             tagVal.dispose()
          }
 
-         def append()( implicit tx: S#Tx ) : Entry = {
+         def append()( implicit tx: S#Tx ) : E = {
             val p          = this
             val n          = next
             val nextTag    = n.tag // if( next == null ) Int.MaxValue else next.tag
@@ -206,7 +208,7 @@ object TotalOrder {
             rec
          }
 
-         def prepend()( implicit tx: S#Tx ) : Entry = {
+         def prepend()( implicit tx: S#Tx ) : E = {
             val n          = this
             val p          = n.prev
             val prevTag    = p.tag
@@ -267,7 +269,7 @@ object TotalOrder {
 
       final def size( implicit tx: S#Tx ) : Int = sizeVal.get
 
-      final def head( implicit tx: S#Tx ) : Entry = {
+      final def head( implicit tx: S#Tx ) : E = {
          var e = root
          var p = e.prevOrNull
          while( p ne null ) {
@@ -277,7 +279,7 @@ object TotalOrder {
          e
       }
 
-      final def tagList( from: Entry )( implicit tx: S#Tx ) : List[ Int ] = {
+      final def tagList( from: E )( implicit tx: S#Tx ) : List[ Int ] = {
          val b       = List.newBuilder[ Int ]
          var entry   = from
          while( entry ne null ) {
@@ -392,29 +394,29 @@ object TotalOrder {
 //      }
 //   }
 }
-//sealed trait TotalOrder[ S <: Sys[ S ]] extends Disposable[ S#Tx ] /* with Reader[ E ] */ with Mutable[ S ] {
-//   def system: S
-//
-//   type E
-//
-//   /**
-//    * The initial element created from which you can start to append and prepend.
-//    */
-//   def root : E // Entry[ S ]
-//
-//   /**
-//    * Returns the head element of the structure. Note that this
-//    * is O(n) worst case.
-//    */
-//   def head( implicit tx: S#Tx ) : E // Entry[ S ]
-//
-//   /**
-//    * The number of elements in the order. This is `1` for a newly
-//    * created order (consisting only of the root element).
-//    * You will rarely need this information except for debugging
-//    * purpose. The operation is O(1).
-//    */
-//   def size( implicit tx: S#Tx ) : Int
-//
-//   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int  ]
-//}
+sealed trait TotalOrder[ S <: Sys[ S ]] extends Mutable[ S ] {
+   def system: S
+
+   type E
+
+   /**
+    * The initial element created from which you can start to append and prepend.
+    */
+   def root : E // Entry[ S ]
+
+   /**
+    * Returns the head element of the structure. Note that this
+    * is O(n) worst case.
+    */
+   def head( implicit tx: S#Tx ) : E // Entry[ S ]
+
+   /**
+    * The number of elements in the order. This is `1` for a newly
+    * created order (consisting only of the root element).
+    * You will rarely need this information except for debugging
+    * purpose. The operation is O(1).
+    */
+   def size( implicit tx: S#Tx ) : Int
+
+   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int  ]
+}
