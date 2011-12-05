@@ -26,8 +26,6 @@
 package de.sciss.collection
 package txn
 
-import txn.TotalOrder.Map.EmptyEntry
-import txn.TotalOrder.MapEntryOptionReader
 import de.sciss.lucrestm.{Serializer, MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
 
 
@@ -333,25 +331,25 @@ object TotalOrder {
 
    object Map {
       def empty[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-           rootValue: A, relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]] = NoRelabelObserver )
+           rootValue: A, relabelObserver: Map.RelabelObserver[ S#Tx, A ] = new NoRelabelObserver[ S#Tx ])
          ( implicit tx: S#Tx, system: S, keySerializer: Serializer[ A ]) : Map[ S, A ] = {
 
          new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver, rootValue )
       }
 
       def reader[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-           relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]] = NoRelabelObserver )
+           relabelObserver: Map.RelabelObserver[ S#Tx, A ] = new NoRelabelObserver[ S#Tx ])
          ( implicit system: S, keySerializer: Serializer[ A ]) : MutableReader[ S, Map[ S, A ]] =
          new MapReader[ S, A ]( relabelObserver )
 
-      trait RelabelObserver[ -Tx, @specialized( Unit, Boolean, Int, Long, Float, Double ) -A ] {
-         def beforeRelabeling( first: A, num: Int )( implicit tx: Tx ) : Unit
-         def afterRelabeling(  first: A, num: Int )( implicit tx: Tx ) : Unit
+      trait RelabelObserver[ Tx, @specialized( Unit, Boolean, Int, Long, Float, Double ) -A ] {
+         def beforeRelabeling( values: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
+         def afterRelabeling(  values: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
       }
 
-      object NoRelabelObserver extends RelabelObserver[ Any, Any ] {
-         def beforeRelabeling( first: Any, num: Int )( implicit tx: Any ) {}
-         def afterRelabeling(  first: Any, num: Int )( implicit tx: Any ) {}
+      final class NoRelabelObserver[ Tx ] extends RelabelObserver[ Tx, Any ] {
+         def beforeRelabeling( values: Iterator[ Tx, Any ])( implicit tx: Tx ) {}
+         def afterRelabeling(  values: Iterator[ Tx, Any ])( implicit tx: Tx ) {}
       }
 
 //      protected implicit object EntryOptionReader extends MutableOptionReader[ S, EOpt ] {
@@ -447,7 +445,7 @@ object TotalOrder {
    }
 
    private final class MapReader[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-      relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]])( implicit system: S, keySerializer: Serializer[ A ])
+      relabelObserver: Map.RelabelObserver[ S#Tx, A ])( implicit system: S, keySerializer: Serializer[ A ])
    extends MutableReader[ S, Map[ S, A ]] {
       def readData( in: DataInput, id: S#ID ) : Map[ S, A ] = {
          val version = in.readUnsignedByte()
@@ -461,7 +459,7 @@ object TotalOrder {
 
    private final class MapRead[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
         val id: S#ID, protected val sizeVal: S#Val[ Int ], in: DataInput,
-        protected val observer: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]])
+        protected val observer: Map.RelabelObserver[ S#Tx, A ])
       ( implicit val system: S, private[TotalOrder] val keySerializer: Serializer[ A ]) extends Map[ S, A ] {
 
       val root = system.readMut[ E ]( in )( EntryReader )
@@ -469,7 +467,7 @@ object TotalOrder {
 
    private final class MapNew[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
         val id: S#ID, protected val sizeVal: S#Val[ Int ],
-        protected val observer: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]], rootValue: A )
+        protected val observer: Map.RelabelObserver[ S#Tx, A ], rootValue: A )
       ( implicit tx: S#Tx, val system: S, private[TotalOrder] val keySerializer: Serializer[ A ]) extends Map[ S, A ] {
 
       val root: E = {
@@ -509,6 +507,24 @@ object TotalOrder {
       def readData( in: DataInput, id: S#ID ) : E = EntryReader.readData( in, id )
    }
 
+   private final class RelabelIterator[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
+      first: Map.Entry[ S, A ], last: Map.Entry[ S, A ])
+   extends Iterator[ S#Tx, A ] {
+
+      private var curr = first
+      var hasNext : Boolean = true
+
+      def next()( implicit tx: S#Tx ) : A = {
+         if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
+         val res  = curr.value
+         curr     = curr.nextOrNull
+         hasNext  = curr eq last
+         res
+      }
+
+      def reset() { curr = first }
+   }
+
    sealed trait Map[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ] extends TotalOrder[ S ] /* with Reader[ Set[ S ]#E ] */ {
       map =>
 
@@ -520,7 +536,7 @@ object TotalOrder {
       final private[TotalOrder] implicit val EntryOptionReader : MutableOptionReader[ S, EOpt ] = new MapEntryOptionReader[ S, A ]( this )
 
       protected def sizeVal: S#Val[ Int ]
-      protected def observer: Map.RelabelObserver[ S#Tx, E ]
+      protected def observer: Map.RelabelObserver[ S#Tx, A ]
       private[TotalOrder] implicit def keySerializer: Serializer[ A ]
 
       def root: E
@@ -651,7 +667,8 @@ object TotalOrder {
             // will obviously leave the tag unchanged! thus we must add
             // the additional condition that num is greater than 1!
             if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-               observer.beforeRelabeling( first, num )
+               val relabelIter = new RelabelIterator( first, last )
+               observer.beforeRelabeling( relabelIter )
 //sys.error( "TODO" )
 
    //            while( !(item eq last) ) {
@@ -668,7 +685,9 @@ object TotalOrder {
                   cnt        += 1
                }
 //sys.error( "TODO" )
-               observer.afterRelabeling( first, num )
+//               observer.afterRelabeling( first, num )
+               relabelIter.reset()
+               observer.beforeRelabeling( relabelIter )
                return
             }
             mask   <<= 1      // next coarse step
