@@ -4,8 +4,8 @@ package txn
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
 import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
-import de.sciss.lucrestm.{Serializer, InMemory}
 import concurrent.stm.Ref
+import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -95,9 +95,9 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def preTail: FullOrder
       def version: Int
 
-      final def x( implicit tx: S#Tx ): Int = pre.tag
-      final def y( implicit tx: S#Tx ): Int = post.tag
-      final def z( implicit tx: S#Tx ): Int = version
+      final def x : Int = system.atomic { implicit tx => pre.tag }
+      final def y : Int = system.atomic { implicit tx => post.tag }
+      final def z : Int = version
    }
 
    final class FullTree /* extends AbstractTree[ FullTree ] */ {
@@ -121,7 +121,13 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def root : V = Root
 
       implicit val vertexSer = new Serializer[ V ] {
+         def write( v: FullVertex, out: DataOutput ) {
+            sys.error( "TODO" )
+         }
 
+         def read( in: DataInput ) : FullVertex = {
+            sys.error( "TODO" )
+         }
       }
 
       val t: SkipOctree[ S, Space.ThreeDim, V ] = system.atomic { implicit tx =>
@@ -140,6 +146,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          def pre: FullOrder       = preO.root
          def post: FullOrder      = postO.root
          def preTail: FullOrder   = t.system.atomic { implicit tx => pre.append( this )}
+
          val version = 0
       }
 
@@ -199,21 +206,23 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //         // XXX could eventually add again elem to total order
 //         // (would be Option[ V ] for pre order and V for post order)
 //         var map = Map.empty[ TotalOrder.EntryLike, V ]
-         def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
-            var e = first
-            var i = 0; while( i < num ) {
-               t.remove( e.value )
-               e = e.next.orNull
-               i += 1
-            }
+         def beforeRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
+            sys.error( "TODO" )
+//            var e = first
+//            var i = 0; while( i < num ) {
+//               t.remove( e.value )
+//               e = e.next.orNull
+//               i += 1
+//            }
          }
-         def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
-            var e = first
-            var i = 0; while( i < num ) {
-               t.add( e.value )
-               e = e.next.orNull
-               i += 1
-            }
+         def afterRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
+            sys.error( "TODO" )
+//            var e = first
+//            var i = 0; while( i < num ) {
+//               t.add( e.value )
+//               e = e.next.orNull
+//               i += 1
+//            }
          }
       }
    }
@@ -225,8 +234,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def pre: MarkOrder
       def post: MarkOrder
 
-      final def x( implicit tx: S#Tx ) : Int = pre.tag
-      final def y( implicit tx: S#Tx ) : Int = post.tag
+      final def x : Int = system.atomic { implicit tx => pre.tag }
+      final def y : Int = system.atomic { implicit tx => post.tag }
       final def version : Int = full.version
       final def z : Int = full.version
    }
@@ -237,7 +246,13 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //      lazy val root = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
 
       implicit val vertexSer = new Serializer[ V ] {
+         def write( v: MarkVertex, out: DataOutput ) {
+            sys.error( "TODO" )
+         }
 
+         def read( in: DataInput ) : MarkVertex = {
+            sys.error( "TODO" )
+         }
       }
 
       implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
@@ -249,8 +264,9 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       }
 
       object Root extends MarkVertex {
-         val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
+         def full       = ft.root
+         val preO       = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
+         val postO      = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          def pre: MarkOrder       = preO.root
          def post: MarkOrder      = postO.root
       }
@@ -287,21 +303,23 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //         // XXX could eventually add again elem to total order
 //         // (would be Option[ V ] for pre order and V for post order)
 //         var map = Map.empty[ TotalOrder.EntryLike, V ]
-         def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
-            var e = first
-            var i = 0; while( i < num ) {
-               t.remove( e.value )
-               e = e.next.orNull
-               i += 1
-            }
+         def beforeRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
+            sys.error( "TODO" )
+//            var e = first
+//            var i = 0; while( i < num ) {
+//               t.remove( e.value )
+//               e = e.next.orNull
+//               i += 1
+//            }
          }
-         def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
-            var e = first
-            var i = 0; while( i < num ) {
-               t.add( e.value )
-               e = e.next.orNull
-               i += 1
-            }
+         def afterRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
+            sys.error( "TODO" )
+//            var e = first
+//            var i = 0; while( i < num ) {
+//               t.add( e.value )
+//               e = e.next.orNull
+//               i += 1
+//            }
          }
       }
    }
