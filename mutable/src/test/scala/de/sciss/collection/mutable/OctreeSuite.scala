@@ -1,7 +1,7 @@
 package de.sciss.collection
+package mutable
 
 import geom.{DistanceMeasure3D, QueryShape, Point3D, DistanceMeasure, Space, Point3DLike, Cube}
-import mutable.{RandomizedSkipOctree, SkipOctree, DeterministicSkipOctree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}

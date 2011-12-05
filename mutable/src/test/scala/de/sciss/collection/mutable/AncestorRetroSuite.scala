@@ -1,10 +1,9 @@
 package de.sciss.collection
+package mutable
 
 import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
-import mutable.{RandomizedSkipOctree, DeterministicSkipOctree, LLSkipList, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
-import de.sciss.lucrestm.Writer
 
 /**
  * To run this test copy + paste the following into sbt:

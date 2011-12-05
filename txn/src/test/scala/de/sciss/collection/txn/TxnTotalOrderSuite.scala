@@ -1,6 +1,6 @@
 package de.sciss.collection
+package txn
 
-import txn.TotalOrder
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 import java.io.File

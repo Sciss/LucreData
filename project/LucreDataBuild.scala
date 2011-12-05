@@ -33,7 +33,11 @@ object LucreDataBuild extends Build {
       id           = "lucredata-mutable",
       base         = file( "mutable" ),
       dependencies = Seq( structsCore ),
-      settings     = standardSettings
+      settings     = standardSettings ++ Seq(
+         libraryDependencies ++= Seq(
+            "org.scalatest" %% "scalatest" % "1.6.1" % "test"
+         )
+      )
    )
    
    lazy val txn = Project(
@@ -42,7 +46,8 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.10-SNAPSHOT"
+            "de.sciss" %% "lucrestm" % "0.10-SNAPSHOT",
+            "org.scalatest" %% "scalatest" % "1.6.1" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
       )

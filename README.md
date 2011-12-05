@@ -2,7 +2,7 @@
 
 ### statement
 
-(C)opyright 2011 Hanns Holger Rutz. This software is released under the "GNU General Public License":http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt .
+(C)opyright 2011 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
 
 This is a sandbox project for implementing and probing various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries.
 
@@ -18,7 +18,15 @@ This is a sandbox project for implementing and probing various data structures i
 
 ### requirements
 
-Builds with xsbt (sbt 0.11) against Scala 2.9.1. To create an IntelliJ IDEA project, given that you have
+Builds with xsbt (sbt 0.11) against Scala 2.9.1. Sub projects:
+
+* `structs-core` &ndash; Some basic stuff used by the data structure implementations. Also the geometry types.
+* `mutable` &ndash; Mutable data structures
+* `txn` &ndash; Transactional data structures (based on [LucreSTM](https://githumb.com/Sciss/LucreSTM)).
+* `views-core` &ndash; Some basic stuff used by the specific views
+* `mutable-views` &ndash; Some Swing based views to show the mutable data structures
+* `txn-views` &ndash; Some Swing based views to show the transactional data structures
+
 
 ### creating an IntelliJ IDEA project
 

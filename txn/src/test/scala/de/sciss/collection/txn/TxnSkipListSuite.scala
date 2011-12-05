@@ -1,9 +1,9 @@
 package de.sciss.collection
+package txn
 
 import scala.collection.immutable.IntMap
 import scala.collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import txn.{SkipList, HASkipList}
 import concurrent.stm.{InTxn, TxnExecutor, Ref}
 import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 import java.io.File

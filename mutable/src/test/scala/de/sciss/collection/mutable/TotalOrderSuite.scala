@@ -1,6 +1,6 @@
 package de.sciss.collection
+package mutable
 
-import mutable.TotalOrder
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import TotalOrder.{EntryLike, RelabelObserver}
 

@@ -1,11 +1,11 @@
 package de.sciss.collection
+package txn
 
 import geom.{DistanceMeasure3D, QueryShape, Point3D, DistanceMeasure, Space, Cube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
 import Space.ThreeDim
-import txn.{DeterministicSkipOctree, SkipOctree}
 import java.io.File
 import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
 
@@ -36,7 +36,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
       withTree[ S ]( sysName, () => {
          implicit val sys = sysCreator()
          val t = sys.atomic { implicit tx =>
-            import txn.geom.Space.{Point3DSerializer, CubeSerializer}
+            import SpaceSerializers.{Point3DSerializer, CubeSerializer}
             txn.DeterministicSkipOctree.empty[ S, ThreeDim, Point3D ]( cube )
          }
          (t, succ => sysCleanUp( sys, succ ))

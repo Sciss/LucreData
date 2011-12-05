@@ -1,9 +1,8 @@
 package de.sciss.collection
+package mutable
 
 import geom.{DistanceMeasure2D, Point2D, Square, Point2DLike}
-import mutable.{HASkipList, RandomizedSkipOctree, DeterministicSkipOctree, DeterministicSkipQuadtree, LLSkipList, RandomizedSkipQuadtree, TotalOrder}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import de.sciss.lucrestm.Writer
 
 /**
  * To run this test copy + paste the following into sbt:

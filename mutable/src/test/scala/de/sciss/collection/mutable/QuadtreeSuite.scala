@@ -1,7 +1,7 @@
 package de.sciss.collection
+package mutable
 
 import geom.{Space, SquareLike, DistanceMeasure2D, Point2D, Square}
-import mutable.{RandomizedSkipOctree, SkipQuadtree, RandomizedSkipQuadtree, DeterministicSkipQuadtree}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
