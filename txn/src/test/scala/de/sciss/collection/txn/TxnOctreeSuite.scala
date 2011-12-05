@@ -241,17 +241,22 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-//   def fuck[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
-//      t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point,
-//      euclideanDist: DistanceMeasure[ M, D ]) {
-//
-//      val ps = Seq.empty[ D#Point ]
-//      t.system.atomic { implicit tx =>
-//         ps.map( p => p -> p )
-//      }
+//   def no[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
+//      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
+//      t.system.atomic( implicit tx => () )
 //   }
 //
-//   def fuck2[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point ) {
+//   def yes1[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
+//      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
+//      t.system.atomic( tx => () )
+//   }
+//
+//   def yes2[ S <: Sys[ S ], M, D <: Space[ D ]](
+//      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
+//      t.system.atomic( implicit tx => () )
+//   }
+
+//   def yes[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point ) {
 //      val ps = Seq.empty[ D#Point ]
 //      t.system.atomic { implicit tx =>
 //         ps.map( p => p -> p )
