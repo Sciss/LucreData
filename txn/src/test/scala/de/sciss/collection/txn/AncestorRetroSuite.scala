@@ -26,15 +26,15 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    type S = InMemory
 
-   trait VertexLike extends Point3DLike /* with Writer */ {
-      def version: Int
-      def pre: TotalOrder.Map.Entry[ S, VertexLike ] // preOrder.Entry
-      def post: TotalOrder.Map.Entry[ S, VertexLike ] // postOrder.Entry
-      def x( implicit tx: S#Tx ): Int = pre.tag
-      def y( implicit tx: S#Tx ): Int = post.tag
-      def z: Int = version
-      override def toString = "Vertex(" + version + ")"
-   }
+//   trait VertexLike extends Point3DLike /* with Writer */ {
+//      def version: Int
+//      def pre: TotalOrder.Map.Entry[ S, VertexLike ] // preOrder.Entry
+//      def post: TotalOrder.Map.Entry[ S, VertexLike ] // postOrder.Entry
+//      def x( implicit tx: S#Tx ): Int = pre.tag
+//      def y( implicit tx: S#Tx ): Int = post.tag
+//      def z: Int = version
+//      override def toString = "Vertex(" + version + ")"
+//   }
 
 //   abstract class AbstractTree[ Self <: AbstractTree[ Self ]] {
 //      type V <: VertexLike
@@ -87,10 +87,21 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    implicit val system = new InMemory
 
-   final class FullTree /* extends AbstractTree[ FullTree ] */ {
-      type V = Vertex
+   type FullOrder = TotalOrder.Map.Entry[ S, FullVertex ]
 
-      type Order = TotalOrder.Map.Entry[ S, V ]
+   sealed trait FullVertex extends Point3DLike {
+      def pre: FullOrder
+      def post: FullOrder
+      def preTail: FullOrder
+      def version: Int
+
+      final def x( implicit tx: S#Tx ): Int = pre.tag
+      final def y( implicit tx: S#Tx ): Int = post.tag
+      final def z( implicit tx: S#Tx ): Int = version
+   }
+
+   final class FullTree /* extends AbstractTree[ FullTree ] */ {
+      private type V = FullVertex
 
       val cube       = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
@@ -101,9 +112,6 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          res
       }
 
-      sealed trait Vertex extends VertexLike {
-         def preTail: Order
-      }
 //      final class Vertex( val pre: Order, val preTail: Order, val post: Order, val version: Int )
 //      extends VertexLike {
 ////         val preTail = pre.append() // insertAfter( () )
@@ -126,12 +134,13 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
          Serializer.fromMutableReader( Root.preO.EntryReader, system )
 
-      private object Root extends V {
+      private object Root extends FullVertex {
          val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         def pre: Order       = preO.root
-         def post: Order      = postO.root
-         def preTail: Order   = t.system.atomic { implicit tx => pre.append( this )}
+         def pre: FullOrder       = preO.root
+         def post: FullOrder      = postO.root
+         def preTail: FullOrder   = t.system.atomic { implicit tx => pre.append( this )}
+         val version = 0
       }
 
       def preOrder: TotalOrder.Map[ S, V ]   = Root.preO
@@ -140,7 +149,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //      def newVertex( value: A, pre: Order, preTail: Order, post: Order, version: Int ) : V =
 //         new Vertex( value, pre, preTail, post, version )
 
-      def insertChild( parent: V )( implicit tx: S#Tx ) : V = new Vertex {
+      def insertChild( parent: V )( implicit tx: S#Tx ) : V = new FullVertex {
          val pre     = parent.preTail.prepend( this ) // insertBefore( () )
          val preTail = pre.append( this )
          val post    = parent.post.prepend( this ) // insertBefore( () )
@@ -152,7 +161,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          t.add( this )
       }
 
-      def insertRetroChild( parent: V )( implicit tx: S#Tx ) : V = new Vertex {
+      def insertRetroChild( parent: V )( implicit tx: S#Tx ) : V = new FullVertex {
          val pre     = parent.pre.append( this )
          val preTail = parent.preTail.prepend( this )
          val post    = parent.post.prepend( this )
@@ -161,7 +170,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          t.add( this )
       }
 
-      def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = new Vertex {
+      def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = new FullVertex {
          val pre     = child.pre.prepend( this )
          val preTail = child.preTail.append( this )
          val post    = child.post.append( this )
@@ -209,21 +218,21 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
+   type MarkOrder = TotalOrder.Map.Entry[ S, MarkVertex ]
+
+   sealed trait MarkVertex extends Point3DLike {
+      def full: FullVertex
+      def pre: MarkOrder
+      def post: MarkOrder
+
+      final def x( implicit tx: S#Tx ) : Int = pre.tag
+      final def y( implicit tx: S#Tx ) : Int = post.tag
+      final def version : Int = full.version
+      final def z : Int = full.version
+   }
+
    final class MarkTree( val ft: FullTree ) /* extends AbstractTree[ MarkTree ] */ {
-      type V = Vertex
-
-      type Order = TotalOrder.Map.Entry[ S, V ]
-
-      sealed trait Vertex extends Point3DLike {
-         def full: ft.Vertex
-         def pre: Order
-         def post: Order
-
-         final def x( implicit tx: S#Tx ) : Int = pre.tag
-         final def y( implicit tx: S#Tx ) : Int = post.tag
-         final def version : Int = full.version
-         final def z : Int = full.version
-      }
+      type V = MarkVertex
 
 //      lazy val root = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
 
@@ -239,11 +248,11 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          SkipOctree.empty[ S, Space.ThreeDim, V ]( ft.cube )
       }
 
-      object Root extends Vertex {
+      object Root extends MarkVertex {
          val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         def pre: Order       = preO.root
-         def post: Order      = postO.root
+         def pre: MarkOrder       = preO.root
+         def post: MarkOrder      = postO.root
       }
 
       def root = Root
@@ -253,8 +262,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       val preList   = {
          system.atomic { implicit tx =>
-            implicit val ord = Ordering.fromOrdered[ S#Tx, Order ]
-            val res = SkipList.empty[ S, Order ]
+            implicit val ord = Ordering.fromOrdered[ S#Tx, MarkOrder ]
+            val res = SkipList.empty[ S, MarkOrder ]
             res.add( Root.pre )
             res
          }
@@ -262,8 +271,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       val postList   = {
          system.atomic { implicit tx =>
-            implicit val ord = Ordering.fromOrdered[ S#Tx, Order ]
-            val res = SkipList.empty[ S, Order ]
+            implicit val ord = Ordering.fromOrdered[ S#Tx, MarkOrder ]
+            val res = SkipList.empty[ S, MarkOrder ]
             res.add( Root.post )
             res
          }
@@ -305,8 +314,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       val (treeSeq, parents) = t.t.system.atomic { implicit tx =>
          val rnd        = new util.Random( seed )
          var treeSeq    = IndexedSeq( t.root )
-         var parents    = Map.empty[ t.V, t.V ]
-         var children   = Map.empty[ t.V, Set[ t.V ]]
+         var parents    = Map.empty[ FullVertex, FullVertex ]
+         var children   = Map.empty[ FullVertex, Set[ FullVertex ]]
 
          for( i <- 1 to n ) {
 //            try {
@@ -384,12 +393,12 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 
 //         if( verbose ) printPrePost( t, treeSeq )
 
-         @tailrec def testChild( version: Int, child: t.V ) {
+         @tailrec def testChild( version: Int, child: FullVertex ) {
             parents.get( child ) match {
                case None =>
 
                case Some( parent ) if( parent.version <= version ) =>
-                  val found: Option[t.V] = t.t.system.atomic { implicit tx =>
+                  val found: Option[ FullVertex ] = t.t.system.atomic { implicit tx =>
                      val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
                      val f = t.t.nearestNeighborOption( point, metric )
                      f
@@ -418,12 +427,12 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          val gagaism = randomlyFilledTree()
          import gagaism._
 
-         type V      = t.Vertex
+         type V      = FullVertex
          val tm      = new MarkTree( t )
          val rnd     = new util.Random( seed )
 
-         implicit val ord: Ordering[ S#Tx, tm.Order ] = new Ordering[ S#Tx, tm.Order ] {
-            def compare( a: tm.Order, b: tm.Order )( implicit tx: S#Tx ) : Int = {
+         implicit val ord: Ordering[ S#Tx, MarkOrder ] = new Ordering[ S#Tx, MarkOrder ] {
+            def compare( a: MarkOrder, b: MarkOrder )( implicit tx: S#Tx ) : Int = {
                val ta = a.tag
                val tb = b.tag
                if( ta < tb ) -1 else if( ta > tb ) 1 else 0
@@ -458,14 +467,14 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
             if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
                tm.t.system.atomic { implicit tx =>
-                  val cmPreSucc = tm.preList.isomorphicQuery( new Ordered[ S#Tx, tm.Order ] {
-                     def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+                  val cmPreSucc = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+                     def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                         that.value.full.pre.compare( child.pre )
 //                        preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
                      }
                   })
-                  val cmPostSucc = tm.postList.isomorphicQuery(  new Ordered[ S#Tx, tm.Order ] {
-                     def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+                  val cmPostSucc = tm.postList.isomorphicQuery(  new Ordered[ S#Tx, MarkOrder ] {
+                     def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                         that.value.full.post.compare( child.post )
 //                        postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
                      }
@@ -474,7 +483,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 //                  postTagIsoMap += cmPost -> child.post
 //                  preTagValueMap += cmPre -> i
 //                  postTagValueMap += cmPost -> i
-                  val vm = new tm.Vertex {
+                  val vm = new MarkVertex {
                      val pre     = cmPreSucc.prepend( this )
                      val post    = cmPostSucc.prepend( this )
                      val full    = child
@@ -535,14 +544,14 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          treeSeq.foreach { child =>
 //println( " -- testing " + child )
             val (found, parent, point) = system.atomic { implicit tx =>
-               val preIso  = tm.preList.isomorphicQuery( new Ordered[ S#Tx, tm.Order ] {
-                  def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+               val preIso  = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+                  def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                      that.value.full.pre.compare( child.pre )
 //                  preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
                   }
                })
-               val postIso = tm.postList.isomorphicQuery( new Ordered[ S#Tx, tm.Order ] {
-                  def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+               val postIso = tm.postList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+                  def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                      that.value.full.post.compare( child.post )
 //                  postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
                   }
