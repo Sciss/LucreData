@@ -13,7 +13,7 @@ import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long            = 12345L
-   val TREE_SIZE              = 23 // 100000    // 150000
+   val TREE_SIZE              = 100000    // 150000
    val MARKER_PERCENTAGE      = 0.2       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1
    val RETRO_PARENT_PERCENTAGE= 0.1
@@ -21,10 +21,10 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PRINT_ORDERS           = false
    val USE_DET                = true      // `true` to use deterministic octree, `false` to use randomized tree
 
+   var verbose = false
+
    abstract class AbstractTree[ A ]( _init: A ) {
       type V <: VertexLike
-
-      var verbose = false
 
       private var versionCnt = 0
       final def nextVersion() : Int = {
@@ -37,7 +37,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       final protected val postObserver   = new OrderObserver
       final val preOrder   = TotalOrder( preObserver )
       final val postOrder  = TotalOrder( postObserver )
-      final val root       = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
+      def root: V
+//      final val root       = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
       final val cube       = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
       final val t          = if( USE_DET ) {
          DeterministicSkipOctree.empty[ Space.ThreeDim, V ]( Space.ThreeDim, cube )
@@ -47,7 +48,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       add( root )
 
-      def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V
+//      def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V
 
       trait VertexLike extends Point3DLike /* with Writer */ {
          def value: A
@@ -93,38 +94,43 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    final class FullTree[ A ]( _init: A ) extends AbstractTree( _init ) {
       type V = Vertex
 
-      final class Vertex( val value: A, val pre: preOrder.Entry, val post: postOrder.Entry, val version: Int )
+      final class Vertex( val value: A, val pre: preOrder.Entry, val preTail: preOrder.Entry, val post: postOrder.Entry, val version: Int )
       extends VertexLike {
-         val preTail = pre.append() // insertAfter( () )
+//         val preTail = pre.append() // insertAfter( () )
       }
 
-      def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V =
-         new Vertex( value, pre, post, version )
+      lazy val root = newVertex( _init, preOrder.root, preOrder.root.append(), postOrder.root, nextVersion() )
+
+      def newVertex( value: A, pre: preOrder.Entry, preTail: preOrder.Entry, post: postOrder.Entry, version: Int ) : V =
+         new Vertex( value, pre, preTail, post, version )
 
       def insertChild( parent: Vertex, value : A ) : Vertex = {
-         val pre  = parent.preTail.prepend() // insertBefore( () )
-         val post = parent.post.prepend() // insertBefore( () )
+         val pre     = parent.preTail.prepend() // insertBefore( () )
+         val preTail = pre.append()
+         val post    = parent.post.prepend() // insertBefore( () )
 
 if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + value + " ; pre compare = " +
    parent.pre.compare( pre ) + "; post compare = " + parent.post.compare( post ))
 
-         addNewVertex( value, pre, post )
+         addNewVertex( value, pre, preTail, post )
       }
 
       def insertRetroChild( parent: Vertex, value : A ) : Vertex = {
-         val pre  = parent.pre.append()
-         val post = parent.post.prepend()
-         addNewVertex( value, pre, post )
+         val pre     = parent.pre.append()
+         val preTail = parent.preTail.prepend()
+         val post    = parent.post.prepend()
+         addNewVertex( value, pre, preTail, post )
       }
 
       def insertRetroParent( child: Vertex, value : A ) : Vertex = {
-         val pre  = child.pre.prepend()
-         val post = child.post.append()
-         addNewVertex( value, pre, post )
+         val pre     = child.pre.prepend()
+         val preTail = child.preTail.append()
+         val post    = child.post.append()
+         addNewVertex( value, pre, preTail, post )
       }
 
-      private def addNewVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : Vertex = {
-         add( newVertex( value, pre, post, nextVersion() ))
+      private def addNewVertex( value: A, pre: preOrder.Entry, preTail: preOrder.Entry, post: postOrder.Entry ) : Vertex = {
+         add( newVertex( value, pre, preTail, post, nextVersion() ))
       }
 
       def validate() {
@@ -143,6 +149,8 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 
       final class Vertex( val value: A, val pre: preOrder.Entry, val post: postOrder.Entry, val version: Int )
       extends VertexLike
+
+      lazy val root = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V =
          new Vertex( value, pre, post, version )
@@ -163,10 +171,11 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 
          for( i <- 1 to n ) {
             try {
-               val ref     = treeSeq( rnd.nextInt( i ))
+               val refIdx  = rnd.nextInt( i )
+               val ref     = treeSeq( refIdx )
                val retro   = rnd.nextDouble()
                if( retro <= RETRO_CHILD_PERCENTAGE ) {
-//println( "retro child : " + i )
+if( verbose ) println( "v" + i + " is retro child to " + refIdx )
                   val child = t.insertRetroChild( ref, i )
                   treeSeq :+= child
                   parents += child -> ref
@@ -175,7 +184,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                   oldChildren.foreach { c2 => parents += c2 -> child }  // update parent for old children
                   children += child -> oldChildren
                } else if( retro <= (RETRO_CHILD_PERCENTAGE + RETRO_PARENT_PERCENTAGE) ) {
-//println( "retro parent : " + i )
+if( verbose ) println( "v" + i + " is retro parent to " + refIdx )
                   val parent = t.insertRetroParent( ref, i )
                   treeSeq :+= parent
                   val oldParentO = parents.get( ref )
@@ -186,11 +195,14 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
                      children += oldParent -> (children.getOrElse( oldParent, Set.empty) - ref + parent) // replace child
                   }
                } else { // regular child
+if( verbose ) println( "v" + i + " is child to " + refIdx )
                   val child = t.insertChild( ref, i )
                   treeSeq :+= child
                   parents += child -> ref
                   children += ref -> (children.getOrElse( ref, Set.empty) + child)
                }
+//if( verbose ) printPrePost( t, treeSeq )
+
             } catch {
                case e =>
                   println( "(for i = " + i + ")" )
@@ -199,6 +211,11 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          }
          (treeSeq, parents)
       }
+   }
+
+   private def printPrePost( t: FullTree[ Int ], treeSeq: IndexedSeq[ FullTree[ Int ]#Vertex ]) {
+      println( " PRE ORDER: " + t.preOrder.head.tagList.map( pre => treeSeq.find( _.pre.tag == pre )).collect({ case Some( v ) => v.value }).mkString( ", " ))
+      println( "POST ORDER: " + t.postOrder.head.tagList.map( post => treeSeq.find( _.post.tag == post ).get.value ).mkString( ", " ))
    }
 
    feature( "Tree parent node lookup should be possible in a octree representing pre-order, post-order and version" ) {
@@ -225,6 +242,8 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          when( "each vertex is asked for its parent node through NN search in the quadtree" )
          then( "the results should be identical to an independently maintained map" )
          val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+
+         if( verbose ) printPrePost( t, treeSeq )
 
          @tailrec def testChild( version: Int, child: t.V ) {
             parents.get( child ) match {
@@ -343,7 +362,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
 
          val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 ) // XXX THIS IS WRONG ???
          treeSeq.foreach { child =>
-println( " -- testing " + child )
+//println( " -- testing " + child )
             val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare( child.pre  )).getOrElse( 1 )}
             val postIso = mPostList.isomorphicQuery { e => postTagIsoMap.get( e ).map( _.compare( child.post )).getOrElse( 1 )}
             val atPreIso= preTagIsoMap.get( preIso )
