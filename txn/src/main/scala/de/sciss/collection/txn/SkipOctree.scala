@@ -27,9 +27,20 @@ package de.sciss.collection
 package txn
 
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
-import de.sciss.lucrestm.{Mutable, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq}
+import de.sciss.lucrestm.{Serializer, Mutable, Sys}
 
+object SkipOctree {
+   def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube )
+                                                 ( implicit view: A => D#PointLike, tx: S#Tx, system: S, space: D,
+                                                   keySerializer: Serializer[ A ],
+                                                   hyperSerializer: Serializer[ D#HyperCube ],
+                                                   smf: Manifest[ S ],
+                                                   dmf: Manifest[ D ],
+                                                   amf: Manifest[ A ]) : SkipOctree[ S, D, A ] =
+      DeterministicSkipOctree.empty[ S, D, A ]( hyperCube )
+
+}
 /**
  * A `SkipOctree` is a multi-dimensional data structure that
  * maps coordinates to values. It extends the interface
@@ -74,6 +85,8 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
     *          equal, false otherwise
     */
    def add( elem: A )( implicit tx: S#Tx ) : Boolean
+
+   def remove( elem: A )( implicit tx: S#Tx ) : Boolean
 
    /**
     * Adds an element to the tree
