@@ -646,7 +646,9 @@ extends SkipOctree[ S, D, A ] {
       point: D#PointLike, metric: DistanceMeasure[ M, D ])
    extends scala.math.Ordering[ VisitedNode[ M ]] {
 
-      private val sz                = numOrthants
+      // NOTE: `sz` must be protected and not private, otherwise
+      // scala's specialization blows up
+      protected val sz              = numOrthants
       private val acceptedChildren  = new Array[ LeftBranch ]( sz )
       private val acceptedDists     = {
          implicit val mf = metric.manifest
