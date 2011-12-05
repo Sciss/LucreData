@@ -402,7 +402,7 @@ object TotalOrder {
       final class Entry[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ] private[TotalOrder](
          map: Map[ S, A ], val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Ref[ EOption[ S, A ]],
          nextRef: S#Ref[ EOption[ S, A ]], val value: A )
-      extends EntryOption[ S, A ] with Mutable[ S ] {
+      extends EntryOption[ S, A ] with Mutable[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
          private type E    = Entry[ S, A ]
          private type EOpt = EOption[ S, A ]
 
@@ -417,6 +417,14 @@ object TotalOrder {
          private[TotalOrder] def updatePrev( e: EOpt )( implicit tx: S#Tx ) { prevRef.set( e )}
          private[TotalOrder] def updateNext( e: EOpt )( implicit tx: S#Tx ) { nextRef.set( e )}
          private[TotalOrder] def updateTag( value: Int )( implicit tx: S#Tx ) { tagVal.set( value )}
+
+         // ---- Ordered ----
+
+         def compare( that: E )( implicit tx: S#Tx ) : Int = {
+            val thisTag = tag
+            val thatTag = that.tag
+            if( thisTag < thatTag ) -1 else if( thisTag > thatTag ) 1 else 0
+         }
 
          protected def writeData( out: DataOutput ) {
             tagVal.write( out )
@@ -532,7 +540,7 @@ object TotalOrder {
       final protected type EOpt     = Map.EOption[ S, A ]
 
       final private[TotalOrder] val  Empty: EOpt = new Map.EmptyEntry[ S, A ]
-      final private[TotalOrder] implicit val EntryReader: MutableReader[ S, E ] = new MapEntryReader[ S, A ]( this )
+      final implicit val EntryReader: MutableReader[ S, E ] = new MapEntryReader[ S, A ]( this )
       final private[TotalOrder] implicit val EntryOptionReader : MutableOptionReader[ S, EOpt ] = new MapEntryOptionReader[ S, A ]( this )
 
       protected def sizeVal: S#Val[ Int ]

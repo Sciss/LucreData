@@ -50,10 +50,16 @@ object Ordering {
    }
 
    implicit def fromMath[ A ]( implicit underlying: math.Ordering[ A ]) : Ordering[ Any, A ] =
-      new Wrapper[ A ]( underlying )
+      new MathWrapper[ A ]( underlying )
 
-   private final class Wrapper[ A ]( underlying: math.Ordering[ A ]) extends Ordering[ Any, A ] {
+   implicit def fromOrdered[ Tx, A <: Ordered[ Tx, A ]] : Ordering[ Tx, A ] = new OrderedWrapper[ Tx, A ]
+
+   private final class MathWrapper[ A ]( underlying: math.Ordering[ A ]) extends Ordering[ Any, A ] {
       def compare( a: A, b: A )( implicit tx: Any ) : Int = underlying.compare( a, b )
+   }
+
+   private final class OrderedWrapper[ Tx, A <: Ordered[ Tx, A ]] extends Ordering[ Tx, A ] {
+      def compare( a: A, b: A )( implicit tx: Tx ) : Int = a.compare( b )
    }
 }
 trait Ordering[ -Tx, @specialized( Int, Float, Long, Double ) A ] {

@@ -208,6 +208,23 @@ object HASkipList {
 
       def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( true ).mkString( "\n" )
 
+      def isomorphicQuery( compare: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : A = {
+//         var x: NodeImpl = Head.downNode
+//         if( x.isBottom ) return maxKey
+//         while( true ) {
+//            var idx = 0
+//            var cmp = compare( x.key( idx ))
+//            while( cmp > 0 ) {
+//               idx += 1
+//               cmp  = compare( x.key( idx ))
+//            }
+//            val dn = x.down( idx )
+//            if( cmp == 0 || dn.isBottom ) return x.key( idx )
+//            x = dn
+//         }
+         sys.error( "TODO XXX" )
+      }
+
       // ---- set support ----
 
       def contains( v: A )( implicit tx: S#Tx ) : Boolean = {

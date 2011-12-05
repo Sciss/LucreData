@@ -46,10 +46,10 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          res
       }
 
-      def preOrder:  TotalOrder.Map[ S, Self#V ]
-      def postOrder: TotalOrder.Map[ S, Self#V ]
+//      def preOrder:  TotalOrder.Map[ S, Self#V ]
+//      def postOrder: TotalOrder.Map[ S, Self#V ]
 
-      implicit val vertexSerializer : Serializer[ VertexLike ]
+//      implicit val vertexSerializer : Serializer[ VertexLike ]
 //      implicit val vertexManifest : Manifest[ V ]
 //      implicit val valueManifest: Manifest[ A ]
 
@@ -58,7 +58,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //      final val root       = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
       final val cube       = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
-      implicit val inMem   = new InMemory()
+      implicit val system = new InMemory()
 
 //      final val preOrder   = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( preObserver )}
 //      final val postOrder  = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( postObserver )}
@@ -105,12 +105,15 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       }
 
-      val t: SkipOctree[ S, Space.ThreeDim, V ] = inMem.atomic { implicit tx =>
+      val t: SkipOctree[ S, Space.ThreeDim, V ] = system.atomic { implicit tx =>
          import SpaceSerializers.CubeSerializer
          SkipOctree.empty[ S, Space.ThreeDim, V ]( cube )
       }
 
       t.system.atomic { implicit tx => t += root }
+
+      implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
+         Serializer.fromMutableReader( Root.preO.EntryReader, system )
 
       private object Root extends V {
          val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
@@ -208,12 +211,20 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       }
 
-      lazy val root : V = new Vertex {
-         private val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         private val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
+      implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
+         Serializer.fromMutableReader( Root.preO.EntryReader, system )
+
+      object Root extends Vertex {
+         val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
+         val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          def pre: Order       = preO.root
          def post: Order      = postO.root
       }
+
+      def root = Root
+
+      def preOrder: TotalOrder.Map[ S, V ]   = Root.preO
+      def postOrder: TotalOrder.Map[ S, V ]  = Root.postO
 
 //      def newVertex( pre: Order, post: Order, version: Int ) : V = new Vertex( pre, post, version )
 
@@ -377,14 +388,22 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          }
 
          val mPreList   = {
-            val res = tm.t.system.atomic { implicit tx => SkipList.empty[ S, tm.Order ]}
-            res.add( tm.preOrder.root )
-            res
+            import tm.orderSer
+            implicit def s = tm.t.system
+            tm.t.system.atomic { implicit tx =>
+               val res = SkipList.empty[ S, tm.Order ]
+               res.add( tm.preOrder.root )
+               res
+            }
          }
          val mPostList = {
-            val res = tm.t.system.atomic { implicit tx => SkipList.empty[ S, tm.Order ]}
-            res.add( tm.postOrder.root )
-            res
+            import tm.orderSer
+            implicit def s = tm.t.system
+            tm.t.system.atomic { implicit tx =>
+               val res = SkipList.empty[ S, tm.Order ]
+               res.add( tm.postOrder.root )
+               res
+            }
          }
 
          var preTagIsoMap     = Map( tm.preOrder.root -> t.root.pre )
@@ -396,10 +415,18 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
             if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
                tm.t.system.atomic { implicit tx =>
-                  val cmPreSucc = mPreList.isomorphicQuery( preTagIsoMap.get( _ ).map( _.compare( child.pre )).getOrElse( 1 ))
+                  val cmPreSucc = mPreList.isomorphicQuery( new Ordered[ S#Tx, tm.Order ] {
+                     def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+                        preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
+                     }
+                  })
                   val cmPre = cmPreSucc.prepend()
                   mPreList.add( cmPre )
-                  val cmPostSucc = mPostList.isomorphicQuery( postTagIsoMap.get( _ ).map( _.compare( child.post )).getOrElse( 1 ))
+                  val cmPostSucc = mPostList.isomorphicQuery(  new Ordered[ S#Tx, tm.Order ] {
+                     def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+                        postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
+                     }
+                  })
                   val cmPost = cmPostSucc.prepend()
                   mPostList.add( cmPost )
                   preTagIsoMap += cmPre -> child.pre
@@ -422,9 +449,9 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 
          val preVals    = t.t.system.atomic { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
          val postVals   = t.t.system.atomic { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
-         val mPreSeq    = mPreList.toIndexedSeq
+         val mPreSeq    = t.t.system.atomic { implicit tx => mPreList.toIndexedSeq }
          val mPreVals   = mPreSeq.map( t => preTagValueMap( t ))
-         val mPostSeq   = mPostList.toIndexedSeq
+         val mPostSeq   = t.t.system.atomic { implicit tx => mPostList.toIndexedSeq }
          val mPostVals  = mPostSeq.map( t => postTagValueMap( t ))
 
          if( PRINT_ORDERS ) {
@@ -461,11 +488,19 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 //println( "\n-----PARE-----" ); parents.foreach( println )
 //println()
 
-         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 ) // XXX THIS IS WRONG ???
+         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
          treeSeq.foreach { child =>
 //println( " -- testing " + child )
-            val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare( child.pre  )).getOrElse( 1 )}
-            val postIso = mPostList.isomorphicQuery { e => postTagIsoMap.get( e ).map( _.compare( child.post )).getOrElse( 1 )}
+            val preIso  = mPreList.isomorphicQuery( new Ordered[ S#Tx, tm.Order ] {
+               def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+                  preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
+               }
+            })
+            val postIso = mPostList.isomorphicQuery( new Ordered[ S#Tx, tm.Order ] {
+               def compare( that: tm.Order )( implicit tx: S#Tx ) : Int = {
+                  postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
+               }
+            })
             val atPreIso= preTagIsoMap.get( preIso )
             val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
             val y       = postIso.tag

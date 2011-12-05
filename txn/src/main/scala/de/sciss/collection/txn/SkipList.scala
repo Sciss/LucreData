@@ -75,23 +75,23 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S 
     */
    def contains( v: A )( implicit tx: S#Tx ) : Boolean
 
-//   /**
-//    * Finds the nearest item equal or greater
-//    * than an unknown item from an isomorphic
-//    * set. The isomorphism is represented by
-//    * a comparison function which guides the
-//    * binary search.
-//    *
-//    * @param   compare  a function that guides the search.
-//    *    should return -1 if the argument is smaller
-//    *    than the search key, 0 if both are equivalent,
-//    *    or 1 if the argument is greater than the search key.
-//    *    E.g., using some mapping, the function could look
-//    *    like `mapping.apply(_).compare(queryKey)`
-//    *
-//    * @return  the nearest item, or the maximum item
-//    */
-//   def isomorphicQuery( compare: A => Int )( implicit tx: S#Tx ) : A
+   /**
+    * Finds the nearest item equal or greater
+    * than an unknown item from an isomorphic
+    * set. The isomorphism is represented by
+    * a comparison function which guides the
+    * binary search.
+    *
+    * @param   compare  a function that guides the search.
+    *    should return -1 if the argument is smaller
+    *    than the search key, 0 if both are equivalent,
+    *    or 1 if the argument is greater than the search key.
+    *    E.g., using some mapping, the function could look
+    *    like `mapping.apply(_).compare(queryKey)`
+    *
+    * @return  the nearest item, or the maximum item
+    */
+   def isomorphicQuery( compare: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : A
 
    /**
     * Inserts a new key into the list.
