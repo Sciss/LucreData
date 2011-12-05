@@ -1,6 +1,6 @@
 /*
  *  DeterministicSkipOctree.scala
- *  (TreeTests)
+ *  (LucreData)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *
@@ -515,7 +515,7 @@ extends SkipOctree[ S, D, A ] {
       this
    }
 
-   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ A ] = {
+   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
       val q = new RangeQuery( qs )
       q.findNextValue()
       q
@@ -638,7 +638,7 @@ extends SkipOctree[ S, D, A ] {
       l.parent.demoteLeaf( l )
    }
 
-   def iterator( implicit tx: S#Tx ) : Iterator[ A ] = skipList.iterator.map( _.value )
+   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.iterator.map( _.value )
 
    private final class NNIter[ @specialized( Long ) M ]( val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M )
 
@@ -771,7 +771,7 @@ extends SkipOctree[ S, D, A ] {
    private final class VisitedNode[ @specialized( Long ) M ]( val n: LeftBranch, val minDist: M )
 
    // note: Iterator is not specialized, hence we can safe use the effort to specialize in A anyway
-   private final class RangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) extends Iterator[ A ] {
+   private final class RangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ]) extends Iterator[ S#Tx, A ] {
       val sz            = numOrthants
       val stabbing      = MQueue.empty[ (BranchLike, Area) ]  // Tuple2 is specialized for Long, too!
       val in            = MQueue.empty[ NonEmptyChild ]
@@ -833,14 +833,14 @@ extends SkipOctree[ S, D, A ] {
          }
       }
 
-      def next() : A = {
-         if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
-         val res = current
-         system.atomic { implicit tx => findNextValue() }
-         res
-      }
+//      def next() : A = {
+//         if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
+//         val res = current
+//         system.atomic { implicit tx => findNextValue() }
+//         res
+//      }
 
-      def nextTxn()( implicit tx: S#Tx ) : A = {
+      def next()( implicit tx: S#Tx ) : A = {
          if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
          val res = current
          findNextValue()

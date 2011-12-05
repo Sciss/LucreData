@@ -1,6 +1,6 @@
 /*
  *  HASkipList.scala
- *  (TreeTests)
+ *  (LucreData)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *
@@ -516,7 +516,7 @@ object HASkipList {
          }
       }
 
-      def iterator( implicit tx: S#Tx ) : Iterator[ A ] = {
+      def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
          val i = new IteratorImpl
          i.init()
          i
@@ -526,7 +526,7 @@ object HASkipList {
          val i = new IteratorImpl
          i.init()
          while( i.hasNext ) {
-            b += i.nextTxn
+            b += i.next() // Txn
          }
          b.result()
       }
@@ -557,7 +557,7 @@ object HASkipList {
 
       // since Iterator is not specialized anyway, we don't care
       // that IteratorImpl won't be, either
-      private final class IteratorImpl extends Iterator[ A ] {
+      private final class IteratorImpl extends Iterator[ S#Tx, A ] {
          private var l: Leaf[ S, A ]   = null
          private var nextKey : A       = _
          private var isRight           = true
@@ -585,9 +585,9 @@ object HASkipList {
          }
 
          def hasNext : Boolean = l ne null // ordering.nequiv( nextKey, maxKey )
-         def next() : A = system.atomic( nextTxn( _ ))
+//         def next() : A = system.atomic( nextTxn( _ ))
 
-         def nextTxn( implicit tx: S#Tx ) : A = {
+         def next()( implicit tx: S#Tx ) : A = {
             if( !hasNext ) throw new java.util.NoSuchElementException( "next on empty iterator" )
             val res  = nextKey
             idx     += 1

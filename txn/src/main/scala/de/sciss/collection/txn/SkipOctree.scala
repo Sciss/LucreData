@@ -1,6 +1,6 @@
 /*
  *  SkipOctree.scala
- *  (TreeTests)
+ *  (LucreData)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *
@@ -95,7 +95,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
     */
    def update( elem: A )( implicit tx: S#Tx ) : Option[ A ]
 
-   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ A ]
+   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
 
    def contains( elem: A )( implicit tx: S#Tx ) : Boolean
 
@@ -159,7 +159,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
     * Great care has to be taken as the iterator might be corrupted if the tree
     * is successively changed before the iterator is exhausted.
     */
-   def iterator( implicit tx: S#Tx ) : Iterator[ A ]
+   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
 
    def +=( elem: A )( implicit tx: S#Tx ) : this.type
    def -=( elem: A )( implicit tx: S#Tx ) : this.type

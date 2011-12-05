@@ -1,6 +1,6 @@
 /*
  *  RandomizedSkipOctree.scala
- *  (TreeTests)
+ *  (LucreData)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *

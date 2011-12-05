@@ -1,6 +1,6 @@
 /*
  *  SkipList.scala
- *  (TreeTests)
+ *  (LucreData)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *
@@ -110,7 +110,7 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S 
    def isEmpty( implicit tx: S#Tx ) : Boolean
    def notEmpty( implicit tx: S#Tx ) : Boolean
 
-   def iterator( implicit tx: S#Tx ) : Iterator[ A ]
+   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
    def toIndexedSeq( implicit tx: S#Tx ) : collection.immutable.IndexedSeq[ A ]
    def toList( implicit tx: S#Tx ) : List[ A ]
    def toSeq( implicit tx: S#Tx ) : Seq[ A ]

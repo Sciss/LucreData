@@ -139,7 +139,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
       val onlyInM  = t.system.atomic { implicit tx => m.filterNot { e =>
          t.contains( e )
       }}
-      val onlyInT  = t.system.atomic { implicit tx => t.iterator.filterNot( e => m.contains( e ))}
+      val onlyInT  = t.system.atomic { implicit tx => t.iterator.toList.filterNot( e => m.contains( e ))}
       val szT      = t.system.atomic { implicit tx => t.size }
       val szM      = m.size
       then( "all elements of m should be contained in t" )
@@ -219,7 +219,8 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val euclideanDist3D = DistanceMeasure3D.euclideanSq
 
-   def verifyNN[ S <: Sys[ S ], @specialized( Long ) M : math.Ordering, D <: Space[ D ]](
+   // JUHUUUUU SPECIALIZATION BROKEN ONCE MORE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   def verifyNN[ S <: Sys[ S ], /* @specialized( Long ) */ M : math.Ordering, D <: Space[ D ]](
       t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
       pointFilter: D#PointLike => Boolean, euclideanDist: DistanceMeasure[ M, D ]) {
 
@@ -239,6 +240,23 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
          (nnT.collect { case (q, v) if( nnM( q ) != v ) => (q, v, nnM( q ))}).take( 10 ).toString()
       })
    }
+
+//   def fuck[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
+//      t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point,
+//      euclideanDist: DistanceMeasure[ M, D ]) {
+//
+//      val ps = Seq.empty[ D#Point ]
+//      t.system.atomic { implicit tx =>
+//         ps.map( p => p -> p )
+//      }
+//   }
+//
+//   def fuck2[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point ) {
+//      val ps = Seq.empty[ D#Point ]
+//      t.system.atomic { implicit tx =>
+//         ps.map( p => p -> p )
+//      }
+//   }
 
    def withTree[ S <: Sys[ S ]]( name: String, tf: () => (DeterministicSkipOctree[ S, ThreeDim, ThreeDim#Point ], Boolean => Unit) ) {
       feature( "The " + name + " octree structure should be consistent" ) {

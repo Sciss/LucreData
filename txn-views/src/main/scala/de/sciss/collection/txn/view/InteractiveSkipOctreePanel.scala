@@ -1,6 +1,6 @@
 /*
 *  InteractiveSkipOctreePanel.scala
-*  (TreeTests)
+*  (LucreData)
 *
 *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
 *
@@ -383,8 +383,13 @@ extends JPanel( new BorderLayout() ) {
 
    private def removePoints( num: Int ) {
       atomic { implicit tx =>
-         val ps = t.iterator.take( num ).toList // toList !! otherwise we may end up with a crippled iterator
+         val lb = List.newBuilder[ Point ]
+         val it = t.iterator
+         var i = 0; while( i < num && it.hasNext ) {
+            lb += it.next()
+         i += 1 }
 //println( ps )
+         val ps = lb.result()
          ps.foreach( t -= _ )
       }
    }

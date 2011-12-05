@@ -1,6 +1,6 @@
 /*
  *  TotalOrder.scala
- *  (TreeTests)
+ *  (LucreData)
  *
  *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
  *
@@ -26,9 +26,9 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
 import txn.TotalOrder.Map.EmptyEntry
 import txn.TotalOrder.MapEntryOptionReader
+import de.sciss.lucrestm.{Serializer, MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
 
 
 /**
@@ -333,15 +333,16 @@ object TotalOrder {
 
    object Map {
       def empty[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-           relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]] = NoRelabelObserver )
-         ( implicit tx: S#Tx, system: S ) : Map[ S, A ] = {
+           rootValue: A, relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]] = NoRelabelObserver )
+         ( implicit tx: S#Tx, system: S, keySerializer: Serializer[ A ]) : Map[ S, A ] = {
 
-         new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver )
+         new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver, rootValue )
       }
 
       def reader[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
            relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]] = NoRelabelObserver )
-         ( implicit system: S ) : MutableReader[ S, Map[ S, A ]] = new MapReader[ S, A ]( relabelObserver )
+         ( implicit system: S, keySerializer: Serializer[ A ]) : MutableReader[ S, Map[ S, A ]] =
+         new MapReader[ S, A ]( relabelObserver )
 
       trait RelabelObserver[ -Tx, @specialized( Unit, Boolean, Int, Long, Float, Double ) -A ] {
          def beforeRelabeling( first: A, num: Int )( implicit tx: Tx ) : Unit
@@ -402,7 +403,7 @@ object TotalOrder {
 
       final class Entry[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ] private[TotalOrder](
          map: Map[ S, A ], val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Ref[ EOption[ S, A ]],
-         nextRef: S#Ref[ EOption[ S, A ]])
+         nextRef: S#Ref[ EOption[ S, A ]], val value: A )
       extends EntryOption[ S, A ] with Mutable[ S ] {
          private type E    = Entry[ S, A ]
          private type EOpt = EOption[ S, A ]
@@ -432,9 +433,9 @@ object TotalOrder {
             tagVal.dispose()
          }
 
-         def append()( implicit tx: S#Tx ) : E = map.insertBetween( this, next )
+         def append( value: A )( implicit tx: S#Tx ) : E = map.insertBetween( value, this, next )
 
-         def prepend()( implicit tx: S#Tx ) : E = map.insertBetween( prev, this )
+         def prepend( value: A )( implicit tx: S#Tx ) : E = map.insertBetween( value, prev, this )
 
          def remove()( implicit tx: S#Tx ) { map.remove( this )}
 
@@ -446,7 +447,7 @@ object TotalOrder {
    }
 
    private final class MapReader[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-      relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]])( implicit system: S )
+      relabelObserver: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]])( implicit system: S, keySerializer: Serializer[ A ])
    extends MutableReader[ S, Map[ S, A ]] {
       def readData( in: DataInput, id: S#ID ) : Map[ S, A ] = {
          val version = in.readUnsignedByte()
@@ -461,21 +462,21 @@ object TotalOrder {
    private final class MapRead[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
         val id: S#ID, protected val sizeVal: S#Val[ Int ], in: DataInput,
         protected val observer: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]])
-      ( implicit val system: S ) extends Map[ S, A ] {
+      ( implicit val system: S, private[TotalOrder] val keySerializer: Serializer[ A ]) extends Map[ S, A ] {
 
       val root = system.readMut[ E ]( in )( EntryReader )
    }
 
    private final class MapNew[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
         val id: S#ID, protected val sizeVal: S#Val[ Int ],
-        protected val observer: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]])
-      ( implicit tx: S#Tx, val system: S ) extends Map[ S, A ] {
+        protected val observer: Map.RelabelObserver[ S#Tx, Map.Entry[ S, A ]], rootValue: A )
+      ( implicit tx: S#Tx, val system: S, private[TotalOrder] val keySerializer: Serializer[ A ]) extends Map[ S, A ] {
 
       val root: E = {
          val tagVal  = system.newInt( 0 )
          val prevRef = system.newOptionRef[ EOpt ]( Empty )( tx, EntryOptionReader )
          val nextRef = system.newOptionRef[ EOpt ]( Empty )( tx, EntryOptionReader )
-         new Map.Entry[ S, A ]( this, system.newID(), tagVal, prevRef, nextRef )
+         new Map.Entry[ S, A ]( this, system.newID(), tagVal, prevRef, nextRef, rootValue )
       }
    }
 
@@ -484,13 +485,15 @@ object TotalOrder {
 
       private type E    = Map.Entry[ S, A ]
       private type EOpt = Map.EOption[ S, A ]
-      import map.{system, EntryOptionReader}
+      import map.{system, EntryOptionReader, keySerializer}
 
       def readData( in: DataInput, id: S#ID ) : E = {
          val tagVal  = system.readInt( in )
          val prevRef = system.readOptionRef[ EOpt ]( in )
          val nextRef = system.readOptionRef[ EOpt ]( in )
-         new Map.Entry[ S, A ]( map, id, tagVal, prevRef, nextRef )
+//         val value   = system.readVal[ A ]( in )
+         val value   = keySerializer.read( in )
+         new Map.Entry[ S, A ]( map, id, tagVal, prevRef, nextRef, value )
       }
    }
 
@@ -518,6 +521,7 @@ object TotalOrder {
 
       protected def sizeVal: S#Val[ Int ]
       protected def observer: Map.RelabelObserver[ S#Tx, E ]
+      private[TotalOrder] implicit def keySerializer: Serializer[ A ]
 
       def root: E
 
@@ -534,7 +538,7 @@ object TotalOrder {
          root.write( out )
       }
 
-      private[TotalOrder] def insertBetween( p: EOpt, n: EOpt )( implicit tx: S#Tx ) : E = {
+      private[TotalOrder] def insertBetween( value: A, p: EOpt, n: EOpt )( implicit tx: S#Tx ) : E = {
 //         val n          = p.next
          val nextTag    = n.tag // if( next == null ) Int.MaxValue else next.tag
          val recPrevRef = system.newOptionRef[ EOpt ]( p )
@@ -542,7 +546,7 @@ object TotalOrder {
          val prevTag    = p.tag
          val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
          val recTagVal  = system.newInt( recTag )
-         val rec        = new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+         val rec        = new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef, value )
          p.updateNext( rec )
          n.updatePrev( rec )
          sizeVal.transform( _ + 1 )
