@@ -22,7 +22,7 @@ Builds with xsbt (sbt 0.11) against Scala 2.9.1. Sub projects:
 
 * `structs-core` &ndash; Some basic stuff used by the data structure implementations. Also the geometry types.
 * `mutable` &ndash; Mutable data structures
-* `txn` &ndash; Transactional data structures (based on [LucreSTM](https://githumb.com/Sciss/LucreSTM)).
+* `txn` &ndash; Transactional data structures (based on [LucreSTM](https://github.com/Sciss/LucreSTM)).
 * `views-core` &ndash; Some basic stuff used by the specific views
 * `mutable-views` &ndash; Some Swing based views to show the mutable data structures
 * `txn-views` &ndash; Some Swing based views to show the transactional data structures
