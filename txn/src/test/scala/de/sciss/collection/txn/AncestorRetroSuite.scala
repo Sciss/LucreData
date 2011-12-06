@@ -20,10 +20,11 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val MARKER_PERCENTAGE      = 0.9 // 0.2 // 0.3       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1 // 0.1
    val RETRO_PARENT_PERCENTAGE= 0.0 // 0.1
-   val PRINT_DOT              = false     // true
+   val PRINT_DOT              = false
    val PRINT_ORDERS           = false
 
-   var verbose = false
+   var verbose                = true
+   val DEBUG_LAST             = false
 
    type S = InMemory
 
@@ -55,28 +56,36 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def postOrder : TotalOrder.Map[ S, FullVertex ]
    }
 
-   final class RelabelObserver[ V <: VertexLike ]( t: SkipOctree[ S, Space.ThreeDim, V ]) extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
+   final class RelabelObserver[ V <: VertexLike ]( name: String, t: SkipOctree[ S, Space.ThreeDim, V ]) extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
       def beforeRelabeling( v0: V, iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
+         if( verbose ) println( "RELABEL " + name + " - begin" )
          iter.foreach { v =>
             if( v ne v0 ) {
-//val str = try { v.toPoint } catch { case np: NullPointerException =>
-//"<null>"
-//}
-//println( "RELABEL - " + str )
-               t -= v
+               if( verbose ) {
+                  val str = try { v.toPoint } catch { case np: NullPointerException =>
+                  "<null>"
+                  }
+                  println( "RELABEL " + name + " - " + str )
+               }
+               assert( t.remove( v ), "When inserting " + v0 + ", the vertex " + v + " seems to have not been in the " + name + " tree" )
             }
          }
+         if( verbose ) println( "RELABEL " + name + " - end" )
       }
       def afterRelabeling( v0: V, iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
+         if( verbose ) println( "RELABEL " + name + " + begin" )
          iter.foreach { v =>
             if( v ne v0 ) {
-//val str = try { v.toPoint } catch { case np: NullPointerException =>
-//"<null>"
-//}
-//println( "RELABEL + " + str )
-               t += v
+               if( verbose ) {
+                  val str = try { v.toPoint } catch { case np: NullPointerException =>
+                  "<null>"
+                  }
+                  println( "RELABEL " + name + " + " + str )
+               }
+               assert( t.add( v ))
             }
          }
+         if( verbose ) println( "RELABEL " + name + " + end" )
       }
    }
 
@@ -95,7 +104,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             }
          }
          val t       = SkipOctree.empty[ S, Space.ThreeDim, FullVertex ]( cube )
-         val orderObserver = new RelabelObserver[ FullVertex ]( t )
+         val orderObserver = new RelabelObserver[ FullVertex ]( "full", t )
          val root    = new FullRootVertex {
             val preOrder            = TotalOrder.Map.empty[ S, FullVertex ]( this, orderObserver )
             val postOrder           = TotalOrder.Map.empty[ S, FullVertex ]( this, orderObserver )
@@ -214,7 +223,7 @@ if( verbose ) {
             }
          }
          val t = SkipOctree.empty[ S, Space.ThreeDim, MarkVertex ]( ft.t.hyperCube )
-         val orderObserver = new RelabelObserver[ MarkVertex ]( t )
+         val orderObserver = new RelabelObserver[ MarkVertex ]( "mark", t )
          val root = new MarkRootVertex {
             def full       = ft.root
             val preOrder   = TotalOrder.Map.empty[ S, MarkVertex ]( this, orderObserver )
@@ -265,7 +274,7 @@ if( verbose ) {
          var children   = Map.empty[ FullVertex, Set[ FullVertex ]]
 
          for( i <- 1 to n ) {
-if( i == TREE_SIZE ) verbose = true
+if( DEBUG_LAST && i == TREE_SIZE ) verbose = true
 //            try {
                val refIdx  = rnd.nextInt( i )
                val ref     = treeSeq( refIdx )
@@ -378,7 +387,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 
          val gagaism = randomlyFilledTree()
          import gagaism._
-verbose = false
+if( DEBUG_LAST ) verbose = false
          type V      = FullVertex
          val tm      = system.atomic { implicit tx => MarkTree( t )}
          val rnd     = new util.Random( seed )
@@ -417,7 +426,7 @@ verbose = false
          var markSet          = Set( 0 )
 
          treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
-if( i == TREE_SIZE - 1 ) verbose = true
+if( DEBUG_LAST && i == TREE_SIZE - 1 ) verbose = true
             if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
                tm.t.system.atomic { implicit tx =>
 if( verbose ) println( ":: mark insert for full " + child.toPoint )
@@ -497,28 +506,40 @@ if( verbose ) tm.printInsertion( vm )
 //println( "\n-----MARK-----" ); markSet.foreach( println )
 //println( "\n-----PARE-----" ); parents.foreach( println )
 //println()
+//verbose = false
+val markPt  = system.atomic { implicit tx => tm.t.toIndexedSeq.map( _.toPoint )}
+val obsPre  = markPt.sortBy( _.x ).map( _.z )
+val obsPost = markPt.sortBy( _.y ).map( _.z )
+println( "managed mark-pre:" )
+println( mPreVals.mkString( ", " ))
+println( "octree mark-pre:" )
+println( obsPre.mkString( ", " ))
+//
+//assert( obsPre  == mPreVals )
+//assert( obsPost == mPostVals )
 
          val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
-         treeSeq.foreach { child =>
-//println( " -- testing " + child )
+         treeSeq.zipWithIndex.foreach { case (child, i) =>
+if( DEBUG_LAST ) verbose = child.version == 91
             val (found, parent, point) = system.atomic { implicit tx =>
                val cfPre = child.pre
                val (preIso, preIsoCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                   def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                     cfPre.compare( that.value.full.pre )
+                     val res = cfPre.compare( that.value.full.pre )
+if( verbose ) println( ":: mark find pre :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+                     res
 //                  preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
                   }
                })
                val cfPost = child.post
                val (postIso, postIsoCmp) = tm.postList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                   def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                     cfPost.compare( that.value.full.post )
+                     val res = cfPost.compare( that.value.full.post )
+if( verbose ) println( ":: mark find post :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+                     res
 //                  postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
                   }
                })
-//               val atPreIso= preIso.value.full.pre //  preTagIsoMap.get( preIso )
-//               if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
-
 
                // condition for ancestor candidates: <= iso-pre, >= iso-post, <= version
                // thus: we need to check the comparison result of the iso-search
@@ -531,6 +552,9 @@ if( verbose ) tm.printInsertion( vm )
                // We can also shortcut. pre-comp == 0 implies post-comp == 0, since no two
                // vertices can have the same positions in the orders.
                // Thus, when pre-comp == 0 is detected, we already found our ancestor!
+
+if( verbose ) println( ":: mark find pre " + (if( preIsoCmp <= 0 ) "before" else "after") + " " + preIso.value.toPoint )
+if( verbose ) println( ":: mark find post " + (if( postIsoCmp <= 0 ) "before" else "after") + " " + postIso.value.toPoint )
 
                val par = {
                   var p = child; while( p.version > child.version || !markSet.contains( p.version )) { p = parents( p )}

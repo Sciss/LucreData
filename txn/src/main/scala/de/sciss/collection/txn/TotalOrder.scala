@@ -741,7 +741,7 @@ object TotalOrder {
 //sys.error( "TODO" )
 //               observer.afterRelabeling( first, num )
                relabelIter.reset()
-               observer.beforeRelabeling( inserted, relabelIter )
+               observer.afterRelabeling( inserted, relabelIter )
                return
             }
             mask   <<= 1      // next coarse step

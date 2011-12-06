@@ -56,14 +56,22 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
 //   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
    def isDefinedAt( point: D#PointLike ) : Boolean
 
+   /**
+    * Removes the element stored under a given point view.
+    *
+    * @param   point the location of the element to remove
+    * @return  the element removed, wrapped as `Some`, or `None` if no element was
+    *          found for the given point.
+    */
    def removeAt( point: D#PointLike ) : Option[ A ]
 
    /**
     * Adds an element to the tree
     *
-    * @return  true if the element is new in the tree. If a previous entry with the
-    *          same point view is overwritten, this is true if the elements were
-    *          equal, false otherwise
+    * @param   elem  the element to add
+    * @return  `true` if the element is new in the tree. If a previous entry with the
+    *          same point view is overwritten, this is `true` if the elements were
+    *          '''not equal''', `false` if they were equal
     */
    def add( elem: A ) : Boolean
 

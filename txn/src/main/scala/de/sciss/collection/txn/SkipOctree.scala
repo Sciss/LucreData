@@ -55,10 +55,6 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    def space: D
    def system: S
 
-//   def headTree: QNode
-//   def lastTree: QNode
-
-//   def pointView : A => D#PointLike
    def pointView : (A, S#Tx) => D#PointLike
 
    def hyperCube : D#HyperCube
@@ -75,6 +71,13 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    def get( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ]
    def isDefinedAt( point: D#PointLike )( implicit tx: S#Tx ) : Boolean
 
+   /**
+    * Removes the element stored under a given point view.
+    *
+    * @param   point the location of the element to remove
+    * @return  the element removed, wrapped as `Some`, or `None` if no element was
+    *          found for the given point.
+    */
    def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ]
 
    /**
@@ -84,19 +87,27 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    def size( implicit tx: S#Tx ) : Int
 
    /**
-    * Adds an element to the tree
+    * Adds an element to the tree (or replaces a given element with the same point location).
     *
-    * @return  true if the element is new in the tree. If a previous entry with the
-    *          same point view is overwritten, this is true if the elements were
-    *          equal, false otherwise
+    * @param   elem  the element to add
+    * @return  `true` if the element is new in the tree. If a previous entry with the
+    *          same point view is overwritten, this is `true` if the elements were
+    *          '''not equal''', `false` if they were equal
     */
    def add( elem: A )( implicit tx: S#Tx ) : Boolean
 
+   /**
+    * Removes an element from the tree
+    *
+    * @param   elem  the element to remove
+    * @return  `true` if the element had been found in the tree and thus been removed.
+    */
    def remove( elem: A )( implicit tx: S#Tx ) : Boolean
 
    /**
-    * Adds an element to the tree
+    * Adds an element to the tree (or replaces a given element with the same point location).
     *
+    * @param   elem  the element to add to the tree
     * @return  the old element stored for the same point view, if it existed
     */
    def update( elem: A )( implicit tx: S#Tx ) : Option[ A ]
