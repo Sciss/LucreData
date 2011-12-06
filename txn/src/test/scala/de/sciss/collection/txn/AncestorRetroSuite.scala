@@ -15,7 +15,7 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long            = 12345L
-   val TREE_SIZE              = 100 // 100000    // 150000
+   val TREE_SIZE              = 10 // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.2       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1
    val RETRO_PARENT_PERCENTAGE= 0.1
@@ -220,8 +220,10 @@ println( "INSERT " + system.atomic( toPoint( _ )))
          def full       = ft.root
          val preO       = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
          val postO      = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         def pre: MarkOrder       = preO.root
-         def post: MarkOrder      = postO.root
+//         def pre: MarkOrder       = preO.root
+def pre: MarkOrder      = t.system.atomic { implicit tx => preO.root.append( this )}  // XXX
+//         def post: MarkOrder      = postO.root
+def post: MarkOrder      = t.system.atomic { implicit tx => postO.root.append( this )}  // XXX
       }
 
       def root = Root
