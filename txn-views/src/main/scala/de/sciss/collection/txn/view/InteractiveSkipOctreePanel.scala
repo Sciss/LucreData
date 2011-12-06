@@ -68,6 +68,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          implicit val system = BerkeleyDB.open( f )
          system.atomic { implicit tx =>
             import SpaceSerializers.{Point2DSerializer, SquareSerializer}
+            implicit val pointView = (p: Point2D, t: Any) => p
             implicit val reader = txn.DeterministicSkipOctree.reader[ BerkeleyDB, TwoDim, Point2D ]
             val tree = system.root[ txn.DeterministicSkipOctree[ BerkeleyDB, TwoDim, Point2D ]] {
                txn.DeterministicSkipOctree.empty[ BerkeleyDB, TwoDim, Point2D ](
@@ -82,6 +83,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          implicit val system = new InMemory
          system.atomic { implicit tx =>
             import SpaceSerializers.{Point2DSerializer, SquareSerializer}
+            implicit val pointView = (p: Point2D, t: Any) => p
             val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
                Square( sz, sz, sz ), skipGap = 1 )
             new Model2D[ InMemory ]( tree, { () => println( "(Consistency not checked)" )})
@@ -118,7 +120,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def consistency() { cons() }
 
       val view = {
-         val res = new SkipQuadtreeView[ S, Point2D ]( tree )
+         val res = new SkipQuadtreeView[ S, Point2D ]( tree, identity )
          res.topPainter = Some( topPaint _ )
          res
       }

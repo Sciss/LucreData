@@ -31,8 +31,12 @@ import collection.immutable.{IndexedSeq => IIdxSeq}
 import de.sciss.lucrestm.{Serializer, Mutable, Sys}
 
 object SkipOctree {
+   implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {
+      (a, _) => view( a )
+   }
+
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube )
-                                                 ( implicit view: A => D#PointLike, tx: S#Tx, system: S, space: D,
+                                                 ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, system: S, space: D,
                                                    keySerializer: Serializer[ A ],
                                                    hyperSerializer: Serializer[ D#HyperCube ],
                                                    smf: Manifest[ S ],
@@ -53,7 +57,9 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
 
 //   def headTree: QNode
 //   def lastTree: QNode
-   def pointView : A => D#PointLike
+
+//   def pointView : A => D#PointLike
+   def pointView : (A, S#Tx) => D#PointLike
 
    def hyperCube : D#HyperCube
 

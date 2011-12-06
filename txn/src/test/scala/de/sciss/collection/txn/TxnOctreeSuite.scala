@@ -37,6 +37,7 @@ class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
          implicit val sys = sysCreator()
          val t = sys.atomic { implicit tx =>
             import SpaceSerializers.{Point3DSerializer, CubeSerializer}
+            implicit val pointView = (p: Point3D, _: Any) => p
             txn.DeterministicSkipOctree.empty[ S, ThreeDim, Point3D ]( cube )
          }
          (t, succ => sysCleanUp( sys, succ ))

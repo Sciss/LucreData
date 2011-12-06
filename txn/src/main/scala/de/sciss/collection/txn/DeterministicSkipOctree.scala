@@ -48,7 +48,7 @@ import de.sciss.lucrestm.{MutableOptionReader, EmptyMutable, MutableOption, Muta
 */
 object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube, skipGap: Int = 2 )
-                                                 ( implicit view: A => D#PointLike, tx: S#Tx, system: S, space: D,
+                                                 ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, system: S, space: D,
                                                    keySerializer: Serializer[ A ],
                                                    hyperSerializer: Serializer[ D#HyperCube ],
                                                    smf: Manifest[ S ],
@@ -59,7 +59,7 @@ object DeterministicSkipOctree {
    }
 
    def reader[ S <: Sys[ S ], D <: Space[ D ], A ](
-      implicit view: A => D#PointLike, system: S, space: D,
+      implicit view: (A, S#Tx) => D#PointLike, system: S, space: D,
       keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ],
       smf: Manifest[ S ], dmf: Manifest[ D ], amf: Manifest[ A ]
    ) : MutableReader[ S, DeterministicSkipOctree[ S, D, A ]] = new OctreeReader[ S, D, A ]
@@ -67,7 +67,7 @@ object DeterministicSkipOctree {
    private val SER_VERSION = 0
 
    private final class OctreeReader[ S <: Sys[ S ], D <: Space[ D ], A ](
-      implicit view: A => D#PointLike, system: S, space: D,
+      implicit view: (A, S#Tx) => D#PointLike, system: S, space: D,
       keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ],
       smf: Manifest[ S ], dmf: Manifest[ D ], amf: Manifest[ A ]
    ) extends MutableReader[ S, DeterministicSkipOctree[ S, D, A ]] {
@@ -82,7 +82,7 @@ object DeterministicSkipOctree {
    }
 
    private final class ImplRead[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID, val hyperCube: D#HyperCube,
-                                                                      val pointView: A => D#PointLike, in: DataInput )
+                                                                      val pointView: (A, S#Tx) => D#PointLike, in: DataInput )
                                                                     ( implicit val system: S, val space: D,
                                                                       val keySerializer: Serializer[ A ],
                                                                       val hyperSerializer: Serializer[ D#HyperCube ])
@@ -109,7 +109,7 @@ object DeterministicSkipOctree {
 
    private final class ImplNew[ S <: Sys[ S ], D <: Space[ D ], A ]( skipGap: Int, val id: S#ID,
                                                                      val hyperCube: D#HyperCube,
-                                                                     val pointView: A => D#PointLike )
+                                                                     val pointView: (A, S#Tx) => D#PointLike )
                                                                    ( implicit tx: S#Tx, val system: S,
                                                                      val space: D, val keySerializer: Serializer[ A ],
                                                                      val hyperSerializer: Serializer[ D#HyperCube ])
@@ -303,7 +303,7 @@ extends SkipOctree[ S, D, A ] {
                res
             case r: RightBranch => r
          }
-         pNext.insert( l )
+         pNext.insert( pointView( l.value, tx ), l )
       }
 
       def keyDown( l: LeafImpl )( implicit tx: S#Tx ) {
@@ -312,7 +312,7 @@ extends SkipOctree[ S, D, A ] {
          //  square pi(x) containing x in Qi following the pointers. Then
          //  the deletion given pi(x) is as described in Section 2.3."
 
-         l.parent.demoteLeaf( l )
+         l.parent.demoteLeaf( pointView( l.value, tx ), l )
       }
    }
 
@@ -355,7 +355,7 @@ extends SkipOctree[ S, D, A ] {
          @tailrec def stepB( down: BranchLike, i: Int ) : ChildOption = {
             if( i == sz ) down else b.child( i ) match {
                case l: LeafImpl =>
-                  removeLeaf( l )
+                  removeLeaf( pointView( l.value, tx ), l )
                   lastTreeImpl
                case _ => stepB( down, i + 1 )
             }
@@ -365,7 +365,7 @@ extends SkipOctree[ S, D, A ] {
             if( i == sz ) EmptyValue else b.child( i ) match {
                case cb: BranchLike => stepB( cb, i + 1 )
                case l: LeafImpl =>
-                  removeLeaf( l )
+                  removeLeaf( pointView( l.value, tx ), l )
                   lastTreeImpl
                case _ => step( i + 1 )
             }
@@ -429,7 +429,7 @@ extends SkipOctree[ S, D, A ] {
    }
 
    def remove( elem: A )( implicit tx: S#Tx ) : Boolean = {
-      removeLeafAt( pointView( elem )) != EmptyValue
+      removeLeafAt( pointView( elem, tx )) != EmptyValue
    }
 
    def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
@@ -440,7 +440,7 @@ extends SkipOctree[ S, D, A ] {
    }
 
    def contains( elem: A )( implicit tx: S#Tx ) : Boolean = {
-      val point = pointView( elem )
+      val point = pointView( elem, tx )
       if( !hyperCube.contains( point )) return false
       findAt( point ) match {
          case l: LeafImpl => l.value == elem
@@ -507,7 +507,7 @@ extends SkipOctree[ S, D, A ] {
    }
 
    def -=( elem: A )( implicit tx: S#Tx ) : this.type = {
-      removeLeafAt( pointView( elem ))
+      removeLeafAt( pointView( elem, tx ))
 //      match {
 //         case oldLeaf: LeafImpl => oldLeaf.dispose()
 //         case _ =>
@@ -536,7 +536,7 @@ extends SkipOctree[ S, D, A ] {
    // (( WARNING: if the returned oldLeaf is defined, the caller is
    // responsible for disposing it (after extracting useful information such as its value) ))
    private def insertLeaf( elem: A )( implicit tx: S#Tx ) : LeafOrEmpty = {
-      val point   = pointView( elem )
+      val point   = pointView( elem, tx )
       require( hyperCube.contains( point ), point.toString + " lies out of root hyper-cube " + hyperCube )
 
       val p0      = findP0( point ) // lastTreeImpl.findP0( point )
@@ -549,7 +549,7 @@ extends SkipOctree[ S, D, A ] {
 
          case oldLeaf: LeafImpl =>
             // remove previous leaf
-            removeLeaf( oldLeaf )
+            removeLeaf( point, oldLeaf )
             // search anew
             val p0b = findP0( point ) // lastTreeImpl.findP0( point )
             assert( findLeafInP0( p0b, point ) == EmptyValue )
@@ -575,7 +575,7 @@ extends SkipOctree[ S, D, A ] {
       val res = findLeafInP0( p0, point ) // p0.findImmediateLeaf( point )
 
       res match {
-         case l: LeafImpl => removeLeaf( l )
+         case l: LeafImpl => removeLeaf( point, l )
          case _ =>
       }
 
@@ -592,7 +592,7 @@ extends SkipOctree[ S, D, A ] {
    private def findLeafInP0( b: LeftBranch, point: D#PointLike )( implicit tx: S#Tx ) : LeafOrEmpty = {
       val qidx = b.hyperCube.indexOf( point )
       b.child( qidx ) match {
-         case l: LeafImpl if( pointView( l.value ) == point ) => l
+         case l: LeafImpl if( pointView( l.value, tx ) == point ) => l
          case _ => EmptyValue
       }
    }
@@ -631,11 +631,11 @@ extends SkipOctree[ S, D, A ] {
       step( lastTreeImpl )
    }
 
-   private def removeLeaf( l: LeafImpl )( implicit tx: S#Tx ) {
+   private def removeLeaf( point: D#PointLike, l: LeafImpl )( implicit tx: S#Tx ) {
       // this will trigger removals from upper levels
       skipList.remove( l )
       // now l is in P0. demote it once more (this will dispose the leaf)
-      l.parent.demoteLeaf( l )
+      l.parent.demoteLeaf( point /* pointView( l.value ) */, l )
    }
 
    def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.iterator.map( _.value )
@@ -667,7 +667,7 @@ extends SkipOctree[ S, D, A ] {
          var i = 0; while( i < sz ) {
             n0.child( i ) match {
                case l: LeafImpl =>
-                  val ldist = metric.distance( point, pointView( l.value ))
+                  val ldist = metric.distance( point, pointView( l.value, tx ))
                   if( metric.isMeasureGreater( bestDist, ldist )) {
                      bestDist = ldist
                      bestLeaf = l
@@ -862,7 +862,7 @@ extends SkipOctree[ S, D, A ] {
             var i = 0; while( i < sz ) {
                nc.child( i ) match {
                   case cl: LeafImpl =>
-                     if( qs.contains( pointView( cl.value ))) in += cl
+                     if( qs.contains( pointView( cl.value, tx ))) in += cl
                   case cn: ChildBranch =>
                      val q    = cn.hyperCube
                      val ao   = qs.overlapArea( q )
@@ -925,13 +925,13 @@ extends SkipOctree[ S, D, A ] {
        * hyper-cube and the given point will be placed in
        * separated orthants of this resulting hyper-cube.
        */
-      def union( mq: D#HyperCube, point: D#PointLike ) : D#HyperCube
+      def union( mq: D#HyperCube, point: D#PointLike )( implicit tx: S#Tx ) : D#HyperCube
 
       /**
        * Queries the orthant index for this (leaf's or node's) hyper-cube
        * with respect to a given outer hyper-cube `iq`.
        */
-      def orthantIndexIn( iq: D#HyperCube ) : Int
+      def orthantIndexIn( iq: D#HyperCube )( implicit tx: S#Tx ) : Int
 
 //      def removeAndDispose()( implicit tx: S#Tx ) : Unit
    }
@@ -1005,7 +1005,7 @@ extends SkipOctree[ S, D, A ] {
     * points into the highest level octree that
     * the leaf resides in, according to the skiplist.
     */
-   protected final class LeafImpl( val id: S#ID, val value: A, val order: Order, parentRef: S#Ref[ BranchLike ])
+   protected final class LeafImpl( val id: S#ID, val value: A, /* val point: D#PointLike, */ val order: Order, parentRef: S#Ref[ BranchLike ])
    extends LeftNonEmptyChild with RightNonEmptyChild with LeafOrEmpty with Leaf {
       def updateParentLeft( p: LeftBranch )( implicit tx: S#Tx )   { parent_=( p )}
       def updateParentRight( p: RightBranch )( implicit tx: S#Tx ) { parent_=( p )}
@@ -1029,13 +1029,12 @@ extends SkipOctree[ S, D, A ] {
          parentRef.write( out )
       }
 
-      def union( mq: D#HyperCube, point2: D#PointLike ) = {
-         val point = pointView( value )
-         mq.greatestInteresting( point, point2 )
+      def union( mq: D#HyperCube, point2: D#PointLike )( implicit tx: S#Tx ) = {
+         mq.greatestInteresting( pointView( value, tx ), point2 )
       }
 
-      def orthantIndexIn( iq: D#HyperCube ) : Int = {
-         iq.indexOf( pointView( value ))
+      def orthantIndexIn( iq: D#HyperCube )( implicit tx: S#Tx ) : Int = {
+         iq.indexOf( pointView( value, tx ))
       }
 
       /**
@@ -1077,7 +1076,7 @@ extends SkipOctree[ S, D, A ] {
        * with its parent if it becomes uninteresting as part of the
        * removal.
        */
-      def demoteLeaf( leaf: LeafImpl )( implicit tx: S#Tx ) : Unit
+      def demoteLeaf( point: D#PointLike, leaf: LeafImpl )( implicit tx: S#Tx ) : Unit
 
       /**
        * Returns the hyper-cube covered by this node
@@ -1106,12 +1105,12 @@ extends SkipOctree[ S, D, A ] {
 
       protected def nextRef: S#Ref[ NextOption ]
 
-      final def union( mq: D#HyperCube, point2: D#PointLike ) = {
+      final def union( mq: D#HyperCube, point2: D#PointLike )( implicit tx: S#Tx ) = {
          val q = hyperCube
          mq.greatestInteresting( q, point2 )
       }
 
-      final def orthantIndexIn( iq: D#HyperCube ) : Int = iq.indexOf( hyperCube )
+      final def orthantIndexIn( iq: D#HyperCube )( implicit tx: S#Tx ) : Int = iq.indexOf( hyperCube )
 
       /**
        * Called when a leaf has been removed from the node.
@@ -1180,8 +1179,8 @@ extends SkipOctree[ S, D, A ] {
        * This method also sets the parent of the leaf
        * accordingly.
        */
-      final def insert( leaf: LeafImpl )( implicit tx: S#Tx ) {
-         val point   = pointView( leaf.value )
+      final def insert( point: D#PointLike, leaf: LeafImpl )( implicit tx: S#Tx ) {
+//         val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
          child( qidx ) match {
             case EmptyValue =>
@@ -1247,8 +1246,8 @@ extends SkipOctree[ S, D, A ] {
          n
       }
 
-      final def demoteLeaf( leaf: LeafImpl )( implicit tx: S#Tx ) {
-         val point   = pointView( leaf.value )
+      final def demoteLeaf( point: D#PointLike, leaf: LeafImpl )( implicit tx: S#Tx ) {
+//         val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
          updateChild( qidx, EmptyValue )
 
@@ -1303,8 +1302,8 @@ extends SkipOctree[ S, D, A ] {
          children( idx ).set( c )
       }
 
-      final def demoteLeaf( leaf: LeafImpl )( implicit tx: S#Tx ) {
-         val point   = pointView( leaf.value )
+      final def demoteLeaf( point: D#PointLike, leaf: LeafImpl )( implicit tx: S#Tx ) {
+//         val point   = pointView( leaf.value )
          val qidx    = hyperCube.indexOf( point )
          assert( child( qidx ) == leaf, "Internal error - expected leaf not found" )
          updateChild( qidx, EmptyValue )

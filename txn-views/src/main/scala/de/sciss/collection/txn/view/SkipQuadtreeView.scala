@@ -30,9 +30,10 @@ package view
 import java.awt.{Color, Dimension}
 import de.sciss.lucrestm.Sys
 import de.sciss.collection.view.QuadView
-import de.sciss.collection.geom.Space
+import geom.{Point2DLike, Space}
 
-class SkipQuadtreeView[ S <: Sys[ S ], A ]( t: DeterministicSkipOctree[ S, Space.TwoDim, A ]) extends QuadView {
+class SkipQuadtreeView[ S <: Sys[ S ], A ]( t: DeterministicSkipOctree[ S, Space.TwoDim, A ], pointView: A => Point2DLike )
+extends QuadView {
 //   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.TwoDim, A ]
 
    var highlight  = Set.empty[ A ]
@@ -71,7 +72,7 @@ class SkipQuadtreeView[ S <: Sys[ S ], A ]( t: DeterministicSkipOctree[ S, Space
    private def draw( h: QuadView.PaintHelper, quad: t.Child ) {
       quad match {
          case l: t.Leaf =>
-            h.drawPoint( t.pointView( l.value ), highlight.contains( l.value ))
+            h.drawPoint( pointView( l.value ), highlight.contains( l.value ))
          case n: t.Branch =>
             for( idx <- 0 until 4 ) {
                h.drawFrame( n.hyperCube.orthant( idx ), gridColor )

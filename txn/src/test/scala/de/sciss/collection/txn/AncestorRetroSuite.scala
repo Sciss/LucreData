@@ -3,7 +3,7 @@ package txn
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
-import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
+import geom.{Point3D, DistanceMeasure3D, Cube, Space}
 import concurrent.stm.Ref
 import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
 
@@ -26,78 +26,21 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    type S = InMemory
 
-//   trait VertexLike extends Point3DLike /* with Writer */ {
-//      def version: Int
-//      def pre: TotalOrder.Map.Entry[ S, VertexLike ] // preOrder.Entry
-//      def post: TotalOrder.Map.Entry[ S, VertexLike ] // postOrder.Entry
-//      def x( implicit tx: S#Tx ): Int = pre.tag
-//      def y( implicit tx: S#Tx ): Int = post.tag
-//      def z: Int = version
-//      override def toString = "Vertex(" + version + ")"
-//   }
-
-//   abstract class AbstractTree[ Self <: AbstractTree[ Self ]] {
-//      type V <: VertexLike
-//
-//      private val versionCnt = Ref( 0 )
-//      final def nextVersion()( implicit tx: S#Tx ) : Int = {
-//         val res = versionCnt.get
-//         versionCnt.set( res + 1 )
-//         res
-//      }
-//
-////      def preOrder:  TotalOrder.Map[ S, Self#V ]
-////      def postOrder: TotalOrder.Map[ S, Self#V ]
-//
-////      implicit val vertexSerializer : Serializer[ VertexLike ]
-////      implicit val vertexManifest : Manifest[ V ]
-////      implicit val valueManifest: Manifest[ A ]
-//
-//      def root: Self#V
-//
-////      final val root       = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
-//      final val cube       = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
-//
-//      implicit val system = new InMemory()
-//
-////      final val preOrder   = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( preObserver )}
-////      final val postOrder  = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( postObserver )}
-//
-//      implicit def vertexSer: Serializer[ Self#V ]
-//      implicit def vertexMF: Manifest[ Self#V ]
-//
-//      def t: SkipOctree[ S, Space.ThreeDim, Self#V ]
-//
-////      final val t: SkipOctree[ S, Space.ThreeDim, Self#V ] = inMem.atomic { implicit tx =>
-////         import SpaceSerializers.CubeSerializer
-////         SkipOctree.empty[ S, Space.ThreeDim, Self#V ]( cube )
-////      }
-////
-////      t.system.atomic { implicit tx => t += root }
-//
-////      def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V
-//
-////      protected def add( v: V )( implicit tx: S#Tx ) : V = {
-////         preObserver.map  += v.pre -> v
-////         postObserver.map += v.post -> v
-////         t += v
-////         v
-////      }
-//   }
-
    implicit val system = new InMemory
 
    type FullOrder = TotalOrder.Map.Entry[ S, FullVertex ]
 
-   sealed trait FullVertex extends Point3DLike {
+   sealed trait FullVertex {
       def pre: FullOrder
       def post: FullOrder
       def preTail: FullOrder
       def version: Int
 
-      final def x : Int = system.atomic { implicit tx => pre.tag }
-      final def y : Int = system.atomic { implicit tx => post.tag }
-      final def z : Int = version
+//      final def x : Int = system.atomic { implicit tx => pre.tag }
+//      final def y : Int = system.atomic { implicit tx => post.tag }
+//      final def z : Int = version
+
+      final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
 
       override def toString = "FullVertex(" + version + ")"
    }
@@ -134,6 +77,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       val t: SkipOctree[ S, Space.ThreeDim, V ] = system.atomic { implicit tx =>
          import SpaceSerializers.CubeSerializer
+         implicit val pointView = (p: V, tx: S#Tx) => p.toPoint( tx )
          SkipOctree.empty[ S, Space.ThreeDim, V ]( cube )
       }
 
@@ -168,7 +112,7 @@ def post: FullOrder      = t.system.atomic { implicit tx => postO.root.append( t
 //         if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + value + " ; pre compare = " +
 //            parent.pre.compare( pre ) + "; post compare = " + parent.post.compare( post ))
 
-println( "INSERT x = " + x + ", y = " + y + ", z = " + z )
+println( "INSERT " + system.atomic( toPoint( _ )))
          t.add( this )
       }
 
@@ -233,15 +177,17 @@ println( "INSERT x = " + x + ", y = " + y + ", z = " + z )
 
    type MarkOrder = TotalOrder.Map.Entry[ S, MarkVertex ]
 
-   sealed trait MarkVertex extends Point3DLike {
+   sealed trait MarkVertex {
       def full: FullVertex
       def pre: MarkOrder
       def post: MarkOrder
 
-      final def x : Int = system.atomic { implicit tx => pre.tag }
-      final def y : Int = system.atomic { implicit tx => post.tag }
+//      final def x : Int = system.atomic { implicit tx => pre.tag }
+//      final def y : Int = system.atomic { implicit tx => post.tag }
       final def version : Int = full.version
-      final def z : Int = full.version
+//      final def z : Int = full.version
+
+      final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
 
       override def toString = "MarkVertex(" + version + ")"
    }
@@ -266,6 +212,7 @@ println( "INSERT x = " + x + ", y = " + y + ", z = " + z )
 
       val t: SkipOctree[ S, Space.ThreeDim, V ] = system.atomic { implicit tx =>
          import SpaceSerializers.CubeSerializer
+         implicit val pointView = (p: V, tx: S#Tx) => p.toPoint( tx )
          SkipOctree.empty[ S, Space.ThreeDim, V ]( ft.cube )
       }
 
@@ -423,7 +370,9 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 
                case Some( parent ) if( parent.version <= version ) =>
                   val found: Option[ FullVertex ] = t.t.system.atomic { implicit tx =>
-                     val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
+                     val p0 = child.toPoint
+//                     val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
+                     val point = p0.copy( x = p0.x - 1, y = p0.y + 1 )
                      val f = t.t.nearestNeighborOption( point, metric )
                      f
                   }
