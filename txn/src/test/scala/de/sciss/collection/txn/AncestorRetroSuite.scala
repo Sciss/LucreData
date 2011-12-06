@@ -15,8 +15,8 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = false
-   def seed : Long            = 12345L
-   val TREE_SIZE              = 100000    // 150000
+   def seed : Long            = 1L // 12345L
+   val TREE_SIZE              = 10 // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.2 // 0.3       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1
    val RETRO_PARENT_PERCENTAGE= 0.1
@@ -32,7 +32,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    type FullOrder = TotalOrder.Map.Entry[ S, FullVertex ]
 
    sealed trait VertexLike {
-      def version: Int
+      def version : Int
+      def toPoint( implicit tx: S#Tx ) : Point3D
    }
 
    sealed trait FullVertex extends VertexLike {
@@ -54,23 +55,27 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def postOrder : TotalOrder.Map[ S, FullVertex ]
    }
 
-   final class RelabelObserver[ V <: VertexLike ]( t: SkipList[ S, V ]) extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
-      def beforeRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
+   final class RelabelObserver[ V <: VertexLike ]( t: SkipOctree[ S, Space.ThreeDim, V ]) extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
+      def beforeRelabeling( v0: V, iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
          iter.foreach { v =>
-val str = try { v.toPoint } catch { case np: NullPointerException =>
-"<null>"
-}
-println( "RELABEL - " + str )
-            t -= v
+            if( v ne v0 ) {
+//val str = try { v.toPoint } catch { case np: NullPointerException =>
+//"<null>"
+//}
+//println( "RELABEL - " + str )
+               t -= v
+            }
          }
       }
-      def afterRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
+      def afterRelabeling( v0: V, iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
          iter.foreach { v =>
-val str = try { v.toPoint } catch { case np: NullPointerException =>
-"<null>"
-}
-println( "RELABEL + " + str )
-            t += v
+            if( v ne v0 ) {
+//val str = try { v.toPoint } catch { case np: NullPointerException =>
+//"<null>"
+//}
+//println( "RELABEL + " + str )
+               t += v
+            }
          }
       }
    }
@@ -90,8 +95,7 @@ println( "RELABEL + " + str )
             }
          }
          val t       = SkipOctree.empty[ S, Space.ThreeDim, FullVertex ]( cube )
-         val orderObserver = new TotalOrder.Map.RelabelObserver[ S#Tx, FullVertex ] {
-         }
+         val orderObserver = new RelabelObserver[ FullVertex ]( t )
          val root    = new FullRootVertex {
             val preOrder            = TotalOrder.Map.empty[ S, FullVertex ]( this, orderObserver )
             val postOrder           = TotalOrder.Map.empty[ S, FullVertex ]( this, orderObserver )
@@ -209,14 +213,7 @@ if( verbose ) {
             }
          }
          val t = SkipOctree.empty[ S, Space.ThreeDim, MarkVertex ]( ft.t.hyperCube )
-         val orderObserver = new TotalOrder.Map.RelabelObserver[ S#Tx, MarkVertex ] {
-            def beforeRelabeling( iter: Iterator[ S#Tx, MarkVertex ])( implicit tx: S#Tx ) {
-               iter.foreach( t -= _ )
-            }
-            def afterRelabeling( iter: Iterator[ S#Tx, MarkVertex ])( implicit tx: S#Tx ) {
-               iter.foreach( t += _ )
-            }
-         }
+         val orderObserver = new RelabelObserver[ MarkVertex ]( t )
          val root = new MarkRootVertex {
             def full       = ft.root
             val preOrder   = TotalOrder.Map.empty[ S, MarkVertex ]( this, orderObserver )

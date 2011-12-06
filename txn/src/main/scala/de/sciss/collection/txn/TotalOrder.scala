@@ -331,42 +331,42 @@ object TotalOrder {
 
    object Map {
       def empty[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-           rootValue: A, relabelObserver: Map.RelabelObserver[ S#Tx, A ] = new NoRelabelObserver[ S#Tx ])
+           rootValue: A, relabelObserver: Map.RelabelObserver[ S#Tx, A ] /* = new NoRelabelObserver[ S#Tx ]*/)
          ( implicit tx: S#Tx, system: S, keySerializer: Serializer[ A ]) : Map[ S, A ] = {
 
          new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver, rootValue )
       }
 
       def reader[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-           relabelObserver: Map.RelabelObserver[ S#Tx, A ] = new NoRelabelObserver[ S#Tx ])
+           relabelObserver: Map.RelabelObserver[ S#Tx, A ] /* = new NoRelabelObserver[ S#Tx ]*/)
          ( implicit system: S, keySerializer: Serializer[ A ]) : MutableReader[ S, Map[ S, A ]] =
          new MapReader[ S, A ]( relabelObserver )
 
       /**
        * A `RelabelObserver` is notified before and after a relabeling is taking place due to
-       * item insertions. The iterator passed to it contains all the items which are relabelled
-       * except for the item that has just been inserted and caused the relabelling action.
-       *
-       * '''Note''': OBSOLETE -- we do not have an excluded item any more, so the newly inserted
-       * value is included!
+       * item insertions. The iterator passed to it contains all the items which are relabelled,
+       * including the one that has caused the relabelling action. The value of this new item
+       * is passed as additional argument, so that the observer can decide to handle it
+       * specially.
        */
       trait RelabelObserver[ Tx, @specialized( Unit, Boolean, Int, Long, Float, Double ) -A ] {
          /**
           * This method is invoked right before relabelling starts. That is, the items in
-          * the `values` iterator are about to be relabelled, but at the point of calling
+          * the `dirty` iterator are about to be relabelled, but at the point of calling
           * this method the tags still carry their previous values.
           */
-         def beforeRelabeling( values: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
+         def beforeRelabeling( inserted: A, dirty: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
          /**
           * This method is invoked right after relabelling finishes. That is, the items in
-          * the `values` iterator have been relablled and the tags carry their new values.
+          * the `clean` iterator have been relabelled and the tags carry their new values.
           */
-         def afterRelabeling(  values: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
+         def afterRelabeling( inserted: A, clean: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
       }
 
-      final class NoRelabelObserver[ Tx ] extends RelabelObserver[ Tx, Any ] {
-         def beforeRelabeling( values: Iterator[ Tx, Any ])( implicit tx: Tx ) {}
-         def afterRelabeling(  values: Iterator[ Tx, Any ])( implicit tx: Tx ) {}
+      final class NoRelabelObserver[ Tx, @specialized( Unit, Boolean, Int, Long, Float, Double ) A ]
+      extends RelabelObserver[ Tx, A ] {
+         def beforeRelabeling( inserted: A, dirty: Iterator[ Tx, A ])( implicit tx: Tx ) {}
+         def afterRelabeling(  inserted: A, clean: Iterator[ Tx, A ])( implicit tx: Tx ) {}
       }
 
 //      protected implicit object EntryOptionReader extends MutableOptionReader[ S, EOpt ] {
@@ -715,14 +715,14 @@ object TotalOrder {
             // will obviously leave the tag unchanged! thus we must add
             // the additional condition that num is greater than 1!
             if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-               val relabelIter = new RelabelIterator( /* _first, */ /* if( _first eq first ) first.nextOrNull else */ first,
-                                                              /* if( _first eq last  ) last.prevOrNull */ else last )
+               val inserted      = _first.value
+               val relabelIter   = new RelabelIterator( first, last )
 //println( ":::: ITER num = " + num )
 //relabelIter.foreach( println )
 //println( ":::: ITER done" )
 //relabelIter.reset()
 
-               observer.beforeRelabeling( relabelIter )
+               observer.beforeRelabeling( inserted, relabelIter )
 //sys.error( "TODO" )
 
    //            while( !(item eq last) ) {
@@ -741,7 +741,7 @@ object TotalOrder {
 //sys.error( "TODO" )
 //               observer.afterRelabeling( first, num )
                relabelIter.reset()
-               observer.beforeRelabeling( relabelIter )
+               observer.beforeRelabeling( inserted, relabelIter )
                return
             }
             mask   <<= 1      // next coarse step
