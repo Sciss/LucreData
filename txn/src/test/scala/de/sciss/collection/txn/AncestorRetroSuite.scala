@@ -31,11 +31,14 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    type FullOrder = TotalOrder.Map.Entry[ S, FullVertex ]
 
-   sealed trait FullVertex {
+   sealed trait VertexLike {
+      def version: Int
+   }
+
+   sealed trait FullVertex extends VertexLike {
       def pre: FullOrder
       def post: FullOrder
       def preTail: FullOrder
-      def version: Int
 
 //      final def x : Int = system.atomic { implicit tx => pre.tag }
 //      final def y : Int = system.atomic { implicit tx => post.tag }
@@ -49,6 +52,27 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    sealed trait FullRootVertex extends FullVertex {
       def preOrder  : TotalOrder.Map[ S, FullVertex ]
       def postOrder : TotalOrder.Map[ S, FullVertex ]
+   }
+
+   final class RelabelObserver[ V <: VertexLike ]( t: SkipList[ S, V ]) extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
+      def beforeRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
+         iter.foreach { v =>
+val str = try { v.toPoint } catch { case np: NullPointerException =>
+"<null>"
+}
+println( "RELABEL - " + str )
+            t -= v
+         }
+      }
+      def afterRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
+         iter.foreach { v =>
+val str = try { v.toPoint } catch { case np: NullPointerException =>
+"<null>"
+}
+println( "RELABEL + " + str )
+            t += v
+         }
+      }
    }
 
    object FullTree {
@@ -67,24 +91,6 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          }
          val t       = SkipOctree.empty[ S, Space.ThreeDim, FullVertex ]( cube )
          val orderObserver = new TotalOrder.Map.RelabelObserver[ S#Tx, FullVertex ] {
-            def beforeRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
-               iter.foreach { v =>
-val str = try { v.toPoint } catch { case np: NullPointerException =>
-   "<null>"
-}
-println( "RELABEL - " + str )
-                  t -= v
-               }
-            }
-            def afterRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
-               iter.foreach { v =>
-val str = try { v.toPoint } catch { case np: NullPointerException =>
-   "<null>"
-}
-println( "RELABEL + " + str )
-                  t += v
-               }
-            }
          }
          val root    = new FullRootVertex {
             val preOrder            = TotalOrder.Map.empty[ S, FullVertex ]( this, orderObserver )
@@ -169,7 +175,7 @@ if( verbose ) {
 
    type MarkOrder = TotalOrder.Map.Entry[ S, MarkVertex ]
 
-   sealed trait MarkVertex {
+   sealed trait MarkVertex extends VertexLike {
       def full: FullVertex
       def pre: MarkOrder
       def post: MarkOrder

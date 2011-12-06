@@ -346,6 +346,9 @@ object TotalOrder {
        * A `RelabelObserver` is notified before and after a relabeling is taking place due to
        * item insertions. The iterator passed to it contains all the items which are relabelled
        * except for the item that has just been inserted and caused the relabelling action.
+       *
+       * '''Note''': OBSOLETE -- we do not have an excluded item any more, so the newly inserted
+       * value is included!
        */
       trait RelabelObserver[ Tx, @specialized( Unit, Boolean, Int, Long, Float, Double ) -A ] {
          /**
@@ -530,14 +533,18 @@ object TotalOrder {
    }
 
    /*
-    * A special iterator used for the relabel observer. The creating instance '''must make sure'''
+    * A special iterator used for the relabel observer.
+    *
+    * '''Note''': The following is OBSOLETE -- we do not have an excluded item any more:
+    *
+    * The creating instance '''must make sure'''
     * that the excluded item `excl` is neither the `first` nor the `last` item (that is to say,
     * if the relabelling starts at the excluded item, pass it's successor as `first` argument,
     * or if the relabelling stops at the excluded item, pass it's predecessor as `last` item),
     * otherwise the iterator is ill behaved!
     */
    private final class RelabelIterator[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ](
-      excl: Map.Entry[ S, A ], first: Map.Entry[ S, A ], last: Map.Entry[ S, A ])
+      /* excl: Map.Entry[ S, A ], */ first: Map.Entry[ S, A ], last: Map.Entry[ S, A ])
    extends Iterator[ S#Tx, A ] {
 
       private var curr = first
@@ -550,11 +557,11 @@ object TotalOrder {
             hasNext  = false
          } else {
             curr = curr.nextOrNull
-            // skip the newly inserted item if necessary
-            // (since we request hat `excl ne last`, we
-            // do not need to check the `curr eq last`
-            // condition again here.
-            if( curr eq excl ) curr = curr.nextOrNull
+//            // skip the newly inserted item if necessary
+//            // (since we request hat `excl ne last`, we
+//            // do not need to check the `curr eq last`
+//            // condition again here.
+//            if( curr eq excl ) curr = curr.nextOrNull
          }
          res
       }
@@ -708,8 +715,8 @@ object TotalOrder {
             // will obviously leave the tag unchanged! thus we must add
             // the additional condition that num is greater than 1!
             if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-               val relabelIter = new RelabelIterator( _first, if( _first eq first ) first.nextOrNull else first,
-                                                              if( _first eq last  ) last.prevOrNull  else last )
+               val relabelIter = new RelabelIterator( /* _first, */ /* if( _first eq first ) first.nextOrNull else */ first,
+                                                              /* if( _first eq last  ) last.prevOrNull */ else last )
 //println( ":::: ITER num = " + num )
 //relabelIter.foreach( println )
 //println( ":::: ITER done" )
