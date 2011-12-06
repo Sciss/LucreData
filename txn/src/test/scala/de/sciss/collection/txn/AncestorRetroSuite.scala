@@ -15,8 +15,8 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = false
-   def seed : Long            = 33334444L // 12345L
-   val TREE_SIZE              = 634 // 19801 // 100000    // 150000
+   def seed : Long            = 0L // 33334444L // 12345L
+   val TREE_SIZE              = 617 // 19801 // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.9 // 0.2 // 0.3       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1 // 0.1
    val RETRO_PARENT_PERCENTAGE= 0.0 // 0.1
