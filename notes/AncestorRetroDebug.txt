@@ -99,3 +99,41 @@ thus: we need to check the comparison result of the iso-search
 - if the version-comp is -1, we need to make iso-mapped z (version) one smaller
 (although, we can skip the last two steps, as the false positive is already ruled out by step 1)
 (there is no iso-mapping for the version)
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+v19801 is retro child to 1877
+:: mark insert for full Point3D(689482894,74685440,19801)
+:: mark insert pre :: compare to m=Point3D(1652555776,369098752,84), f=Point3D(697370504,83623936,84) -> -1
+:: mark insert pre :: compare to m=Point3D(1632632832,307232768,579), f=Point3D(677455686,69672960,579) -> 1
+:: mark insert pre :: compare to m=Point3D(1650458624,360710144,169), f=Point3D(686528218,74186752,169) -> 1
+:: mark insert pre :: compare to m=Point3D(1652555776,369098752,84), f=Point3D(697370504,83623936,84) -> -1
+:: mark insert pre :: compare to m=Point3D(1651269632,363872256,4664), f=Point3D(688877719,74264576,4664) -> 1
+:: mark insert pre :: compare to m=Point3D(1651335168,364216320,1103), f=Point3D(689986358,75063296,1103) -> -1
+:: mark insert pre :: compare to m=Point3D(1651314688,363986944,1508), f=Point3D(689213362,74645504,1508) -> 1
+:: mark insert pre :: compare to m=Point3D(1651316256,364068864,5243), f=Point3D(689429496,74680832,5243) -> 1
+:: mark insert pre :: compare to m=Point3D(1651316416,364124160,7372), f=Point3D(689756002,74994560,7372) -> -1
+:: mark insert pre :: compare to m=Point3D(1651316276,364113920,9435), f=Point3D(689435774,74682080,9435) -> 1
+:: mark insert pre :: compare to m=Point3D(1651316280,364120064,7302), f=Point3D(689597318,74907648,7302) -> -1
+:: mark insert pre :: compare to m=Point3D(1651316277,364111872,19615), f=Point3D(689435794,74682064,19615) -> 1
+:: mark insert pre :: compare to m=Point3D(1651316278,364115968,14927), f=Point3D(689491158,74682880,14927) -> -1
+:: mark insert post :: compare to m=Point3D(1654063104,385875968,1827), f=Point3D(698692734,83746816,1827) -> -1
+:: mark insert post :: compare to m=Point3D(1646002176,311427072,584), f=Point3D(682256398,72663040,584) -> 1
+:: mark insert post :: compare to m=Point3D(1651343360,364249088,804), f=Point3D(690698328,75284480,804) -> -1
+:: mark insert post :: compare to m=Point3D(1648099328,333447168,995), f=Point3D(685063594,73347072,995) -> 1
+:: mark insert post :: compare to m=Point3D(1650458624,360710144,169), f=Point3D(686528218,74186752,169) -> 1
+:: mark insert post :: compare to m=Point3D(1651316224,364085248,3998), f=Point3D(689426953,74681344,3998) -> 1
+:: mark insert post :: compare to m=Point3D(1651343360,364249088,804), f=Point3D(690698328,75284480,804) -> -1
+:: mark insert post :: compare to m=Point3D(1651316464,364124672,9782), f=Point3D(689756223,74994608,9782) -> -1
+:: mark insert post :: compare to m=Point3D(1651316264,364109824,8329), f=Point3D(689434900,74682048,8329) -> 1
+:: mark insert post :: compare to m=Point3D(1651310592,364118016,628), f=Point3D(689193020,74711040,628) -> -1
+:: mark insert post :: compare to m=Point3D(1651316277,364111872,19615), f=Point3D(689435794,74682064,19615) -> 1
+:: mark insert post :: compare to m=Point3D(1651316276,364113920,9435), f=Point3D(689435774,74682080,9435) -> 1
+:: mark insert post :: compare to m=Point3D(1651316279,364114944,18191), f=Point3D(689491317,74682624,18191) -> 1
+:: mark insert post :: compare to m=Point3D(1651316278,364115968,14927), f=Point3D(689491158,74682880,14927) -> 1
+:: mark insert post :: compare to m=Point3D(1651310592,364118016,628), f=Point3D(689193020,74711040,628) -> -1
+:: mark insert pre before Point3D(1651316278,364115968,14927)
+:: mark insert post before Point3D(1651310592,364118016,628)
+Mark ins. node Point3D(1651314297,364116992,19801) with full Point3D(689482894,74685440,19801)
+[info]   For child FullVertex(764)(iso Point3D(1651310981,363939840,764)), found 21 instead of 628 (AncestorRetroSuite.scala:552)
+

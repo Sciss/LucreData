@@ -15,8 +15,8 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = false
-   def seed : Long            = 1L // 12345L
-   val TREE_SIZE              = 10 // 100000    // 150000
+   def seed : Long            = 12345L
+   val TREE_SIZE              = 19801 // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.2 // 0.3       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.1
    val RETRO_PARENT_PERCENTAGE= 0.1
@@ -154,6 +154,7 @@ if( verbose ) {
       }
 
       def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = {
+         require( child ne root )
          val v = new FullVertex {
             val pre     = child.pre.prepend( this )
             val preTail = child.preTail.append( this )
@@ -264,10 +265,11 @@ if( verbose ) {
          var children   = Map.empty[ FullVertex, Set[ FullVertex ]]
 
          for( i <- 1 to n ) {
+if( i == TREE_SIZE ) verbose = true
 //            try {
                val refIdx  = rnd.nextInt( i )
                val ref     = treeSeq( refIdx )
-               val retro   = rnd.nextDouble()
+               val retro   = if( refIdx > 0 ) rnd.nextDouble() else 1.1 // no retro stuff with root!
                if( retro <= RETRO_CHILD_PERCENTAGE ) {
 if( verbose ) println( "v" + i + " is retro child to " + refIdx )
                   val child = tr.insertRetroChild( ref /*, i */)
@@ -376,7 +378,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 
          val gagaism = randomlyFilledTree()
          import gagaism._
-
+verbose = false
          type V      = FullVertex
          val tm      = system.atomic { implicit tx => MarkTree( t )}
          val rnd     = new util.Random( seed )
@@ -415,6 +417,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          var markSet          = Set( 0 )
 
          treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
+if( i == TREE_SIZE - 1 ) verbose = true
             if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
                tm.t.system.atomic { implicit tx =>
 if( verbose ) println( ":: mark insert for full " + child.toPoint )
