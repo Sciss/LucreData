@@ -14,17 +14,22 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
-   val PARENT_LOOKUP          = false
-   def seed : Long            = 0L // 33334444L // 12345L
-   val TREE_SIZE              = 617 // 19801 // 100000    // 150000
-   val MARKER_PERCENTAGE      = 0.9 // 0.2 // 0.3       // 0.5
-   val RETRO_CHILD_PERCENTAGE = 0.1 // 0.1
-   val RETRO_PARENT_PERCENTAGE= 0.0 // 0.1
+   val PARENT_LOOKUP          = true
+   val MARKED_ANCESTOR        = true
+   val NUM1                   = 10000  // tree size in PARENT_LOOKUP
+   val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
+   val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
+   val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
+   val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
+
+   val VERIFY_MARKTREE_CONTENTS = false   // be careful to not enable this with large TREE_SIZE (> some 1000)
    val PRINT_DOT              = false
    val PRINT_ORDERS           = false
 
-   var verbose                = true
-   val DEBUG_LAST             = false
+   def seed : Long            = 0L
+
+   var verbose                = false
+   val DEBUG_LAST             = false  // if enabled, switches to verbosity for the last element in the sequence
 
    type S = InMemory
 
@@ -67,7 +72,12 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
                   }
                   println( "RELABEL " + name + " - " + str )
                }
-               assert( t.remove( v ), "When inserting " + v0 + ", the vertex " + v + " seems to have not been in the " + name + " tree" )
+//               assert( t.remove( v ), "When inserting " + v0 + ", the vertex " + v + " seems to have not been in the " + name + " tree" )
+
+               // the nasty thing is, in the pre-order list the items appear twice
+               // due to pre versus preTail. thus the items might get removed twice
+               // here, too, and we cannot assert that t.remove( v ) == true
+               t -= v
             }
          }
          if( verbose ) println( "RELABEL " + name + " - end" )
@@ -82,7 +92,12 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
                   }
                   println( "RELABEL " + name + " + " + str )
                }
-               assert( t.add( v ))
+//               assert( t.add( v ))
+
+               // the nasty thing is, in the pre-order list the items appear twice
+               // due to pre versus preTail. thus the items might get added twice
+               // here, too, and we cannot assert that t.add( v ) == true
+               t += v
             }
          }
          if( verbose ) println( "RELABEL " + name + " + end" )
@@ -264,7 +279,7 @@ if( verbose ) {
       }
    }
 
-   private def randomlyFilledTree( n: Int = TREE_SIZE ) = new {
+   private def randomlyFilledTree( n: Int ) = new {
       given( "a randomly filled tree, corresponding node orders and their quadtree" )
       val (t, treeSeq, parents) = system.atomic { implicit tx =>
          val tr         = FullTree()
@@ -274,7 +289,7 @@ if( verbose ) {
          var children   = Map.empty[ FullVertex, Set[ FullVertex ]]
 
          for( i <- 1 to n ) {
-if( DEBUG_LAST && i == TREE_SIZE ) verbose = true
+if( DEBUG_LAST && i == n ) verbose = true
 //            try {
                val refIdx  = rnd.nextInt( i )
                val ref     = treeSeq( refIdx )
@@ -323,6 +338,15 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 //      println( "POST ORDER: " + t.postOrder.head.tagList.map( post => treeSeq.find( _.post.tag == post ).get.version ).mkString( ", " ))
 //   }
 
+   def scenarioWithTime( name: String, descr: String )( body: => Unit ) {
+      scenario( descr ) {
+         val t1 = System.currentTimeMillis()
+         body
+         val t2 = System.currentTimeMillis()
+         println( "For " + name + " the tests took " + TestUtil.formatSeconds( (t2 - t1) * 0.001 ))
+      }
+   }
+
    if( PARENT_LOOKUP ) {
       feature( "Tree parent node lookup should be possible in a octree representing pre-order, post-order and version" ) {
          info( "The vertices of a tree are represented by their positions" )
@@ -330,8 +354,8 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          info( "NN search is possible with these orders representing" )
          info( "the x, y and z coordinates of an octree." )
 
-         scenario( "Verifying parent node lookup" ) {
-            val gagaism = randomlyFilledTree()
+         scenarioWithTime( "Parent-Lookup", "Verifying parent node lookup" ) {
+            val gagaism = randomlyFilledTree( NUM1 )
             import gagaism._
    //         val (t, treeSeq, parents) = randomlyFilledTree()
             t.validate()
@@ -375,205 +399,208 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
       }
    }
 
-   feature( "Marked ancestor lookup should be possible through isomorphic mapping between two quadtrees" ) {
-      info( "Two trees are now maintained (as quadtrees with pre/post order coordinates)." )
-      info( "One tree represents the full version tree, the other a subtree representing markers." )
-      info( "Marked ancestor lookup is performed by translating a coordinate from the" )
-      info( "full tree into the marker tree, followed by NN search." )
+   if( MARKED_ANCESTOR ) {
+      feature( "Marked ancestor lookup should be possible through isomorphic mapping between two quadtrees" ) {
+         info( "Two trees are now maintained (as quadtrees with pre/post order coordinates)." )
+         info( "One tree represents the full version tree, the other a subtree representing markers." )
+         info( "Marked ancestor lookup is performed by translating a coordinate from the" )
+         info( "full tree into the marker tree, followed by NN search." )
 
-      scenario( "Verifying marked ancestor lookup" ) {
-         given( "a randomly filled tree, corresponding node orders and their quadtree" )
-         given( "a random marking of a subset of the vertices" )
+         scenarioWithTime( "Marked-Ancestors", "Verifying marked ancestor lookup" ) {
+            given( "a randomly filled tree, corresponding node orders and their quadtree" )
+            given( "a random marking of a subset of the vertices" )
 
-         val gagaism = randomlyFilledTree()
-         import gagaism._
-if( DEBUG_LAST ) verbose = false
-         type V      = FullVertex
-         val tm      = system.atomic { implicit tx => MarkTree( t )}
-         val rnd     = new util.Random( seed )
+            val gagaism = randomlyFilledTree( NUM2 )
+            import gagaism._
+   if( DEBUG_LAST ) verbose = false
+            type V      = FullVertex
+            val tm      = system.atomic { implicit tx => MarkTree( t )}
+            val rnd     = new util.Random( seed )
 
-         implicit val ord: Ordering[ S#Tx, MarkOrder ] = new Ordering[ S#Tx, MarkOrder ] {
-            def compare( a: MarkOrder, b: MarkOrder )( implicit tx: S#Tx ) : Int = {
-               val ta = a.tag
-               val tb = b.tag
-               if( ta < tb ) -1 else if( ta > tb ) 1 else 0
+            implicit val ord: Ordering[ S#Tx, MarkOrder ] = new Ordering[ S#Tx, MarkOrder ] {
+               def compare( a: MarkOrder, b: MarkOrder )( implicit tx: S#Tx ) : Int = {
+                  val ta = a.tag
+                  val tb = b.tag
+                  if( ta < tb ) -1 else if( ta > tb ) 1 else 0
+               }
             }
-         }
 
-//         val mPreList   = {
-//            import tm.orderSer
-//            implicit def s = tm.t.system
-//            tm.t.system.atomic { implicit tx =>
-//               val res = SkipList.empty[ S, tm.Order ]
-//               res.add( tm.preOrder.root )
-//               res
-//            }
-//         }
-//         val mPostList = {
-//            import tm.orderSer
-//            implicit def s = tm.t.system
-//            tm.t.system.atomic { implicit tx =>
-//               val res = SkipList.empty[ S, tm.Order ]
-//               res.add( tm.postOrder.root )
-//               res
-//            }
-//         }
+   //         val mPreList   = {
+   //            import tm.orderSer
+   //            implicit def s = tm.t.system
+   //            tm.t.system.atomic { implicit tx =>
+   //               val res = SkipList.empty[ S, tm.Order ]
+   //               res.add( tm.preOrder.root )
+   //               res
+   //            }
+   //         }
+   //         val mPostList = {
+   //            import tm.orderSer
+   //            implicit def s = tm.t.system
+   //            tm.t.system.atomic { implicit tx =>
+   //               val res = SkipList.empty[ S, tm.Order ]
+   //               res.add( tm.postOrder.root )
+   //               res
+   //            }
+   //         }
 
-//         var preTagIsoMap     = Map( tm.preOrder.root -> t.root.pre )
-//         var postTagIsoMap    = Map( tm.postOrder.root -> t.root.post )
-//         var preTagValueMap   = Map( tm.preOrder.root -> 0 )
-//         var postTagValueMap  = Map( tm.postOrder.root -> 0 )
-         var markSet          = Set( 0 )
+   //         var preTagIsoMap     = Map( tm.preOrder.root -> t.root.pre )
+   //         var postTagIsoMap    = Map( tm.postOrder.root -> t.root.post )
+   //         var preTagValueMap   = Map( tm.preOrder.root -> 0 )
+   //         var postTagValueMap  = Map( tm.postOrder.root -> 0 )
+            var markSet          = Set( 0 )
 
-         treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
-if( DEBUG_LAST && i == TREE_SIZE - 1 ) verbose = true
-            if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
-               tm.t.system.atomic { implicit tx =>
-if( verbose ) println( ":: mark insert for full " + child.toPoint )
+            treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
+   if( DEBUG_LAST && i == NUM2 - 1 ) verbose = true
+               if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
+                  tm.t.system.atomic { implicit tx =>
+   if( verbose ) println( ":: mark insert for full " + child.toPoint )
+                     val cfPre = child.pre
+                     val (cmPreN, cmPreCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+                        def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
+                           val res = cfPre.compare( that.value.full.pre )
+   if( verbose ) println( ":: mark insert pre :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+                           res
+                        }
+                     })
+                     val cfPost = child.post
+                     val (cmPostN, cmPostCmp ) = tm.postList.isomorphicQuery(  new Ordered[ S#Tx, MarkOrder ] {
+                        def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
+                           val res = cfPost.compare( that.value.full.post )
+   if( verbose ) println( ":: mark insert post :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+                           res
+                        }
+                     })
+   if( verbose ) println( ":: mark insert pre " + (if( cmPreCmp <= 0 ) "before" else "after") + " " + cmPreN.value.toPoint )
+   if( verbose ) println( ":: mark insert post " + (if( cmPostCmp <= 0 ) "before" else "after") + " " + cmPostN.value.toPoint )
+                     val vm = new MarkVertex {
+                        val pre     = if( cmPreCmp  <= 0 ) cmPreN.prepend(  this ) else cmPreN.append(  this )
+                        val post    = if( cmPostCmp <= 0 ) cmPostN.prepend( this ) else cmPostN.append( this )
+                        val full    = child
+                     }
+
+   if( verbose ) tm.printInsertion( vm )
+
+                     tm.t.add( vm )
+                     tm.preList.add( vm.pre )
+                     tm.postList.add( vm.post )
+                     markSet += i
+                  }
+               }
+            }
+
+            when( "full and marked tree are decomposed into pre and post order traversals" )
+
+            val preVals    = system.atomic { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
+            val postVals   = system.atomic { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
+            val mPreSeq    = system.atomic { implicit tx => tm.preList.toIndexedSeq }
+            val mPreVals   = mPreSeq.map( _.value.version ) // ( t => t.value.version preTagValueMap( t ))
+            val mPostSeq   = system.atomic { implicit tx => tm.postList.toIndexedSeq }
+            val mPostVals  = mPostSeq.map( _.value.version ) // ( t => postTagValueMap( t ))
+
+            if( PRINT_ORDERS ) {
+               println( preVals.mkString( " pre full: ", ", ", "" ))
+               println( postVals.mkString( "post full: ", ", ", "" ))
+               println( mPreVals.mkString( " pre mark: ", ", ", "" ))
+               println( mPostVals.mkString( "post mark: ", ", ", "" ))
+            }
+
+            then( "the order of the marked vertices is isomorphic to their counterparts in the full lists" )
+            assert( preVals.intersect( mPreVals ) == mPreVals, preVals.take( 20 ).toString + " versus " + mPreVals.take( 20 ))
+            assert( postVals.intersect( mPostVals ) == mPostVals, postVals.take( 20 ).toString + " versus " + mPreVals.take( 20 ))
+
+            if( PRINT_DOT ) {
+               val sb = new StringBuilder()
+               sb.append( "digraph Tree {\n" )
+               treeSeq.foreach { v =>
+                  val id = v.version
+                  sb.append( "  " + id.toString )
+                  sb.append( "\n" )
+               }
+               parents.foreach { case (child, parent) =>
+                  sb.append( "  " + parent.version.toString + " -> " + child.version.toString + "\n" )
+               }
+               sb.append( "}\n" )
+               println( sb.toString() )
+            }
+
+            when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
+            then( "the results should be identical to those obtained from independent brute force" )
+
+   //println( "\n-----TREE-----" ); treeSeq.foreach( println )
+   //println( "\n-----MARK-----" ); markSet.foreach( println )
+   //println( "\n-----PARE-----" ); parents.foreach( println )
+   //println()
+   //verbose = false
+            if( VERIFY_MARKTREE_CONTENTS ) {
+               val markPt  = system.atomic { implicit tx => tm.t.toIndexedSeq.map( _.toPoint )}
+               val obsPre  = markPt.sortBy( _.x ).map( _.z )
+               val obsPost = markPt.sortBy( _.y ).map( _.z )
+   //            println( "managed mark-pre:" )
+   //            println( mPreVals.mkString( ", " ))
+   //            println( "octree mark-pre:" )
+   //            println( obsPre.mkString( ", " ))
+               assert( obsPre  == mPreVals )
+               assert( obsPost == mPostVals )
+            }
+
+            val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+            treeSeq.zipWithIndex.foreach { case (child, i) =>
+   if( DEBUG_LAST ) verbose = child.version == 91
+               val (found, parent, point) = system.atomic { implicit tx =>
                   val cfPre = child.pre
-                  val (cmPreN, cmPreCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+                  val (preIso, preIsoCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                      def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                         val res = cfPre.compare( that.value.full.pre )
-if( verbose ) println( ":: mark insert pre :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+   if( verbose ) println( ":: mark find pre :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
                         res
+   //                  preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
                      }
                   })
                   val cfPost = child.post
-                  val (cmPostN, cmPostCmp ) = tm.postList.isomorphicQuery(  new Ordered[ S#Tx, MarkOrder ] {
+                  val (postIso, postIsoCmp) = tm.postList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                      def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                         val res = cfPost.compare( that.value.full.post )
-if( verbose ) println( ":: mark insert post :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+   if( verbose ) println( ":: mark find post :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
                         res
+   //                  postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
                      }
                   })
-if( verbose ) println( ":: mark insert pre " + (if( cmPreCmp <= 0 ) "before" else "after") + " " + cmPreN.value.toPoint )
-if( verbose ) println( ":: mark insert post " + (if( cmPostCmp <= 0 ) "before" else "after") + " " + cmPostN.value.toPoint )
-                  val vm = new MarkVertex {
-                     val pre     = if( cmPreCmp  <= 0 ) cmPreN.prepend(  this ) else cmPreN.append(  this )
-                     val post    = if( cmPostCmp <= 0 ) cmPostN.prepend( this ) else cmPostN.append( this )
-                     val full    = child
+
+                  // condition for ancestor candidates: <= iso-pre, >= iso-post, <= version
+                  // thus: we need to check the comparison result of the iso-search
+                  // - if the pre-comp is -1, we need to make the iso-mapped x (pre) one smaller
+                  // - if the post-comp is 1, we need to make the iso-mapped y (post) one larger
+                  // - if the version-comp is -1, we need to make iso-mapped z (version) one smaller
+                  // (although, we can skip the last two steps, as the false positive is already ruled out by step 1)
+                  // (there is no iso-mapping for the version)
+                  //
+                  // We can also shortcut. pre-comp == 0 implies post-comp == 0, since no two
+                  // vertices can have the same positions in the orders.
+                  // Thus, when pre-comp == 0 is detected, we already found our ancestor!
+
+   if( verbose ) println( ":: mark find pre " + (if( preIsoCmp <= 0 ) "before" else "after") + " " + preIso.value.toPoint )
+   if( verbose ) println( ":: mark find post " + (if( postIsoCmp <= 0 ) "before" else "after") + " " + postIso.value.toPoint )
+
+                  val par = {
+                     var p = child; while( p.version > child.version || !markSet.contains( p.version )) { p = parents( p )}
+                     p.version
                   }
-
-if( verbose ) tm.printInsertion( vm )
-
-                  tm.t.add( vm )
-                  tm.preList.add( vm.pre )
-                  tm.postList.add( vm.post )
-                  markSet += i
-               }
-            }
-         }
-
-         when( "full and marked tree are decomposed into pre and post order traversals" )
-
-         val preVals    = system.atomic { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
-         val postVals   = system.atomic { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
-         val mPreSeq    = system.atomic { implicit tx => tm.preList.toIndexedSeq }
-         val mPreVals   = mPreSeq.map( _.value.version ) // ( t => t.value.version preTagValueMap( t ))
-         val mPostSeq   = system.atomic { implicit tx => tm.postList.toIndexedSeq }
-         val mPostVals  = mPostSeq.map( _.value.version ) // ( t => postTagValueMap( t ))
-
-         if( PRINT_ORDERS ) {
-            println( preVals.mkString( " pre full: ", ", ", "" ))
-            println( postVals.mkString( "post full: ", ", ", "" ))
-            println( mPreVals.mkString( " pre mark: ", ", ", "" ))
-            println( mPostVals.mkString( "post mark: ", ", ", "" ))
-         }
-
-         then( "the order of the marked vertices is isomorphic to their counterparts in the full lists" )
-         assert( preVals.intersect( mPreVals ) == mPreVals, preVals.take( 20 ).toString + " versus " + mPreVals.take( 20 ))
-         assert( postVals.intersect( mPostVals ) == mPostVals, postVals.take( 20 ).toString + " versus " + mPreVals.take( 20 ))
-
-         if( PRINT_DOT ) {
-            val sb = new StringBuilder()
-            sb.append( "digraph Tree {\n" )
-            treeSeq.foreach { v =>
-               val id = v.version
-               sb.append( "  " + id.toString )
-               sb.append( "\n" )
-            }
-            parents.foreach { case (child, parent) =>
-               sb.append( "  " + parent.version.toString + " -> " + child.version.toString + "\n" )
-            }
-            sb.append( "}\n" )
-            println( sb.toString() )
-         }
-
-         when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
-         then( "the results should be identical to those obtained from independent brute force" )
-
-//println( "\n-----TREE-----" ); treeSeq.foreach( println )
-//println( "\n-----MARK-----" ); markSet.foreach( println )
-//println( "\n-----PARE-----" ); parents.foreach( println )
-//println()
-//verbose = false
-val markPt  = system.atomic { implicit tx => tm.t.toIndexedSeq.map( _.toPoint )}
-val obsPre  = markPt.sortBy( _.x ).map( _.z )
-val obsPost = markPt.sortBy( _.y ).map( _.z )
-println( "managed mark-pre:" )
-println( mPreVals.mkString( ", " ))
-println( "octree mark-pre:" )
-println( obsPre.mkString( ", " ))
-//
-//assert( obsPre  == mPreVals )
-//assert( obsPost == mPostVals )
-
-         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
-         treeSeq.zipWithIndex.foreach { case (child, i) =>
-if( DEBUG_LAST ) verbose = child.version == 91
-            val (found, parent, point) = system.atomic { implicit tx =>
-               val cfPre = child.pre
-               val (preIso, preIsoCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
-                  def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                     val res = cfPre.compare( that.value.full.pre )
-if( verbose ) println( ":: mark find pre :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
-                     res
-//                  preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
+                  if( preIsoCmp == 0 ) {
+                     assert( postIsoCmp == 0 )
+                     val _pnt = Point3D( preIso.tag, postIso.tag, child.version )
+                     val _f   = Some( preIso.value.version )
+                     (_f, par, _pnt)
+                  } else {
+                     val x       = if( preIsoCmp < 0 )  preIso.tag - 1 else preIso.tag
+                     val y       = if( postIsoCmp > 0 ) postIso.tag + 1 else postIso.tag
+                     val _pnt    = Point3D( x, y, child.version )
+                     val _f      = tm.t.nearestNeighborOption( _pnt, metric ).map( _.version )
+                     (_f, par, _pnt)
                   }
-               })
-               val cfPost = child.post
-               val (postIso, postIsoCmp) = tm.postList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
-                  def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                     val res = cfPost.compare( that.value.full.post )
-if( verbose ) println( ":: mark find post :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
-                     res
-//                  postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
-                  }
-               })
-
-               // condition for ancestor candidates: <= iso-pre, >= iso-post, <= version
-               // thus: we need to check the comparison result of the iso-search
-               // - if the pre-comp is -1, we need to make the iso-mapped x (pre) one smaller
-               // - if the post-comp is 1, we need to make the iso-mapped y (post) one larger
-               // - if the version-comp is -1, we need to make iso-mapped z (version) one smaller
-               // (although, we can skip the last two steps, as the false positive is already ruled out by step 1)
-               // (there is no iso-mapping for the version)
-               //
-               // We can also shortcut. pre-comp == 0 implies post-comp == 0, since no two
-               // vertices can have the same positions in the orders.
-               // Thus, when pre-comp == 0 is detected, we already found our ancestor!
-
-if( verbose ) println( ":: mark find pre " + (if( preIsoCmp <= 0 ) "before" else "after") + " " + preIso.value.toPoint )
-if( verbose ) println( ":: mark find post " + (if( postIsoCmp <= 0 ) "before" else "after") + " " + postIso.value.toPoint )
-
-               val par = {
-                  var p = child; while( p.version > child.version || !markSet.contains( p.version )) { p = parents( p )}
-                  p.version
                }
-               if( preIsoCmp == 0 ) {
-                  assert( postIsoCmp == 0 )
-                  val _pnt = Point3D( preIso.tag, postIso.tag, child.version )
-                  val _f   = Some( preIso.value.version )
-                  (_f, par, _pnt)
-               } else {
-                  val x       = if( preIsoCmp < 0 )  preIso.tag - 1 else preIso.tag
-                  val y       = if( postIsoCmp > 0 ) postIso.tag + 1 else postIso.tag
-                  val _pnt    = Point3D( x, y, child.version )
-                  val _f      = tm.t.nearestNeighborOption( _pnt, metric ).map( _.version )
-                  (_f, par, _pnt)
-               }
+               assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
             }
-            assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
          }
       }
    }
