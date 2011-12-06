@@ -59,6 +59,16 @@ trait Iterator[ -Tx, @specialized( Unit, Boolean, Int, Float, Long, Double ) +A 
 
    final def foreach( fun: A => Unit )( implicit tx: Tx ) {
       while( hasNext ) fun( next() )
+//      while( hasNext ) {
+//         val elem = try {
+//            next()
+//         } catch {
+//            case e =>
+//               e.printStackTrace()
+//               throw e
+//         }
+//         fun( elem )
+//      }
    }
 
    final def toIndexedSeq( implicit tx: Tx ) : IIdxSeq[ A ] = fromBuilder( IIdxSeq.newBuilder[ A ])

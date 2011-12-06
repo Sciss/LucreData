@@ -16,10 +16,10 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = false
    def seed : Long            = 12345L
-   val TREE_SIZE              = 6 // 100000    // 150000
-   val MARKER_PERCENTAGE      = 0.3       // 0.5
-   val RETRO_CHILD_PERCENTAGE = 0.0 // 0.1
-   val RETRO_PARENT_PERCENTAGE= 0.0 // 0.1
+   val TREE_SIZE              = 100000    // 150000
+   val MARKER_PERCENTAGE      = 0.2 // 0.3       // 0.5
+   val RETRO_CHILD_PERCENTAGE = 0.1
+   val RETRO_PARENT_PERCENTAGE= 0.1
    val PRINT_DOT              = false     // true
    val PRINT_ORDERS           = false
 
@@ -68,10 +68,22 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          val t       = SkipOctree.empty[ S, Space.ThreeDim, FullVertex ]( cube )
          val orderObserver = new TotalOrder.Map.RelabelObserver[ S#Tx, FullVertex ] {
             def beforeRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
-               iter.foreach( t -= _ )
+               iter.foreach { v =>
+val str = try { v.toPoint } catch { case np: NullPointerException =>
+   "<null>"
+}
+println( "RELABEL - " + str )
+                  t -= v
+               }
             }
             def afterRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
-               iter.foreach( t += _ )
+               iter.foreach { v =>
+val str = try { v.toPoint } catch { case np: NullPointerException =>
+   "<null>"
+}
+println( "RELABEL + " + str )
+                  t += v
+               }
             }
          }
          val root    = new FullRootVertex {
@@ -82,6 +94,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val post: FullOrder      = postOrder.root.append( this )  // XXX
             val preTail: FullOrder   = pre.append( this )
             val version = 0
+            override def toString = "full-root"
          }
          t += root
          if( verbose ) println( "Full ins. root " + root.toPoint )
@@ -101,35 +114,46 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          res
       }
 
-      def insertChild( parent: V )( implicit tx: S#Tx ) : V = new FullVertex {
-         val pre     = parent.preTail.prepend( this ) // insertBefore( () )
-         val preTail = pre.append( this )
-         val post    = parent.post.prepend( this ) // insertBefore( () )
-         val version = nextVersion()
+      def insertChild( parent: V )( implicit tx: S#Tx ) : V = {
+         val v = new FullVertex {
+            val pre     = parent.preTail.prepend( this ) // insertBefore( () )
+            val preTail = pre.append( this )
+            val post    = parent.post.prepend( this ) // insertBefore( () )
+            val version = nextVersion()
+         }
 
 if( verbose ) {
-   val (chStr, pStr) = system.atomic { implicit tx => toPoint -> parent.toPoint }
+   val (chStr, pStr) = v.toPoint -> parent.toPoint
    println( "Full ins. child " + chStr + " with parent " + pStr )
 }
-         t.add( this )
+         t.add( v )
+         v
       }
 
-      def insertRetroChild( parent: V )( implicit tx: S#Tx ) : V = new FullVertex {
-         val pre     = parent.pre.append( this )
-         val preTail = parent.preTail.prepend( this )
-         val post    = parent.post.prepend( this )
-         val version = nextVersion()
+      def insertRetroChild( parent: V )( implicit tx: S#Tx ) : V = {
+         val v = new FullVertex {
+            val pre     = parent.pre.append( this )
+            val preTail = parent.preTail.prepend( this )
+            val post    = parent.post.prepend( this )
+            val version = nextVersion()
+            override def toString = super.toString + "@r-ch"
+         }
 
-         t.add( this )
+         t.add( v )
+         v
       }
 
-      def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = new FullVertex {
-         val pre     = child.pre.prepend( this )
-         val preTail = child.preTail.append( this )
-         val post    = child.post.append( this )
-         val version = nextVersion()
+      def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = {
+         val v = new FullVertex {
+            val pre     = child.pre.prepend( this )
+            val preTail = child.preTail.append( this )
+            val post    = child.post.append( this )
+            val version = nextVersion()
+            override def toString = super.toString + "@r-par"
+         }
 
-         t.add( this )
+         t.add( v )
+         v
       }
 
       def validate() {
@@ -489,18 +513,35 @@ if( verbose ) tm.printInsertion( vm )
 //               val atPreIso= preIso.value.full.pre //  preTagIsoMap.get( preIso )
 //               if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
 
-               val x       = preIso.tag // + preIsoCmp
-               val y       = postIso.tag
-               val pnt     = Point3D( x, y, child.version )
 
-               if( preIsoCmp == 0 ) assert( postIsoCmp == 0 )
+               // condition for ancestor candidates: <= iso-pre, >= iso-post, <= version
+               // thus: we need to check the comparison result of the iso-search
+               // - if the pre-comp is -1, we need to make the iso-mapped x (pre) one smaller
+               // - if the post-comp is 1, we need to make the iso-mapped y (post) one larger
+               // - if the version-comp is -1, we need to make iso-mapped z (version) one smaller
+               // (although, we can skip the last two steps, as the false positive is already ruled out by step 1)
+               // (there is no iso-mapping for the version)
+               //
+               // We can also shortcut. pre-comp == 0 implies post-comp == 0, since no two
+               // vertices can have the same positions in the orders.
+               // Thus, when pre-comp == 0 is detected, we already found our ancestor!
 
-               val f = tm.t.nearestNeighborOption( pnt, metric ).map( _.version )
                val par = {
                   var p = child; while( p.version > child.version || !markSet.contains( p.version )) { p = parents( p )}
                   p.version
                }
-               (f, par, pnt)
+               if( preIsoCmp == 0 ) {
+                  assert( postIsoCmp == 0 )
+                  val _pnt = Point3D( preIso.tag, postIso.tag, child.version )
+                  val _f   = Some( preIso.value.version )
+                  (_f, par, _pnt)
+               } else {
+                  val x       = if( preIsoCmp < 0 )  preIso.tag - 1 else preIso.tag
+                  val y       = if( postIsoCmp > 0 ) postIso.tag + 1 else postIso.tag
+                  val _pnt    = Point3D( x, y, child.version )
+                  val _f      = tm.t.nearestNeighborOption( _pnt, metric ).map( _.version )
+                  (_f, par, _pnt)
+               }
             }
             assert( found == Some( parent ), "For child " + child + "(iso " + point + "), found " + found.orNull + " instead of " + parent )
          }

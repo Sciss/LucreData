@@ -49,7 +49,7 @@ object LucreDataBuild extends Build {
             "de.sciss" %% "lucrestm" % "0.10-SNAPSHOT",
             "org.scalatest" %% "scalatest" % "1.6.1" % "test"
          ),
-         scalacOptions ++= Seq( /* "-no-specialization" */ )   // SUCKERS!!!!!!
+         scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
       )
    )
 

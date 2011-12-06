@@ -39,5 +39,63 @@ post:  v1 v4 root
 
 'korrekt
 
- 
-    
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+   seed                   = 12345L
+   TREE_SIZE              = 6
+   MARKER_PERCENTAGE      = 0.3
+   RETRO_CHILD_PERCENTAGE = 0.0
+   RETRO_PARENT_PERCENTAGE= 0.0
+
+Full ins. root Point3D(0,1073741824,0)
+v1 is child to 0
+Full ins. child Point3D(536870912,536870912,1) with parent Point3D(0,1073741824,0)
+v2 is child to 1
+Full ins. child Point3D(671088640,268435456,2) with parent Point3D(536870912,536870912,1)
+v3 is child to 1
+Full ins. child Point3D(771751936,402653184,3) with parent Point3D(536870912,536870912,1)
+v4 is child to 0
+Full ins. child Point3D(939524096,805306368,4) with parent Point3D(0,1073741824,0)
+v5 is child to 0
+Full ins. child Point3D(1040187392,939524096,5) with parent Point3D(0,1073741824,0)
+v6 is child to 4
+Full ins. child Point3D(973078528,671088640,6) with parent Point3D(939524096,805306368,4)
+Mark ins. node Point3D(0,1073741824,0) with full Point3D(0,1073741824,0)
+:: mark insert for full Point3D(1040187392,939524096,5)
+:: mark insert pre :: compare to m=Point3D(0,1073741824,0), f=Point3D(0,1073741824,0) -> 1
+:: mark insert post :: compare to m=Point3D(0,1073741824,0), f=Point3D(0,1073741824,0) -> -1
+:: mark insert pre after Point3D(0,1073741824,0)
+:: mark insert post before Point3D(0,1073741824,0)
+Mark ins. node Point3D(1073741824,536870912,5) with full Point3D(1040187392,939524096,5)
+
+::: full :::
+
+   +--*root-+----+
+   |        |    |
++--1--+     4   *5
+|     |     |
+2     3     6
+
+
+pre:  root v1 v2 v3 v4 v6 v5
+post: v2 v3 v1 v6 v4 v5 root
+
+'korrekt
+
+::: mark :::
+
+pre:   root v5
+post:  v5 root
+
+'korrekt
+
+failed:
+[info]   For child FullVertex(6)(iso Point3D(1073741824,536870912,6)), found 5 instead of 0 (AncestorRetroSuite.scala:505)
+
+ancestor: <= x, >= y, <= z
+
+thus: we need to check the comparison result of the iso-search
+- if the pre-comp is -1, we need to make the iso-mapped x (pre) one smaller
+- if the post-comp is 1, we need to make the iso-mapped y (post) one larger
+- if the version-comp is -1, we need to make iso-mapped z (version) one smaller
+(although, we can skip the last two steps, as the false positive is already ruled out by step 1)
+(there is no iso-mapping for the version)

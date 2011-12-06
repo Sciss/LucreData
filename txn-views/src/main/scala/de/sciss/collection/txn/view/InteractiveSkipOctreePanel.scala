@@ -309,7 +309,9 @@ extends JPanel( new BorderLayout() ) {
    }
 
    but( "Dump" ) {
-      println( atomic { implicit tx => t.toList })
+//      println( atomic { implicit tx => t.toList })
+//      println( atomic { implicit tx => t.iterator.toList })
+      atomic { implicit tx => t.iterator.foreach( println )}
    }
 
    ggCoord.foreach( p.add )

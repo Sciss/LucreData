@@ -89,6 +89,17 @@ object TotalOrder /* extends SeqFactory[ TotalOrder ] */ {
 //      }
    }
 
+   /**
+    * A `RelabelObserver` is notified before and after a relabeling is taking place due to
+    * item insertions. '''Note''' that other than the transactional version which is passed
+    * an iterator from which the newly inserted item has been excluded, the mutable
+    * total order's relabelling passes the first entry to be relabelled along with the number
+    * of items to be relabelled. This includes the newly inserted item that caused the
+    * relabelling to happen, so it is up to the client to filter out this item if necessary!
+    *
+    * Eventually, this should also take an `Iterator` instead from which the new item
+    * has been excluded.
+    */
    trait RelabelObserver {
       def beforeRelabeling( first: EntryLike, num: Int ) : Unit
       def afterRelabeling( first: EntryLike, num: Int ) : Unit
