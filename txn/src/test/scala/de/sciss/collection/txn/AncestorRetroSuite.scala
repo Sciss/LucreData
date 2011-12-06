@@ -15,10 +15,10 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long            = 12345L
-   val TREE_SIZE              = 10 // 100000    // 150000
-   val MARKER_PERCENTAGE      = 0.2       // 0.5
-   val RETRO_CHILD_PERCENTAGE = 0.1
-   val RETRO_PARENT_PERCENTAGE= 0.1
+   val TREE_SIZE              = 4 // 10 // 100000    // 150000
+   val MARKER_PERCENTAGE      = 0.5 // 0.2       // 0.5
+   val RETRO_CHILD_PERCENTAGE = 0.0 // 0.1
+   val RETRO_PARENT_PERCENTAGE= 0.0 // 0.1
    val PRINT_DOT              = false     // true
    val PRINT_ORDERS           = false
 
@@ -45,63 +45,60 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       override def toString = "FullVertex(" + version + ")"
    }
 
-   final class FullTree /* extends AbstractTree[ FullTree ] */ {
+   sealed trait FullRootVertex extends FullVertex {
+      def preOrder  : TotalOrder.Map[ S, FullVertex ]
+      def postOrder : TotalOrder.Map[ S, FullVertex ]
+   }
+
+   object FullTree {
+      def apply()( implicit tx: S#Tx ) : FullTree = {
+         import SpaceSerializers.CubeSerializer
+         implicit val pointView = (p: FullVertex, tx: S#Tx) => p.toPoint( tx )
+         val cube    = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
+         implicit val vertexSer = new Serializer[ FullVertex ] {
+            def write( v: FullVertex, out: DataOutput ) {
+               sys.error( "TODO" )
+            }
+
+            def read( in: DataInput ) : FullVertex = {
+               sys.error( "TODO" )
+            }
+         }
+         val t       = SkipOctree.empty[ S, Space.ThreeDim, FullVertex ]( cube )
+         val orderObserver = new TotalOrder.Map.RelabelObserver[ S#Tx, FullVertex ] {
+            def beforeRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
+               iter.foreach( t -= _ )
+            }
+            def afterRelabeling( iter: Iterator[ S#Tx, FullVertex ])( implicit tx: S#Tx ) {
+               iter.foreach( t += _ )
+            }
+         }
+         val root    = new FullRootVertex {
+            val preOrder            = TotalOrder.Map.empty[ S, FullVertex ]( this, orderObserver )
+            val postOrder           = TotalOrder.Map.empty[ S, FullVertex ]( this, orderObserver )
+            val pre: FullOrder      = preOrder.root
+      //         def post: FullOrder      = postO.root
+            val post: FullOrder      = postOrder.root.append( this )  // XXX
+            val preTail: FullOrder   = pre.append( this )
+            val version = 0
+         }
+         t += root
+         println( "Full ins. root " + root.toPoint )
+         new FullTree( t, root )
+      }
+   }
+   final class FullTree private (
+      val t: SkipOctree[ S, Space.ThreeDim, FullVertex ],
+      val root: FullRootVertex
+   ) {
       private type V = FullVertex
 
-      val cube       = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
-
-      private val versionCnt = Ref( 0 )
+      private val versionCnt = Ref( 1 )
       def nextVersion()( implicit tx: S#Tx ) : Int = {
          val res = versionCnt.get
          versionCnt.set( res + 1 )
          res
       }
-
-//      final class Vertex( val pre: Order, val preTail: Order, val post: Order, val version: Int )
-//      extends VertexLike {
-////         val preTail = pre.append() // insertAfter( () )
-//      }
-
-//      lazy val root = newVertex( _init, preOrder.root, preOrder.root.append(), postOrder.root, nextVersion() )
-      def root : V = Root
-
-      implicit val vertexSer = new Serializer[ V ] {
-         def write( v: FullVertex, out: DataOutput ) {
-            sys.error( "TODO" )
-         }
-
-         def read( in: DataInput ) : FullVertex = {
-            sys.error( "TODO" )
-         }
-      }
-
-      val t: SkipOctree[ S, Space.ThreeDim, V ] = system.atomic { implicit tx =>
-         import SpaceSerializers.CubeSerializer
-         implicit val pointView = (p: V, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.empty[ S, Space.ThreeDim, V ]( cube )
-      }
-
-      t.system.atomic { implicit tx => t += root }
-
-      implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
-         Serializer.fromMutableReader( Root.preO.EntryReader, system )
-
-      private object Root extends FullVertex {
-         val preO     = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         val postO    = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         def pre: FullOrder       = preO.root
-//         def post: FullOrder      = postO.root
-def post: FullOrder      = t.system.atomic { implicit tx => postO.root.append( this )}  // XXX
-         def preTail: FullOrder   = t.system.atomic { implicit tx => pre.append( this )}
-
-         val version = 0
-      }
-
-      def preOrder: TotalOrder.Map[ S, V ]   = Root.preO
-      def postOrder: TotalOrder.Map[ S, V ]  = Root.postO
-
-//      def newVertex( value: A, pre: Order, preTail: Order, post: Order, version: Int ) : V =
-//         new Vertex( value, pre, preTail, post, version )
 
       def insertChild( parent: V )( implicit tx: S#Tx ) : V = new FullVertex {
          val pre     = parent.preTail.prepend( this ) // insertBefore( () )
@@ -109,10 +106,10 @@ def post: FullOrder      = t.system.atomic { implicit tx => postO.root.append( t
          val post    = parent.post.prepend( this ) // insertBefore( () )
          val version = nextVersion()
 
-//         if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + value + " ; pre compare = " +
-//            parent.pre.compare( pre ) + "; post compare = " + parent.post.compare( post ))
-
-println( "INSERT " + system.atomic( toPoint( _ )))
+{
+   val (chStr, pStr) = system.atomic { implicit tx => toPoint -> parent.toPoint }
+   println( "Full ins. child " + chStr + " with parent " + pStr )
+}
          t.add( this )
       }
 
@@ -134,11 +131,6 @@ println( "INSERT " + system.atomic( toPoint( _ )))
          t.add( this )
       }
 
-//      private def addNewVertex( value: A, pre: Order, preTail: Order, post: Order )
-//                              ( implicit tx: S#Tx ) : Vertex = {
-//         add( newVertex( value, pre, preTail, post, nextVersion() ))
-//      }
-
       def validate() {
 //         when( "the size of the vertices is queried from the quadtree" )
 //         then( "it should be equal to the number of observed labelings and relabelings" )
@@ -147,31 +139,6 @@ println( "INSERT " + system.atomic( toPoint( _ )))
 //            "pre-observer size (" + preObserver.map.size + ") is different from quad size (" + qsz + ")" )
 //         assert( qsz == postObserver.map.size,
 //            "post-observer size (" + postObserver.map.size + ") is different from quad size (" + qsz + ")" )
-      }
-
-      private object OrderObserver extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
-         type E = TotalOrder.Map.Entry[ S, V ]
-//         // XXX could eventually add again elem to total order
-//         // (would be Option[ V ] for pre order and V for post order)
-//         var map = Map.empty[ TotalOrder.EntryLike, V ]
-         def beforeRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            iter.foreach( t -= _ )
-//            var e = first
-//            var i = 0; while( i < num ) {
-//               t.remove( e.value )
-//               e = e.next.orNull
-//               i += 1
-//            }
-         }
-         def afterRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            iter.foreach( t += _ )
-//            var e = first
-//            var i = 0; while( i < num ) {
-//               t.add( e.value )
-//               e = e.next.orNull
-//               i += 1
-//            }
-         }
       }
    }
 
@@ -192,101 +159,79 @@ println( "INSERT " + system.atomic( toPoint( _ )))
       override def toString = "MarkVertex(" + version + ")"
    }
 
-   final class MarkTree( val ft: FullTree ) /* extends AbstractTree[ MarkTree ] */ {
+   sealed trait MarkRootVertex extends MarkVertex {
+      def preOrder: TotalOrder.Map[ S, MarkVertex ]
+      def postOrder: TotalOrder.Map[ S, MarkVertex ]
+   }
+
+   object MarkTree {
+      def apply( ft: FullTree )( implicit tx: S#Tx ) : MarkTree = {
+         import SpaceSerializers.CubeSerializer
+         implicit val pointView = (p: MarkVertex, tx: S#Tx) => p.toPoint( tx )
+         implicit val vertexSer = new Serializer[ MarkVertex ] {
+            def write( v: MarkVertex, out: DataOutput ) {
+               sys.error( "TODO" )
+            }
+
+            def read( in: DataInput ) : MarkVertex = {
+               sys.error( "TODO" )
+            }
+         }
+         val t = SkipOctree.empty[ S, Space.ThreeDim, MarkVertex ]( ft.t.hyperCube )
+         val orderObserver = new TotalOrder.Map.RelabelObserver[ S#Tx, MarkVertex ] {
+            def beforeRelabeling( iter: Iterator[ S#Tx, MarkVertex ])( implicit tx: S#Tx ) {
+               iter.foreach( t -= _ )
+            }
+            def afterRelabeling( iter: Iterator[ S#Tx, MarkVertex ])( implicit tx: S#Tx ) {
+               iter.foreach( t += _ )
+            }
+         }
+         val root = new MarkRootVertex {
+            def full       = ft.root
+            val preOrder   = TotalOrder.Map.empty[ S, MarkVertex ]( this, orderObserver )
+            val postOrder  = TotalOrder.Map.empty[ S, MarkVertex ]( this, orderObserver )
+            val pre: MarkOrder       = preOrder.root
+   val post: MarkOrder      = postOrder.root.append( this )
+         }
+         t += root
+         implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, MarkVertex ]] =
+            Serializer.fromMutableReader( root.preOrder.EntryReader, system )
+
+         val preList   = {
+            implicit val ord = Ordering.fromOrdered[ S#Tx, MarkOrder ]
+            val res = SkipList.empty[ S, MarkOrder ]
+            res.add( root.pre )
+            res
+         }
+
+         val postList   = {
+            implicit val ord = Ordering.fromOrdered[ S#Tx, MarkOrder ]
+            val res = SkipList.empty[ S, MarkOrder ]
+            res.add( root.post )
+            res
+         }
+         val mt = new MarkTree( ft, t, root, preList, postList )
+         mt.printInsertion( root )
+         mt
+      }
+   }
+   final class MarkTree private( val ft: FullTree, val t: SkipOctree[ S, Space.ThreeDim, MarkVertex ],
+                                 val root: MarkRootVertex, val preList: SkipList[ S, MarkOrder ],
+                                 val postList: SkipList[ S, MarkOrder ]) {
       type V = MarkVertex
 
-//      lazy val root = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
-
-      implicit val vertexSer = new Serializer[ V ] {
-         def write( v: MarkVertex, out: DataOutput ) {
-            sys.error( "TODO" )
-         }
-
-         def read( in: DataInput ) : MarkVertex = {
-            sys.error( "TODO" )
-         }
-      }
-
-      implicit lazy val orderSer: Serializer[ TotalOrder.Map.Entry[ S, V ]] =
-         Serializer.fromMutableReader( Root.preO.EntryReader, system )
-
-      val t: SkipOctree[ S, Space.ThreeDim, V ] = system.atomic { implicit tx =>
-         import SpaceSerializers.CubeSerializer
-         implicit val pointView = (p: V, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.empty[ S, Space.ThreeDim, V ]( ft.cube )
-      }
-
-      object Root extends MarkVertex {
-         def full       = ft.root
-         val preO       = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-         val postO      = t.system.atomic { implicit tx => TotalOrder.Map.empty[ S, V ]( this, OrderObserver )}
-//         def pre: MarkOrder       = preO.root
-def pre: MarkOrder      = t.system.atomic { implicit tx => preO.root.append( this )}  // XXX
-//         def post: MarkOrder      = postO.root
-def post: MarkOrder      = t.system.atomic { implicit tx => postO.root.append( this )}  // XXX
-      }
-
-      def root = Root
-
-      def preOrder: TotalOrder.Map[ S, V ]   = Root.preO
-      def postOrder: TotalOrder.Map[ S, V ]  = Root.postO
-
-      val preList   = {
-         system.atomic { implicit tx =>
-            implicit val ord = Ordering.fromOrdered[ S#Tx, MarkOrder ]
-            val res = SkipList.empty[ S, MarkOrder ]
-            res.add( Root.pre )
-            res
-         }
-      }
-
-      val postList   = {
-         system.atomic { implicit tx =>
-            implicit val ord = Ordering.fromOrdered[ S#Tx, MarkOrder ]
-            val res = SkipList.empty[ S, MarkOrder ]
-            res.add( Root.post )
-            res
-         }
-      }
-
-//      def newVertex( pre: Order, post: Order, version: Int ) : V = new Vertex( pre, post, version )
-
-//      override def add( v: V )( implicit tx: S#Tx ) : V = super.add( v )
-
-      private object OrderObserver extends TotalOrder.Map.RelabelObserver[ S#Tx, V ] {
-         type E = TotalOrder.Map.Entry[ S, V ]
-//         // XXX could eventually add again elem to total order
-//         // (would be Option[ V ] for pre order and V for post order)
-//         var map = Map.empty[ TotalOrder.EntryLike, V ]
-         def beforeRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            iter.foreach( t -= _ )
-//            var e = first
-//            var i = 0; while( i < num ) {
-//               t.remove( e.value )
-//               e = e.next.orNull
-//               i += 1
-//            }
-         }
-         def afterRelabeling( iter: Iterator[ S#Tx, V ])( implicit tx: S#Tx ) {
-            iter.foreach( t += _ )
-//            var e = first
-//            var i = 0; while( i < num ) {
-//               t.add( e.value )
-//               e = e.next.orNull
-//               i += 1
-//            }
-         }
+      def printInsertion( vm: MarkVertex ) {
+         val (mStr, fStr) = system.atomic { implicit tx => vm.toPoint -> vm.full.toPoint }
+         println( "Mark ins. node " + mStr + " with full " + fStr )
       }
    }
 
-//   type V = Tree[ Unit ]#Vertex // [ Unit ]
-
    private def randomlyFilledTree( n: Int = TREE_SIZE ) = new {
       given( "a randomly filled tree, corresponding node orders and their quadtree" )
-      val t       = new FullTree
-      val (treeSeq, parents) = t.t.system.atomic { implicit tx =>
+      val (t, treeSeq, parents) = system.atomic { implicit tx =>
+         val tr         = FullTree()
          val rnd        = new util.Random( seed )
-         var treeSeq    = IndexedSeq( t.root )
+         var treeSeq    = IndexedSeq[ FullVertex ]( tr.root )
          var parents    = Map.empty[ FullVertex, FullVertex ]
          var children   = Map.empty[ FullVertex, Set[ FullVertex ]]
 
@@ -297,7 +242,7 @@ def post: MarkOrder      = t.system.atomic { implicit tx => postO.root.append( t
                val retro   = rnd.nextDouble()
                if( retro <= RETRO_CHILD_PERCENTAGE ) {
 if( verbose ) println( "v" + i + " is retro child to " + refIdx )
-                  val child = t.insertRetroChild( ref /*, i */)
+                  val child = tr.insertRetroChild( ref /*, i */)
                   treeSeq :+= child
                   parents += child -> ref
                   val oldChildren = children.getOrElse( ref, Set.empty )
@@ -306,7 +251,7 @@ if( verbose ) println( "v" + i + " is retro child to " + refIdx )
                   children += child -> oldChildren
                } else if( retro <= (RETRO_CHILD_PERCENTAGE + RETRO_PARENT_PERCENTAGE) ) {
 if( verbose ) println( "v" + i + " is retro parent to " + refIdx )
-                  val parent = t.insertRetroParent( ref /*, i */)
+                  val parent = tr.insertRetroParent( ref /*, i */)
                   treeSeq :+= parent
                   val oldParentO = parents.get( ref )
                   parents += ref -> parent   // overwrites previous entry
@@ -317,7 +262,7 @@ if( verbose ) println( "v" + i + " is retro parent to " + refIdx )
                   }
                } else { // regular child
 if( verbose ) println( "v" + i + " is child to " + refIdx )
-                  val child = t.insertChild( ref /*, i */)
+                  val child = tr.insertChild( ref /*, i */)
                   treeSeq :+= child
                   parents += child -> ref
                   children += ref -> (children.getOrElse( ref, Set.empty) + child)
@@ -330,7 +275,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 //                  throw e
 //            }
          }
-         (treeSeq, parents)
+         (tr, treeSeq, parents)
       }
    }
 
@@ -403,7 +348,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          import gagaism._
 
          type V      = FullVertex
-         val tm      = new MarkTree( t )
+         val tm      = system.atomic { implicit tx => MarkTree( t )}
          val rnd     = new util.Random( seed )
 
          implicit val ord: Ordering[ S#Tx, MarkOrder ] = new Ordering[ S#Tx, MarkOrder ] {
@@ -464,6 +409,9 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
                      val full    = child
 //                     val version = child.version
                   }
+
+tm.printInsertion( vm )
+
                   tm.t.add( vm )
                   tm.preList.add( vm.pre )
                   tm.postList.add( vm.post )
@@ -474,11 +422,11 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 
          when( "full and marked tree are decomposed into pre and post order traversals" )
 
-         val preVals    = t.t.system.atomic { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
-         val postVals   = t.t.system.atomic { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
-         val mPreSeq    = t.t.system.atomic { implicit tx => tm.preList.toIndexedSeq }
+         val preVals    = system.atomic { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
+         val postVals   = system.atomic { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
+         val mPreSeq    = system.atomic { implicit tx => tm.preList.toIndexedSeq }
          val mPreVals   = mPreSeq.map( _.value.version ) // ( t => t.value.version preTagValueMap( t ))
-         val mPostSeq   = t.t.system.atomic { implicit tx => tm.postList.toIndexedSeq }
+         val mPostSeq   = system.atomic { implicit tx => tm.postList.toIndexedSeq }
          val mPostVals  = mPostSeq.map( _.value.version ) // ( t => postTagValueMap( t ))
 
          if( PRINT_ORDERS ) {
