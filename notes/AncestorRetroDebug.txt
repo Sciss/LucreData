@@ -1,0 +1,43 @@
+Full ins. root Point3D(0,1073741824,0)
+Full ins. child Point3D(536870912,536870912,1) with parent Point3D(0,1073741824,0)
+Full ins. child Point3D(671088640,268435456,2) with parent Point3D(536870912,536870912,1)
+Full ins. child Point3D(771751936,402653184,3) with parent Point3D(536870912,536870912,1)
+Full ins. child Point3D(939524096,805306368,4) with parent Point3D(0,1073741824,0)
+Mark ins. node Point3D(0,1073741824,0) with full Point3D(0,1073741824,0)
+:: mark insert for full Point3D(536870912,536870912,1)
+:: mark insert pre :: compare to m=Point3D(0,1073741824,0), f=Point3D(0,1073741824,0) -> 1
+:: mark insert post :: compare to m=Point3D(0,1073741824,0), f=Point3D(0,1073741824,0) -> -1
+:: mark insert pre after Point3D(0,1073741824,0)
+:: mark insert post before Point3D(0,1073741824,0)
+Mark ins. node Point3D(1073741824,536870912,1) with full Point3D(536870912,536870912,1)
+:: mark insert for full Point3D(939524096,805306368,4)
+:: mark insert pre :: compare to m=Point3D(0,1073741824,0), f=Point3D(0,1073741824,0) -> 1
+:: mark insert pre :: compare to m=Point3D(1073741824,536870912,1), f=Point3D(536870912,536870912,1) -> 1
+:: mark insert post :: compare to m=Point3D(1073741824,536870912,1), f=Point3D(536870912,536870912,1) -> 1
+:: mark insert post :: compare to m=Point3D(0,1073741824,0), f=Point3D(0,1073741824,0) -> -1
+:: mark insert pre after Point3D(1073741824,536870912,1)
+:: mark insert post before Point3D(0,1073741824,0)
+Mark ins. node Point3D(1610612736,805306368,4) with full Point3D(939524096,805306368,4)
+
+::: full :::
+
+pre:   root v1 v2 v3 v4
+post:  v2 v3 v1 v4 root
+
+      +--*root--+
+      |         |
+  +-*v1-+      *v4
+  |     |
+  v2   v3
+
+'korrekt
+
+::: mark :::
+
+pre:   root v1 v4
+post:  v1 v4 root
+
+'korrekt
+
+ 
+    

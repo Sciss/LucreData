@@ -14,9 +14,10 @@ import de.sciss.lucrestm.{DataInput, DataOutput, Serializer, InMemory}
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
+   val PARENT_LOOKUP          = false
    def seed : Long            = 12345L
-   val TREE_SIZE              = 4 // 10 // 100000    // 150000
-   val MARKER_PERCENTAGE      = 0.5 // 0.2       // 0.5
+   val TREE_SIZE              = 6 // 100000    // 150000
+   val MARKER_PERCENTAGE      = 0.3       // 0.5
    val RETRO_CHILD_PERCENTAGE = 0.0 // 0.1
    val RETRO_PARENT_PERCENTAGE= 0.0 // 0.1
    val PRINT_DOT              = false     // true
@@ -83,7 +84,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val version = 0
          }
          t += root
-         println( "Full ins. root " + root.toPoint )
+         if( verbose ) println( "Full ins. root " + root.toPoint )
          new FullTree( t, root )
       }
    }
@@ -106,7 +107,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          val post    = parent.post.prepend( this ) // insertBefore( () )
          val version = nextVersion()
 
-{
+if( verbose ) {
    val (chStr, pStr) = system.atomic { implicit tx => toPoint -> parent.toPoint }
    println( "Full ins. child " + chStr + " with parent " + pStr )
 }
@@ -211,7 +212,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             res
          }
          val mt = new MarkTree( ft, t, root, preList, postList )
-         mt.printInsertion( root )
+         if( verbose ) mt.printInsertion( root )
          mt
       }
    }
@@ -284,53 +285,55 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 //      println( "POST ORDER: " + t.postOrder.head.tagList.map( post => treeSeq.find( _.post.tag == post ).get.version ).mkString( ", " ))
 //   }
 
-   feature( "Tree parent node lookup should be possible in a octree representing pre-order, post-order and version" ) {
-      info( "The vertices of a tree are represented by their positions" )
-      info( "in the tree's pre- and post-order traversals (as total orders), plus an incremental version." )
-      info( "NN search is possible with these orders representing" )
-      info( "the x, y and z coordinates of an octree." )
+   if( PARENT_LOOKUP ) {
+      feature( "Tree parent node lookup should be possible in a octree representing pre-order, post-order and version" ) {
+         info( "The vertices of a tree are represented by their positions" )
+         info( "in the tree's pre- and post-order traversals (as total orders), plus an incremental version." )
+         info( "NN search is possible with these orders representing" )
+         info( "the x, y and z coordinates of an octree." )
 
-      scenario( "Verifying parent node lookup" ) {
-         val gagaism = randomlyFilledTree()
-         import gagaism._
-//         val (t, treeSeq, parents) = randomlyFilledTree()
-         t.validate()
+         scenario( "Verifying parent node lookup" ) {
+            val gagaism = randomlyFilledTree()
+            import gagaism._
+   //         val (t, treeSeq, parents) = randomlyFilledTree()
+            t.validate()
 
-         // If a valid ancestor is defined by being left of the query in
-         // the pre-order, and right of the query in the post-order,
-         // and by having a version smaller than or equal to query version,
-         // then, given that the pre-order is horizontally stored,
-         // and the post-order is vertically stored, and the version is stored in the z-axis,
-         // we can express this by constraining the search to the orthant
-         // index binary 010 = 2. From the candidates we need
-         // to find the one that is closest in the pre- or post-order. This
-         // is expressed by a XY chebychev distance measure.
-         when( "each vertex is asked for its parent node through NN search in the quadtree" )
-         then( "the results should be identical to an independently maintained map" )
-         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+            // If a valid ancestor is defined by being left of the query in
+            // the pre-order, and right of the query in the post-order,
+            // and by having a version smaller than or equal to query version,
+            // then, given that the pre-order is horizontally stored,
+            // and the post-order is vertically stored, and the version is stored in the z-axis,
+            // we can express this by constraining the search to the orthant
+            // index binary 010 = 2. From the candidates we need
+            // to find the one that is closest in the pre- or post-order. This
+            // is expressed by a XY chebychev distance measure.
+            when( "each vertex is asked for its parent node through NN search in the quadtree" )
+            then( "the results should be identical to an independently maintained map" )
+            val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
 
-//         if( verbose ) printPrePost( t, treeSeq )
+   //         if( verbose ) printPrePost( t, treeSeq )
 
-         @tailrec def testChild( version: Int, child: FullVertex ) {
-            parents.get( child ) match {
-               case None =>
+            @tailrec def testChild( version: Int, child: FullVertex ) {
+               parents.get( child ) match {
+                  case None =>
 
-               case Some( parent ) if( parent.version <= version ) =>
-                  val found: Option[ FullVertex ] = t.t.system.atomic { implicit tx =>
-                     val p0 = child.toPoint
-//                     val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
-                     val point = p0.copy( x = p0.x - 1, y = p0.y + 1 )
-                     val f = t.t.nearestNeighborOption( point, metric )
-                     f
-                  }
-                  assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
+                  case Some( parent ) if( parent.version <= version ) =>
+                     val found: Option[ FullVertex ] = t.t.system.atomic { implicit tx =>
+                        val p0 = child.toPoint
+   //                     val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
+                        val point = p0.copy( x = p0.x - 1, y = p0.y + 1 )
+                        val f = t.t.nearestNeighborOption( point, metric )
+                        f
+                     }
+                     assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
 
-               case Some( parent ) =>
-                  testChild( version, parent )   // skip too new retro versions
+                  case Some( parent ) =>
+                     testChild( version, parent )   // skip too new retro versions
+               }
             }
-         }
 
-         treeSeq.foreach { child => testChild( child.version, child )}
+            treeSeq.foreach { child => testChild( child.version, child )}
+         }
       }
    }
 
@@ -387,30 +390,32 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
             if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
                tm.t.system.atomic { implicit tx =>
+if( verbose ) println( ":: mark insert for full " + child.toPoint )
+                  val cfPre = child.pre
                   val (cmPreN, cmPreCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                      def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                        that.value.full.pre.compare( child.pre )
-//                        preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
+                        val res = cfPre.compare( that.value.full.pre )
+if( verbose ) println( ":: mark insert pre :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+                        res
                      }
                   })
+                  val cfPost = child.post
                   val (cmPostN, cmPostCmp ) = tm.postList.isomorphicQuery(  new Ordered[ S#Tx, MarkOrder ] {
                      def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                        that.value.full.post.compare( child.post )
-//                        postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
+                        val res = cfPost.compare( that.value.full.post )
+if( verbose ) println( ":: mark insert post :: compare to m=" + that.value.toPoint + ", f=" + that.value.full.toPoint + " -> " + res )
+                        res
                      }
                   })
-//                  preTagIsoMap += cmPre -> child.pre
-//                  postTagIsoMap += cmPost -> child.post
-//                  preTagValueMap += cmPre -> i
-//                  postTagValueMap += cmPost -> i
+if( verbose ) println( ":: mark insert pre " + (if( cmPreCmp <= 0 ) "before" else "after") + " " + cmPreN.value.toPoint )
+if( verbose ) println( ":: mark insert post " + (if( cmPostCmp <= 0 ) "before" else "after") + " " + cmPostN.value.toPoint )
                   val vm = new MarkVertex {
                      val pre     = if( cmPreCmp  <= 0 ) cmPreN.prepend(  this ) else cmPreN.append(  this )
                      val post    = if( cmPostCmp <= 0 ) cmPostN.prepend( this ) else cmPostN.append( this )
                      val full    = child
-//                     val version = child.version
                   }
 
-tm.printInsertion( vm )
+if( verbose ) tm.printInsertion( vm )
 
                   tm.t.add( vm )
                   tm.preList.add( vm.pre )
@@ -467,15 +472,17 @@ tm.printInsertion( vm )
          treeSeq.foreach { child =>
 //println( " -- testing " + child )
             val (found, parent, point) = system.atomic { implicit tx =>
+               val cfPre = child.pre
                val (preIso, preIsoCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                   def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                     that.value.full.pre.compare( child.pre )
+                     cfPre.compare( that.value.full.pre )
 //                  preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
                   }
                })
+               val cfPost = child.post
                val (postIso, postIsoCmp) = tm.postList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                   def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
-                     that.value.full.post.compare( child.post )
+                     cfPost.compare( that.value.full.post )
 //                  postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
                   }
                })
@@ -485,6 +492,8 @@ tm.printInsertion( vm )
                val x       = preIso.tag // + preIsoCmp
                val y       = postIso.tag
                val pnt     = Point3D( x, y, child.version )
+
+               if( preIsoCmp == 0 ) assert( postIsoCmp == 0 )
 
                val f = tm.t.nearestNeighborOption( pnt, metric ).map( _.version )
                val par = {

@@ -762,7 +762,8 @@ extends SkipOctree[ S, D, A ] {
             }
          }
 
-         step( head, EmptyValue, metric.maxValue, metric.maxValue )
+         val mmax = metric.maxValue
+         step( head, EmptyValue, mmax, mmax )
       }
 
       def compare( a: VisitedNode[ M ], b: VisitedNode[ M ]) = metric.compareMeasure( b.minDist, a.minDist )
