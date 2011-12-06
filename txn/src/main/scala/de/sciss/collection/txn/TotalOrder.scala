@@ -548,6 +548,7 @@ object TotalOrder {
       private[TotalOrder] implicit def keySerializer: Serializer[ A ]
 
       def root: E
+//      final def max: EOpt = Empty  // grmpfff
 
       final def readEntry( in: DataInput ) : E = system.readMut[ E ]( in )( EntryReader )
 

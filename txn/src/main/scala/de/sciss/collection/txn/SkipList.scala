@@ -91,7 +91,7 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S 
     *
     * @return  the nearest item, or the maximum item
     */
-   def isomorphicQuery( compare: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : A
+   def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int)
 
    /**
     * Inserts a new key into the list.

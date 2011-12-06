@@ -208,7 +208,60 @@ object HASkipList {
 
       def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( true ).mkString( "\n" )
 
-      def isomorphicQuery( compare: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : A = {
+      def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int) = {
+         def isoIndexR( n: NodeLike[ S, A ]) : Int = {
+            var idx  = 0
+            val sz   = n.size - 1
+            do {
+               val cmp = ord.compare( n.key( idx ))
+               if( cmp == 0 ) return -(idx + 1) else if( cmp < 0 ) return idx
+               idx += 1
+            } while( idx < sz )
+            sz
+         }
+
+         def isoIndexL( n: NodeLike[ S, A ])( implicit tx: S#Tx ) : Int = {
+            @tailrec def step( idx : Int ) : Int = {
+               val cmp = ord.compare( n.key( idx ))
+               if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
+            }
+            step( 0 )
+         }
+
+         @tailrec def stepRight( n: Node[ S, A ]) : (A, Int) = {
+            val idx     = isoIndexR( n )
+            val found   = idx < 0
+            if( found ) {
+               val idxP    = -(idx + 1)
+               (n.key( idxP ), 0)
+            } else if( n.isLeaf ) {
+               if( idx == n.size - 1 ) (n.key( idx - 1 ), 1) else (n.key( idx ), -1)
+            } else {
+               val c = n.asBranch.down( idx )
+               if( idx < n.size - 1 ) stepLeft( c ) else stepRight( c )
+            }
+         }
+
+         @tailrec def stepLeft( n: Node[ S, A ]) : (A, Int) = {
+            val idx = isoIndexL( n )
+            val found   = idx < 0
+            if( found ) {
+               val idxP    = -(idx + 1)
+               (n.key( idxP ), 0)
+            } else if( n.isLeaf ) {
+               (n.key( idx ), -1)
+            } else {
+               stepLeft( n.asBranch.down( idx ))
+            }
+         }
+
+         val c = topN
+         if( c eq null ) {
+            throw new NoSuchElementException( "isomorphicQuery on an empty list" )
+         } else {
+            stepRight( c )
+         }
+
 //         var x: NodeImpl = Head.downNode
 //         if( x.isBottom ) return maxKey
 //         while( true ) {
@@ -222,7 +275,6 @@ object HASkipList {
 //            if( cmp == 0 || dn.isBottom ) return x.key( idx )
 //            x = dn
 //         }
-         sys.error( "TODO XXX" )
       }
 
       // ---- set support ----

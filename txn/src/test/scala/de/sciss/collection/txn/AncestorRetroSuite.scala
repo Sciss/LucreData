@@ -98,6 +98,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       final def x : Int = system.atomic { implicit tx => pre.tag }
       final def y : Int = system.atomic { implicit tx => post.tag }
       final def z : Int = version
+
+      override def toString = "FullVertex(" + version + ")"
    }
 
    final class FullTree /* extends AbstractTree[ FullTree ] */ {
@@ -240,6 +242,8 @@ println( "INSERT x = " + x + ", y = " + y + ", z = " + z )
       final def y : Int = system.atomic { implicit tx => post.tag }
       final def version : Int = full.version
       final def z : Int = full.version
+
+      override def toString = "MarkVertex(" + version + ")"
    }
 
    final class MarkTree( val ft: FullTree ) /* extends AbstractTree[ MarkTree ] */ {
@@ -487,13 +491,13 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
             if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
                tm.t.system.atomic { implicit tx =>
-                  val cmPreSucc = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+                  val (cmPreN, cmPreCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                      def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                         that.value.full.pre.compare( child.pre )
 //                        preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
                      }
                   })
-                  val cmPostSucc = tm.postList.isomorphicQuery(  new Ordered[ S#Tx, MarkOrder ] {
+                  val (cmPostN, cmPostCmp ) = tm.postList.isomorphicQuery(  new Ordered[ S#Tx, MarkOrder ] {
                      def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                         that.value.full.post.compare( child.post )
 //                        postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
@@ -504,8 +508,8 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 //                  preTagValueMap += cmPre -> i
 //                  postTagValueMap += cmPost -> i
                   val vm = new MarkVertex {
-                     val pre     = cmPreSucc.prepend( this )
-                     val post    = cmPostSucc.prepend( this )
+                     val pre     = if( cmPreCmp  <= 0 ) cmPreN.prepend(  this ) else cmPreN.append(  this )
+                     val post    = if( cmPostCmp <= 0 ) cmPostN.prepend( this ) else cmPostN.append( this )
                      val full    = child
 //                     val version = child.version
                   }
@@ -564,20 +568,22 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          treeSeq.foreach { child =>
 //println( " -- testing " + child )
             val (found, parent, point) = system.atomic { implicit tx =>
-               val preIso  = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+               val (preIso, preIsoCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                   def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                      that.value.full.pre.compare( child.pre )
 //                  preTagIsoMap.get( that ).map( _.compare( child.pre )).getOrElse( 1 )
                   }
                })
-               val postIso = tm.postList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
+               val (postIso, postIsoCmp) = tm.postList.isomorphicQuery( new Ordered[ S#Tx, MarkOrder ] {
                   def compare( that: MarkOrder )( implicit tx: S#Tx ) : Int = {
                      that.value.full.post.compare( child.post )
 //                  postTagIsoMap.get( that ).map( _.compare( child.post )).getOrElse( 1 )
                   }
                })
-               val atPreIso= preIso.value.full.pre //  preTagIsoMap.get( preIso )
-               val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
+//               val atPreIso= preIso.value.full.pre //  preTagIsoMap.get( preIso )
+//               if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
+
+               val x       = preIso.tag // + preIsoCmp
                val y       = postIso.tag
                val pnt     = Point3D( x, y, child.version )
 
