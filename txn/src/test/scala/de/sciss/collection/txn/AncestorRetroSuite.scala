@@ -23,8 +23,14 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
    val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 
-   val INMEMORY               = false // true
-   val DATABASE               = true // false     // serializers not yet working
+   val INMEMORY               = true
+
+   // currently doesn't work. We've got a circular reference between
+   // TotalOrder.Map.Entry and FullVertex / MarkedVertex. Sine the
+   // individual structures are tested against BDB, seems not worth
+   // ripping off the head to deal with this problem -- better create
+   // a total order structure that doesn't have this distinction.
+   val DATABASE               = false
 
    val VERIFY_MARKTREE_CONTENTS = false   // be careful to not enable this with large TREE_SIZE (> some 1000)
    val PRINT_DOT              = false

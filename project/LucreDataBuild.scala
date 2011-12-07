@@ -104,7 +104,7 @@ object LucreDataBuild extends Build {
       credentialsSetting,
       pomExtra     := pomSettings,
 
-      traceLevel   := 20,
+//      traceLevel   := 20,
 
       scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
    )
