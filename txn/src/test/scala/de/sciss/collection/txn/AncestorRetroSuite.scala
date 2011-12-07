@@ -6,7 +6,7 @@ import annotation.tailrec
 import geom.{Point3D, DistanceMeasure3D, Cube, Space}
 import concurrent.stm.Ref
 import java.io.File
-import de.sciss.lucrestm.{Writer, BerkeleyDB, Sys, DataInput, DataOutput, Serializer, InMemory}
+import de.sciss.lucrestm.{MutableReader, Mutable, Writer, BerkeleyDB, Sys, DataInput, DataOutput, Serializer, InMemory}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -16,8 +16,8 @@ import de.sciss.lucrestm.{Writer, BerkeleyDB, Sys, DataInput, DataOutput, Serial
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = true
-   val MARKED_ANCESTOR        = true
-   val NUM1                   = 10000  // tree size in PARENT_LOOKUP
+   val MARKED_ANCESTOR        = false // true
+   val NUM1                   = 4 // 10000  // tree size in PARENT_LOOKUP
    val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
    val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
@@ -63,25 +63,35 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          val cube    = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
          lazy val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
          lazy val root: FullRootVertex[ S ] = new FullRootVertex[ S ] {
+            me =>
+
             implicit val vertexSer : Serializer[ FullVertex[ S ]] = new Serializer[ FullVertex[ S ]] {
                def write( v: FullVertex[ S ], out: DataOutput ) { v.write( out )}
 
                def read( in: DataInput ) : FullVertex[ S ] = {
                   new FullVertex[ S ] {
                      val version = in.readInt()
-                     val pre     = preOrder.readEntry( in )
-                     val post    = postOrder.readEntry( in )
-                     val preTail = preOrder.readEntry( in )
+//                     val pre     = preOrder.readEntry( in )
+//                     val post    = postOrder.readEntry( in )
+//                     val preTail = preOrder.readEntry( in )
+                     // system.readMut[ FullOrders[ S ]]( in )
+                     val orderRef = system.readRef[ FullOrders[ S ]]( in )
                   }
                }
             }
 
             lazy val preOrder            = TotalOrder.Map.empty[ S, FullVertex[ S ]]( this, orderObserver )
             lazy val postOrder           = TotalOrder.Map.empty[ S, FullVertex[ S ]]( this, orderObserver )
-            lazy val pre: FullOrder[ S ] = preOrder.root
-      //         def post: FullOrder      = postO.root
-            lazy val post: FullOrder[ S ] = postOrder.root.append( this )  // XXX
-            lazy val preTail: FullOrder[ S ] = pre.append( this )
+            lazy val orderRef = {
+               implicit val orderSer = XXX
+               system.newRef[ FullOrders[ S ]] { new FullOrders[ S ] {
+                  val id = system.newID
+                  val pre: FullOrder[ S ] = preOrder.root
+                  //         def post: FullOrder      = postO.root
+                  val post: FullOrder[ S ] = postOrder.root.append( me )  // XXX
+                  val preTail: FullOrder[ S ] = pre.append( me )
+               }}
+            }
             val version = 0
             override def toString = "full-root"
          }
@@ -109,9 +119,14 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       def insertChild( parent: V )( implicit tx: S#Tx ) : V = {
          val v = new FullVertex[ S ] {
-            val pre     = parent.preTail.prepend( this ) // insertBefore( () )
-            val preTail = pre.append( this )
-            val post    = parent.post.prepend( this ) // insertBefore( () )
+            me =>
+
+            val orderRef = t.system.newRef[ FullOrders[ S ]] { new FullOrders[ S ] {
+               val id      = t.system.newID()
+               val pre     = parent.preTail.prepend( me ) // insertBefore( () )
+               val post    = parent.post.prepend( me ) // insertBefore( () )
+               val preTail = pre.append( me )
+            }}
             val version = nextVersion()
          }
 
@@ -125,9 +140,14 @@ if( verbose ) {
 
       def insertRetroChild( parent: V )( implicit tx: S#Tx ) : V = {
          val v = new FullVertex[ S ] {
-            val pre     = parent.pre.append( this )
-            val preTail = parent.preTail.prepend( this )
-            val post    = parent.post.prepend( this )
+            me =>
+
+            val orderRef = t.system.newRef[ FullOrders[ S ]] { new FullOrders[ S ] {
+               val id      = t.system.newID()
+               val pre     = parent.pre.append( me )
+               val post    = parent.post.prepend( me )
+               val preTail = parent.preTail.prepend( me )
+            }}
             val version = nextVersion()
             override def toString = super.toString + "@r-ch"
          }
@@ -139,9 +159,14 @@ if( verbose ) {
       def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = {
          require( child ne root )
          val v = new FullVertex[ S ] {
-            val pre     = child.pre.prepend( this )
-            val preTail = child.preTail.append( this )
-            val post    = child.post.append( this )
+            me =>
+
+            val orderRef = t.system.newRef[ FullOrders[ S ]] { new FullOrders[ S ] {
+               val id      = t.system.newID()
+               val pre     = child.pre.prepend( me )
+               val post    = child.post.append( me )
+               val preTail = child.preTail.append( me )
+            }}
             val version = nextVersion()
             override def toString = super.toString + "@r-par"
          }
@@ -168,16 +193,50 @@ if( verbose ) {
       def toPoint( implicit tx: S#Tx ) : Point3D
    }
 
-   sealed trait FullVertex[ S <: Sys[ S ]] extends VertexLike[ S ] {
+   object FullOrders {
+      implicit def reader[ S <: Sys[ S ]]( implicit orderSer: Serializer[ FullOrder[ S ]]) : MutableReader[ S, FullOrders[ S ]] = new Reader[ S ]
+
+      private final class Reader[ S <: Sys[ S ]]( implicit orderSer: Serializer[ FullOrder[ S ]])
+      extends MutableReader[ S, FullOrders[ S ]] {
+         def readData( in: DataInput, _id: S#ID ) : FullOrders[ S ] = new FullOrders[ S ] {
+            val id      = _id
+            val pre     = orderSer.read( in )
+            val post    = orderSer.read( in )
+            val preTail = orderSer.read( in )
+         }
+      }
+   }
+   sealed trait FullOrders[ S <: Sys[ S ]] extends Mutable[ S ] {
       def pre: FullOrder[ S ]
       def post: FullOrder[ S ]
       def preTail: FullOrder[ S ]
 
-      final def write( out: DataOutput ) {
-         out.writeInt( version )
+      final def writeData( out: DataOutput ) {
          pre.write( out )
          post.write( out )
          preTail.write( out )
+      }
+
+      final def disposeData()( implicit tx: S#Tx ) {
+         pre.dispose()
+         post.dispose()
+         preTail.dispose()
+      }
+   }
+
+   sealed trait FullVertex[ S <: Sys[ S ]] extends VertexLike[ S ] {
+      def orderRef: S#Ref[ FullOrders[ S ]]
+
+      final def pre( implicit tx: S#Tx ): FullOrder[ S ] = orderRef.get.pre
+      final def post( implicit tx: S#Tx ): FullOrder[ S ] = orderRef.get.post
+      final def preTail( implicit tx: S#Tx ): FullOrder[ S ] = orderRef.get.preTail
+
+      final def write( out: DataOutput ) {
+         out.writeInt( version )
+         orderRef.write( out )
+//         pre.write( out )
+//         post.write( out )
+//         preTail.write( out )
       }
 
 //      final def x : Int = system.atomic { implicit tx => pre.tag }
@@ -242,10 +301,40 @@ if( verbose ) {
 
    type MarkOrder[ S <: Sys[ S ]] = TotalOrder.Map.Entry[ S, MarkVertex[ S ]]
 
-   sealed trait MarkVertex[ S <: Sys[ S ]] extends VertexLike[ S ] {
-      def full: FullVertex[ S ]
+   object MarkOrders {
+      implicit def reader[ S <: Sys[ S ]]( implicit orderSer: Serializer[ MarkOrder[ S ]]) : MutableReader[ S, MarkOrders[ S ]] = new Reader[ S ]
+
+      private final class Reader[ S <: Sys[ S ]]( implicit orderSer: Serializer[ MarkOrder[ S ]])
+      extends MutableReader[ S, MarkOrders[ S ]] {
+         def readData( in: DataInput, _id: S#ID ) : MarkOrders[ S ] = new MarkOrders[ S ] {
+            val id      = _id
+            val pre     = orderSer.read( in )
+            val post    = orderSer.read( in )
+         }
+      }
+   }
+   sealed trait MarkOrders[ S <: Sys[ S ]] extends Mutable[ S ] {
       def pre: MarkOrder[ S ]
       def post: MarkOrder[ S ]
+
+      final def writeData( out: DataOutput ) {
+         pre.write( out )
+         post.write( out )
+      }
+
+      final def disposeData()( implicit tx: S#Tx ) {
+         pre.dispose()
+         post.dispose()
+      }
+   }
+
+   sealed trait MarkVertex[ S <: Sys[ S ]] extends VertexLike[ S ] {
+      def full: FullVertex[ S ]
+
+      def orderRef : S#Ref[ MarkOrders[ S ]]
+
+      final def pre( implicit tx: S#Tx ) : MarkOrder[ S ] = orderRef.get.pre
+      final def post( implicit tx: S#Tx ) : MarkOrder[ S ] = orderRef.get.post
 
 //      final def x : Int = system.atomic { implicit tx => pre.tag }
 //      final def y : Int = system.atomic { implicit tx => post.tag }
@@ -254,8 +343,9 @@ if( verbose ) {
 
       final def write( out: DataOutput ) {
          full.write( out )
-         pre.write( out )
-         post.write( out )
+//         pre.write( out )
+//         post.write( out )
+         orderRef.write( out )
       }
 
       final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
@@ -275,14 +365,19 @@ if( verbose ) {
          implicit val pointView = (p: MarkVertex[ S ], tx: S#Tx) => p.toPoint( tx )
          lazy val orderObserver = new RelabelObserver[ S, MarkVertex[ S ]]( "mark", t )
          lazy val root: MarkRootVertex[ S ]  = new MarkRootVertex[ S ] {
+            me =>
+
             implicit val vertexSer: Serializer[ MarkVertex[ S ]] = new Serializer[ MarkVertex[ S ]] {
                def write( v: MarkVertex[ S ], out: DataOutput ) { v.write( out )}
 
                def read( in: DataInput ) : MarkVertex[ S ] = {
                   new MarkVertex[ S ] {
                      val full    = ft.root.vertexSer.read( in )
-                     val pre     = preOrder.readEntry( in )
-                     val post    = postOrder.readEntry( in )
+                     val orderRef = system.newRef[ MarkOrders[ S ]] { new MarkOrders[ S ] {
+                        val id      = system.newID()
+                        val pre     = preOrder.readEntry( in )
+                        val post    = postOrder.readEntry( in )
+                     }}
                   }
                }
             }
@@ -290,8 +385,11 @@ if( verbose ) {
             def full       = ft.root
             lazy val preOrder   = TotalOrder.Map.empty[ S, MarkVertex[ S ]]( this, orderObserver )
             lazy val postOrder  = TotalOrder.Map.empty[ S, MarkVertex[ S ]]( this, orderObserver )
-            lazy val pre: MarkOrder[ S ]     = preOrder.root
-   lazy val post: MarkOrder[ S ] = postOrder.root.append( this )
+            lazy val orderRef = system.newRef[ MarkOrders[ S ]] { new MarkOrders[ S ] {
+               val id                     = system.newID()
+               val pre: MarkOrder[ S ]    = preOrder.root
+               val post: MarkOrder[ S ]   = postOrder.root.append( me )
+            }}
          }
          lazy val t = {
             import root.vertexSer
@@ -540,9 +638,14 @@ if( verbose ) {
          if( verbose ) println( ":: mark insert pre " + (if( cmPreCmp <= 0 ) "before" else "after") + " " + cmPreN.value.toPoint )
          if( verbose ) println( ":: mark insert post " + (if( cmPostCmp <= 0 ) "before" else "after") + " " + cmPostN.value.toPoint )
                            val vm = new MarkVertex[ S ] {
-                              val pre     = if( cmPreCmp  <= 0 ) cmPreN.prepend(  this ) else cmPreN.append(  this )
-                              val post    = if( cmPostCmp <= 0 ) cmPostN.prepend( this ) else cmPostN.append( this )
+                              me =>
+
                               val full    = child
+                              val orderRef = system.newRef[ MarkOrders[ S ]] { new MarkOrders[ S ] {
+                                 val id      = system.newID()
+                                 val pre     = if( cmPreCmp  <= 0 ) cmPreN.prepend(  me ) else cmPreN.append(  me )
+                                 val post    = if( cmPostCmp <= 0 ) cmPostN.prepend( me ) else cmPostN.append( me )
+                              }}
                            }
 
          if( verbose ) tm.printInsertion( vm )
