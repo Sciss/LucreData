@@ -643,6 +643,8 @@ object TotalOrder {
 //         val recNextRef    = system.newVal[ KOpt ]( nextO )
          val recE          = entryView( key ) // new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
          recE.updateTag( recTag )
+         recE.updatePrev( prevO )
+         recE.updateNext( nextO )
          val defK          = new DefinedKey[ S, A ]( this, key )
          if( prevE ne null ) prevE.updateNext( defK )
          if( nextE ne null ) nextE.updatePrev( defK )
