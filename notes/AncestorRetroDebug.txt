@@ -345,3 +345,45 @@ octree mark-pre:
 617, 30, 80, 114, 33, 318, 45, 55, 50, 516, 72, 103, 105, 84, 212, 303, 431, 615, 525, 100, 224, 274, 461, 308, 231, 262, 545, 454, 585, 551, 601, 190, 286, 547, 599, 433, 119, 167, 279, 297, 315, 89, 198, 374, 589, 385, 118, 312, 228, 521, 316, 251, 299, 457, 555, 277, 341, 486, 409, 576, 12, 129, 481, 272, 520, 608, 13, 40, 288, 327, 375, 420, 15, 144, 591, 614, 244, 273, 609, 36, 20, 22, 166, 610, 219, 568, 593, 28, 349, 439, 217, 269, 295, 323, 391, 434, 336, 29, 60, 594, 32, 132, 38, 367, 47, 64, 78, 216, 470, 498, 252, 499, 79, 399, 46, 165, 232, 419, 432, 442, 57, 88, 337, 362, 517, 180, 406, 444, 284, 309, 388, 492, 102, 366, 573, 607, 350, 107, 505, 592, 229, 465, 497, 534, 532, 574, 535
 
 ---> afterRelabeling not called
+
+:::::::::::::::::::::::::::::::::
+
+Vertex
+    pre
+       prev
+       next
+       tag
+
+    post
+       prev
+       next
+       tag
+
+    pre-tail
+       prev
+       next
+       tag
+
+unless we want LucreSTM be forced to delay writing to the end of the Txn, which is kind of nasty, we need to initialize the Vertex in two steps, so it can be properly written
+
+(1) create the orders unlinked
+
+    pre
+       prev - empty  // pre.write just stores ref-id
+       next - empty  // pre.write just stores ref-id
+       tag  - 0      // pre.write just stores ref-id
+
+    post
+       prev - empty
+       next - empty
+       tag  - 0
+
+    pre-tail
+       prev - empty
+       next - empty
+       tag  - 0
+
+(2) link the orders
+
+    order.insertAfter( parent.pre, child.pre)
+    etc.
