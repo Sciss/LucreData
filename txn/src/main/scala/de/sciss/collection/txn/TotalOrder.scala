@@ -615,28 +615,34 @@ object TotalOrder {
 //         insertBetween( prevE, nextE, key )
 //      }
 
-      def insertAfter( prev: A, key: A )( implicit tx: S#Tx ) : E = {
+      def insert()( implicit tx: S#Tx ) : E = {
+         val recTagVal     = system.newInt( -1 )
+         val recPrevRef    = system.newVal[ KOpt ]( emptyKey )
+         val recNextRef    = system.newVal[ KOpt ]( emptyKey )
+         new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+      }
+
+      def placeAfter( prev: A, key: A )( implicit tx: S#Tx ) : E = {
          val prevE = entryView( prev )
          val nextO = prevE.next
-         insertBetween( prevE, new DefinedKey[ S, A ]( map, prev ), nextO.orNull, nextO, key )
+         placeBetween( prevE, new DefinedKey[ S, A ]( map, prev ), nextO.orNull, nextO, key )
       }
 
-      def insertBefore( next: A, key: A )( implicit tx: S#Tx ) : E = {
+      def placeBefore( next: A, key: A )( implicit tx: S#Tx ) : E = {
          val nextE = entryView( next )
          val prevO = nextE.prev
-         insertBetween( prevO.orNull, prevO, nextE, new DefinedKey[ S, A ]( map, next ), key )
+         placeBetween( prevO.orNull, prevO, nextE, new DefinedKey[ S, A ]( map, next ), key )
       }
 
-      private[TotalOrder] def insertBetween( prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A )( implicit tx: S#Tx ) : E = {
-//         val prevE         = if( prevO.isDefined ) entryView( prevO.get ) else null
-//         val nextE         = if( nextO.isDefined ) entryView( nextO.get ) else null
+      private[TotalOrder] def placeBetween( prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A )( implicit tx: S#Tx ) : E = {
          val prevTag       = if( prevE ne null ) prevE.tag else 0 // could use Int.MinValue+1, but that collides with Octree max space
          val nextTag       = if( nextE ne null ) nextE.tag else Int.MaxValue
          val recTag        = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal     = system.newInt( recTag )
-         val recPrevRef    = system.newVal[ KOpt ]( prevO )
-         val recNextRef    = system.newVal[ KOpt ]( nextO )
-         val recE          = new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+//         val recTagVal     = system.newInt( recTag )
+//         val recPrevRef    = system.newVal[ KOpt ]( prevO )
+//         val recNextRef    = system.newVal[ KOpt ]( nextO )
+         val recE          = entryView( key ) // new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+         recE.updateTag( recTag )
          val defK          = new DefinedKey[ S, A ]( this, key )
          if( prevE ne null ) prevE.updateNext( defK )
          if( nextE ne null ) nextE.updatePrev( defK )

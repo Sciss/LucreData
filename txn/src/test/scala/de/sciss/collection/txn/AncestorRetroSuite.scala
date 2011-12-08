@@ -125,10 +125,14 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
                }
             }
             val root: FullVertex[ S ] = new FullVertex[ S ] {
+//               val pre: FullPreOrder[ S ]       = preOrder.root
+//               val post: FullPostOrder[ S ]     = postOrder.root // insertAfter( this, this )
+//               val preTail: FullPreOrder[ S ]   = preOrder.insertAfter( preHeadKey, preTailKey )
                val pre: FullPreOrder[ S ]       = preOrder.root
                val post: FullPostOrder[ S ]     = postOrder.root // insertAfter( this, this )
-               val preTail: FullPreOrder[ S ]   = preOrder.insertAfter( preHeadKey, preTailKey )
+               val preTail: FullPreOrder[ S ]   = preOrder.insert()
                val version = 0
+               preOrder.placeAfter( preHeadKey, preTailKey )
                override def toString = "full-root"
             }
             t += root
@@ -161,13 +165,16 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       def insertChild( parent: V )( implicit tx: S#Tx ) : V = {
          val v = new FullVertex[ S ] {
-//            val pre     = parent.preTail.prepend( this ) // insertBefore( () )
-//            val preTail = pre.append( this )
-//            val post    = parent.post.prepend( this ) // insertBefore( () )
-            val pre     = preOrder.insertBefore( parent.preTailKey, preHeadKey )
-            val preTail = preOrder.insertAfter( preHeadKey, preTailKey )
-            val post    = postOrder.insertBefore( parent, this )
+//            val pre     = preOrder.insertBefore( parent.preTailKey, preHeadKey )
+//            val preTail = preOrder.insertAfter( preHeadKey, preTailKey )
+//            val post    = postOrder.insertBefore( parent, this )
+            val pre     = preOrder.insert()
+            val preTail = preOrder.insert()
+            val post    = postOrder.insert()
             val version = nextVersion()
+            preOrder.placeBefore( parent.preTailKey, preHeadKey )
+            preOrder.placeAfter( preHeadKey, preTailKey )
+            postOrder.placeBefore( parent, this )
          }
 
 if( verbose ) {
@@ -180,13 +187,16 @@ if( verbose ) {
 
       def insertRetroChild( parent: V )( implicit tx: S#Tx ) : V = {
          val v = new FullVertex[ S ] {
-//            val pre     = parent.pre.append( this )
-//            val preTail = parent.preTail.prepend( this )
-//            val post    = parent.post.prepend( this )
-            val pre     = preOrder.insertAfter( parent.preHeadKey, preHeadKey )
-            val preTail = preOrder.insertBefore( parent.preTailKey, preTailKey )
-            val post    = postOrder.insertBefore( parent, this )
+//            val pre     = preOrder.insertAfter( parent.preHeadKey, preHeadKey )
+//            val preTail = preOrder.insertBefore( parent.preTailKey, preTailKey )
+//            val post    = postOrder.insertBefore( parent, this )
+            val pre     = preOrder.insert()
+            val preTail = preOrder.insert()
+            val post    = postOrder.insert()
             val version = nextVersion()
+            preOrder.placeAfter( parent.preHeadKey, preHeadKey )
+            preOrder.placeBefore( parent.preTailKey, preTailKey )
+            postOrder.placeBefore( parent, this )
             override def toString = super.toString + "@r-ch"
          }
 
@@ -197,13 +207,16 @@ if( verbose ) {
       def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = {
          require( child ne root )
          val v = new FullVertex[ S ] {
-//            val pre     = child.pre.prepend( this )
-//            val preTail = child.preTail.append( this )
-//            val post    = child.post.append( this )
-            val pre     = preOrder.insertBefore( child.preHeadKey, preHeadKey )
-            val preTail = preOrder.insertAfter( child.preTailKey, preTailKey )
-            val post    = postOrder.insertAfter( child, this )
+//            val pre     = preOrder.insertBefore( child.preHeadKey, preHeadKey )
+//            val preTail = preOrder.insertAfter( child.preTailKey, preTailKey )
+//            val post    = postOrder.insertAfter( child, this )
+            val pre     = preOrder.insert()
+            val preTail = preOrder.insert()
+            val post    = postOrder.insert()
             val version = nextVersion()
+            preOrder.placeBefore( child.preHeadKey, preHeadKey )
+            preOrder.placeAfter( child.preTailKey, preTailKey )
+            postOrder.placeAfter( child, this )
             override def toString = super.toString + "@r-par"
          }
 
@@ -377,7 +390,7 @@ if( verbose ) {
 //            lazy val pre: MarkOrder[ S ]  = preOrder.root
 //            lazy val post: MarkOrder[ S ] = postOrder.root.append( this )
             lazy val pre: MarkOrder[ S ]  = preOrder.root
-            lazy val post: MarkOrder[ S ] = postOrder.insertAfter( root, this )
+            lazy val post: MarkOrder[ S ] = postOrder.root // postOrder.insertAfter( root, this )
          }
          lazy val t = {
             implicit val keySer = _vertexSer
@@ -632,17 +645,19 @@ if( verbose ) {
          if( verbose ) println( ":: mark insert pre " + (if( cmPreCmp <= 0 ) "before" else "after") + " " + cmPreN.toPoint )
          if( verbose ) println( ":: mark insert post " + (if( cmPostCmp <= 0 ) "before" else "after") + " " + cmPostN.toPoint )
                            val vm = new MarkVertex[ S ] {
-                              val pre     = if( cmPreCmp  <= 0 ) {
-                                 tm.root.preOrder.insertBefore( cmPreN, this ) // cmPreN.prepend(  this )
+                              val pre  = tm.root.preOrder.insert()
+                              val post = tm.root.postOrder.insert()
+                              val full = child
+                              if( cmPreCmp  <= 0 ) {
+                                 tm.root.preOrder.placeBefore( cmPreN, this ) // cmPreN.prepend(  this )
                               } else {
-                                 tm.root.preOrder.insertAfter( cmPreN, this ) // cmPreN.append(  this )
+                                 tm.root.preOrder.placeAfter( cmPreN, this ) // cmPreN.append(  this )
                               }
-                              val post    = if( cmPostCmp <= 0 ) {
-                                 tm.root.postOrder.insertBefore( cmPostN, this ) // cmPostN.prepend( this )
+                              if( cmPostCmp <= 0 ) {
+                                 tm.root.postOrder.placeBefore( cmPostN, this ) // cmPostN.prepend( this )
                               } else {
-                                 tm.root.postOrder.insertAfter( cmPostN, this ) // cmPostN.append( this )
+                                 tm.root.postOrder.placeAfter( cmPostN, this ) // cmPostN.append( this )
                               }
-                              val full    = child
                            }
 
          if( verbose ) tm.printInsertion( vm )
