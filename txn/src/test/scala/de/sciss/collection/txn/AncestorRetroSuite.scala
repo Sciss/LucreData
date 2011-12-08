@@ -15,31 +15,31 @@ import annotation.tailrec
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
-   val PARENT_LOOKUP          = true
-   val MARKED_ANCESTOR        = false
-   val NUM1                   = 283 // 10000  // tree size in PARENT_LOOKUP
+   val PARENT_LOOKUP          = false  // true
+   val MARKED_ANCESTOR        = true
+   val NUM1                   = 300 // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
    val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
    val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
    val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 
-   val INMEMORY               = false // true
+   val INMEMORY               = true
 
    // currently doesn't work. We've got a circular reference between
    // TotalOrder.Map.Entry and FullVertex / MarkedVertex. Sine the
    // individual structures are tested against BDB, seems not worth
    // ripping off the head to deal with this problem -- better create
    // a total order structure that doesn't have this distinction.
-   val DATABASE               = true
+   val DATABASE               = false  // true
 
-   val VERIFY_MARKTREE_CONTENTS = false   // be careful to not enable this with large TREE_SIZE (> some 1000)
+   val VERIFY_MARKTREE_CONTENTS = true // be careful to not enable this with large TREE_SIZE (> some 1000)
    val PRINT_DOT              = false
-   val PRINT_ORDERS           = false
+   val PRINT_ORDERS           = true
 
    def seed : Long            = 0L
 
-   var verbose                = false
-   val DEBUG_LAST             = true  // if enabled, switches to verbosity for the last element in the sequence
+   var verbose                = true
+   val DEBUG_LAST             = false // if enabled, switches to verbosity for the last element in the sequence
 
    if( INMEMORY ) {
       withSys[ InMemory ]( "Mem", () => new InMemory, (_, _) => () )
@@ -138,7 +138,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
                val post: FullPostOrder[ S ]     = postOrder.root // insertAfter( this, this )
                val preTail: FullPreOrder[ S ]   = preOrder.insert()
                val version = 0
-               preOrder.placeAfter( preHeadKey, preTailKey )
+               preOrder.placeAfter( preHeadKey, preTailKey )   // preTailKey must come last
 //               override def toString = "full-root"
             }
             t += root
@@ -179,8 +179,11 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val post    = postOrder.insert()
             val version = nextVersion()
             preOrder.placeBefore( parent.preTailKey, preHeadKey )
-            preOrder.placeAfter( preHeadKey, preTailKey )
             postOrder.placeBefore( parent, this )
+if( version == 411 ) {
+   println( "AHAAAA" )
+}
+            preOrder.placeAfter( preHeadKey, preTailKey )   // preTailKey must come last!
          }
 
 if( verbose ) {
@@ -201,8 +204,8 @@ if( verbose ) {
             val post    = postOrder.insert()
             val version = nextVersion()
             preOrder.placeAfter( parent.preHeadKey, preHeadKey )
-            preOrder.placeBefore( parent.preTailKey, preTailKey )
             postOrder.placeBefore( parent, this )
+            preOrder.placeBefore( parent.preTailKey, preTailKey ) // preTailKey must come last
             override def toString = super.toString + "@r-ch"
          }
 
@@ -221,8 +224,8 @@ if( verbose ) {
             val post    = postOrder.insert()
             val version = nextVersion()
             preOrder.placeBefore( child.preHeadKey, preHeadKey )
-            preOrder.placeAfter( child.preTailKey, preTailKey )
             postOrder.placeAfter( child, this )
+            preOrder.placeAfter( child.preTailKey, preTailKey )   // preTailKey must come last
             override def toString = super.toString + "@r-par"
          }
 
@@ -290,12 +293,12 @@ if( verbose ) {
    final class RelabelObserver[ S <: Sys[ S ], V <: VertexLike[ S, V ]]( name: String,
                                                                       t: SkipOctree[ S, Space.ThreeDim, V ])
    extends TotalOrder.Map.RelabelObserver[ S#Tx, VertexSource[ V ]] {
-      def beforeRelabeling( v0s: VertexSource[ V ], iter: Iterator[ S#Tx, VertexSource[ V ]])( implicit tx: S#Tx ) {
+      def beforeRelabeling( /* v0s: VertexSource[ V ], */ iter: Iterator[ S#Tx, VertexSource[ V ]])( implicit tx: S#Tx ) {
          if( verbose ) println( "RELABEL " + name + " - begin" )
-         val v0 = v0s.source
+//         val v0 = v0s.source
          iter.foreach { vs =>
             val v = vs.source
-            if( v ne v0 ) {
+//            if( v ne v0 ) {
                if( verbose ) {
                   val str = try { v.toPoint } catch { case np: NullPointerException =>
                   "<null>"
@@ -308,16 +311,16 @@ if( verbose ) {
                // due to pre versus preTail. thus the items might get removed twice
                // here, too, and we cannot assert that t.remove( v ) == true
                t -= v
-            }
+//            }
          }
          if( verbose ) println( "RELABEL " + name + " - end" )
       }
-      def afterRelabeling( v0s: VertexSource[ V ], iter: Iterator[ S#Tx, VertexSource[ V ]])( implicit tx: S#Tx ) {
+      def afterRelabeling( /* v0s: VertexSource[ V ], */ iter: Iterator[ S#Tx, VertexSource[ V ]])( implicit tx: S#Tx ) {
          if( verbose ) println( "RELABEL " + name + " + begin" )
-         val v0 = v0s.source
+//         val v0 = v0s.source
          iter.foreach { vs =>
             val v = vs.source
-            if( v ne v0 ) {
+//            if( v ne v0 ) {
                if( verbose ) {
                   val str = try { v.toPoint } catch { case np: NullPointerException =>
                   "<null>"
@@ -330,7 +333,7 @@ if( verbose ) {
                // due to pre versus preTail. thus the items might get added twice
                // here, too, and we cannot assert that t.add( v ) == true
                t += v
-            }
+//            }
          }
          if( verbose ) println( "RELABEL " + name + " + end" )
       }

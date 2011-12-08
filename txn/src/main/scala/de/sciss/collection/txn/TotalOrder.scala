@@ -345,9 +345,24 @@ object TotalOrder {
       /**
        * A `RelabelObserver` is notified before and after a relabeling is taking place due to
        * item insertions. The iterator passed to it contains all the items which are relabelled,
-       * including the one that has caused the relabelling action. The value of this new item
-       * is passed as additional argument, so that the observer can decide to handle it
-       * specially.
+       * excluding the one that has caused the relabelling action.
+       *
+       * Note that there is a tricky case, when an object creates more than one total order entry,
+       * and then calls `placeBefore` or `placeAfter` successively on these entries: For the first
+       * entry, the iterator will not contain the inserted element, but when the second entry is
+       * inserted, the iterator will contain the first entry, with the potential of causing trouble
+       * as the entry may be contained in an incompletely initialized object.
+       *
+       * For example, in the case of storing pre-head, pre-tail and post elements in two orders, make
+       * sure that the pre-tail insertion comes last. Because this will happen:
+       *
+       * (1) pre-head, post and pre-tail entries created (their tags are -1)
+       * (2) pre-head placed, may cause relabelling, but then will be excluded from the iterator
+       * (3) post placed, may cause relabelling, but then will be excluded from the iterator
+       * (4) pre-tail placed, may cause relabelling, and while the pre-tail view will be excluded
+       * from the iterator, the previously placed pre-head '''will''' be included in the iterator,
+       * showing the item with pre-tail tag of `-1` in `beforeRelabeling`, however, fortunately,
+       * with assigned tag in `afterRelabeling`.
        */
       trait RelabelObserver[ Tx, -A ] {
          /**
@@ -355,18 +370,18 @@ object TotalOrder {
           * the `dirty` iterator are about to be relabelled, but at the point of calling
           * this method the tags still carry their previous values.
           */
-         def beforeRelabeling( inserted: A, dirty: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
+         def beforeRelabeling( /* inserted: A, */ dirty: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
          /**
           * This method is invoked right after relabelling finishes. That is, the items in
           * the `clean` iterator have been relabelled and the tags carry their new values.
           */
-         def afterRelabeling( inserted: A, clean: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
+         def afterRelabeling( /* inserted: A, */ clean: Iterator[ Tx, A ])( implicit tx: Tx ) : Unit
       }
 
       final class NoRelabelObserver[ Tx, A ]
       extends RelabelObserver[ Tx, A ] {
-         def beforeRelabeling( inserted: A, dirty: Iterator[ Tx, A ])( implicit tx: Tx ) {}
-         def afterRelabeling(  inserted: A, clean: Iterator[ Tx, A ])( implicit tx: Tx ) {}
+         def beforeRelabeling( /* inserted: A, */ dirty: Iterator[ Tx, A ])( implicit tx: Tx ) {}
+         def afterRelabeling(  /* inserted: A, */ clean: Iterator[ Tx, A ])( implicit tx: Tx ) {}
       }
 
       final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
@@ -540,29 +555,27 @@ object TotalOrder {
    /*
     * A special iterator used for the relabel observer.
     */
-   private final class RelabelIterator[ S <: Sys[ S ], A ]( recK: A, recE: Map.Entry[ S, A ],
-                                                            firstK: A, lastE: Map.Entry[ S, A ],
+   private final class RelabelIterator[ S <: Sys[ S ], A ]( recOff: Int, num: Int, recE: Map.Entry[ S, A ], firstK: A,
                                                             entryView: A => Map.Entry[ S, A ])
    extends Iterator[ S#Tx, A ] {
 
-      private var currK = firstK
-      var hasNext : Boolean = true
+      private var currK       = firstK
+      private var cnt         = 0
+      def hasNext : Boolean   = cnt < num
 
       def next()( implicit tx: S#Tx ) : A = {
-         if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
+         if( cnt == num ) throw new NoSuchElementException( "next on empty iterator" )
          val res     = currK
-         val currE   = if( currK == recK ) recE else entryView( currK )
-         if( currE == lastE ) {
-            hasNext  = false
-         } else {
-            currK = currE.next.get
-         }
+         cnt        += 1
+         // if we're reaching the recE, skip it
+         val currE   = if( cnt == recOff ) recE else entryView( currK )
+         currK       = currE.next.get
          res
       }
 
       def reset() {
-         currK    = firstK
-         hasNext  = true
+         currK = firstK
+         cnt   = 0
       }
    }
 
@@ -719,27 +732,29 @@ object TotalOrder {
        * multiplier dynamically to allow it to be as large as possible
        * without producing integer overflows."
        */
-      private def relabel( _recK: A, _recE: E )( implicit tx: S#Tx ) {
+      private def relabel( recK: A, recE: E )( implicit tx: S#Tx ) {
          var mask       = -1
          var thresh     = 1.0
          var num        = 1
    //      val mul     = 2/((2*len(self))**(1/30.))
          val mul        = 2 / math.pow( size << 1, 1/30.0 )
-         var firstE     = _recE
-         var firstK     = _recK
-         var lastE      = _recE
-         var base       = _recE.tag
+         var firstE     = recE
+         var firstK     = recK
+         var lastE      = recE
+         var base       = recE.tag
+         var recOff     = 0
 
          do {
             @tailrec def stepLeft() {
                val prevO = firstE.prev
                if( prevO.isDefined ) {
-                  val prevK = prevO.get
-                  val prevE = entryView( prevK )
+                  val prevK   = prevO.get
+                  val prevE   = entryView( prevK )
                   if( (prevE.tag & mask) == base ) {
-                     firstE = prevE
-                     firstK = prevK
-                     num   += 1
+                     firstE   = prevE
+                     firstK   = prevK
+                     num     += 1
+                     recOff  += 1
                      stepLeft()
                   }
                }
@@ -769,8 +784,13 @@ object TotalOrder {
                // will obviously leave the tag unchanged! thus we must add
                // the additional condition that num is greater than 1!
                if( inc >= thresh ) {   // found rebalanceable range
-                  val relabelIter   = new RelabelIterator( _recK, _recE, firstK, lastE, entryView )
-                  observer.beforeRelabeling( _recK, relabelIter )
+                  val numM1 = num - 1
+                  val relabelIter = if( recOff == 0 ) {
+                     new RelabelIterator( recOff + 1, numM1, recE, firstK, entryView )
+                  } else {
+                     new RelabelIterator( recOff, if( recOff == numM1 ) numM1 else num, recE, firstK, entryView )
+                  }
+                  observer.beforeRelabeling( /* recK, */ relabelIter )
 
                   // Note: this was probably a bug in Eppstein's code
                   // -- it ran for one iteration less which made
@@ -778,17 +798,15 @@ object TotalOrder {
                   // seems now it is correct with the inclusion
                   // of last in the tag updating.
                   var curr = firstE
-//println( "RELABEL num = " + num )
                   var cnt = 0; while( cnt < num ) {
-//println( "RELABEL iter = " + cnt )
                      curr.updateTag( base )
                      val nextK   = curr.next.get
-                     curr        = if( nextK == _recK ) _recE else entryView( nextK )
+                     curr        = if( cnt == recOff ) recE else entryView( nextK )
                      base       += inc
                      cnt        += 1
                   }
                   relabelIter.reset()
-                  observer.afterRelabeling( _recK, relabelIter )
+                  observer.afterRelabeling( /* recK, */ relabelIter )
                   return
                }
             }
