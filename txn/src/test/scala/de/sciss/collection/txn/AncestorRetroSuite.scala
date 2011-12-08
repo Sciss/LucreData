@@ -17,13 +17,13 @@ import annotation.tailrec
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = true
    val MARKED_ANCESTOR        = false
-   val NUM1                   = 10000  // tree size in PARENT_LOOKUP
+   val NUM1                   = 283 // 10000  // tree size in PARENT_LOOKUP
    val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
    val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
    val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 
-   val INMEMORY               = true
+   val INMEMORY               = false // true
 
    // currently doesn't work. We've got a circular reference between
    // TotalOrder.Map.Entry and FullVertex / MarkedVertex. Sine the
@@ -39,7 +39,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    def seed : Long            = 0L
 
    var verbose                = false
-   val DEBUG_LAST             = false  // if enabled, switches to verbosity for the last element in the sequence
+   val DEBUG_LAST             = true  // if enabled, switches to verbosity for the last element in the sequence
 
    if( INMEMORY ) {
       withSys[ InMemory ]( "Mem", () => new InMemory, (_, _) => () )
@@ -55,7 +55,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       }, { case (bdb, success) =>
          if( success ) {
             val sz = bdb.numUserRecords
-            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
+//            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
 //            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          }
          bdb.close()
@@ -81,6 +81,12 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       final def write( out: DataOutput ) {
          out.writeUnsignedByte( id )
          source.write( out )
+      }
+      override def equals( that: Any ) : Boolean = {
+         (that.isInstanceOf[ FullVertexPre[ _ ]] && {
+            val thatPre = that.asInstanceOf[ FullVertexPre[ _ ]]
+            (id == thatPre.id) && (source == thatPre.source)
+         })
       }
    }
 
@@ -111,8 +117,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             }
             val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
             val preOrder      = TotalOrder.Map.empty[ S, FullVertexPre[ S ]]( orderObserver, _.order, 0 )
-            val postOrder     = TotalOrder.Map.empty[ S, FullVertex[ S ]]( orderObserver, _.post, Int.MaxValue - 1 )
-            implicit val vertexSer : Serializer[ FullVertex[ S ]] = new Serializer[ FullVertex[ S ]] {
+            val postOrder     = TotalOrder.Map.empty[ S, FullVertex[ S ]]( orderObserver, _.post, Int.MaxValue /* - 1 */)
+            implicit lazy val vertexSer : Serializer[ FullVertex[ S ]] = new Serializer[ FullVertex[ S ]] {
                def write( v: FullVertex[ S ], out: DataOutput ) { v.write( out )}
 
                def read( in: DataInput ) : FullVertex[ S ] = {
@@ -133,7 +139,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
                val preTail: FullPreOrder[ S ]   = preOrder.insert()
                val version = 0
                preOrder.placeAfter( preHeadKey, preTailKey )
-               override def toString = "full-root"
+//               override def toString = "full-root"
             }
             t += root
          }
@@ -262,6 +268,10 @@ if( verbose ) {
          preTail.write( out )
       }
 
+      override def equals( that: Any ) : Boolean = {
+         (that.isInstanceOf[ FullVertex[ _ ]] && (that.asInstanceOf[ FullVertex[ _ ]].version == version))
+      }
+
 //      final def x : Int = system.atomic { implicit tx => pre.tag }
 //      final def y : Int = system.atomic { implicit tx => post.tag }
 //      final def z : Int = version
@@ -358,6 +368,10 @@ if( verbose ) {
       final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
 
       override def toString = "Mark(" + version + ")"
+
+      override def equals( that: Any ) : Boolean = {
+         (that.isInstanceOf[ MarkVertex[ _ ]] && (that.asInstanceOf[ MarkVertex[ _ ]].version == version))
+      }
    }
 
    sealed trait MarkRootVertex[ S <: Sys[ S ]] extends MarkVertex[ S ] {

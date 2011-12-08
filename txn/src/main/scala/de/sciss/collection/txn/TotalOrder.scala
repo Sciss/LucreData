@@ -622,26 +622,35 @@ object TotalOrder {
          new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
       }
 
-      def placeAfter( prev: A, key: A )( implicit tx: S#Tx ) : E = {
+      def placeAfter( prev: A, key: A )( implicit tx: S#Tx ) {
          val prevE = entryView( prev )
          val nextO = prevE.next
          placeBetween( prevE, new DefinedKey[ S, A ]( map, prev ), nextO.orNull, nextO, key )
       }
 
-      def placeBefore( next: A, key: A )( implicit tx: S#Tx ) : E = {
+      def placeBefore( next: A, key: A )( implicit tx: S#Tx ) {
          val nextE = entryView( next )
          val prevO = nextE.prev
          placeBetween( prevO.orNull, prevO, nextE, new DefinedKey[ S, A ]( map, next ), key )
       }
 
-      private[TotalOrder] def placeBetween( prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A )( implicit tx: S#Tx ) : E = {
+      private[TotalOrder] def placeBetween( prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A )( implicit tx: S#Tx ) {
          val prevTag       = if( prevE ne null ) prevE.tag else 0 // could use Int.MinValue+1, but that collides with Octree max space
          val nextTag       = if( nextE ne null ) nextE.tag else Int.MaxValue
          val recTag        = prevTag + ((nextTag - prevTag + 1) >>> 1)
+         val recE          = entryView( key ) // new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+
+         require( recE.tag == -1 && prevTag >=0 && nextTag >= 0, {
+            val msg = new StringBuilder()
+            if( recE.tag != -1 ) msg.append( "Placed key was already placed before. " )
+            if( prevTag < 0 )    msg.append( "Predecessor of placed key has not yet been placed. " )
+            if( nextTag < 0 )    msg.append( "Successor of placed key has not yet been placed. " )
+            msg.toString()
+         })
+
 //         val recTagVal     = system.newInt( recTag )
 //         val recPrevRef    = system.newVal[ KOpt ]( prevO )
 //         val recNextRef    = system.newVal[ KOpt ]( nextO )
-         val recE          = entryView( key ) // new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
          recE.updateTag( recTag )
          recE.updatePrev( prevO )
          recE.updateNext( nextO )
@@ -650,7 +659,6 @@ object TotalOrder {
          if( nextE ne null ) nextE.updatePrev( defK )
          sizeVal.transform( _ + 1 )
          if( recTag == nextTag ) relabel( key, recE )
-         recE
       }
 
 //      def validate( key: A )( implicit tx: S#Tx ) : Boolean = {

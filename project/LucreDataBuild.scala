@@ -105,6 +105,7 @@ object LucreDataBuild extends Build {
       pomExtra     := pomSettings,
 
 //      traceLevel   := 20,
+      testOptions in Test += Tests.Argument( "-oF" ),
 
       scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
    )
