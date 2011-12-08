@@ -331,10 +331,11 @@ object TotalOrder {
    // ---- Map ----
 
    object Map {
-      def empty[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ])
+      def empty[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ],
+                                     rootTag: Int = 0 )
          ( implicit tx: S#Tx, system: S, keySerializer: Serializer[ A ]) : Map[ S, A ] = {
 
-         new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver, entryView )
+         new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver, entryView, rootTag )
       }
 
       def reader[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ])
@@ -489,12 +490,12 @@ object TotalOrder {
 
    private final class MapNew[ S <: Sys[ S ], A ]( val id: S#ID, protected val sizeVal: S#Val[ Int ],
                                                    protected val observer: Map.RelabelObserver[ S#Tx, A ],
-                                                   val entryView: A => Map.Entry[ S, A ])
+                                                   val entryView: A => Map.Entry[ S, A ], rootTag: Int )
                                                  ( implicit tx: S#Tx, val system: S,
                                                    private[TotalOrder] val keySerializer: Serializer[ A ])
    extends Map[ S, A ] {
       val root: E = {
-         val tagVal  = system.newInt( 0 )
+         val tagVal  = system.newInt( rootTag )
          val prevRef = system.newVal[ KOpt ]( emptyKey )
          val nextRef = system.newVal[ KOpt ]( emptyKey )
          new Map.Entry[ S, A ]( this, system.newID(), tagVal, prevRef, nextRef )
@@ -629,7 +630,7 @@ object TotalOrder {
          val recNextRef    = system.newVal[ KOpt ]( nextO )
          val recE          = new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
          val defK          = new DefinedKey[ S, A ]( this, key )
-         if( nextE ne null ) prevE.updateNext( defK )
+         if( prevE ne null ) prevE.updateNext( defK )
          if( nextE ne null ) nextE.updatePrev( defK )
          sizeVal.transform( _ + 1 )
          if( recTag == nextTag ) relabel( key, recE )
@@ -753,7 +754,9 @@ object TotalOrder {
                   // seems now it is correct with the inclusion
                   // of last in the tag updating.
                   var curr = firstE
+println( "RELABEL num = " + num )
                   var cnt = 0; while( cnt < num ) {
+println( "RELABEL iter = " + cnt )
                      curr.updateTag( base )
                      val nextK   = curr.next.get
                      curr        = if( nextK == _recK ) _recE else entryView( nextK )

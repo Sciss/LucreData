@@ -6,7 +6,7 @@ import geom.{Point3D, DistanceMeasure3D, Cube, Space}
 import concurrent.stm.Ref
 import java.io.File
 import de.sciss.lucrestm.{Reader, Writer, BerkeleyDB, Sys, DataInput, DataOutput, Serializer, InMemory, Mutable}
-import annotation.{switch, tailrec}
+import annotation.tailrec
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -15,8 +15,8 @@ import annotation.{switch, tailrec}
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
-   val PARENT_LOOKUP          = false
-   val MARKED_ANCESTOR        = true
+   val PARENT_LOOKUP          = true
+   val MARKED_ANCESTOR        = false
    val NUM1                   = 10000  // tree size in PARENT_LOOKUP
    val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
@@ -38,7 +38,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    def seed : Long            = 0L
 
-   var verbose                = false
+   var verbose                = true
    val DEBUG_LAST             = false  // if enabled, switches to verbosity for the last element in the sequence
 
    if( INMEMORY ) {
@@ -98,11 +98,16 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    object FullTree {
       def apply[ S <: Sys[ S ]]()( implicit tx: S#Tx, system: S, smf: Manifest[ S ]) : FullTree[ S ] = {
-         import SpaceSerializers.CubeSerializer
          implicit val pointView = (p: FullVertex[ S ], tx: S#Tx) => p.toPoint( tx )
-         val cube    = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
-         lazy val orderObserver  = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
-         lazy val root: FullRootVertex[ S ] = new FullRootVertex[ S ] {
+         new FullTree[ S ] {
+            val cube    = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
+            val t = {
+               import SpaceSerializers.CubeSerializer
+               SkipOctree.empty[ S, Space.ThreeDim, FullVertex[ S ]]( cube )
+            }
+            val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
+            val preOrder      = TotalOrder.Map.empty[ S, FullVertexPre[ S ]]( orderObserver, _.order, 0 )
+            val postOrder     = TotalOrder.Map.empty[ S, FullVertex[ S ]]( orderObserver, _.post, Int.MaxValue - 1 )
             implicit val vertexSer : Serializer[ FullVertex[ S ]] = new Serializer[ FullVertex[ S ]] {
                def write( v: FullVertex[ S ], out: DataOutput ) { v.write( out )}
 
@@ -115,30 +120,32 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
                   }
                }
             }
-
-            lazy val preOrder            = TotalOrder.Map.empty[ S, FullVertexPre[ S ]]( orderObserver, _.order )
-            lazy val postOrder           = TotalOrder.Map.empty[ S, FullVertex[ S ]]( orderObserver, _.post )
-            lazy val pre: FullPreOrder[ S ] = preOrder.root
-      //         def post: FullOrder      = postO.root
-            lazy val post: FullPostOrder[ S ] = postOrder.insertAfter( this, this )
-//            postOrder.root.append( this )  // XXX
-            lazy val preTail: FullPreOrder[ S ] = preOrder.insertAfter( preHeadKey, preTailKey )
-            val version = 0
-            override def toString = "full-root"
+            val root: FullVertex[ S ] = new FullVertex[ S ] {
+               val pre: FullPreOrder[ S ]       = preOrder.root
+               val post: FullPostOrder[ S ]     = postOrder.root // insertAfter( this, this )
+               val preTail: FullPreOrder[ S ]   = preOrder.insertAfter( preHeadKey, preTailKey )
+               val version = 0
+               override def toString = "full-root"
+            }
+            t += root
          }
-         lazy val t = {
-            import root.vertexSer
-            SkipOctree.empty[ S, Space.ThreeDim, FullVertex[ S ]]( cube )
-         }
-         t += root
-         if( verbose ) println( "Full ins. root " + root.toPoint )
-         new FullTree( t, root )
       }
    }
-   final class FullTree[ S <: Sys[ S ]] private (
-      val t: SkipOctree[ S, Space.ThreeDim, FullVertex[ S ]],
-      val root: FullRootVertex[ S ]
-   ) {
+//   final class FullTree[ S <: Sys[ S ]] private (
+//      val t: SkipOctree[ S, Space.ThreeDim, FullVertex[ S ]],
+//      val root: FullRootVertex[ S ],
+//      val preOrder: TotalOrder.Map[ S, FullVertexPre[ S ]],
+//      val postOrder: TotalOrder.Map[ S, FullVertex[ S ]],
+//      val vertexSer: Serializer[ FullVertex[ S ]]
+//   ) {
+
+   sealed trait FullTree[ S <: Sys[ S ]] {
+      def t: SkipOctree[ S, Space.ThreeDim, FullVertex[ S ]]
+      def root: FullVertex[ S ]
+      def preOrder: TotalOrder.Map[ S, FullVertexPre[ S ]]
+      def postOrder: TotalOrder.Map[ S, FullVertex[ S ]]
+      def vertexSer: Serializer[ FullVertex[ S ]]
+
       private type V = FullVertex[ S ]
 
       private val versionCnt = Ref( 1 )
@@ -153,9 +160,9 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //            val pre     = parent.preTail.prepend( this ) // insertBefore( () )
 //            val preTail = pre.append( this )
 //            val post    = parent.post.prepend( this ) // insertBefore( () )
-            val pre     = root.preOrder.insertBefore( parent.preTailKey, preHeadKey )
-            val preTail = root.preOrder.insertAfter( preHeadKey, preTailKey )
-            val post    = root.postOrder.insertBefore( parent, this )
+            val pre     = preOrder.insertBefore( parent.preTailKey, preHeadKey )
+            val preTail = preOrder.insertAfter( preHeadKey, preTailKey )
+            val post    = postOrder.insertBefore( parent, this )
             val version = nextVersion()
          }
 
@@ -172,9 +179,9 @@ if( verbose ) {
 //            val pre     = parent.pre.append( this )
 //            val preTail = parent.preTail.prepend( this )
 //            val post    = parent.post.prepend( this )
-            val pre     = root.preOrder.insertAfter( parent.preHeadKey, preHeadKey )
-            val preTail = root.preOrder.insertBefore( parent.preTailKey, preTailKey )
-            val post    = root.postOrder.insertBefore( parent, this )
+            val pre     = preOrder.insertAfter( parent.preHeadKey, preHeadKey )
+            val preTail = preOrder.insertBefore( parent.preTailKey, preTailKey )
+            val post    = postOrder.insertBefore( parent, this )
             val version = nextVersion()
             override def toString = super.toString + "@r-ch"
          }
@@ -189,9 +196,9 @@ if( verbose ) {
 //            val pre     = child.pre.prepend( this )
 //            val preTail = child.preTail.append( this )
 //            val post    = child.post.append( this )
-            val pre     = root.preOrder.insertBefore( child.preHeadKey, preHeadKey )
-            val preTail = root.preOrder.insertAfter( child.preTailKey, preTailKey )
-            val post    = root.postOrder.insertAfter( child, this )
+            val pre     = preOrder.insertBefore( child.preHeadKey, preHeadKey )
+            val preTail = preOrder.insertAfter( child.preTailKey, preTailKey )
+            val post    = postOrder.insertAfter( child, this )
             val version = nextVersion()
             override def toString = super.toString + "@r-par"
          }
@@ -247,11 +254,11 @@ if( verbose ) {
       override def toString = "FullVertex(" + version + ")"
    }
 
-   sealed trait FullRootVertex[ S <: Sys[ S ]] extends FullVertex[ S ] {
-      implicit def vertexSer : Serializer[ FullVertex[ S ]]
-      def preOrder  : TotalOrder.Map[ S, FullVertexPre[ S ]]
-      def postOrder : TotalOrder.Map[ S, FullVertex[ S ]]
-   }
+//   sealed trait FullRootVertex[ S <: Sys[ S ]] extends FullVertex[ S ] {
+////      implicit def vertexSer : Serializer[ FullVertex[ S ]]
+////      def preOrder  : TotalOrder.Map[ S, FullVertexPre[ S ]]
+////      def postOrder : TotalOrder.Map[ S, FullVertex[ S ]]
+//   }
 
    final class RelabelObserver[ S <: Sys[ S ], V <: VertexLike[ S, V ]]( name: String,
                                                                       t: SkipOctree[ S, Space.ThreeDim, V ])
@@ -352,7 +359,7 @@ if( verbose ) {
 
             def read( in: DataInput ) : MarkVertex[ S ] = {
                new MarkVertex[ S ] {
-                  val full    = ft.root.vertexSer.read( in )
+                  val full    = ft.vertexSer.read( in )
                   val pre     = root.preOrder.readEntry( in )
                   val post    = root.postOrder.readEntry( in )
                }
