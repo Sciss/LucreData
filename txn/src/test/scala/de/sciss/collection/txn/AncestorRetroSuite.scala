@@ -30,7 +30,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    // individual structures are tested against BDB, seems not worth
    // ripping off the head to deal with this problem -- better create
    // a total order structure that doesn't have this distinction.
-   val DATABASE               = false
+   val DATABASE               = true
 
    val VERIFY_MARKTREE_CONTENTS = false   // be careful to not enable this with large TREE_SIZE (> some 1000)
    val PRINT_DOT              = false
@@ -38,7 +38,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    def seed : Long            = 0L
 
-   var verbose                = true
+   var verbose                = false
    val DEBUG_LAST             = false  // if enabled, switches to verbosity for the last element in the sequence
 
    if( INMEMORY ) {
@@ -88,12 +88,16 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    extends FullVertexPre[ S ] {
       def order = source.pre
       def id = 0
+
+      override def toString = source.toString + "<pre>"
    }
 
    final class FullVertexPreTail[ S <: Sys[ S ]]( val source: FullVertex[ S ])
    extends FullVertexPre[ S ] {
       def order = source.preTail
       def id = 1
+
+      override def toString = source.toString + "<pre-tail>"
    }
 
    object FullTree {
@@ -251,7 +255,7 @@ if( verbose ) {
 
       final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
 
-      override def toString = "FullVertex(" + version + ")"
+      override def toString = "Full(" + version + ")"
    }
 
 //   sealed trait FullRootVertex[ S <: Sys[ S ]] extends FullVertex[ S ] {
@@ -340,7 +344,7 @@ if( verbose ) {
 
       final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
 
-      override def toString = "MarkVertex(" + version + ")"
+      override def toString = "Mark(" + version + ")"
    }
 
    sealed trait MarkRootVertex[ S <: Sys[ S ]] extends MarkVertex[ S ] {
@@ -491,7 +495,7 @@ if( verbose ) {
       }
 
       if( PARENT_LOOKUP ) {
-         feature( "Tree parent node lookup should be possible in a octree representing pre-order, post-order and version" ) {
+         feature( "Tree parent node lookup should be possible in a " + sysName + " octree representing pre-order, post-order and version" ) {
             info( "The vertices of a tree are represented by their positions" )
             info( "in the tree's pre- and post-order traversals (as total orders), plus an incremental version." )
             info( "NN search is possible with these orders representing" )
@@ -551,7 +555,7 @@ if( verbose ) {
       }
 
       if( MARKED_ANCESTOR ) {
-         feature( "Marked ancestor lookup should be possible through isomorphic mapping between two quadtrees" ) {
+         feature( "Marked ancestor lookup should be possible through isomorphic mapping between two " + sysName + " octrees" ) {
             info( "Two trees are now maintained (as quadtrees with pre/post order coordinates)." )
             info( "One tree represents the full version tree, the other a subtree representing markers." )
             info( "Marked ancestor lookup is performed by translating a coordinate from the" )
@@ -561,7 +565,7 @@ if( verbose ) {
                implicit val system  = sysCreator()
                var success = false
                try {
-                  given( "a randomly filled tree, corresponding node orders and their quadtree" )
+                  given( "a randomly filled tree, corresponding node orders and their octree" )
                   given( "a random marking of a subset of the vertices" )
 
                   val gagaism = randomlyFilledTree( NUM2 )

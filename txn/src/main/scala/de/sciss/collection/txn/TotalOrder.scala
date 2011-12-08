@@ -369,7 +369,7 @@ object TotalOrder {
          def afterRelabeling(  inserted: A, clean: Iterator[ Tx, A ])( implicit tx: Tx ) {}
       }
 
-     final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
+      final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
          map: Map[ S, A ], val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Val[ KeyOption[ S, A ]],
          nextRef: S#Val[ KeyOption[ S, A ]])
       extends Mutable[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
@@ -377,6 +377,8 @@ object TotalOrder {
          private type KOpt = KeyOption[ S, A ]
 
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
+
+         override def toString() = "Entry" + id.toString
 
          private[TotalOrder] def prev( implicit tx: S#Tx ) : KOpt = prevRef.get
          private[TotalOrder] def next( implicit tx: S#Tx ) : KOpt = nextRef.get
@@ -449,6 +451,8 @@ object TotalOrder {
       def orNull : Map.Entry[ S, A ] = null
 
       def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
+
+      override def toString = "<empty>"
    }
 
    private[TotalOrder] final class DefinedKey[ S <: Sys[ S ], A ]( map: Map[ S, A ], val get: A )
@@ -461,6 +465,8 @@ object TotalOrder {
          out.writeUnsignedByte( 1 )
          map.keySerializer.write( get, out )
       }
+
+      override def toString = get.toString
    }
 
 //   private[TotalOrder] type KeyOption[ S <: Sys[ S ], A ] = KeyOption[ S, A ] with MutableOption[ S ]
@@ -562,6 +568,8 @@ object TotalOrder {
 
    sealed trait Map[ S <: Sys[ S ], A ] extends TotalOrder[ S ] {
       map =>
+
+      override def toString() = "TotalOrder.Map" + id.toString
 
       final type E                  = Map.Entry[ S, A ]
       final protected type KOpt     = KeyOption[ S, A ]
@@ -723,7 +731,7 @@ object TotalOrder {
             stepLeft()
 
             @tailrec def stepRight() {
-               val nextO = lastE.prev
+               val nextO = lastE.next
                if( nextO.isDefined ) {
                   val nextE = entryView( nextO.get )
                   if( (nextE.tag & mask) == base ) {
@@ -754,9 +762,9 @@ object TotalOrder {
                   // seems now it is correct with the inclusion
                   // of last in the tag updating.
                   var curr = firstE
-println( "RELABEL num = " + num )
+//println( "RELABEL num = " + num )
                   var cnt = 0; while( cnt < num ) {
-println( "RELABEL iter = " + cnt )
+//println( "RELABEL iter = " + cnt )
                      curr.updateTag( base )
                      val nextK   = curr.next.get
                      curr        = if( nextK == _recK ) _recE else entryView( nextK )
