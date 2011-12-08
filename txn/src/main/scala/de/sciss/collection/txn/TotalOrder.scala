@@ -26,8 +26,8 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{Serializer, MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
 import annotation.tailrec
+import de.sciss.lucrestm.{Writer, Serializer, MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
 
 
 /**
@@ -369,11 +369,11 @@ object TotalOrder {
       }
 
      final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
-         map: Map[ S, A ], val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Ref[ KOption[ S, A ]],
-         nextRef: S#Ref[ KOption[ S, A ]])
+         map: Map[ S, A ], val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Val[ KeyOption[ S, A ]],
+         nextRef: S#Val[ KeyOption[ S, A ]])
       extends Mutable[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
          private type E    = Entry[ S, A ]
-         private type KOpt = KOption[ S, A ]
+         private type KOpt = KeyOption[ S, A ]
 
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
 
@@ -421,14 +421,14 @@ object TotalOrder {
       }
    }
 
-   private[TotalOrder] sealed trait KeyOption[ S <: Sys[ S ], A ] {
-      private type KOpt = KOption[ S, A ]
+   private[TotalOrder] sealed trait KeyOption[ S <: Sys[ S ], A ] extends Writer {
+      private type KOpt = KeyOption[ S, A ]
 
 //         def tag( implicit tx: S#Tx ) : Int
 //         def updatePrev( e: KOpt )( implicit tx: S#Tx ) : Unit
 //         def updateNext( e: KOpt )( implicit tx: S#Tx ) : Unit
 //         def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
-      def orNull( map: Map[ S, A ]) : Map.Entry[ S, A ]
+      def orNull : Map.Entry[ S, A ]
       def isDefined: Boolean
       def isEmpty: Boolean
       def get : A
@@ -436,26 +436,33 @@ object TotalOrder {
 
    private[TotalOrder] final class EmptyKey[ S <: Sys[ S ], A ]
    extends KeyOption[ S, A ] with EmptyMutable {
-      private type KOpt = KOption[ S, A ]
+      private type KOpt = KeyOption[ S, A ]
 
-      def updatePrev( e: KOpt )( implicit tx: S#Tx ) {}
-      def updateNext( e: KOpt )( implicit tx: S#Tx ) {}
-      def updateTag( value: Int )( implicit tx: S#Tx ) { throw new NoSuchElementException( "EmptyKey.updateTag" )}
+//      def updatePrev( e: KOpt )( implicit tx: S#Tx ) {}
+//      def updateNext( e: KOpt )( implicit tx: S#Tx ) {}
+//      def updateTag( value: Int )( implicit tx: S#Tx ) { throw new NoSuchElementException( "EmptyKey.updateTag" )}
       def isDefined: Boolean = false
       def isEmpty: Boolean = true
       def get : A = throw new NoSuchElementException( "EmptyKey.get" )
       def tag( implicit tx: S#Tx ) = Int.MaxValue
-      def orNull( map: Map[ S, A ]) : Map.Entry[ S, A ] = null
+      def orNull : Map.Entry[ S, A ] = null
+
+      def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
    }
 
-   private[TotalOrder] final class DefinedKey[ S <: Sys[ S ], A ]( val get: A )
-   extends KeyOption[ S, A ] with Mutable[ S ] {
+   private[TotalOrder] final class DefinedKey[ S <: Sys[ S ], A ]( map: Map[ S, A ], val get: A )
+   extends KeyOption[ S, A ] {
       def isDefined: Boolean = true
       def isEmpty: Boolean = false
-      def orNull( map: Map[ S, A ]) : Map.Entry[ S, A ] = map.entryView( get )
+      def orNull : Map.Entry[ S, A ] = map.entryView( get )
+
+      def write( out: DataOutput ) {
+         out.writeUnsignedByte( 1 )
+         map.keySerializer.write( get, out )
+      }
    }
 
-   private[TotalOrder] type KOption[ S <: Sys[ S ], A ] = KeyOption[ S, A ] with MutableOption[ S ]
+//   private[TotalOrder] type KeyOption[ S <: Sys[ S ], A ] = KeyOption[ S, A ] with MutableOption[ S ]
 
    private final class MapReader[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ],
                                                       entryView: A => Map.Entry[ S, A ])
@@ -488,8 +495,8 @@ object TotalOrder {
    extends Map[ S, A ] {
       val root: E = {
          val tagVal  = system.newInt( 0 )
-         val prevRef = system.newOptionRef[ KOpt ]( Empty )( tx, EntryOptionReader )
-         val nextRef = system.newOptionRef[ KOpt ]( Empty )( tx, EntryOptionReader )
+         val prevRef = system.newVal[ KOpt ]( emptyKey )
+         val nextRef = system.newVal[ KOpt ]( emptyKey )
          new Map.Entry[ S, A ]( this, system.newID(), tagVal, prevRef, nextRef )
       }
    }
@@ -498,25 +505,28 @@ object TotalOrder {
    extends MutableReader[ S, Map.Entry[ S, A ]] {
 
       private type E    = Map.Entry[ S, A ]
-      private type KOpt = KOption[ S, A ]
-      import map.{system, EntryOptionReader, keySerializer}
+      private type KOpt = KeyOption[ S, A ]
 
       def readData( in: DataInput, id: S#ID ) : E = {
+         import map.{keyOptionSer, system}
          val tagVal  = system.readInt( in )
-         val prevRef = system.readOptionRef[ KOpt ]( in )
-         val nextRef = system.readOptionRef[ KOpt ]( in )
+         val prevRef = system.readVal[ KOpt ]( in )
+         val nextRef = system.readVal[ KOpt ]( in )
          new Map.Entry[ S, A ]( map, id, tagVal, prevRef, nextRef )
       }
    }
 
-   private final class KeyOptionReader[ S <: Sys[ S ], A ]( map: Map[ S, A ])
-   extends MutableOptionReader[ S, KOption[ S, A ]] {
-      private type KOpt = KOption[ S, A ]
+   private final class KeyOptionSerializer[ S <: Sys[ S ], A ]( map: Map[ S, A ])
+   extends Serializer[ KeyOption[ S, A ]] {
+      private type KOpt = KeyOption[ S, A ]
 
-      def empty: KOpt = Empty
-      def readData( in: DataInput, id: S#ID ) : KOpt = {
-         val key = map.keySerializer.read( in )
-         new DefinedKey( id, key )
+      def write( v: KOpt, out: DataOutput ) { v.write( out )}
+
+      def read( in: DataInput ) : KOpt = {
+         if( in.readUnsignedByte() == 0 ) map.emptyKey else {
+            val key = map.keySerializer.read( in )
+            new DefinedKey( map, key )
+         }
       }
    }
 
@@ -553,11 +563,12 @@ object TotalOrder {
       map =>
 
       final type E                  = Map.Entry[ S, A ]
-      final protected type KOpt     = KOption[ S, A ]
+      final protected type KOpt     = KeyOption[ S, A ]
 
-      final private[TotalOrder] val  Empty: KOpt = new EmptyKey[ S, A ]
+      final private[TotalOrder] val emptyKey: KOpt = new EmptyKey[ S, A ]
       final implicit val EntryReader: MutableReader[ S, E ] = new MapEntryReader[ S, A ]( this )
-      final private[TotalOrder] implicit val EntryOptionReader : MutableOptionReader[ S, KOpt ] = new MapEntryOptionReader[ S, A ]( this )
+//      final private[TotalOrder] implicit val EntryOptionReader : MutableOptionReader[ S, KOpt ] = new MapEntryOptionReader[ S, A ]( this )
+      final private[TotalOrder] implicit val keyOptionSer : Serializer[ KOpt ] = new KeyOptionSerializer[ S, A ]( this )
 
       protected def sizeVal: S#Val[ Int ]
       protected def observer: Map.RelabelObserver[ S#Tx, A ]
@@ -598,13 +609,13 @@ object TotalOrder {
       def insertAfter( prev: A, key: A )( implicit tx: S#Tx ) : E = {
          val prevE = entryView( prev )
          val nextO = prevE.next
-         insertBetween( prevE, new DefinedKey[ S, A ]( prev ), nextO.orNull( this ), nextO, key )
+         insertBetween( prevE, new DefinedKey[ S, A ]( map, prev ), nextO.orNull, nextO, key )
       }
 
       def insertBefore( next: A, key: A )( implicit tx: S#Tx ) : E = {
          val nextE = entryView( next )
          val prevO = nextE.prev
-         insertBetween( prevO.orNull( this ), prevO, nextE, new DefinedKey[ S, A ]( next ), key )
+         insertBetween( prevO.orNull, prevO, nextE, new DefinedKey[ S, A ]( map, next ), key )
       }
 
       private[TotalOrder] def insertBetween( prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A )( implicit tx: S#Tx ) : E = {
@@ -614,10 +625,10 @@ object TotalOrder {
          val nextTag       = if( nextE ne null ) nextE.tag else Int.MaxValue
          val recTag        = prevTag + ((nextTag - prevTag + 1) >>> 1)
          val recTagVal     = system.newInt( recTag )
-         val recPrevRef    = system.newOptionRef[ KOpt ]( prevO )
-         val recNextRef    = system.newOptionRef[ KOpt ]( nextO )
+         val recPrevRef    = system.newVal[ KOpt ]( prevO )
+         val recNextRef    = system.newVal[ KOpt ]( nextO )
          val recE          = new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
-         val defK          = new DefinedKey[ S, A ]( key )
+         val defK          = new DefinedKey[ S, A ]( this, key )
          if( nextE ne null ) prevE.updateNext( defK )
          if( nextE ne null ) nextE.updatePrev( defK )
          sizeVal.transform( _ + 1 )
@@ -637,8 +648,8 @@ object TotalOrder {
       private[TotalOrder] def remove( e: E )( implicit tx: S#Tx ) {
          val p = e.prev
          val n = e.next
-         if( p.isDefined ) p.orNull( this ).updateNext( n )
-         if( n.isDefined ) n.orNull( this ).updatePrev( p )
+         if( p.isDefined ) p.orNull.updateNext( n )
+         if( n.isDefined ) n.orNull.updatePrev( p )
          sizeVal.transform( _ - 1 )
       }
 
@@ -647,7 +658,7 @@ object TotalOrder {
       final def head( implicit tx: S#Tx ) : E = {
          @tailrec def step( e: E ) : E = {
             val prevO = e.prev
-            if( prevO.isEmpty ) e else step( prevO.orNull( this ))
+            if( prevO.isEmpty ) e else step( prevO.orNull )
          }
          step( root )
       }
@@ -658,7 +669,7 @@ object TotalOrder {
             b += e.tag
             val nextO = e.next
             if( nextO.isEmpty ) b.result() else {
-               step( nextO.orNull( this ))
+               step( nextO.orNull )
             }
          }
          step( from )
