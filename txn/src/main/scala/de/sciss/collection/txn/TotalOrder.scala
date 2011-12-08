@@ -27,6 +27,7 @@ package de.sciss.collection
 package txn
 
 import de.sciss.lucrestm.{Serializer, MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
+import annotation.tailrec
 
 
 /**
@@ -367,45 +368,20 @@ object TotalOrder {
          def afterRelabeling(  inserted: A, clean: Iterator[ Tx, A ])( implicit tx: Tx ) {}
       }
 
-      sealed trait KeyOption[ S <: Sys[ S ], A ] {
-         private type KOpt = KOption[ S, A ]
-
-         def tag( implicit tx: S#Tx ) : Int
-         private[TotalOrder] def updatePrev( e: KOpt )( implicit tx: S#Tx ) : Unit
-         private[TotalOrder] def updateNext( e: KOpt )( implicit tx: S#Tx ) : Unit
-         private[TotalOrder] def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
-         def orNull : A // Entry[ S, A ]
-      }
-
-      final class EmptyKey[ S <: Sys[ S ], @specialized( Unit, Boolean, Int, Long, Float, Double ) A ] private[TotalOrder]()
-      extends KeyOption[ S, A ] with EmptyMutable {
-         private type KOpt = KOption[ S, A ]
-
-         private[TotalOrder] def updatePrev( e: KOpt )( implicit tx: S#Tx ) {}
-         private[TotalOrder] def updateNext( e: KOpt )( implicit tx: S#Tx ) {}
-         def orNull : Entry[ S, A ] = null
-         private[TotalOrder] def updateTag( value: Int )( implicit tx: S#Tx ) {
-            sys.error( "Internal error - shouldn't be here" )
-         }
-         def tag( implicit tx: S#Tx ) = Int.MaxValue
-      }
-
-      private[TotalOrder] type KOption[ S, A ] = KeyOption[ S, A ] with MutableOption[ S ]
-
-      final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
+     final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
          map: Map[ S, A ], val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Ref[ KOption[ S, A ]],
          nextRef: S#Ref[ KOption[ S, A ]])
-      extends KeyOption[ S, A ] with Mutable[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
+      extends Mutable[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
          private type E    = Entry[ S, A ]
          private type KOpt = KOption[ S, A ]
 
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
 
-         def prev( implicit tx: S#Tx ) : KOpt = prevRef.get
-         def next( implicit tx: S#Tx ) : KOpt = nextRef.get
-         private[TotalOrder] def prevOrNull( implicit tx: S#Tx ) : A = prevRef.get.orNull
-         private[TotalOrder] def nextOrNull( implicit tx: S#Tx ) : A = nextRef.get.orNull
-         def orNull : E = this
+         private[TotalOrder] def prev( implicit tx: S#Tx ) : KOpt = prevRef.get
+         private[TotalOrder] def next( implicit tx: S#Tx ) : KOpt = nextRef.get
+//         private[TotalOrder] def prevOrNull( implicit tx: S#Tx ) : A = prevRef.get.orNull
+//         private[TotalOrder] def nextOrNull( implicit tx: S#Tx ) : A = nextRef.get.orNull
+//         def orNull : E = this
 
          private[TotalOrder] def updatePrev( e: KOpt )( implicit tx: S#Tx ) { prevRef.set( e )}
          private[TotalOrder] def updateNext( e: KOpt )( implicit tx: S#Tx ) { nextRef.set( e )}
@@ -432,9 +408,9 @@ object TotalOrder {
             tagVal.dispose()
          }
 
-         def append()( implicit tx: S#Tx ) : E = map.insertBetween( this, next )
-
-         def prepend()( implicit tx: S#Tx ) : E = map.insertBetween( prev, this )
+//         def append( key: A )( implicit tx: S#Tx ) : E = map.insertBetween( )
+//
+//         def prepend( key: A )( implicit tx: S#Tx ) : E = map.insertBefore( this, key )
 
          def remove()( implicit tx: S#Tx ) { map.remove( this )}
 
@@ -444,6 +420,42 @@ object TotalOrder {
          }
       }
    }
+
+   private[TotalOrder] sealed trait KeyOption[ S <: Sys[ S ], A ] {
+      private type KOpt = KOption[ S, A ]
+
+//         def tag( implicit tx: S#Tx ) : Int
+//         def updatePrev( e: KOpt )( implicit tx: S#Tx ) : Unit
+//         def updateNext( e: KOpt )( implicit tx: S#Tx ) : Unit
+//         def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
+      def orNull( map: Map[ S, A ]) : Map.Entry[ S, A ]
+      def isDefined: Boolean
+      def isEmpty: Boolean
+      def get : A
+   }
+
+   private[TotalOrder] final class EmptyKey[ S <: Sys[ S ], A ]
+   extends KeyOption[ S, A ] with EmptyMutable {
+      private type KOpt = KOption[ S, A ]
+
+      def updatePrev( e: KOpt )( implicit tx: S#Tx ) {}
+      def updateNext( e: KOpt )( implicit tx: S#Tx ) {}
+      def updateTag( value: Int )( implicit tx: S#Tx ) { throw new NoSuchElementException( "EmptyKey.updateTag" )}
+      def isDefined: Boolean = false
+      def isEmpty: Boolean = true
+      def get : A = throw new NoSuchElementException( "EmptyKey.get" )
+      def tag( implicit tx: S#Tx ) = Int.MaxValue
+      def orNull( map: Map[ S, A ]) : Map.Entry[ S, A ] = null
+   }
+
+   private[TotalOrder] final class DefinedKey[ S <: Sys[ S ], A ]( val get: A )
+   extends KeyOption[ S, A ] with Mutable[ S ] {
+      def isDefined: Boolean = true
+      def isEmpty: Boolean = false
+      def orNull( map: Map[ S, A ]) : Map.Entry[ S, A ] = map.entryView( get )
+   }
+
+   private[TotalOrder] type KOption[ S <: Sys[ S ], A ] = KeyOption[ S, A ] with MutableOption[ S ]
 
    private final class MapReader[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ],
                                                       entryView: A => Map.Entry[ S, A ])
@@ -486,7 +498,7 @@ object TotalOrder {
    extends MutableReader[ S, Map.Entry[ S, A ]] {
 
       private type E    = Map.Entry[ S, A ]
-      private type KOpt = Map.KOption[ S, A ]
+      private type KOpt = KOption[ S, A ]
       import map.{system, EntryOptionReader, keySerializer}
 
       def readData( in: DataInput, id: S#ID ) : E = {
@@ -497,47 +509,42 @@ object TotalOrder {
       }
    }
 
-   private final class MapEntryOptionReader[ S <: Sys[ S ], A ]( map: Map[ S, A ])
-   extends MutableOptionReader[ S, Map.KOption[ S, A ]] {
-      private type E    = Map.Entry[ S, A ]
-      private type KOpt = Map.KOption[ S, A ]
-      import map.{system, EntryReader, EntryOptionReader, Empty}
-
-      def read( in: DataInput ) : KOpt = system.readOptionMut[ KOpt ]( in )
+   private final class KeyOptionReader[ S <: Sys[ S ], A ]( map: Map[ S, A ])
+   extends MutableOptionReader[ S, KOption[ S, A ]] {
+      private type KOpt = KOption[ S, A ]
 
       def empty: KOpt = Empty
-      def readData( in: DataInput, id: S#ID ) : E = EntryReader.readData( in, id )
+      def readData( in: DataInput, id: S#ID ) : KOpt = {
+         val key = map.keySerializer.read( in )
+         new DefinedKey( id, key )
+      }
    }
 
    /*
     * A special iterator used for the relabel observer.
     */
-   private final class RelabelIterator[ S <: Sys[ S ], A ]( first: A, last: Map.Entry[ S, A ],
+   private final class RelabelIterator[ S <: Sys[ S ], A ]( recK: A, recE: Map.Entry[ S, A ],
+                                                            firstK: A, lastE: Map.Entry[ S, A ],
                                                             entryView: A => Map.Entry[ S, A ])
    extends Iterator[ S#Tx, A ] {
 
-      private var curr = first
+      private var currK = firstK
       var hasNext : Boolean = true
 
       def next()( implicit tx: S#Tx ) : A = {
          if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
-         val res     = curr
-         val currE   = entryView( curr )
-         if( currE == last ) {
+         val res     = currK
+         val currE   = if( currK == recK ) recE else entryView( currK )
+         if( currE == lastE ) {
             hasNext  = false
          } else {
-            curr = currE.nextOrNull
-//            // skip the newly inserted item if necessary
-//            // (since we request hat `excl ne last`, we
-//            // do not need to check the `curr eq last`
-//            // condition again here.
-//            if( curr eq excl ) curr = curr.nextOrNull
+            currK = currE.next.get
          }
          res
       }
 
       def reset() {
-         curr     = first
+         currK    = firstK
          hasNext  = true
       }
    }
@@ -546,9 +553,9 @@ object TotalOrder {
       map =>
 
       final type E                  = Map.Entry[ S, A ]
-      final protected type KOpt     = Map.KOption[ S, A ]
+      final protected type KOpt     = KOption[ S, A ]
 
-      final private[TotalOrder] val  Empty: KOpt = new Map.EmptyKey[ S, A ]
+      final private[TotalOrder] val  Empty: KOpt = new EmptyKey[ S, A ]
       final implicit val EntryReader: MutableReader[ S, E ] = new MapEntryReader[ S, A ]( this )
       final private[TotalOrder] implicit val EntryOptionReader : MutableOptionReader[ S, KOpt ] = new MapEntryOptionReader[ S, A ]( this )
 
@@ -574,53 +581,90 @@ object TotalOrder {
          root.write( out )
       }
 
-      private[TotalOrder] def insertBetween( p: KOpt, n: KOpt )( implicit tx: S#Tx ) : E = {
-//         val n          = p.next
-         val nextTag    = n.tag // if( next == null ) Int.MaxValue else next.tag
-         val recPrevRef = system.newOptionRef[ KOpt ]( p )
-         val recNextRef = system.newOptionRef[ KOpt ]( n )
-         val prevTag    = p.tag
-         val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal  = system.newInt( recTag )
-         val rec        = new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
-         p.updateNext( rec )
-         n.updatePrev( rec )
-         sizeVal.transform( _ + 1 )
-         if( recTag == nextTag ) relabel( rec )
-         rec
+//      private[TotalOrder] def insertAfter( prevE: E, key: A )( implicit tx: S#Tx ) : E = {
+//         val nextO      = prevE.next
+//         if( nextO.isDefined ) {
+//            entryView( nextO.get )
+//         } else null
+//         insertBetween( prevE, nextE, key )
+//      }
+
+//      private[TotalOrder] def insertBefore( nextE: E, key: A )( implicit tx: S#Tx ) : E = {
+//         val prevO      = nextE.prev
+//         val prevE      = if( prevO.isDefined ) entryView( prevO.get ) else null
+//         insertBetween( prevE, nextE, key )
+//      }
+
+      def insertAfter( prev: A, key: A )( implicit tx: S#Tx ) : E = {
+         val prevE = entryView( prev )
+         val nextO = prevE.next
+         insertBetween( prevE, new DefinedKey[ S, A ]( prev ), nextO.orNull( this ), nextO, key )
       }
+
+      def insertBefore( next: A, key: A )( implicit tx: S#Tx ) : E = {
+         val nextE = entryView( next )
+         val prevO = nextE.prev
+         insertBetween( prevO.orNull( this ), prevO, nextE, new DefinedKey[ S, A ]( next ), key )
+      }
+
+      private[TotalOrder] def insertBetween( prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A )( implicit tx: S#Tx ) : E = {
+//         val prevE         = if( prevO.isDefined ) entryView( prevO.get ) else null
+//         val nextE         = if( nextO.isDefined ) entryView( nextO.get ) else null
+         val prevTag       = if( prevE ne null ) prevE.tag else 0 // could use Int.MinValue+1, but that collides with Octree max space
+         val nextTag       = if( nextE ne null ) nextE.tag else Int.MaxValue
+         val recTag        = prevTag + ((nextTag - prevTag + 1) >>> 1)
+         val recTagVal     = system.newInt( recTag )
+         val recPrevRef    = system.newOptionRef[ KOpt ]( prevO )
+         val recNextRef    = system.newOptionRef[ KOpt ]( nextO )
+         val recE          = new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+         val defK          = new DefinedKey[ S, A ]( key )
+         if( nextE ne null ) prevE.updateNext( defK )
+         if( nextE ne null ) nextE.updatePrev( defK )
+         sizeVal.transform( _ + 1 )
+         if( recTag == nextTag ) relabel( key, recE )
+         recE
+      }
+
+//      def validate( key: A )( implicit tx: S#Tx ) : Boolean = {
+//         val rec     = entryView( key )
+//         val recTag  = rec.tag
+//         val nextTag = rec.next.tag
+//         val dirty   = recTag == nextTag
+//         if( dirty ) relabel( key, rec )
+//         dirty
+//      }
 
       private[TotalOrder] def remove( e: E )( implicit tx: S#Tx ) {
          val p = e.prev
          val n = e.next
-         p.updateNext( n )
-         n.updatePrev( p )
+         if( p.isDefined ) p.orNull( this ).updateNext( n )
+         if( n.isDefined ) n.orNull( this ).updatePrev( p )
          sizeVal.transform( _ - 1 )
       }
 
       final def size( implicit tx: S#Tx ) : Int = sizeVal.get
 
       final def head( implicit tx: S#Tx ) : E = {
-         var e = root
-         var p = e.prevOrNull
-         while( p ne null ) {
-            e = p
-            p = p.prevOrNull
+         @tailrec def step( e: E ) : E = {
+            val prevO = e.prev
+            if( prevO.isEmpty ) e else step( prevO.orNull( this ))
          }
-         e
+         step( root )
       }
 
       final def tagList( from: E )( implicit tx: S#Tx ) : List[ Int ] = {
-         val b       = List.newBuilder[ Int ]
-         var entry   = from
-         while( entry ne null ) {
-            b       += entry.tag
-            entry    = entry.nextOrNull
+         val b = List.newBuilder[ Int ]
+         @tailrec def step( e: E ) : List[ Int ] = {
+            b += e.tag
+            val nextO = e.next
+            if( nextO.isEmpty ) b.result() else {
+               step( nextO.orNull( this ))
+            }
          }
-         b.result()
+         step( from )
       }
 
-      /**
+      /*
        * Relabels from a this entry to clean up collisions with
        * its successors' tags.
        *
@@ -639,66 +683,76 @@ object TotalOrder {
        * multiplier dynamically to allow it to be as large as possible
        * without producing integer overflows."
        */
-      private def relabel( _first: E )( implicit tx: S#Tx ) {
+      private def relabel( _recK: A, _recE: E )( implicit tx: S#Tx ) {
          var mask       = -1
          var thresh     = 1.0
          var num        = 1
    //      val mul     = 2/((2*len(self))**(1/30.))
          val mul        = 2 / math.pow( size << 1, 1/30.0 )
-         var first      = _first
-         var last       = _first
-         var base       = _first.tag
+         var firstE     = _recE
+         var firstK     = _recK
+         var lastE      = _recE
+         var base       = _recE.tag
+
          do {
-            var prev    = first.prevOrNull
-            while( (prev ne null) && ((prev.tag & mask) == base) ) {
-               first    = prev
-               prev     = prev.prevOrNull
-               num     += 1
-            }
-            var next    = last.nextOrNull
-            while( (next ne null) && ((next.tag & mask) == base) ) {
-               last     = next
-               next     = next.nextOrNull
-               num     += 1
-            }
-   //         val inc = (mask + 1) / num
-            val inc = -mask / num
-
-            // important: we found a corner case where _first is the last
-            // element in the list with a value of 0x7FFFFFFF. in this
-            // case, if the predecessor is smaller in value, the original
-            // algorithm would immediately terminate with num == 1, which
-            // will obviously leave the tag unchanged! thus we must add
-            // the additional condition that num is greater than 1!
-            if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-               val inserted      = _first.value
-               val relabelIter   = new RelabelIterator( first, last )
-//println( ":::: ITER num = " + num )
-//relabelIter.foreach( println )
-//println( ":::: ITER done" )
-//relabelIter.reset()
-
-               observer.beforeRelabeling( inserted, relabelIter )
-//sys.error( "TODO" )
-
-   //            while( !(item eq last) ) {
-               // Note: this was probably a bug in Eppstein's code
-               // -- it ran for one iteration less which made
-               // the test suite fail for very dense tags. it
-               // seems now it is correct with the inclusion
-               // of last in the tag updating.
-               next = first
-               var cnt = 0; while( cnt < num ) {
-                  next.updateTag( base )
-                  next        = next.nextOrNull
-                  base       += inc
-                  cnt        += 1
+            @tailrec def stepLeft() {
+               val prevO = firstE.prev
+               if( prevO.isDefined ) {
+                  val prevK = prevO.get
+                  val prevE = entryView( prevK )
+                  if( (prevE.tag & mask) == base ) {
+                     firstE = prevE
+                     firstK = prevK
+                     num   += 1
+                     stepLeft()
+                  }
                }
-//sys.error( "TODO" )
-//               observer.afterRelabeling( first, num )
-               relabelIter.reset()
-               observer.afterRelabeling( inserted, relabelIter )
-               return
+            }
+            stepLeft()
+
+            @tailrec def stepRight() {
+               val nextO = lastE.prev
+               if( nextO.isDefined ) {
+                  val nextE = entryView( nextO.get )
+                  if( (nextE.tag & mask) == base ) {
+                     lastE = nextE
+                     num  += 1
+                     stepRight()
+                  }
+               }
+            }
+            stepRight()
+
+            if( num > 1 ) {
+               val inc = -mask / num
+
+               // important: we found a corner case where _first is the last
+               // element in the list with a value of 0x7FFFFFFF. in this
+               // case, if the predecessor is smaller in value, the original
+               // algorithm would immediately terminate with num == 1, which
+               // will obviously leave the tag unchanged! thus we must add
+               // the additional condition that num is greater than 1!
+               if( inc >= thresh ) {   // found rebalanceable range
+                  val relabelIter   = new RelabelIterator( _recK, _recE, firstK, lastE, entryView )
+                  observer.beforeRelabeling( _recK, relabelIter )
+
+                  // Note: this was probably a bug in Eppstein's code
+                  // -- it ran for one iteration less which made
+                  // the test suite fail for very dense tags. it
+                  // seems now it is correct with the inclusion
+                  // of last in the tag updating.
+                  var curr = firstE
+                  var cnt = 0; while( cnt < num ) {
+                     curr.updateTag( base )
+                     val nextK   = curr.next.get
+                     curr        = if( nextK == _recK ) _recE else entryView( nextK )
+                     base       += inc
+                     cnt        += 1
+                  }
+                  relabelIter.reset()
+                  observer.afterRelabeling( _recK, relabelIter )
+                  return
+               }
             }
             mask   <<= 1      // next coarse step
             base    &= mask
