@@ -16,24 +16,24 @@ import annotation.tailrec
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = true
-   val MARKED_ANCESTOR        = false
-   val NUM1                   = 4407 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
+   val MARKED_ANCESTOR        = true
+   val NUM1                   = 10000 // 4407 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
    val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
    val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
    val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 
-   val INMEMORY               = false // true
+   val INMEMORY               = true
    val DATABASE               = true
 
-   val VERIFY_MARKTREE_CONTENTS = true // be careful to not enable this with large TREE_SIZE (> some 1000)
+   val VERIFY_MARKTREE_CONTENTS = false // be careful to not enable this with large TREE_SIZE (> some 1000)
    val PRINT_DOT              = false
-   val PRINT_ORDERS           = true
+   val PRINT_ORDERS           = false  // to print out the pre- and post-order lists (enable for debugging only)
    val HUNT_DOWN_ORDER_BUGS   = false
 
    def seed : Long            = 0L
 
-   var verbose                = true
+   var verbose                = false
    val DEBUG_LAST             = false // if enabled, switches to verbosity for the last element in the sequence
 
    if( INMEMORY ) {
