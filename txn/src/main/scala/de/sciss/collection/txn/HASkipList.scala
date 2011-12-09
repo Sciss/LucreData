@@ -329,8 +329,6 @@ object HASkipList {
       }
 
       override def add( v: A )( implicit tx: S#Tx ) : Boolean = {
-//try {
-//         require( ordering.lt( v, maxKey ))
          val c = topN
          if( c eq null ) {
             val lkeys         = new Array[ A ]( 2 )
@@ -340,16 +338,13 @@ object HASkipList {
             /*Head.*/ downNode.set( l )
             true
          } else if( c.isLeaf ) {
-            addLeaf( v, impl, 0, impl, 0, c.asLeaf, true )
+            addToLeaf( v, impl, 0, impl, 0, c.asLeaf, true )
          } else {
-            addBranch( v, impl, 0, impl, 0, c.asBranch, true )
+            addToBranch( v, impl, 0, impl, 0, c.asBranch, true )
          }
-//} finally {
-//   println( "After adding " + v + " -> " + toList )
-//}
       }
 
-      private def addLeaf( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
+      private def addToLeaf( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
                            l: Leaf[ S, A ], isRight: Boolean )
                          ( implicit tx: S#Tx ) : Boolean = {
          val idx = if( isRight ) indexInNodeR( v, l ) else indexInNodeL( v, l )
@@ -371,7 +366,7 @@ object HASkipList {
          true
       }
 
-      @tailrec private def addBranch( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
+      @tailrec private def addToBranch( v: A, pp: HeadOrBranch[ S, A ], ppidx: Int, p: HeadOrBranch[ S, A ], pidx: Int,
                                       b: Branch[ S, A ], isRight: Boolean )
                                     ( implicit tx: S#Tx ) : Boolean = {
          val idx = if( isRight ) indexInNodeR( v, b ) else indexInNodeL( v, b )
@@ -405,9 +400,9 @@ object HASkipList {
 
          val c = bNew.down( idxNew )
          if( c.isLeaf ) {
-            addLeaf(   v, pNew, pidxNew, bNew, idxNew, c.asLeaf, isRightNew )
+            addToLeaf(   v, pNew, pidxNew, bNew, idxNew, c.asLeaf, isRightNew )
          } else {
-            addBranch( v, pNew, pidxNew, bNew, idxNew, c.asBranch, isRightNew )
+            addToBranch( v, pNew, pidxNew, bNew, idxNew, c.asBranch, isRightNew )
          }
       }
 
@@ -421,16 +416,16 @@ object HASkipList {
          if( c eq null ) {
             false
          } else if( c.isLeaf ) {
-            removeLeaf(   v, /* Head. */downNode, c.asLeaf, true )
+            removeFromLeaf(   v, /* Head. */downNode, c.asLeaf, true )
          } else {
-            removeBranch( v, /* Head. */ downNode, c.asBranch, true )
+            removeFromBranch( v, /* Head. */ downNode, c.asBranch, true )
          }
 //} finally {
 //   println( "After removing " + v + " -> " + toList )
 //}
       }
 
-      private def removeLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: LeafLike[ S, A ],
+      private def removeFromLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: LeafLike[ S, A ],
                               isRight: Boolean )( implicit tx: S#Tx ) : Boolean = {
          val idx     = if( isRight ) indexInNodeR( v, l ) else indexInNodeL( v, l )
          val found   = idx < 0
@@ -446,7 +441,7 @@ object HASkipList {
          found
       }
 
-      @tailrec private def removeBranch( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ],
+      @tailrec private def removeFromBranch( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ],
                                          isRight: Boolean )( implicit tx: S#Tx ) : Boolean = {
          val idx        = if( isRight ) indexInNodeR( v, b ) else indexInNodeL( v, b )
          val found      = idx < 0
@@ -579,9 +574,9 @@ object HASkipList {
 
 //         val bDown = bNew.downRef( bDownIdx )
          if( cNew.isLeafLike ) {
-            removeLeaf(   v, bDown, cNew.asLeafLike, isRightNew )
+            removeFromLeaf(   v, bDown, cNew.asLeafLike, isRightNew )
          } else {
-            removeBranch( v, bDown, cNew.asBranchLike, isRightNew )
+            removeFromBranch( v, bDown, cNew.asBranchLike, isRightNew )
          }
       }
 
