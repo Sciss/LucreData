@@ -33,8 +33,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    def seed : Long            = 0L
 
-   var verbose                = false
-   val DEBUG_LAST             = true // if enabled, switches to verbosity for the last element in the sequence
+   var verbose                = true
+   val DEBUG_LAST             = false // if enabled, switches to verbosity for the last element in the sequence
 
    if( INMEMORY ) {
       withSys[ InMemory ]( "Mem", () => new InMemory, (_, _) => () )

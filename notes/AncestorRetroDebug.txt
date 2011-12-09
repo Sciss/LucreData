@@ -400,3 +400,157 @@ two sources of problems with BDB versus InMem:
 [OK]	MarkVertex
 [OK]	FullVertexPre
 
+val id == 13912
+
+1. write : left branch sz 4
+2. write : left branch sz 6
+3. write
+v461 is retro child to 274
+RELABEL full - begin
+RELABEL full - Full(30)<pre-tail>@1063124992
+RELABEL full - Full(167)<pre-tail>@1063129088
+...
+RELABEL full - Full(55)<pre-tail>@1063182336
+RELABEL full - Full(45)<pre-tail>@1063190528
+RELABEL full - end
+RELABEL full + begin
+RELABEL full + Full(30)<pre-tail>@1063124992
+--> enter write
+--> left branch sz 3
+    keys: full(244)<8766>
+          full(22)<779>
+          full(219)<7833>
+    down: vals with ids 9849, 994, 9693
+
+4. write
+v461 is retro child to 274
+RELABEL full - begin
+RELABEL full - Full(30)<pre-tail>@1063124992
+RELABEL full - Full(167)<pre-tail>@1063129088
+...
+RELABEL full - Full(55)<pre-tail>@1063182336
+RELABEL full - Full(45)<pre-tail>@1063190528
+RELABEL full - end
+RELABEL full + begin
+RELABEL full + Full(30)<pre-tail>@1063124992
+RELABEL full + Full(167)<pre-tail>@1063127176
+...
+RELABEL full + Full(177)<pre-tail>@1063164304
+RELABEL full + Full(72)<pre-tail>@1063166488
+--> enter write
+branch size is now 7 (ouch!)
+
+5. write, in the same relabel+ :
+RELABEL full + Full(77)<pre>@1063168672
+RELABEL full + Full(84)<pre>@1063170856
+RELABEL full + Full(303)<pre>@1063173040
+--> enter write
+branch size is now 8 (!!!)
+
+6. write, in the same relabel+ :
+RELABEL full + Full(212)<pre>@1063175224
+RELABEL full + Full(212)<pre-tail>@1063177408
+RELABEL full + Full(303)<pre-tail>@1063179592
+RELABEL full + Full(431)<pre>@1063181776
+RELABEL full + Full(431)<pre-tail>@1063183960
+RELABEL full + Full(84)<pre-tail>@1063186144
+RELABEL full + Full(77)<pre-tail>@1063188328
+--> enter write
+(missed that one in the debugger)
+
+7. write, in the same relabel+ :
+RELABEL full + Full(100)<pre>@1063190512
+RELABEL full + Full(224)<pre>@1063192696
+RELABEL full + Full(224)<pre-tail>@1063194880
+RELABEL full + Full(274)<pre>@1063197064
+--> enter write
+branch size is now 9
+
+8. write, in the same relabel+ :
+RELABEL full + Full(461)<pre>@1063199248
+RELABEL full + Full(308)<pre>@1063201432
+RELABEL full + Full(308)<pre-tail>@1063203616
+RELABEL full + Full(274)<pre-tail>@1063207984
+RELABEL full + Full(100)<pre-tail>@1063210168
+--> enter write
+branch size is now 9
+
+9. write, in the same relabel+ :
+RELABEL full + Full(231)<pre>@1063212352
+RELABEL full + Full(262)<pre>@1063214536
+RELABEL full + Full(340)<pre>@1063216720
+--> enter write
+branch size is now 10
+
+10. write, in the same relabel+ :
+RELABEL full + Full(340)<pre-tail>@1063218904
+--> enter write
+branch size is now 9
+
+11. write, right after 10 it seems:
+(missed that one)
+
+12. write, in the same relabel+ :
+RELABEL full + Full(262)<pre-tail>@1063221088
+--> enter write
+branch size is now 9
+
+13. write, right after 12 it seems:
+--> enter write
+branch size is now 10
+
+14. write, in the same relabel+ :
+RELABEL full + Full(231)<pre-tail>@1063223272
+--> enter write
+branch size is now 9
+
+15. write, right after 14 it seems:
+--> enter write
+branch size is now 10
+
+16. write, in the same relabel+ :
+RELABEL full + Full(454)<pre>@1063225456
+RELABEL full + Full(454)<pre-tail>@1063227640
+RELABEL full + Full(58)<pre-tail>@1063229824
+RELABEL full + Full(190)<pre>@1063232008
+RELABEL full + Full(190)<pre-tail>@1063234192
+RELABEL full + Full(286)<pre>@1063236376
+branch size is now 11
+
+.....
+ok, tracing illegal small branch sizes
+
+Full ins. child Point3D(1073737216,2144862208,497) with parent Point3D(1073733632,2145386496,229)
+v498 is child to 216
+RELABEL full - begin
+RELABEL full - Full(16)<pre-tail>@1073217536
+RELABEL full - Full(28)<pre>@1073479680
+RELABEL full - Full(349)<pre>@1073512448
+RELABEL full - Full(439)<pre>@1073528832
+RELABEL full - Full(217)<pre>@1073545216
+RELABEL full - Full(269)<pre>@1073561600
+RELABEL full - Full(269)<pre-tail>@1073569792
+RELABEL full - Full(217)<pre-tail>@1073577984
+RELABEL full - Full(295)<pre>@1073594368
+RELABEL full - Full(323)<pre>@1073598464
+RELABEL full - Full(323)<pre-tail>@1073600512
+RELABEL full - Full(391)<pre>@1073601536
+--> enter write
+_right_ branch size is 2 (is not the 13912 branch)
+
+next: 13912 with size 11
+next: 13912 with size 10
+next: 13912 with size 9
+next: 13912 with size 8
+
+(switch off 13912 checks)
+
+v546 is child to 384
+RELABEL full - begin
+RELABEL full - Full(68)<pre>@993714176
+RELABEL full - Full(90)<pre>@993716224
+--> a right branch of size 2
+
+... again
+
+we end up at v4407 without anything else, so it seems that the branch of size 0 is not actually written yet?
