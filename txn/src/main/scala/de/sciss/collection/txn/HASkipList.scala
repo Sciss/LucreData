@@ -1238,6 +1238,7 @@ object HASkipList {
          val isRight = keys( sz1 ) == null
          val szi     = if( isRight ) sz1 else sz
          out.writeUnsignedByte( if( isRight ) 5 else 1 )
+// assert( sz > 0 )
          out.writeUnsignedByte( sz )
          var i = 0; while( i < szi ) {
             keySerializer.write( keys( i ), out )

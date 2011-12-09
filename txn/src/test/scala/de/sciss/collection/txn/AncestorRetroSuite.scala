@@ -17,19 +17,13 @@ import annotation.tailrec
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    val PARENT_LOOKUP          = true
    val MARKED_ANCESTOR        = false
-   val NUM1                   = 4406 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
+   val NUM1                   = 4407 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
    val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
    val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
    val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 
-   val INMEMORY               = false
-
-   // currently doesn't work. We've got a circular reference between
-   // TotalOrder.Map.Entry and FullVertex / MarkedVertex. Sine the
-   // individual structures are tested against BDB, seems not worth
-   // ripping off the head to deal with this problem -- better create
-   // a total order structure that doesn't have this distinction.
+   val INMEMORY               = false // true
    val DATABASE               = true
 
    val VERIFY_MARKTREE_CONTENTS = true // be careful to not enable this with large TREE_SIZE (> some 1000)
@@ -39,8 +33,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    def seed : Long            = 0L
 
-   var verbose                = true
-   val DEBUG_LAST             = false // if enabled, switches to verbosity for the last element in the sequence
+   var verbose                = false
+   val DEBUG_LAST             = true // if enabled, switches to verbosity for the last element in the sequence
 
    if( INMEMORY ) {
       withSys[ InMemory ]( "Mem", () => new InMemory, (_, _) => () )
@@ -217,7 +211,7 @@ if( verbose ) {
       }
 
       def insertRetroParent( child: V )( implicit tx: S#Tx ) : V = {
-         require( child ne root )
+         require( child != root )
          val v = new FullVertex[ S ] {
 //            val pre     = preOrder.insertBefore( child.preHeadKey, preHeadKey )
 //            val preTail = preOrder.insertAfter( child.preTailKey, preTailKey )
@@ -476,7 +470,9 @@ if( verbose ) {
             var children   = Map.empty[ FullVertex[ S ], Set[ FullVertex[ S ]]]
 
             for( i <- 1 to n ) {
-   if( DEBUG_LAST && i == n ) verbose = true
+   if( DEBUG_LAST && i == n ) {
+      verbose = true
+   }
    //            try {
                   val refIdx  = rnd.nextInt( i )
                   val ref     = treeSeq( refIdx )
@@ -762,8 +758,9 @@ if( verbose ) {
                   }
 
                   val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+         if( DEBUG_LAST ) verbose = false
                   treeSeq.zipWithIndex.foreach { case (child, i) =>
-         if( DEBUG_LAST ) verbose = child.version == 91
+         if( DEBUG_LAST && i == NUM2 - 1 ) verbose = true
                      val (found, parent, point) = system.atomic { implicit tx =>
                         val cfPre = child.pre
                         val (preIso, preIsoCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkVertex[ S ]] {

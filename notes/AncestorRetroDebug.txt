@@ -387,3 +387,16 @@ unless we want LucreSTM be forced to delay writing to the end of the Txn, which 
 
     order.insertAfter( parent.pre, child.pre)
     etc.
+
+:::::::::::::::::::::::::::::
+
+two sources of problems with BDB versus InMem:
+(1) object equality
+(2) serializers
+
+(1):
+[OK]	ref id
+[OK]	FullVertex
+[OK]	MarkVertex
+[OK]	FullVertexPre
+
