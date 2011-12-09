@@ -6,22 +6,27 @@ object LucreDataBuild extends Build {
       id        = "lucredata",
       base      = file( "." ),
       settings  = standardSettings,
-      aggregate = Seq( structs, views /*,  tests */ /*, full */ )
+//      aggregate = Seq( /* structsCore, viewsCore, */ structs, views /*,  tests */ /*, full */ )
+      aggregate = Seq( structsCore, txn, mutable, viewsCore, txnViews, mutableViews )
    )
 
-   lazy val structs = Project(
-      id        = "lucredata-structs",
-      base      = file( "." ),
-      settings  = standardSettings,
-      aggregate = Seq( mutable, txn )
-   )
-
-   lazy val views = Project(
-      id        = "lucredata-views",
-      base      = file( "." ),
-      settings  = standardSettings,
-      aggregate = Seq( mutableViews, txnViews )
-   )
+//   lazy val structs = Project(
+//      id        = "lucredata-structs",
+//      base      = file( "structs" ), // file( "." ),
+//      settings  = standardSettings,
+////      dependencies = Seq( structsCore, mutable, txn )
+////      aggregate = Seq( structsCore, mutable, txn )
+//      aggregate = Seq( structsCore, txn, mutable )
+//   )
+//
+//   lazy val views = Project(
+//      id        = "lucredata-views",
+//      base      = file( "views" ), // file( "." ),
+//      settings  = standardSettings,
+////      dependencies = Seq( mutableViews, txnViews )
+////      aggregate = Seq( structsCore, viewsCore, mutableViews, txnViews )
+//      aggregate = Seq( structsCore, txn, mutable, viewsCore, txnViews, mutableViews )
+//   )
 
    lazy val structsCore = Project(
       id        = "lucredata-structs-core",
@@ -97,7 +102,10 @@ object LucreDataBuild extends Build {
       organization    := "de.sciss",
       version         := "0.12",
       scalaVersion    := "2.9.1",
-      resolvers       += "itextpdf.com" at "http://maven.itextpdf.com",
+      resolvers       ++= Seq(
+         "itextpdf.com" at "http://maven.itextpdf.com",
+         "Oracle Repository" at "http://download.oracle.com/maven"
+      ),
       retrieveManaged := true,
       
       publishSetting,
