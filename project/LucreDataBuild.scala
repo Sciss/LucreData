@@ -6,7 +6,7 @@ object LucreDataBuild extends Build {
       id        = "lucredata",
       base      = file( "." ),
       settings  = standardSettings,
-      aggregate = Seq( structs, views, /* tests, */ full )
+      aggregate = Seq( structs, views /*,  tests */ /*, full */ )
    )
 
    lazy val structs = Project(
@@ -46,7 +46,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.10-SNAPSHOT",
+            "de.sciss" %% "lucrestm" % "0.10",
             "org.scalatest" %% "scalatest" % "1.6.1" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
@@ -85,17 +85,17 @@ object LucreDataBuild extends Build {
 //      settings     = standardSettings ++ Seq( ... )
 //   )
 
-   lazy val full = {
-      Project(
-         id           = "lucredata-full",
-         base         = file( "full" ),
-         dependencies = Seq( structs, views )
-      )
-   }
+//   lazy val full = {
+//      Project(
+//         id           = "lucredata-full",
+//         base         = file( "full" ),
+//         dependencies = Seq( structs, views )
+//      )
+//   }
 
    lazy val standardSettings = Defaults.defaultSettings ++ Seq(
       organization    := "de.sciss",
-      version         := "0.12-SNAPSHOT",
+      version         := "0.12",
       scalaVersion    := "2.9.1",
       resolvers       += "itextpdf.com" at "http://maven.itextpdf.com",
       retrieveManaged := true,
