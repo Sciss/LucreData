@@ -11,7 +11,7 @@ import java.io.File
 /**
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.TxnSkipListSuite
+ * test-only de.sciss.collection.txn.TxnSkipListSuite
  * }}
  */
 class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
@@ -60,8 +60,8 @@ class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
          println( f.getAbsolutePath )
          BerkeleyDB.open( f )
       }, bdb => {
-//         println( "FINAL DB SIZE = " + bdb.numUserRecords )
          val sz = bdb.numUserRecords
+//         println( "FINAL DB SIZE = " + sz )
          assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()
       })

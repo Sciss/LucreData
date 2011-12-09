@@ -441,17 +441,133 @@ object HASkipList {
          found
       }
 
+      @tailrec private def removeFromBranchAndBubble( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ],
+                                                      leafUpKey: A )( implicit tx: S#Tx ) : Boolean = {
+         val bsz        = b.size
+         val idxP       = bsz - 1   // that we know
+         val mns        = arrMinSz
+         val c          = b.down( idxP )
+         val cSz        = c.size
+
+         var bNew: Branch[ S, A ] = null
+         var bDownIdx         = idxP
+         var cNew: NodeLike[ S, A ] = c
+
+         keyObserver.keyDown( v )
+
+         // a merge or borrow is necessary either when we descend
+         // to a minimally filled child (because that child might
+         // need to shrink in the next step)
+         if( cSz == mns ) {
+//            val idxP1      = idxP + 1
+//            val bHasRight  = idxP1 < bsz
+
+            // merge with or borrow from the left
+            val idxPM1  = idxP - 1
+            val cSib    = b.down( idxPM1 )
+            val cSibSz  = cSib.size
+
+            val downKey    = b.key( idxPM1 )
+            keyObserver.keyDown( downKey )
+
+            if( cSibSz == mns ) {                           // merge with the left
+               // The parent needs to remove the
+               // entry of the left sibling.
+               bNew        = b.removeColumn( idxPM1 )
+               bNew.setKey( idxPM1, leafUpKey )
+//                  system.disposeRef( b.downRef( idxPM1 ))
+               b.downRef( idxPM1 ).dispose()
+               bDownIdx    = idxPM1
+               cNew        = c.virtualize( ModMergeLeft, cSib )
+            } else {                                        // borrow from the left
+               // the parent needs to update the key for the
+               // left sibling to match the before-last key in
+               // the left sibling.
+               val upKey   = cSib.key( cSibSz - 2 )
+               bNew        = b.updateKey( idxPM1, upKey )
+               bNew.setKey( idxP, leafUpKey )
+               keyObserver.keyUp( upKey )
+//                  bDownIdx    = idxP
+               val bDown1  = b.downRef( idxPM1 )
+               bDown1.set( cSib.removeColumn( cSibSz - 1 ))
+               cNew        = c.virtualize( ModBorrowFromLeft, cSib )
+            }
+         } else {
+//            bNew  = b.devirtualize
+            bNew  = b.updateKey( idxP, leafUpKey )
+         }
+
+         keyObserver.keyUp( leafUpKey )
+
+         // branch changed
+         val bDown =  if( bNew.size > 1 ) {
+            pDown.set( bNew ) // update down ref from which it came
+            bNew.downRef( bDownIdx )
+         } else {
+            // unfortunately we do not have `p`
+//               assert( p == Head )
+            bNew.downRef( 0 ).dispose()
+            pDown
+         }
+
+//         val bDown = bNew.downRef( bDownIdx )
+         if( cNew.isLeafLike ) {
+            removeFromLeaf( v, bDown, cNew.asLeafLike, false )
+         } else {
+            removeFromBranchAndBubble( v, bDown, cNew.asBranchLike, leafUpKey )
+         }
+      }
+
       @tailrec private def removeFromBranch( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ],
                                          isRight: Boolean )( implicit tx: S#Tx ) : Boolean = {
          val idx        = if( isRight ) indexInNodeR( v, b ) else indexInNodeL( v, b )
          val found      = idx < 0
          val idxP       = if( found ) -(idx + 1) else idx
          val bsz        = b.size
-         var isRightNew = isRight && (idxP == bsz - 1)
+         val mns        = arrMinSz
          val c          = b.down( idxP )
-         val cIdx       = if( isRightNew ) indexInNodeR( v, c ) else indexInNodeL( v, c )
-         val cFound     = cIdx < 0
-         val cSz        = if( cFound ) c.size - 1 else c.size
+         val cSz        = /* if( cFound ) c.size - 1 else */ c.size
+
+         // if v is found, it will appear in right-most position in all following children.
+         // there are two possibilities:
+         // (1) a borrow-from-right or merge-with-right is performed. in this case,
+         //     v is overwritten in the current branch, thus keep going normally
+         //     (no need to specially treat the branch).
+         // (2) none of these two operations are performed (because either the child size
+         //     is greater than minimum, or v appears in right-most position in b (causing a left op).
+         //     -- is this second case possible? no, because we would have encountered
+         //     case (1) in the previous iteration, that is, a borrow-from-right or merge-
+         //     with-right would have been performed, and thus v cannot appear in right-most
+         //     position, and there cannot be a left op.
+         // Therefore, we only need to specially treat case (2), that is `cSz > mns`!
+         if( found && cSz > mns ) {
+            // we are here, because the key was found and it would appear in the right-most position
+            // in the child, unless we treat it specially here, by finding the key that will bubble
+            // up!
+            @tailrec def findUpKey( n: NodeLike[ S, A ]) : A = {
+               if( n.isLeafLike ) {
+                  n.key( n.size - 2 )
+               } else {
+                  findUpKey( n.asBranchLike.down( n.size - 1 ))
+               }
+            }
+            val leafUpKey = findUpKey( c )
+            keyObserver.keyDown( v )
+            val bNew  = b.updateKey( idxP, leafUpKey )
+            keyObserver.keyUp( leafUpKey )
+
+            pDown.set( bNew ) // update down ref from which we came
+            val bDown = bNew.downRef( idxP )
+            return if( c.isLeafLike ) {
+               removeFromLeaf( v, bDown, c.asLeafLike, false )
+            } else {
+               removeFromBranchAndBubble( v, bDown, c.asBranchLike, leafUpKey )
+            }
+         }
+
+         var isRightNew = isRight && (idxP == bsz - 1)
+//         val cIdx       = if( isRightNew ) indexInNodeR( v, c ) else indexInNodeL( v, c )
+//         val cFound     = cIdx < 0
          // if the key was found in the last element of the child,
          // (-(cIdx+1) == cSz), this implies that it was found in
          // the current branch, thus `found` will be true.
@@ -461,16 +577,10 @@ object HASkipList {
          var bDownIdx         = idxP
          var cNew: NodeLike[ S, A ] = c
 
-         // a merge or borrow is necesary either when we descend
+         // a merge or borrow is necessary either when we descend
          // to a minimally filled child (because that child might
-         // need to shrink in the next step), or when the key was
-         // found in the current branch, because then the key will
-         // appear as the last element of the child -- and we
-         // prevent further problems with an early borrow-to-right
-         // if necessary.
-         // ; note that `cSz` can be `< arrMinSz` due to a found key already being accounted for (`c.size - 1`)!
-         val mns = arrMinSz
-         if( found /* cFound */ || (cSz <= mns) ) {
+         // need to shrink in the next step)
+         if( cSz == mns ) {
             val idxP1      = idxP + 1
             val bHasRight  = idxP1 < bsz
             if( bHasRight ) {                                  // merge with or borrow from/to the right
@@ -492,7 +602,8 @@ object HASkipList {
 //                  bDownIdx    = idxP
                   cNew        = c.virtualize( ModMergeRight, cSib )
                   isRightNew  = isRight && (idxP == bsz - 2) // ! we might be in the right-most branch now
-               } else if( cSibSz > mns ) {                     // borrow from the right
+               } else {                                      // borrow from the right
+                  assert( cSibSz > mns )
                   // update the key index idxP of the
                   // originating sibling to match the first key in
                   // the right sibling
@@ -503,21 +614,6 @@ object HASkipList {
                   val bDown1  = b.downRef( idxP1 )
                   bDown1.set( cSib.removeColumn( 0 ))
                   cNew        = c.virtualize( ModBorrowFromRight, cSib )
-               } else {                                        // borrow to the right
-//                  assert( cFound )
-                  // Like in a normal borrow, both parents' downs need
-                  // update, but identifiers are kept. The parent needs
-                  // to update the key for the originating sibling to
-                  // match the before-last key in the originating sibling
-                  // (or the new last key in the new originating sibling).
-                  val upKey   = c.key( cSz - 1 )               // note that, since cFound == true, cSz := c.size - 1 !
-                  bNew        = b.updateKey( idxP, upKey )
-                  keyObserver.keyUp( upKey )
-                  bDownIdx    = idxP1     // we borrowed _to_ the right, hence traverse this way!
-                  val bDown1  = b.downRef( idxP )
-                  bDown1.set( c.removeColumn( cSz ))
-                  cNew        = c.virtualize( ModBorrowToRight, cSib )
-                  isRightNew  = isRight && (idxP == bsz - 2) // ! we might be in the right-most branch now
                }
 
             } else {                                           // merge with or borrow from the left
@@ -533,7 +629,7 @@ object HASkipList {
                val downKey    = b.key( idxPM1 )
                keyObserver.keyDown( downKey )
 
-               if( cSibSz == mns ) {                      // merge with the left
+               if( cSibSz == mns ) {                           // merge with the left
                   // The parent needs to remove the
                   // entry of the left sibling.
                   bNew        = b.removeColumn( idxPM1 )
@@ -1099,6 +1195,16 @@ object HASkipList {
       def isBranch : Boolean = true
       def asLeaf   : Leaf[ S, A ]   = opNotSupported
       def asBranch : Branch[ S, A ] = this
+
+      /**
+       * Utility method for bubbling -- this overwrites the
+       * key entry in the array, instead of creating a new
+       * `Branch`. Thus use only before writing this branch
+       * anywhere!!!
+       */
+      private[HASkipList] def setKey( idx: Int, k: A ) {
+         keys( idx ) = k
+      }
 
       private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]) : Branch[ S, A ] = this
 
