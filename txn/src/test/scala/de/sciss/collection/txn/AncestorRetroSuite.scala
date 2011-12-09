@@ -15,26 +15,27 @@ import annotation.tailrec
  * }}
  */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
-   val PARENT_LOOKUP          = false  // true
-   val MARKED_ANCESTOR        = true
-   val NUM1                   = 300 // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
+   val PARENT_LOOKUP          = true
+   val MARKED_ANCESTOR        = false
+   val NUM1                   = 4406 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
    val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
    val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
    val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
    val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 
-   val INMEMORY               = true
+   val INMEMORY               = false
 
    // currently doesn't work. We've got a circular reference between
    // TotalOrder.Map.Entry and FullVertex / MarkedVertex. Sine the
    // individual structures are tested against BDB, seems not worth
    // ripping off the head to deal with this problem -- better create
    // a total order structure that doesn't have this distinction.
-   val DATABASE               = false  // true
+   val DATABASE               = true
 
    val VERIFY_MARKTREE_CONTENTS = true // be careful to not enable this with large TREE_SIZE (> some 1000)
    val PRINT_DOT              = false
    val PRINT_ORDERS           = true
+   val HUNT_DOWN_ORDER_BUGS   = false
 
    def seed : Long            = 0L
 
@@ -75,7 +76,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          }
       }
    }
-   sealed trait FullVertexPre[ S <: Sys[ S ]] extends Writer with VertexSource[ FullVertex[ S ]] {
+   sealed trait FullVertexPre[ S <: Sys[ S ]] extends Writer with VertexSource[ S, FullVertex[ S ]] {
       def order: FullPreOrder[ S ]
       def id: Int
       final def write( out: DataOutput ) {
@@ -96,6 +97,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def id = 0
 
       override def toString = source.toString + "<pre>"
+      def debugString( implicit tx: S#Tx ) = toString + "@" + source.pre.tag
    }
 
    final class FullVertexPreTail[ S <: Sys[ S ]]( val source: FullVertex[ S ])
@@ -104,6 +106,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def id = 1
 
       override def toString = source.toString + "<pre-tail>"
+      def debugString( implicit tx: S#Tx ) = toString + "@" + source.preTail.tag
    }
 
    object FullTree {
@@ -178,11 +181,11 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val preTail = preOrder.insert()
             val post    = postOrder.insert()
             val version = nextVersion()
+//if( version == 411 ) {
+//   println( "AHAAAA" )
+//}
             preOrder.placeBefore( parent.preTailKey, preHeadKey )
             postOrder.placeBefore( parent, this )
-if( version == 411 ) {
-   println( "AHAAAA" )
-}
             preOrder.placeAfter( preHeadKey, preTailKey )   // preTailKey must come last!
          }
 
@@ -247,9 +250,12 @@ if( verbose ) {
    type FullPreOrder[ S <: Sys[ S ]]  = TotalOrder.Map.Entry[ S, FullVertexPre[ S ]]
    type FullPostOrder[ S <: Sys[ S ]] = TotalOrder.Map.Entry[ S, FullVertex[ S ]]
 
-   sealed trait VertexSource[ V ] { def source: V }
+   sealed trait VertexSource[ S <: Sys[ S ], V ] {
+      def source: V
+      def debugString( implicit tx: S#Tx ) : String
+   }
 
-   sealed trait VertexLike[ S <: Sys[ S ], Repr ] extends Writer with VertexSource[ Repr ] {
+   sealed trait VertexLike[ S <: Sys[ S ], Repr ] extends Writer with VertexSource[ S, Repr ] {
       def version : Int
       def toPoint( implicit tx: S#Tx ) : Point3D
    }
@@ -281,6 +287,8 @@ if( verbose ) {
 
       final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
 
+      final def debugString( implicit tx: S#Tx ) = toString + "<post>@" + post.tag
+
       override def toString = "Full(" + version + ")"
    }
 
@@ -292,15 +300,15 @@ if( verbose ) {
 
    final class RelabelObserver[ S <: Sys[ S ], V <: VertexLike[ S, V ]]( name: String,
                                                                       t: SkipOctree[ S, Space.ThreeDim, V ])
-   extends TotalOrder.Map.RelabelObserver[ S#Tx, VertexSource[ V ]] {
-      def beforeRelabeling( /* v0s: VertexSource[ V ], */ iter: Iterator[ S#Tx, VertexSource[ V ]])( implicit tx: S#Tx ) {
+   extends TotalOrder.Map.RelabelObserver[ S#Tx, VertexSource[ S, V ]] {
+      def beforeRelabeling( /* v0s: VertexSource[ V ], */ iter: Iterator[ S#Tx, VertexSource[ S, V ]])( implicit tx: S#Tx ) {
          if( verbose ) println( "RELABEL " + name + " - begin" )
 //         val v0 = v0s.source
          iter.foreach { vs =>
             val v = vs.source
 //            if( v ne v0 ) {
                if( verbose ) {
-                  val str = try { v.toPoint } catch { case np: NullPointerException =>
+                  val str = try { vs.debugString } catch { case np: NullPointerException =>
                   "<null>"
                   }
                   println( "RELABEL " + name + " - " + str )
@@ -315,14 +323,14 @@ if( verbose ) {
          }
          if( verbose ) println( "RELABEL " + name + " - end" )
       }
-      def afterRelabeling( /* v0s: VertexSource[ V ], */ iter: Iterator[ S#Tx, VertexSource[ V ]])( implicit tx: S#Tx ) {
+      def afterRelabeling( /* v0s: VertexSource[ V ], */ iter: Iterator[ S#Tx, VertexSource[ S, V ]])( implicit tx: S#Tx ) {
          if( verbose ) println( "RELABEL " + name + " + begin" )
 //         val v0 = v0s.source
          iter.foreach { vs =>
             val v = vs.source
 //            if( v ne v0 ) {
                if( verbose ) {
-                  val str = try { v.toPoint } catch { case np: NullPointerException =>
+                  val str = try { vs.debugString } catch { case np: NullPointerException =>
                   "<null>"
                   }
                   println( "RELABEL " + name + " + " + str )
@@ -372,6 +380,8 @@ if( verbose ) {
 
       override def toString = "Mark(" + version + ")"
 
+      def debugString( implicit tx: S#Tx ) = toString
+
       override def equals( that: Any ) : Boolean = {
          (that.isInstanceOf[ MarkVertex[ _ ]] && (that.asInstanceOf[ MarkVertex[ _ ]].version == version))
       }
@@ -403,7 +413,7 @@ if( verbose ) {
             implicit val vertexSer = _vertexSer
             def full       = ft.root
             lazy val preOrder   = TotalOrder.Map.empty[ S, MarkVertex[ S ]]( orderObserver, _.pre )
-            lazy val postOrder  = TotalOrder.Map.empty[ S, MarkVertex[ S ]]( orderObserver, _.post )
+            lazy val postOrder  = TotalOrder.Map.empty[ S, MarkVertex[ S ]]( orderObserver, _.post, rootTag = Int.MaxValue )
 //            lazy val pre: MarkOrder[ S ]  = preOrder.root
 //            lazy val post: MarkOrder[ S ] = postOrder.root.append( this )
             lazy val pre: MarkOrder[ S ]  = preOrder.root
@@ -505,6 +515,15 @@ if( verbose ) {
    //                  println( "(for i = " + i + ")" )
    //                  throw e
    //            }
+
+               if( HUNT_DOWN_ORDER_BUGS ) {
+                  treeSeq.foreach { v =>
+                     v.pre.validate( "pre " + i )
+                     v.post.validate( "post " + i )
+                     v.preTail.validate( "preTail " + i )
+                  }
+               }
+
             }
             (tr, treeSeq, parents)
          }

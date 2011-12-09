@@ -393,6 +393,18 @@ object TotalOrder {
 
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
 
+def validate( msg: => String )( implicit tx: S#Tx ) {
+   val recTag  = tag
+   if( prev.isDefined ) {
+      val prevTag = map.entryView( prev.get ).tag
+      assert( prevTag < recTag, "prev " + prevTag + " >= rec " + recTag + " - " + msg )
+   }
+   if( next.isDefined ) {
+      val nextTag = map.entryView( next.get ).tag
+      assert( recTag < nextTag, "rec " + recTag+ " >= next " + nextTag + " - " + msg )
+   }
+}
+
          override def toString() = "Entry" + id.toString
 
          private[TotalOrder] def prev( implicit tx: S#Tx ) : KOpt = prevRef.get
@@ -650,6 +662,9 @@ object TotalOrder {
       private[TotalOrder] def placeBetween( prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A )( implicit tx: S#Tx ) {
          val prevTag       = if( prevE ne null ) prevE.tag else 0 // could use Int.MinValue+1, but that collides with Octree max space
          val nextTag       = if( nextE ne null ) nextE.tag else Int.MaxValue
+
+assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next is " + nextTag )
+
          val recTag        = prevTag + ((nextTag - prevTag + 1) >>> 1)
          val recE          = entryView( key ) // new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
 
@@ -786,9 +801,9 @@ object TotalOrder {
                if( inc >= thresh ) {   // found rebalanceable range
                   val numM1 = num - 1
                   val relabelIter = if( recOff == 0 ) {
-                     new RelabelIterator( recOff + 1, numM1, recE, firstK, entryView )
+                     new RelabelIterator( -1, numM1, recE, firstE.next.get, entryView )
                   } else {
-                     new RelabelIterator( recOff, if( recOff == numM1 ) numM1 else num, recE, firstK, entryView )
+                     new RelabelIterator( recOff, numM1, /* if( recOff == numM1 ) numM1 else num, */ recE, firstK, entryView )
                   }
                   observer.beforeRelabeling( /* recK, */ relabelIter )
 
@@ -801,9 +816,9 @@ object TotalOrder {
                   var cnt = 0; while( cnt < num ) {
                      curr.updateTag( base )
                      val nextK   = curr.next.get
-                     curr        = if( cnt == recOff ) recE else entryView( nextK )
                      base       += inc
                      cnt        += 1
+                     curr        = if( cnt == recOff ) recE else entryView( nextK )
                   }
                   relabelIter.reset()
                   observer.afterRelabeling( /* recK, */ relabelIter )
