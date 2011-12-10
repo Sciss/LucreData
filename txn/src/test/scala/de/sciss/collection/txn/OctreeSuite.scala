@@ -13,10 +13,10 @@ import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
  *
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.TxnOctreeSuite
+ * test-only de.sciss.collection.tx.OctreeSuite
  * }}
  */
-class TxnOctreeSuite extends FeatureSpec with GivenWhenThen {
+class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
    val RANGE_SEARCH  = true
    val NN_SEARCH     = true

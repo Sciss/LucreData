@@ -146,7 +146,7 @@ extends SkipOctree[ S, D, A ] {
 
    import DeterministicSkipOctree.{SER_VERSION, opNotSupported}
 
-   private type Order = TotalOrder.Set[ S ]#Entry
+   private type Order = TotalOrder.Set.Entry[ S ]
 
    implicit def system: S
    implicit def space: D

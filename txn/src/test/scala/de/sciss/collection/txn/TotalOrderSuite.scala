@@ -8,10 +8,10 @@ import java.io.File
 /**
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.TxnTotalOrderSuite
+ * test-only de.sciss.collection.txn.TotalOrderSuite
  * }}
  */
-class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
+class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
    val MONITOR_LABELING = false
    val INMEMORY         = true
    val DATABASE         = true
@@ -83,7 +83,7 @@ class TxnTotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                val set = system.atomic { implicit tx =>
                   var e = to.root
-                  var coll = Set[ to.Entry ]() // ( e )
+                  var coll = Set[ TotalOrder.Set.Entry[ S ]]() // ( e )
                   for( i <- 1 until n ) {
 //if( (i % 1000) == 0 ) println( "i = " + i )
                      if( rnd.nextBoolean() ) {

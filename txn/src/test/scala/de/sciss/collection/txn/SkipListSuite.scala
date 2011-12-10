@@ -11,10 +11,10 @@ import java.io.File
 /**
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.txn.TxnSkipListSuite
+ * test-only de.sciss.collection.txn.SkipListSuite
  * }}
  */
-class TxnSkipListSuite extends FeatureSpec with GivenWhenThen {
+class SkipListSuite extends FeatureSpec with GivenWhenThen {
    val CONSISTENCY   = true
    val OBSERVATION   = true
    val REMOVAL       = true
