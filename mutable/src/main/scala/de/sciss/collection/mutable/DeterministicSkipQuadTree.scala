@@ -29,7 +29,7 @@ package mutable
 import geom.Space
 
 /**
- * A thin factory for a 2D octree aka quadtree.
+ * A thin factory for a 2D Octree aka Quadtree.
  */
 object DeterministicSkipQuadtree {
    import Space.TwoDim
