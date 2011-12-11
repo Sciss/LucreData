@@ -78,7 +78,8 @@ object InteractiveSkipListView extends App with Runnable {
       f.setVisible( true )
    }
 }
-class InteractiveSkipListView[ S <: Sys[ S ]]( _create: SkipList.KeyObserver[ S#Tx, Int ] => HASkipList[ S, Int ])
+class InteractiveSkipListView[ S <: Sys[ S ]]( _create: SkipList.KeyObserver[ S#Tx, Int ] => HASkipList[ S, Int ])(
+   implicit system: S )
 extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
    view =>
 
@@ -125,7 +126,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
    def butAddRemove( name: String )( fun: (S#Tx, Int) => Boolean ) { but( name ) { tryNum { i =>
       obsUp = IndexedSeq.empty
       obsDn = IndexedSeq.empty
-      val res = l.system.atomic( tx => fun( tx, i ))
+      val res = system.atomic( tx => fun( tx, i ))
       status( res.toString )
       slv.highlight = (obsUp.map( _ -> colrGreen ) ++ obsDn.map( _ -> Color.red )).toMap + (i -> Color.blue)
    }}}
@@ -142,7 +143,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
    }
 
    but( "Contains" ) { tryNum { key =>
-      val res = l.system.atomic { implicit tx => l.contains( key )}
+      val res = system.atomic { implicit tx => l.contains( key )}
       status( res.toString )
       slv.highlight = Map( key -> Color.blue )
    }}
@@ -156,7 +157,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
       val ps = Seq.fill( num )( rnd.nextInt( 100 ))
 println( ps )
       status( ps.lastOption.map( _.toString ).getOrElse( "" ))
-      l.system.atomic { implicit tx =>
+      system.atomic { implicit tx =>
          ps.foreach( l add _ )
       }
       slv.highlight = (obsUp.map( _ -> colrGreen ) ++ obsDn.map( _ -> Color.red ) ++ ps.map( _ -> Color.blue )).toMap
@@ -167,7 +168,7 @@ println( ps )
 
    space()
    but( "Print List" ) {
-      println( l.system.atomic( implicit tx => l.toList ))
+      println( system.atomic( implicit tx => l.toList ))
    }
 
    p.add( ggStatus )

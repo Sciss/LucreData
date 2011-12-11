@@ -104,12 +104,14 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    }
 
    object FullTree {
-      def apply[ S <: Sys[ S ]]()( implicit tx: S#Tx, system: S, smf: Manifest[ S ]) : FullTree[ S ] = {
+      def apply[ S <: Sys[ S ]]()( implicit tx: S#Tx ) : FullTree[ S ] = {
          implicit val pointView = (p: FullVertex[ S ], tx: S#Tx) => p.toPoint( tx )
          new FullTree[ S ] {
+            val system  = tx.system
             val cube    = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
             val t = {
                import SpaceSerializers.CubeSerializer
+               implicit val smf = Sys.manifest[ S ]( system )
                SkipOctree.empty[ S, Space.ThreeDim, FullVertex[ S ]]( cube )
             }
             val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
@@ -151,6 +153,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //   ) {
 
    sealed trait FullTree[ S <: Sys[ S ]] {
+      def system: S
       def t: SkipOctree[ S, Space.ThreeDim, FullVertex[ S ]]
       def root: FullVertex[ S ]
       def preOrder: TotalOrder.Map[ S, FullVertexPre[ S ]]
@@ -161,8 +164,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
       private val versionCnt = Ref( 1 )
       def nextVersion()( implicit tx: S#Tx ) : Int = {
-         val res = versionCnt.get
-         versionCnt.set( res + 1 )
+         val res = versionCnt.get( tx.peer )
+         versionCnt.set( res + 1 )( tx.peer )
          res
       }
 
@@ -451,8 +454,10 @@ if( verbose ) {
                                  val postList: SkipList[ S, MarkVertex[ S ]]) {
       type V = MarkVertex[ S ]
 
+      def system = ft.system
+
       def printInsertion( vm: V ) {
-         val (mStr, fStr) = t.system.atomic { implicit tx => vm.toPoint -> vm.full.toPoint }
+         val (mStr, fStr) = system.atomic { implicit tx => vm.toPoint -> vm.full.toPoint }
          println( "Mark ins. node " + mStr + " with full " + fStr )
       }
    }
@@ -575,7 +580,7 @@ if( verbose ) {
                         case None =>
 
                         case Some( parent ) if( parent.version <= version ) =>
-                           val found: Option[ FullVertex[ S ]] = t.t.system.atomic { implicit tx =>
+                           val found: Option[ FullVertex[ S ]] = system.atomic { implicit tx =>
                               val p0 = child.toPoint
          //                     val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
                               val point = p0.copy( x = p0.x - 1, y = p0.y + 1 )
@@ -656,7 +661,7 @@ if( verbose ) {
                   treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
          if( DEBUG_LAST && i == NUM2 - 1 ) verbose = true
                      if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
-                        tm.t.system.atomic { implicit tx =>
+                        system.atomic { implicit tx =>
          if( verbose ) println( ":: mark insert for full " + child.toPoint )
                            val cfPre = child.pre
                            val (cmPreN, cmPreCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkVertex[ S ]] {

@@ -74,7 +74,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
                txn.DeterministicSkipOctree.empty[ BerkeleyDB, TwoDim, Point2D ](
                   Square( sz, sz, sz ), skipGap = 1 )
             }
-            new Model2D[ BerkeleyDB ]( tree, { () =>
+            new Model2D[ BerkeleyDB ]( system, tree, { () =>
                system.atomic( implicit tx => system.debugListUserRecords() ).foreach( println )
             })
          }
@@ -86,7 +86,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
             implicit val pointView = (p: Point2D, t: Any) => p
             val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
                Square( sz, sz, sz ), skipGap = 1 )
-            new Model2D[ InMemory ]( tree, { () => println( "(Consistency not checked)" )})
+            new Model2D[ InMemory ]( system, tree, { () => println( "(Consistency not checked)" )})
          }
       }
 
@@ -104,7 +104,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    private val sz = 256
 
-   private final class Model2D[ S <: Sys[ S ]]( val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ], cons: () => Unit )
+   private final class Model2D[ S <: Sys[ S ]]( val system: S, val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ], cons: () => Unit )
    extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
@@ -203,6 +203,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def repaint() : Unit
       def rangeHyperCube : Option[ D#HyperCube ]
       def rangeHyperCube_=( q: Option[ D#HyperCube ]) : Unit
+      def system : S
 
       final def addMouseAdapter( ma: MouseListener with MouseMotionListener ) {
          view.addMouseListener( ma )
@@ -340,7 +341,7 @@ extends JPanel( new BorderLayout() ) {
       if( s.isEmpty ) "(empty)" else s
    }
 
-   private def atomic[ Z ]( block: S#Tx => Z ) : Z = t.system.atomic( block )
+   private def atomic[ Z ]( block: S#Tx => Z ) : Z = model.system.atomic( block )
 
    def findNN() { tryPoint { p =>
       val set = atomic { implicit tx => t.nearestNeighborOption( p, metric = distMeasure ).map( Set( _ )).getOrElse( Set.empty )}

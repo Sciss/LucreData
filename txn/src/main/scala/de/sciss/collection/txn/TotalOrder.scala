@@ -53,9 +53,10 @@ object TotalOrder {
    // ---- Set ----
 
    object Set {
-      def empty[ S <: Sys[ S ]]( implicit tx: S#Tx, system: S ) : Set[ S ] = empty()
+      def empty[ S <: Sys[ S ]]( implicit tx: S#Tx ) : Set[ S ] = empty()
 
-      def empty[ S <: Sys[ S ]]( rootTag: Int = 0 )( implicit tx: S#Tx, system: S ) : Set[ S ] = {
+      def empty[ S <: Sys[ S ]]( rootTag: Int = 0 )( implicit tx: S#Tx ) : Set[ S ] = {
+         val system = tx.system
          new SetNew( system.newID(), rootTag, system.newInt( 1 ))
       }
 
@@ -170,10 +171,12 @@ object TotalOrder {
    }
 
    private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, rootTag: Int, protected val sizeVal: S#Val[ Int ])
-                                             ( implicit tx: S#Tx, val system: S ) extends Set[ S ] {
+                                             ( implicit tx: S#Tx ) extends Set[ S ] {
       me =>
 
+      val system     = tx.system // -sigh-
       val root: E = {
+//         val system  = tx.system
          val tagVal  = system.newInt( rootTag )
          val prevRef = system.newOptionRef[ EOpt ]( empty )( tx, EntryOptionReader )
          val nextRef = system.newOptionRef[ EOpt ]( empty )( tx, EntryOptionReader )
@@ -191,6 +194,8 @@ object TotalOrder {
       protected val empty  = new Set.EmptyEntry[ S ]
 
       def root: E
+
+      protected def system : S
 
       final def readEntry( in: DataInput ) : E = system.readMut[ E ]( in )( EntryReader )
 
@@ -224,6 +229,7 @@ object TotalOrder {
       final def insertAfter( prev: E )( implicit tx: S#Tx ) : E = {
          val next       = prev.next
          val nextTag    = next.tag // if( next == null ) Int.MaxValue else next.tag
+         val system     = tx.system
          val recPrevRef = system.newOptionRef[ EOpt ]( prev )
          val recNextRef = system.newOptionRef[ EOpt ]( next )
          val prevTag    = prev.tag
@@ -240,6 +246,7 @@ object TotalOrder {
       final def insertBefore( next: E )( implicit tx: S#Tx ) : E = {
          val prev       = next.prev
          val prevTag    = prev.tag
+         val system     = tx.system
          val recPrevRef = system.newOptionRef[ EOpt ]( prev )
          val recNextRef = system.newOptionRef[ EOpt ]( next )
          val nextTag    = next.tag
@@ -366,9 +373,8 @@ object TotalOrder {
 
    object Map {
       def empty[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ],
-                                     rootTag: Int = 0 )
-         ( implicit tx: S#Tx, system: S, keySerializer: Serializer[ A ]) : Map[ S, A ] = {
-
+                                     rootTag: Int = 0 )( implicit tx: S#Tx, keySerializer: Serializer[ A ]) : Map[ S, A ] = {
+         val system = tx.system
          new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver, entryView, rootTag )
       }
 
@@ -558,10 +564,12 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    private final class MapNew[ S <: Sys[ S ], A ]( val id: S#ID, protected val sizeVal: S#Val[ Int ],
                                                    protected val observer: Map.RelabelObserver[ S#Tx, A ],
                                                    val entryView: A => Map.Entry[ S, A ], rootTag: Int )
-                                                 ( implicit tx: S#Tx, val system: S,
+                                                 ( implicit tx: S#Tx,
                                                    private[TotalOrder] val keySerializer: Serializer[ A ])
    extends Map[ S, A ] {
+      val system     = tx.system // -sigh-
       val root: E = {
+//         val system  = tx.system
          val tagVal  = system.newInt( rootTag )
          val prevRef = system.newVal[ KOpt ]( emptyKey )
          val nextRef = system.newVal[ KOpt ]( emptyKey )
@@ -633,6 +641,8 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       final type E                  = Map.Entry[ S, A ]
       final protected type KOpt     = KeyOption[ S, A ]
 
+      private[TotalOrder] def system : S
+
       final private[TotalOrder] val emptyKey: KOpt = new EmptyKey[ S, A ]
       final implicit val EntryReader: MutableReader[ S, E ] = new MapEntryReader[ S, A ]( this )
 //      final private[TotalOrder] implicit val EntryOptionReader : MutableOptionReader[ S, KOpt ] = new MapEntryOptionReader[ S, A ]( this )
@@ -675,6 +685,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
 //      }
 
       def insert()( implicit tx: S#Tx ) : E = {
+         val system        = tx.system
          val recTagVal     = system.newInt( -1 )
          val recPrevRef    = system.newVal[ KOpt ]( emptyKey )
          val recNextRef    = system.newVal[ KOpt ]( emptyKey )
@@ -868,7 +879,7 @@ assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next i
    }
 }
 sealed trait TotalOrder[ S <: Sys[ S ]] extends Mutable[ S ] {
-   def system: S
+//   def system: S
 
    type E
 

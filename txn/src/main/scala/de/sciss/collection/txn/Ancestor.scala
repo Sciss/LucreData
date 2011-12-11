@@ -122,14 +122,13 @@ object Ancestor {
       }
    }
 
-   def newTree[ S <: Sys[ S ], A ]( rootValue: A )( implicit tx: S#Tx, system: S, valueSerializer: Serializer[ A ],
-                                                    versionView: A => Int, smf: Manifest[ S ],
-                                                    versionManifest: Manifest[ A ]) : Tree[ S, A ] =
+   def newTree[ S <: Sys[ S ], A ]( rootValue: A )( implicit tx: S#Tx, valueSerializer: Serializer[ A ],
+                                                    versionView: A => Int, versionManifest: Manifest[ A ]) : Tree[ S, A ] =
       new TreeNew[ S, A ]( rootValue )
 
    private final class TreeNew[ S <: Sys[ S ], A ]( rootValue: A )(
-      implicit tx: S#Tx, system: S, val valueSerializer: Serializer[ A ], val versionView: A => Int,
-      smf: Manifest[ S ], val versionManifest: Manifest[ A ])
+      implicit tx: S#Tx, val valueSerializer: Serializer[ A ], val versionView: A => Int,
+      val versionManifest: Manifest[ A ])
    extends Tree[ S, A ] /* with TotalOrder.Map.RelabelObserver[ S#Tx, VertexProxy[ S, A ]] */ {
       me =>
 
@@ -149,8 +148,11 @@ object Ancestor {
 
       def vertexSerializer : Serializer[ V ] = VertexSerializer
 
-      val skip = {
+      val skip : SkipOctree[ S, Space.ThreeDim, V ] = {
          import SpaceSerializers.CubeSerializer
+//         implicit val pv      = SkipOctree.nonTxnPointView[ Space.ThreeDim, V ]
+         implicit val system  = tx.system
+         implicit val smf     = Sys.manifest[ S ]
          SkipOctree.empty[ S, Space.ThreeDim, V ]( cube )
       }
 //      val preOrder      = TotalOrder.Map.empty[ S, PreKey[ S, A ]]( me, _.order, 0 )
@@ -277,8 +279,7 @@ object Ancestor {
    }
 
    def newMap[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V )(
-      implicit tx: S#Tx, system: S, valueSerializer: Serializer[ V ],
-      smf: Manifest[ S ], vmf: Manifest[ V ]) : Map[ S, A, V ] = {
+      implicit tx: S#Tx, valueSerializer: Serializer[ V ], vmf: Manifest[ V ]) : Map[ S, A, V ] = {
 
       new MapNew[ S, A, V ]( full, rootValue )
    }
@@ -287,7 +288,7 @@ object Ancestor {
       val pre: Mark[ S, A, V ], val preCmp: Int, val post: Mark[ S, A, V ], val postCmp: Int )
 
    private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V )(
-      implicit tx: S#Tx, system: S, val valueSerializer: Serializer[ V ], smf: Manifest[ S ], vmf: Manifest[ V ])
+      implicit tx: S#Tx, val valueSerializer: Serializer[ V ], vmf: Manifest[ V ])
    extends Map[ S, A, V ] with TotalOrder.Map.RelabelObserver[ S#Tx, Mark[ S, A, V ]] {
       me =>
 
@@ -313,6 +314,8 @@ object Ancestor {
       val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
          implicit val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
          import SpaceSerializers.CubeSerializer
+         implicit val system              = tx.system
+         implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
          SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )
       }
 
@@ -324,19 +327,23 @@ object Ancestor {
          def value      = rootValue
       }
 
-      val preList   = {
+      val preList : SkipList[ S, MV ] = {
          implicit val ord = new Ordering[ S#Tx, MV ] {
             def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
          }
+         implicit val system              = tx.system
+         implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
          val res = SkipList.empty[ S, MV ]
          res.add( root )
          res
       }
 
-      val postList   = {
+      val postList : SkipList[ S, MV ] = {
          implicit val ord = new Ordering[ S#Tx, MV ] {
             def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
          }
+         implicit val system = tx.system
+         implicit val smf: Manifest[ S ] = Sys.manifest[ S ]
          val res = SkipList.empty[ S, MV ]
          res.add( root )
          res

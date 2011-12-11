@@ -37,16 +37,16 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
 
    def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: S => Unit ) {
       if( TWO_GAP_SIZES ) {
-         withList[ S ]( "HA-1 (" + sysName + ")", oo => {
+         withList[ S ]( "HA-1 (" + sysName + ")", { oo =>
             implicit val sys = sysCreator()
             val l = sys.atomic { implicit tx => HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )}
-            (l, () => sysCleanUp( sys ))
+            (sys, l, () => sysCleanUp( sys ))
          })
       }
-      withList[ S ]( "HA-2 (" + sysName + ")", oo => {
+      withList[ S ]( "HA-2 (" + sysName + ")", { oo =>
          implicit val sys = sysCreator()
          val l = sys.atomic { implicit tx => HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )}
-         (l, () => sysCleanUp( sys ))
+         (sys, l, () => sysCleanUp( sys ))
       })
    }
 
@@ -69,7 +69,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
 
    def atomic[ A ]( fun: InTxn => A ) : A = TxnExecutor.defaultAtomic( fun )
 
-   def randFill[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ]) {
+   def randFill[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit system: S ) {
       given( "a randomly filled structure" )
       for( i <- 0 until NUM1 ) {
          val x = rnd.nextInt( 0x7FFFFFFF )
@@ -81,7 +81,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
 //println( "\n\n#" + (i+1) + " added " + x + "\n" )
 //println( atomic { implicit tx => l.debugPrint })
       }
-      l.system.atomic { implicit tx => s.foreach( l.add( _ ))}
+      system.atomic { implicit tx => s.foreach( l.add( _ ))}
    }
 
    def randFill2 : Set[ Int ] = {
@@ -102,11 +102,11 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       res
    }
 
-   def verifyOrder[ S <: Sys[ S ]]( l: SkipList[ S, Int ]) {
+   def verifyOrder[ S <: Sys[ S ]]( l: SkipList[ S, Int ])( implicit system: S ) {
       when( "the structure is mapped to its pairwise comparisons" )
 //atomic { implicit tx => println( l.toList )}
       var res  = Set.empty[ Int ]
-      val seq  = l.system.atomic( l.toIndexedSeq( _ ))
+      val seq  = system.atomic( l.toIndexedSeq( _ ))
 //      val iter = atomic( l.iterator( _ ))
       var prev = -2
       seq.foreach { next =>
@@ -118,12 +118,12 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       then( "the resulting set should only contain -1" )
       assert( res == Set( -1 ), res.toString() )
    }
-   def verifyElems[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ]) {
+   def verifyElems[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit system: S ) {
       when( "the structure l is compared to an independently maintained set s" )
-      val ll       = l.system.atomic( l.toIndexedSeq( _ ))
-      val onlyInS  = l.system.atomic { implicit tx => s.filterNot( l.contains( _ ))}
+      val ll       = system.atomic( l.toIndexedSeq( _ ))
+      val onlyInS  = system.atomic { implicit tx => s.filterNot( l.contains( _ ))}
       val onlyInL  = ll.filterNot( s.contains( _ ))
-      val szL      = l.system.atomic { implicit tx => l.size }
+      val szL      = system.atomic { implicit tx => l.size }
       val szS      = s.size
       then( "all elements of s should be contained in l" )
       assert( onlyInS.isEmpty, onlyInS.take( 10 ).toString() )
@@ -137,10 +137,10 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       assert( ll.size == szL, "skip list has size " + szL + " / iterator has size " + ll.size )
    }
 
-   def verifyContainsNot[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ]) {
+   def verifyContainsNot[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit system: S ) {
       when( "the structure l is queried for keys not in the independently maintained set s" )
       var testSet = Set.empty[ Int ]
-      val inL = l.system.atomic { implicit tx =>
+      val inL = system.atomic { implicit tx =>
          while( testSet.size < 100 ) {
             val x = rnd.nextInt()
             if( !s.contains( x )) testSet += x
@@ -151,11 +151,11 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       assert( inL.isEmpty, inL.take( 10 ).toString() )
    }
 
-   def verifyAddRemoveAll[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ]) {
+   def verifyAddRemoveAll[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit system: S ) {
       when( "all elements of the independently maintained set are added again to l" )
-      val szBefore = l.system.atomic { implicit tx => l.size }
-      val newInL   = l.system.atomic { implicit tx => s.filter( l.add( _ ))}
-      val szAfter  = l.system.atomic { implicit tx => l.size }
+      val szBefore = system.atomic { implicit tx => l.size }
+      val newInL   = system.atomic { implicit tx => s.filter( l.add( _ ))}
+      val szAfter  = system.atomic { implicit tx => l.size }
       then( "none of the add operations should return 'true'" )
       assert( newInL.isEmpty, newInL.take( 10 ).toString() )
       then( "the size of l should not change" )
@@ -163,8 +163,8 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
 
       if( REMOVAL ) {
          when( "all elements of the independently maintained set are removed from l" )
-         val keptInL  = l.system.atomic { implicit tx => s.filterNot( l.remove( _ ))}
-         val szAfter2 = l.system.atomic { implicit tx => l.size }
+         val keptInL  = system.atomic { implicit tx => s.filterNot( l.remove( _ ))}
+         val szAfter2 = system.atomic { implicit tx => l.size }
          then( "all of the remove operations should return 'true'" )
          assert( keptInL.isEmpty, "the following elements were not found in removal: " + keptInL.take( 10 ).toString() )
          then( "the size of l should be zero" )
@@ -173,7 +173,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
    }
 
    private def withList[ S <: Sys[ S ]]( name: String,
-                                         lf: SkipList.KeyObserver[ InTxn, Int ] => (SkipList[ S, Int ], () => Unit) ) {
+                                         lf: SkipList.KeyObserver[ S#Tx, Int ] => (S, SkipList[ S, Int ], () => Unit) ) {
       def scenarioWithTime( descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
@@ -189,7 +189,8 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
             info( "are tried and expected behaviour verified" )
 
             scenarioWithTime( "Consistency is verified on a randomly filled structure" ) {
-               val (l, cleanUp)  = lf( SkipList.NoKeyObserver )
+               val (_sys, l, cleanUp)  = lf( SkipList.NoKeyObserver )
+               implicit val system = _sys
                try {
                   val s  = MSet.empty[ Int ]
                   randFill( l, s )
@@ -197,7 +198,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
                   verifyElems( l, s )
                   verifyContainsNot( l, s )
                   verifyAddRemoveAll( l, s )
-                  l.system.atomic { implicit tx => l.dispose() }
+                  system.atomic { implicit tx => l.dispose() }
                } finally {
                   cleanUp()
                }
@@ -211,17 +212,18 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
             info( "observer monitors key promotions and demotions" )
 
             scenarioWithTime( "Observation is verified on a randomly filled structure" ) {
-               val obs   = new Obs
-               val (l, cleanUp) = lf( obs )
+               val obs   = new Obs[ S ]
+               val (_sys, l, cleanUp) = lf( obs )
+               implicit val system = _sys
                try {
                   val s     = randFill2 // randFill3
                   when( "all the elements of the set are added" )
                   var uppedInsKey = false
-                  l.system.atomic { implicit tx =>
+                  system.atomic { implicit tx =>
                      s.foreach { i =>
-                        obs.oneUp.transform( _ - i )
+                        obs.oneUp.transform( _ - i )( tx.peer )
                         l.add( i )
-                        uppedInsKey |= obs.oneUp().contains( i )
+                        uppedInsKey |= obs.oneUp()( tx.peer ).contains( i )
                      }
                   }
                   then( "none was ever promoted during their insertion" )
@@ -232,7 +234,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
                   assert( obs.allUp.single().nonEmpty )
                   then( "the height of the list is equal to the maximally promoted key + 1" )
                   val maxProm = obs.allUp.single().maxBy( _._2 )._2
-                  val h  = l.system.atomic { implicit tx => l.height }
+                  val h  = system.atomic { implicit tx => l.height }
 //println( "height = " + h )
                   assert( h == maxProm + 1, "Height is reported as " + h + ", while keys were maximally promoted " + maxProm + " times" )
                   val sz = s.size + 1 // account for the 'maxKey'
@@ -244,11 +246,11 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
                   if( REMOVAL ) {
                      when( "all the elements are removed again" )
                      var uppedDelKey = false
-                     l.system.atomic { implicit tx =>
+                     system.atomic { implicit tx =>
                         s.foreach { i =>
-                           obs.oneUp.transform( _ - i )
+                           obs.oneUp.transform( _ - i )( tx.peer )
                            l.remove( i )
-                           uppedDelKey |= obs.oneUp().contains( i )
+                           uppedDelKey |= obs.oneUp()( tx.peer ).contains( i )
                         }
                      }
                      then( "none was ever promoted during their deletion" )
@@ -265,7 +267,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
                      then( "the number of promotions and demotions for every key is equal" )
                      assert( unbal.isEmpty, unbal.take( 10 ).toString() )
                   }
-                  l.system.atomic { implicit tx => l.dispose() }
+                  system.atomic { implicit tx => l.dispose() }
 
                } finally {
                   cleanUp()
@@ -275,17 +277,19 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   final class Obs extends SkipList.KeyObserver[ InTxn, Int ] {
+   final class Obs[ S <: Sys[ S ]] extends SkipList.KeyObserver[ S#Tx, Int ] {
       var allUp = Ref( IntMap.empty[ Int ])
       var allDn = Ref( IntMap.empty[ Int ])
       var oneUp = Ref( IntMap.empty[ Int ])
 
-      def keyUp( key: Int )( implicit tx: InTxn ) {
+      def keyUp( key: Int )( implicit tx: S#Tx ) {
+         implicit val itx = tx.peer
          allUp.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
          oneUp.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
       }
 
-      def keyDown( key: Int )( implicit tx: InTxn ) {
+      def keyDown( key: Int )( implicit tx: S#Tx ) {
+         implicit val itx = tx.peer
          allDn.transform( m => m + (key -> (m.getOrElse( key, 0 ) + 1)))
       }
    }

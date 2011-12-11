@@ -40,7 +40,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
             implicit val pointView = (p: Point3D, _: Any) => p
             txn.DeterministicSkipOctree.empty[ S, ThreeDim, Point3D ]( cube )
          }
-         (t, succ => sysCleanUp( sys, succ ))
+         (sys, t, succ => sysCleanUp( sys, succ ))
       })
    }
 
@@ -69,12 +69,13 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val pointFun3D = (mask: Int) => Point3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )
 
-   def randFill[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point ) {
+   def randFill[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
+                                                  pointFun: Int => D#Point )( implicit system: S ) {
       given( "a randomly filled structure" )
 
       for( i <- 0 until n ) {
          val k = pointFun( 0x7FFFFFFF )
-         t.system.atomic { implicit tx => t += k }
+         system.atomic { implicit tx => t += k }
          m += k
       }
    }
@@ -135,13 +136,13 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       } while( h != null )
    }
 
-   def verifyElems[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ]) {
+   def verifyElems[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ])( implicit system: S ) {
       when( "the structure t is compared to an independently maintained map m" )
-      val onlyInM  = t.system.atomic { implicit tx => m.filterNot { e =>
+      val onlyInM  = system.atomic { implicit tx => m.filterNot { e =>
          t.contains( e )
       }}
-      val onlyInT  = t.system.atomic { implicit tx => t.iterator.toList.filterNot( e => m.contains( e ))}
-      val szT      = t.system.atomic { implicit tx => t.size }
+      val onlyInT  = system.atomic { implicit tx => t.iterator.toList.filterNot( e => m.contains( e ))}
+      val szT      = system.atomic { implicit tx => t.size }
       val szM      = m.size
       then( "all elements of m should be contained in t" )
       assert( onlyInM.isEmpty, onlyInM.take( 10 ).toString() )
@@ -151,37 +152,39 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szT == szM, "octree has size " + szT + " / map has size " + szM )
    }
 
-   def verifyContainsNot[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point ) {
+   def verifyContainsNot[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
+                                                           pointFun: Int => D#Point )( implicit system: S ) {
       when( "the structure t is queried for keys not in the independently maintained map m" )
       var testSet = Set.empty[ D#Point ]
       while( testSet.size < 100 ) {
          val x = pointFun( 0xFFFFFFFF )
          if( !m.contains( x )) testSet += x
       }
-      val inT = t.system.atomic { implicit tx => testSet.filter { p =>
+      val inT = system.atomic { implicit tx => testSet.filter { p =>
          t.contains( p )
       }}
       then( "none of them should be contained in t" )
       assert( inT.isEmpty, inT.take( 10 ).toString() )
    }
 
-   def verifyAddRemoveAll[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ]) {
+   def verifyAddRemoveAll[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
+                                                            m: MSet[ D#Point ])( implicit system: S ) {
       when( "all elements of the independently maintained map are added again to t" )
-      val szBefore = t.system.atomic { implicit tx => t.size }
+      val szBefore = system.atomic { implicit tx => t.size }
 //println( "BEFORE " + t.system.atomic { implicit tx => t.toList })
-      val newInT   = t.system.atomic { implicit tx => m.take(1).filter( e =>
+      val newInT   = system.atomic { implicit tx => m.take(1).filter( e =>
          t.update( e ).isEmpty
       )}
 //println( "AFTER " + t.system.atomic { implicit tx => t.toList })
-      val szAfter  = t.system.atomic { implicit tx => t.size }
+      val szAfter  = system.atomic { implicit tx => t.size }
       then( "all of the put operations should return 'Some'" )
       assert( newInT.isEmpty, newInT.take( 10 ).toString() )
       then( "the size of t should not change" )
       assert( szBefore == szAfter, "t had size " + szBefore + " before, but now reports " + szAfter )
 
       when( "all elements of the independently maintained map are removed from t" )
-      val keptInT  = t.system.atomic { implicit tx => m.filter( e => t.removeAt( e ).isEmpty )}
-      val szAfter2 = t.system.atomic { implicit tx => t.size }
+      val keptInT  = system.atomic { implicit tx => m.filter( e => t.removeAt( e ).isEmpty )}
+      val szAfter2 = system.atomic { implicit tx => t.size }
       then( "all of the remove operations should return 'Some'" )
       assert( keptInT.isEmpty, keptInT.take( 10 ).toString() )
       then( "the size of t should be zero" )
@@ -193,12 +196,12 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val sortFun3D = (p: ThreeDim#PointLike) => (p.x, p.y, p.z)
 
-   def verifyRangeSearch[ S <: Sys[ S ], A, D <: Space[ D ], Sort : math.Ordering ]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
+   def verifyRangeSearch[ S <: Sys[ S ], A, D <: Space[ D ], Sort ]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
                           queryFun: (Int, Int, Int) => QueryShape[ A, D ],
-                          sortFun: D#PointLike => Sort ) {
+                          sortFun: D#PointLike => Sort )( implicit ord: math.Ordering[ Sort ], system: S ) {
       when( "the octree is range searched" )
       val qs = Seq.fill( n2 )( queryFun( 0x7FFFFFFF, 0x40000000, 0x40000000 ))
-      val rangesT = t.system.atomic { implicit tx => qs.map( q => t.rangeQuery( q ).toSet )}
+      val rangesT = system.atomic { implicit tx => qs.map( q => t.rangeQuery( q ).toSet )}
       val ks      = m // keySet
       val rangesM = qs.map( q => ks.filter( q.contains( _ )))
       then( "the results should match brute force with the corresponding set" )
@@ -221,16 +224,16 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val euclideanDist3D = DistanceMeasure3D.euclideanSq
 
    // JUHUUUUU SPECIALIZATION BROKEN ONCE MORE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   def verifyNN[ S <: Sys[ S ], /* @specialized( Long ) */ M : math.Ordering, D <: Space[ D ]](
+   def verifyNN[ S <: Sys[ S ], M, D <: Space[ D ]](
       t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
-      pointFilter: D#PointLike => Boolean, euclideanDist: DistanceMeasure[ M, D ]) {
+      pointFilter: D#PointLike => Boolean, euclideanDist: DistanceMeasure[ M, D ])( implicit ord: math.Ordering[ M ], system: S ) {
 
       when( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( pointFun( 0xFFFFFFFF ))
       // tricky: this guarantees that there are no 63 bit overflows,
       // while still allowing points outside the root hyperCube to enter the test
       val ps = ps0.filter( pointFilter )
-      val nnT: Map[ D#Point, D#Point ] = t.system.atomic { implicit tx =>
+      val nnT: Map[ D#Point, D#Point ] = system.atomic { implicit tx =>
          ps.map( p => p -> t.nearestNeighbor( p, euclideanDist ))( breakOut )
       }
       val ks   = m // .keySet
@@ -264,7 +267,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 //      }
 //   }
 
-   def withTree[ S <: Sys[ S ]]( name: String, tf: () => (DeterministicSkipOctree[ S, ThreeDim, ThreeDim#Point ], Boolean => Unit) ) {
+   def withTree[ S <: Sys[ S ]]( name: String, tf: () => (S, DeterministicSkipOctree[ S, ThreeDim, ThreeDim#Point ], Boolean => Unit) ) {
       feature( "The " + name + " octree structure should be consistent" ) {
          info( "Several mass operations on the structure" )
          info( "are tried and expected behaviour verified" )
@@ -279,7 +282,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          }
 
          scenarioWithTime( "Consistency is verified on a randomly filled structure" ) {
-            val (t, cleanUp)  = tf()
+            val (_sys, t, cleanUp)  = tf()
+            implicit val system    = _sys
             var success = false
             try {
                val m  = MSet.empty[ ThreeDim#Point ]

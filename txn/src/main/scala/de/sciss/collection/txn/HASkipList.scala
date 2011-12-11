@@ -71,7 +71,7 @@ object HASkipList {
     * @param   stm         the software transactional memory to use.
     */
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  mf: Manifest[ A ], keySerializer: Serializer[ A ], system: S ) : HASkipList[ S, A ] =
+                                  mf: Manifest[ A ], keySerializer: Serializer[ A ]) : HASkipList[ S, A ] =
       empty()
 
    /**
@@ -93,19 +93,16 @@ object HASkipList {
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                   keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                 ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  mf: Manifest[ A ], keySerializer: Serializer[ A ], system: S ) : HASkipList[ S, A ] = {
+                                  mf: Manifest[ A ], keySerializer: Serializer[ A ]) : HASkipList[ S, A ] = {
 
       // 255 <= arrMaxSz = (minGap + 1) << 1
       // ; this is, so we can write a node's size as signed byte, and
       // no reasonable app would use a node size > 255
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
-//      new Impl[ S, A ]( maxKey.value, minGap, keyObserver, list => system.newVal[ Branch[ S, A ]]( null )( tx, list ))
+      implicit val system = tx.system
       new Impl[ S, A ]( system.newID(), minGap, keyObserver, list => {
-//println( "CALLING NEW REF FOR DOWN NODE" )
-         /* val res = */ system.newVal[ Node[ S, A ]]( null )( tx, list )
-//res.debug
-//         res
+         system.newVal[ Node[ S, A ]]( null )( tx, list )
       })
    }
 
@@ -126,7 +123,7 @@ object HASkipList {
             ", required " + SER_VERSION + ")." )
 
          val minGap  = in.readInt()
-         new Impl[ S, A ]( id, minGap, keyObserver, list => list.system.readVal[ Node[ S, A ]]( in )( list ))
+         new Impl[ S, A ]( id, minGap, keyObserver, list => system.readVal[ Node[ S, A ]]( in )( list ))
       }
 
       def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
@@ -759,7 +756,7 @@ object HASkipList {
                   } else {
                      val (b, i, r) = stack.pop()
                      if( i < b.size ) {
-                        system.atomic( implicit tx => pushDown( b, i, r ))
+                        pushDown( b, i, r )
                      } else {
                         popUp()
                      }
@@ -1353,7 +1350,7 @@ object HASkipList {
 }
 
 sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
-   def system: S
+//   def system: S
 
    def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A ]]
 

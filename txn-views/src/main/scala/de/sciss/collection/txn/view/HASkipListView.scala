@@ -31,11 +31,11 @@ import java.awt.{Color, Point, Rectangle, Graphics2D}
 import de.sciss.lucrestm.Sys
 import de.sciss.collection.view.SkipListView
 
-class HASkipListView[ S <: Sys[ S ], A ]( private val l: HASkipList[ S, A ])
+class HASkipListView[ S <: Sys[ S ], A ]( private val l: HASkipList[ S, A ])( implicit system: S )
 extends SkipListView[ A ] {
    import HASkipList.Node
 
-   private val stm      = l.system
+//   private val stm      = l.system
 
    private def buildBoxMap( n: Node[ S, A ], isRight: Boolean )( implicit tx: S#Tx ) : (Box, NodeBox) = {
       val sz   = n.size
@@ -61,7 +61,7 @@ extends SkipListView[ A ] {
    }
 
    protected def paintList( g2: Graphics2D ) {
-      stm.atomic { implicit tx =>
+      system.atomic { implicit tx =>
          l.top match {
             case Some( n ) =>
                val (bb, nb) = buildBoxMap( n, true )

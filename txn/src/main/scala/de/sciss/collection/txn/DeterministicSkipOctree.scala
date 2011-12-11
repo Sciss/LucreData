@@ -48,28 +48,24 @@ import de.sciss.lucrestm.{MutableOptionReader, EmptyMutable, MutableOption, Muta
 */
 object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube, skipGap: Int = 2 )
-                                                 ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, system: S, space: D,
+                                                 ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
                                                    keySerializer: Serializer[ A ],
                                                    hyperSerializer: Serializer[ D#HyperCube ],
-                                                   smf: Manifest[ S ],
-                                                   dmf: Manifest[ D ],
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
-      new ImplNew[ S, D, A ]( skipGap, system.newID(), hyperCube, view )
+      new ImplNew[ S, D, A ]( skipGap, tx.system.newID(), hyperCube, view )
    }
 
    def reader[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, system: S, space: D,
-      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ],
-      smf: Manifest[ S ], dmf: Manifest[ D ], amf: Manifest[ A ]
+      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ], amf: Manifest[ A ]
    ) : MutableReader[ S, DeterministicSkipOctree[ S, D, A ]] = new OctreeReader[ S, D, A ]
 
    private val SER_VERSION = 0
 
    private final class OctreeReader[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, system: S, space: D,
-      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ],
-      smf: Manifest[ S ], dmf: Manifest[ D ], amf: Manifest[ A ]
+      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ], amf: Manifest[ A ]
    ) extends MutableReader[ S, DeterministicSkipOctree[ S, D, A ]] {
       def readData( in: DataInput, id: S#ID ) : DeterministicSkipOctree[ S, D, A ] = {
          val version = in.readUnsignedByte()
@@ -110,11 +106,12 @@ object DeterministicSkipOctree {
    private final class ImplNew[ S <: Sys[ S ], D <: Space[ D ], A ]( skipGap: Int, val id: S#ID,
                                                                      val hyperCube: D#HyperCube,
                                                                      val pointView: (A, S#Tx) => D#PointLike )
-                                                                   ( implicit tx: S#Tx, val system: S,
+                                                                   ( implicit tx: S#Tx,
                                                                      val space: D, val keySerializer: Serializer[ A ],
                                                                      val hyperSerializer: Serializer[ D#HyperCube ])
 
    extends DeterministicSkipOctree[ S, D, A ] {
+      val system     = tx.system // -sigh-
       val totalOrder = TotalOrder.Set.empty[ S ] // ()
       val skipList   = {
          implicit val ord  = LeafOrdering

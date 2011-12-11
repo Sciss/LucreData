@@ -36,11 +36,9 @@ object SkipOctree {
    }
 
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube )
-                                                 ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, system: S, space: D,
+                                                 ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
                                                    keySerializer: Serializer[ A ],
                                                    hyperSerializer: Serializer[ D#HyperCube ],
-                                                   smf: Manifest[ S ],
-                                                   dmf: Manifest[ D ],
                                                    amf: Manifest[ A ]) : SkipOctree[ S, D, A ] =
       DeterministicSkipOctree.empty[ S, D, A ]( hyperCube )
 
@@ -53,7 +51,7 @@ object SkipOctree {
  */
 trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    def space: D
-   def system: S
+//   def system: S
 
    def pointView : (A, S#Tx) => D#PointLike
 
