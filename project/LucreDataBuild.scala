@@ -51,7 +51,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.11-SNAPSHOT",
+            "de.sciss" %% "lucrestm" % "0.11",
             "org.scalatest" %% "scalatest" % "1.6.1" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
@@ -100,7 +100,7 @@ object LucreDataBuild extends Build {
 
    lazy val standardSettings = Defaults.defaultSettings ++ Seq(
       organization    := "de.sciss",
-      version         := "0.13-SNAPSHOT",
+      version         := "0.13",
       scalaVersion    := "2.9.1",
       resolvers       ++= Seq(
          "itextpdf.com" at "http://maven.itextpdf.com",

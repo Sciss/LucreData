@@ -28,7 +28,7 @@ object LucreData {
    val name          = "LucreData"
    val version       = 0.13
    val copyright     = "(C)opyright 2011 Hanns Holger Rutz"
-   val isSnapshot    = true
+   val isSnapshot    = false
 
    def versionString = {
       val s = (version + 0.001).toString.substring( 0, 4 )
