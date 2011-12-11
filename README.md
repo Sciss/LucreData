@@ -27,6 +27,7 @@ Builds with xsbt (sbt 0.11) against Scala 2.9.1. Depends on [LucreSTM](http://gi
 * `mutable-views` &ndash; Some Swing based views to show the mutable data structures
 * `txn-views` &ndash; Some Swing based views to show the transactional data structures
 
+__Note:__ Due to a bug in sbt 0.11.2, you are screwed if you try to do `sbt publish-local` (scaladoc fails). Currently you need to use a snapshot version of sbt to do that.
 
 ### creating an IntelliJ IDEA project
 
