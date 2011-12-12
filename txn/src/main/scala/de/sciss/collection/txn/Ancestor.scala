@@ -126,10 +126,10 @@ object Ancestor {
 
    def newTree[ S <: Sys[ S ], A ]( rootValue: A )( implicit tx: S#Tx, valueSerializer: Serializer[ A ],
                                                     versionView: A => Int, versionManifest: Manifest[ A ]) : Tree[ S, A ] =
-      new TreeNew[ S, A ]( rootValue )
+      new TreeNew[ S, A ]( rootValue, tx )
 
-   private final class TreeNew[ S <: Sys[ S ], A ]( rootValue: A )(
-      implicit tx: S#Tx, val valueSerializer: Serializer[ A ], val versionView: A => Int,
+   private final class TreeNew[ S <: Sys[ S ], A ]( rootValue: A, tx0: S#Tx )(
+      implicit val valueSerializer: Serializer[ A ], val versionView: A => Int,
       val versionManifest: Manifest[ A ])
    extends Tree[ S, A ] /* with TotalOrder.Map.RelabelObserver[ S#Tx, VertexProxy[ S, A ]] */ {
       me =>
@@ -150,26 +150,27 @@ object Ancestor {
 
       def vertexSerializer : Serializer[ V ] = VertexSerializer
 
-      val skip : SkipOctree[ S, Space.ThreeDim, V ] = {
-         import SpaceSerializers.CubeSerializer
-//         implicit val pv      = SkipOctree.nonTxnPointView[ Space.ThreeDim, V ]
-         implicit val system  = tx.system
-         implicit val smf     = Sys.manifest[ S ]
-         SkipOctree.empty[ S, Space.ThreeDim, V ]( cube )
-      }
+//      val skip : SkipOctree[ S, Space.ThreeDim, V ] = {
+//         import SpaceSerializers.CubeSerializer
+////         implicit val pv      = SkipOctree.nonTxnPointView[ Space.ThreeDim, V ]
+//         implicit val system  = tx.system
+//         implicit val smf     = Sys.manifest[ S ]
+//         SkipOctree.empty[ S, Space.ThreeDim, V ]( cube )
+//      }
+
 //      val preOrder      = TotalOrder.Map.empty[ S, PreKey[ S, A ]]( me, _.order, 0 )
 //      val postOrder     = TotalOrder.Map.empty[ S, V ](             me, _.post,  Int.MaxValue )
-      val preOrder      = TotalOrder.Set.empty[ S ]( 0 )
-      val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )
+      val preOrder      = TotalOrder.Set.empty[ S ]( 0 )( tx0 )
+      val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )( tx0 )
       val root = new V {
          def tree: Tree[ S, A ] = me
          def value   = rootValue
          val preHead = preOrder.root
-         val preTail = preHead.append() // preOrder.insert()
+         val preTail = preHead.append()( tx0 ) // preOrder.insert()
          val post    = postOrder.root
 //         preOrder.placeAfter( preHeadKey, preTailKey )   // preTailKey must come last
       }
-      skip += root
+//      skip += root
 
       def insertChild( parent: V, newChild: A )( implicit tx: S#Tx ) : V = {
          val v = new V {
@@ -182,7 +183,7 @@ object Ancestor {
 //            postOrder.placeBefore( parent, this )
 //            preOrder.placeAfter( preHeadKey, preTailKey )   // preTailKey must come last!
          }
-         skip += v
+//         skip += v
          v
       }
 
@@ -198,7 +199,7 @@ object Ancestor {
 //            preOrder.placeBefore( parent.preTailKey, preTailKey ) // preTailKey must come last
             override def toString = super.toString + "@r-ch"
          }
-         skip += v
+//         skip += v
          v
       }
 
@@ -215,7 +216,7 @@ object Ancestor {
 //            preOrder.placeAfter( child.preTailKey, preTailKey )   // preTailKey must come last
             override def toString = super.toString + "@r-par"
          }
-         skip += v
+//         skip += v
          v
       }
 
@@ -285,7 +286,7 @@ object Ancestor {
    def newMap[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V )(
       implicit tx: S#Tx, valueSerializer: Serializer[ V ], vmf: Manifest[ V ]) : Map[ S, A, V ] = {
 
-      new MapNew[ S, A, V ]( full, rootValue )
+      new MapNew[ S, A, V ]( full, rootValue, tx )
    }
 
    private final class IsoResult[ S <: Sys[ S ], A, @specialized V ](
@@ -295,8 +296,8 @@ object Ancestor {
                                   "post " + (if( postCmp < 0 ) "< " else if( postCmp > 0) "> " else "== ") +  post + ")"
    }
 
-   private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V )(
-      implicit tx: S#Tx, val valueSerializer: Serializer[ V ], vmf: Manifest[ V ])
+   private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V, tx0: S#Tx )(
+      implicit val valueSerializer: Serializer[ V ], vmf: Manifest[ V ])
    extends Map[ S, A, V ] with TotalOrder.Map.RelabelObserver[ S#Tx, Mark[ S, A, V ]] {
       me =>
 
@@ -316,13 +317,17 @@ object Ancestor {
          }
       }
 
-      private val preOrder  : TotalOrder.Map[ S, MV ] = TotalOrder.Map.empty[ S, MV ]( me, _.pre )
-      private val postOrder : TotalOrder.Map[ S, MV ] = TotalOrder.Map.empty[ S, MV ]( me, _.post, rootTag = Int.MaxValue )
+      private val preOrder  : TotalOrder.Map[ S, MV ] =
+         TotalOrder.Map.empty[ S, MV ]( me, _.pre )( tx0, vertexSerializer )
+
+      private val postOrder : TotalOrder.Map[ S, MV ] =
+         TotalOrder.Map.empty[ S, MV ]( me, _.post, rootTag = Int.MaxValue )( tx0, vertexSerializer )
 
       val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
          implicit val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
          import SpaceSerializers.CubeSerializer
-         implicit val system              = tx.system
+         implicit val tx                  = tx0
+         implicit val system              = tx0.system
          implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
          SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )
       }
@@ -337,7 +342,7 @@ object Ancestor {
 
             override def toString = "Root(" + value + ")"
          }
-         skip += res
+         skip.+=( res )( tx0 )
          res
       }
 
@@ -345,9 +350,10 @@ object Ancestor {
          implicit val ord = new Ordering[ S#Tx, MV ] {
             def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
          }
-         implicit val system              = tx.system
+         implicit val tx                  = tx0
+         implicit val system              = tx0.system
          implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
-         val res = SkipList.empty[ S, MV ]
+         val res                          = SkipList.empty[ S, MV ]
          res.add( root )
          res
       }
@@ -356,9 +362,10 @@ object Ancestor {
          implicit val ord = new Ordering[ S#Tx, MV ] {
             def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
          }
-         implicit val system = tx.system
-         implicit val smf: Manifest[ S ] = Sys.manifest[ S ]
-         val res = SkipList.empty[ S, MV ]
+         implicit val tx                  = tx0
+         implicit val system              = tx0.system
+         implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
+         val res                          = SkipList.empty[ S, MV ]
          res.add( root )
          res
       }
@@ -375,7 +382,7 @@ object Ancestor {
          this
       }
 
-      private def query( version: K ) : IsoResult[ S, A, V ] = {
+      private def query( version: K )( implicit tx: S#Tx ) : IsoResult[ S, A, V ] = {
          val cfPre = version.preHead
          val (cmPreN, cmPreCmp) = preList.isomorphicQuery( new Ordered[ S#Tx, MV ] {
             def compare( that: MV )( implicit tx: S#Tx ) : Int = {
@@ -391,7 +398,7 @@ object Ancestor {
          new IsoResult[ S, A, V ]( cmPreN, cmPreCmp, cmPostN, cmPostCmp )
       }
 
-      private def wrap( entry: (K, V) ) : MV = {
+      private def wrap( entry: (K, V) )( implicit tx: S#Tx ) : MV = {
          val version = entry._1
          val iso = query( version )
          new MV {
@@ -452,11 +459,21 @@ object Ancestor {
 
       // ---- RelabelObserver ----
       def beforeRelabeling( iter: Iterator[ S#Tx, MV ])( implicit tx: S#Tx ) {
-         iter.foreach( skip -= _ )
+//println( "RELABEL - ::: BEGIN :::" )
+         iter.foreach { mv =>
+//println( "RELABEL - " + mv )
+            skip -= mv
+         }
+//println( "RELABEL - ::: END :::" )
       }
 
       def afterRelabeling( iter: Iterator[ S#Tx, MV ])( implicit tx: S#Tx ) {
-         iter.foreach( skip += _ )
+//println( "RELABEL + ::: BEGIN :::" )
+         iter.foreach { mv =>
+//println( "RELABEL + " + mv )
+            skip += mv
+         }
+//println( "RELABEL + ::: END :::" )
       }
    }
 

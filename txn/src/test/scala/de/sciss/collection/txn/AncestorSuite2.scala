@@ -14,11 +14,16 @@ import collection.immutable.IntMap
  * }}
  */
 class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
-   val NUM1                   = 10000
+   val NUM1                   = 10000   // gets frickin slow, hopefully online in the control structure 10000     // 933 // 10000
    val MARK_LIVE              = 0.25      // percentage of elements marked (0 to 1)
 //   val MARK_POST              = 0.25
    val RETRO_CHILD_PERCENTAGE = 0.2       // from those elements marked, amount which are inserted as retro-children (0 to 1)
    val RETRO_PARENT_PERCENTAGE= 0.2       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
+//   val INCR_TEST_STEP         = 10
+
+   // when the map is tested in the incremental build-up, only perform test every x iterations,
+   // where x is calculated as INCR_TEST_FACTOR.pow(n)
+   val INCR_TEST_FACTOR       = 1.2
 
    val INMEMORY               = true
    val DATABASE               = true
@@ -79,23 +84,33 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
 
                var mapRepr = IntMap[ Vertex ]( 0 -> Vertex( -1, Set.empty, Some( 0 )))
                var mapFV   = IntMap[ Ancestor.Vertex[ S, Int ]]( 0 -> full.root )
-               var values  = IndexedSeq.tabulate[ Int ]( NUM1 )( identity )
+//               var values  = IndexedSeq.tabulate[ Int ]( NUM1 )( identity )
 
                when( "during insertion for all existing vertices their marked ancestor is queried" )
                then( "the results should be identical to manual brute force search" )
 
+               var NEXT_TEST  = 0
+
                for( version <- 1 to NUM1 ) {
+//println( version )
                   val update = system.atomic { implicit tx =>
                      val ref        = rnd.nextInt( version )
                      val draw       = rnd.nextDouble()
                      var _mapFV     = mapFV
                      var _mapRepr   = mapRepr
-                     var _values    = values
+//                     var _values    = values
+//if( version == 7000 ) {
+//   println( version )
+//}
+//if( version == NUM1 ) {
+//   println( "aqui" )
+//}
 
                      val mark = if( rnd.nextDouble() < MARK_LIVE ) {
-                        val valIdx  = rnd.nextInt( _values.size )
-                        val value   = _values( valIdx )
-                        _values     = _values.patch( valIdx, empty, 1 )
+//                        val valIdx  = rnd.nextInt( _values.size )
+//                        val value   = _values( valIdx )
+//                        _values     = _values.patch( valIdx, empty, 1 )    // ouch, this is ultra slow
+                        val value   = rnd.nextInt()
                         Some( value )
 
                      } else None
@@ -122,37 +137,40 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
                         _mapRepr += par -> { val old = _mapRepr( par ); old.copy( children = old.children - ref + version )}
                         _mapRepr += ref -> _mapRepr( ref ).copy( parent = version )
                         ch
-
                      }
 
                      mark.foreach { value =>
                         assert( map.add( fullVertex, value ), "Mark.add says mark existed for " + version )
                      }
 
-                     (_mapFV, _mapRepr, _values)
+                     (_mapFV, _mapRepr) // , _values
                   }
                   mapFV    = update._1
                   mapRepr  = update._2
-                  values   = update._3
+//                  values   = update._3
 
-                  // now verify all marked ancestors
-                  for( query <- 1 to version ) {
-                     val (fullVertex, ancValue) = system.atomic { implicit tx =>
-                        map.nearest( mapFV( query ))
-                     }
-                     val ancVersion = fullVertex.version
-                     @tailrec def findManual( i: Int ) : (Int, Int) = {
-                        val v = mapRepr( i )
-                        v.mark match {
-                           case Some( _value ) if( i <= query ) => (i, _value)
-                           case _ => findManual( v.parent )
+                  if( version >= NEXT_TEST || (version == NUM1) ) {
+                     NEXT_TEST = math.max( version + 1, (NEXT_TEST * INCR_TEST_FACTOR).toInt )
+// println( version )
+                     // now verify all marked ancestors
+                     for( query <- 1 to version ) {
+                        val (fullVertex, ancValue) = system.atomic { implicit tx =>
+                           map.nearest( mapFV( query ))
                         }
+                        val ancVersion = fullVertex.version
+                        @tailrec def findManual( i: Int ) : (Int, Int) = {
+                           val v = mapRepr( i )
+                           v.mark match {
+                              case Some( _value ) if( i <= query ) => (i, _value)
+                              case _ => findManual( v.parent )
+                           }
+                        }
+                        val (manVersion, manValue) = findManual( query )
+                        assert( ancVersion == manVersion, "Query " + query + " yields marked version " + ancVersion +
+                           " where manual result says it should be " + manVersion )
+                        assert( ancValue == manValue, "Query " + query + " yields marked value " + ancValue +
+                           " where manual result says it should be " + manValue )
                      }
-                     val (manVersion, manValue) = findManual( query )
-                     assert( ancVersion == manVersion, "Query " + query + " yields marked version " + ancVersion +
-                        " where manual result says it should be " + manVersion )
-                     assert( ancValue == manValue, "Query " + query + " yields marked value " + ancValue +
-                        " where manual result says it should be " + manValue )
                   }
                }
 
