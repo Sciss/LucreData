@@ -68,7 +68,9 @@ object TotalOrder {
          protected type E     = Entry[ S ]
          protected type EOpt  = EntryOption[ S ] with MutableOption[ S ]
 
-         def tag( implicit tx: S#Tx ) : Int
+//         def tag( implicit tx: S#Tx ) : Int
+         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) : Int
+
          private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) : Unit
          private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) : Unit
          private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
@@ -84,7 +86,7 @@ object TotalOrder {
          private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) {
             sys.error( "Internal error - shouldn't be here" )
          }
-         def tag( implicit tx: S#Tx ) = Int.MaxValue
+         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) = empty
          def isDefined = false
          def isEmpty   = true
       }
@@ -102,6 +104,7 @@ object TotalOrder {
          }
 
          def tag( implicit tx: S#Tx ) : Int = tagVal.get
+         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) = tagVal.get
 
          def prev( implicit tx: S#Tx ) : EOpt = prevRef.get
          def next( implicit tx: S#Tx ) : EOpt = nextRef.get
@@ -140,11 +143,11 @@ object TotalOrder {
          def validate( msg: => String )( implicit tx: S#Tx ) {
             val recTag  = tag
             if( prev.isDefined ) {
-               val prevTag = prev.tag
+               val prevTag = prev.orNull.tag
                assert( prevTag < recTag, "prev " + prevTag + " >= rec " + recTag + " - " + msg )
             }
             if( next.isDefined ) {
-               val nextTag = next.tag
+               val nextTag = next.orNull.tag
                assert( recTag < nextTag, "rec " + recTag+ " >= next " + nextTag + " - " + msg )
             }
          }
@@ -228,7 +231,7 @@ object TotalOrder {
 
       final def insertAfter( prev: E )( implicit tx: S#Tx ) : E = {
          val next       = prev.next
-         val nextTag    = next.tag // if( next == null ) Int.MaxValue else next.tag
+         val nextTag    = next.tagOr( Int.MaxValue )
          val system     = tx.system
          val recPrevRef = system.newOptionRef[ EOpt ]( prev )
          val recNextRef = system.newOptionRef[ EOpt ]( next )
@@ -245,7 +248,7 @@ object TotalOrder {
 
       final def insertBefore( next: E )( implicit tx: S#Tx ) : E = {
          val prev       = next.prev
-         val prevTag    = prev.tag
+         val prevTag    = prev.tagOr( 0 )
          val system     = tx.system
          val recPrevRef = system.newOptionRef[ EOpt ]( prev )
          val recNextRef = system.newOptionRef[ EOpt ]( next )

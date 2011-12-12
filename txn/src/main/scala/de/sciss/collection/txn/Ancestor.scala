@@ -120,6 +120,8 @@ object Ancestor {
          preTail.write( out )
          post.write( out )
       }
+
+      override def toString = "Vertex(" + value + ")"
    }
 
    def newTree[ S <: Sys[ S ], A ]( rootValue: A )( implicit tx: S#Tx, valueSerializer: Serializer[ A ],
@@ -276,6 +278,8 @@ object Ancestor {
          pre.removeAndDispose()
          post.removeAndDispose()
       }
+
+      override def toString = "Mark(" + fullVertex.value + " -> " + value + ")"
    }
 
    def newMap[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V )(
@@ -285,7 +289,11 @@ object Ancestor {
    }
 
    private final class IsoResult[ S <: Sys[ S ], A, @specialized V ](
-      val pre: Mark[ S, A, V ], val preCmp: Int, val post: Mark[ S, A, V ], val postCmp: Int )
+      val pre: Mark[ S, A, V ], val preCmp: Int, val post: Mark[ S, A, V ], val postCmp: Int ) {
+
+      override def toString = "Iso(pre "  + (if( preCmp  < 0 ) "< " else if( preCmp  > 0) "> " else "== ") +  pre  + "," +
+                                  "post " + (if( postCmp < 0 ) "< " else if( postCmp > 0) "> " else "== ") +  post + ")"
+   }
 
    private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V )(
       implicit tx: S#Tx, val valueSerializer: Serializer[ V ], vmf: Manifest[ V ])
@@ -319,12 +327,18 @@ object Ancestor {
          SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )
       }
 
-      val root: MV = new MV {
-         def map        = me
-         def fullVertex = full.root
-         def pre        = preOrder.root
-         def post       = postOrder.root
-         def value      = rootValue
+      val root: MV = {
+         val res = new MV {
+            def map        = me
+            def fullVertex = full.root
+            def pre        = preOrder.root
+            def post       = postOrder.root
+            def value      = rootValue
+
+            override def toString = "Root(" + value + ")"
+         }
+         skip += res
+         res
       }
 
       val preList : SkipList[ S, MV ] = {
@@ -350,7 +364,10 @@ object Ancestor {
       }
 
       def add( entry: (K, V) )( implicit tx: S#Tx ) : Boolean = {
-         skip.add( wrap( entry ))
+         val mv    = wrap( entry )
+         preList  += mv
+         postList += mv
+         skip.add( mv )
       }
 
       def +=( entry: (K, V) )( implicit tx: S#Tx ) : this.type = {
@@ -446,11 +463,41 @@ object Ancestor {
    sealed trait Map[ S <:Sys[ S ], A, @specialized V ] {
       type K = Vertex[ S, A ]
 
+      /**
+       * Marks a given key with a given value.
+       *
+       * @param   entry the key-value pair (where the key is a vertex in the full tree)
+       * @return  `true` if the mark is new, `false` if there had been a mark for the given vertex.
+       */
       def add( entry: (K, V) )( implicit tx: S#Tx ) : Boolean
       def +=( entry: (K, V) )( implicit tx: S#Tx ) : this.type
       def remove( version: K )( implicit tx: S#Tx ) : Boolean
       def -=( version: K )( implicit tx: S#Tx ) : this.type
+
+      /**
+       * Queries for a mark at a given version vertex. Unlike `nearest`, this does
+       * not search in the map, but merely tests if the given vertex has been
+       * marked or not.
+       *
+       * @param   version  the version vertex to look up
+       * @return  the value associated with that vertex, or `None` if the vertex is unmarked.
+       */
       def get( version: K )( implicit tx: S#Tx ) : Option[ V ]
+
+      /**
+       * Finds the nearest marked ancestor of a given version key.
+       * Since the map is constructed with a defined root value, this method is
+       * guaranteed to succeed&mdash;if there are no other marks in the map,
+       * it will return the root value (unless the `version` argument is
+       * illegal, i.e. has a version lower than the root vertex' version).
+       *
+       * @param   version  the key to look for. The algorithm searches for
+       *          the nearest ancestor in the marked map with a version less than or
+       *          equal to the given version
+       * @return  a pair consisting of the tree vertex found and the value with which
+       *          it has been marked. If the query `version` vertex was marked, it will be
+       *          that vertex which is returned, and not an ancestor.
+       */
       def nearest( version: K )( implicit tx: S#Tx ) : (K, V)
 
       def valueSerializer: Serializer[ V ]
