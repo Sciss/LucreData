@@ -80,7 +80,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
                   Ancestor.newMap[ S, Int, Int ]( full, 0 )
                }
                val rnd     = new util.Random( seed )
-               val empty   = IndexedSeq.empty[ Int ]
+//               val empty   = IndexedSeq.empty[ Int ]
 
                var mapRepr = IntMap[ Vertex ]( 0 -> Vertex( -1, Set.empty, Some( 0 )))
                var mapFV   = IntMap[ Ancestor.Vertex[ S, Int ]]( 0 -> full.root )
