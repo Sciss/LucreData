@@ -71,7 +71,7 @@ object HASkipList {
     * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
     */
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  mf: Manifest[ A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] =
+                                  mf: Manifest[ A ], keySerializer: Serializer[ A ]) : HASkipList[ S, A ] =
       empty()
 
    /**
@@ -92,26 +92,29 @@ object HASkipList {
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                   keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                 ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  mf: Manifest[ A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] = {
+                                  mf: Manifest[ A ], keySerializer: Serializer[ A ]) : HASkipList[ S, A ] = {
 
       // 255 <= arrMaxSz = (minGap + 1) << 1
       // ; this is, so we can write a node's size as signed byte, and
       // no reasonable app would use a node size > 255
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
-      new New[ S, A ]( minGap, keyObserver, tx )
+      val implID = tx.newID()
+      new Impl[ S, A ]( implID, minGap, keyObserver, list => {
+         tx.newVar[ Node[ S, A ]]( implID, null )( list )
+      })
    }
 
    def reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                  ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
-                                   keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): MutableReader[ S#ID, S#Tx, HASkipList[ S, A ]] =
+                                   keySerializer: Serializer[ A ]): MutableReader[ S#ID, S#Tx, HASkipList[ S, A ]] =
       new Reader[ S, A ]( keyObserver )
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
    private final class Reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
                                                  ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
-                                                   keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+                                                   keySerializer: Serializer[ A ])
    extends MutableReader[ S#ID, S#Tx, HASkipList[ S, A ]] {
       def readData( in: DataInput, id: S#ID )( implicit tx: S#Tx ) : HASkipList[ S, A ] = {
          val version = in.readUnsignedByte()
@@ -119,7 +122,7 @@ object HASkipList {
             ", required " + SER_VERSION + ")." )
 
          val minGap  = in.readInt()
-         new Read[ S, A ]( minGap, keyObserver, id, in, tx )
+         new Impl[ S, A ]( id, minGap, keyObserver, list => tx.readVar[ Node[ S, A ]]( id, in )( list ))
       }
 
       def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
@@ -127,33 +130,17 @@ object HASkipList {
 
    private val SER_VERSION = 0
 
-   private final class New[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
-         ( val minGap: Int, protected val keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ], tx0: S#Tx )
-         ( implicit protected val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
-           protected val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends Impl[ S, A ] {
-      val id = tx0.newID()
-      protected val downNode = tx0.newVar[ Node[ S, A ]]( id, null )( this )
-   }
-
-   private final class Read[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
-         ( val minGap: Int, protected val keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ], val id: S#ID, in: DataInput, tx0: S#Tx )
-         ( implicit protected val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
-           protected val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends Impl[ S, A ] {
-      protected val downNode = tx0.readVar[ Node[ S, A ]]( id, in )( this )
-   }
-
-   private sealed trait Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
+   private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
+      ( val id: S#ID, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
+        _downNode: Impl[ S, A ] => S#Var[ Node[ S, A ]])
+      ( implicit val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
+        val keySerializer: Serializer[ A ])
    extends HASkipList[ S, A ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A ]] with HeadOrBranch[ S, A ] {
       impl =>
 
       implicit private def head = this
 
-      protected def downNode: S#Var[ Node[ S, A ]]
-      implicit protected def mf: Manifest[ A ]
-      implicit protected def keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]
-      protected def keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ]
+      private val downNode = _downNode( this )
 
       def arrMinSz = minGap + 1
       private def arrMaxSz = (minGap + 1) << 1   // aka arrMinSz << 1
@@ -270,6 +257,20 @@ object HASkipList {
          } else {
             stepRight( c )
          }
+
+//         var x: NodeImpl = Head.downNode
+//         if( x.isBottom ) return maxKey
+//         while( true ) {
+//            var idx = 0
+//            var cmp = compare( x.key( idx ))
+//            while( cmp > 0 ) {
+//               idx += 1
+//               cmp  = compare( x.key( idx ))
+//            }
+//            val dn = x.down( idx )
+//            if( cmp == 0 || dn.isBottom ) return x.key( idx )
+//            x = dn
+//         }
       }
 
       // ---- set support ----
@@ -329,8 +330,7 @@ object HASkipList {
             val lkeys         = new Array[ A ]( 2 )
             lkeys( 0 )        = v
 //            lkeys( 1 )        = maxKey
-            val lid           = tx.newID()
-            val l             = new Leaf[ S, A ]( lid, lkeys )
+            val l             = new Leaf[ S, A ]( lkeys )
             /*Head.*/ downNode.set( l )
             true
          } else if( c.isLeaf ) {
@@ -704,10 +704,10 @@ object HASkipList {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Node[ S, A ] = {
          (in.readUnsignedByte(): @switch) match {
             case 0 => null // .asInstanceOf[ Branch[ S, A ]]
-            case 1 => Branch.read( in, access, false )
-            case 2 => Leaf.read( in, access, false )
-            case 5 => Branch.read( in, access, true )
-            case 6 => Leaf.read( in, access, true )
+            case 1 => Branch.read( in, false )
+            case 2 => Leaf.read( in, false )
+            case 5 => Branch.read( in, true )
+            case 6 => Leaf.read( in, true )
          }
       }
 
@@ -779,13 +779,12 @@ object HASkipList {
 
 //          import list._
          val bkeys         = new Array[ A ]( 2 )
-         val bid           = tx.newID()
          bkeys( 0 )        = splitKey  // left node ends in the split key
 //          bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
          val bdowns        = tx.newVarArray[ Node[ S, A ]]( 2 ) // new Array[ S#Val[ Branch ]]( 2 )
-         bdowns( 0 )       = tx.newVar[ Node[ S, A ]]( bid, left )
-         bdowns( 1 )       = tx.newVar[ Node[ S, A ]]( bid, right )
-         new Branch[ S, A ]( bid, bkeys, bdowns ) // new parent branch
+         bdowns( 0 )       = tx.newVar( head.id, left )
+         bdowns( 1 )       = tx.newVar( head.id, right )
+         new Branch[ S, A ]( bkeys, bdowns ) // new parent branch
       }
 //       override def toString = "Head"
 //    }
@@ -889,48 +888,16 @@ object HASkipList {
    }
 
    sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int ) A ] /* extends Node[ S, A ] */ {
-//      private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Node[ S, A ]
-//      def size : Int
-//      def key( i: Int ): A
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Node[ S, A ]
+      def size : Int
+      def key( i: Int ): A
       def isLeafLike : Boolean
       def isBranchLike: Boolean
       def asLeafLike : LeafLike[ S, A ]
       def asBranchLike : BranchLike[ S, A ]
-      def data( implicit tx: S#Tx ) : NodeData[ S, A ]
-//      private[HASkipList] def data_=( d: NodeData[ S, A ])( implicit tx: S#Tx ) : NodeData[ S, A ]
    }
 
-   sealed trait NodeData[ S <: Sys[ S ], @specialized( Int ) A ] {
-      def size : Int
-      def key( i: Int ): A
-      def isLeafData :  Boolean
-      def isBranchData: Boolean
-      def asLeafData:   LeafData[ S, A ]
-      def asBranchData: BranchData[ S, A ]
-
-      private[HASkipList] def removeColumn( idx: Int ) : this.type
-   }
-
-   sealed trait LeafData[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeData[ S, A ] {
-      final def isLeafData :   Boolean = true
-      final def isBranchData : Boolean = false
-      final def asLeafData :   LeafData[ S, A ]   = this
-      final def asBranchData : BranchData[ S, A ] = opNotSupported
-
-      private[HASkipList] def removeColumn( idx: Int ) : LeafData[ S, A ]
-   }
-
-   sealed trait BranchData[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeData[ S, A ] {
-      final def isLeafData :   Boolean = false
-      final def isBranchData : Boolean = true
-      final def asLeafData :   LeafData[ S, A ]   = opNotSupported
-      final def asBranchData : BranchData[ S, A ] = this
-
-      def down( i: Int ) : Node[ S, A ]
-      private[HASkipList] def updateKey( idx: Int, key: A ) : BranchData[ S, A ]
-   }
-
-   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] with Mutable[ S ] /* with Node[ S, A ] */ {
+   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] /* with Node[ S, A ] */ {
       private[HASkipList] def virtualize( mod: ModVirtual, sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ]
       private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) : Unit
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
@@ -943,34 +910,31 @@ object HASkipList {
 
    sealed trait BranchLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
       def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ]
-//      private[HASkipList] def downRef( idx: Int ) : S#Var[ Node[ S, A ]]
-//      private[HASkipList] def updateKey( idx: Int, key: A )( implicit list: Impl[ S, A ]) : Branch[ S, A ]
-//      private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]): Branch[ S, A ]
-      private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]) : Branch[ S, A ]
+      private[HASkipList] def downRef( idx: Int ) : S#Var[ Node[ S, A ]]
+      private[HASkipList] def updateKey( idx: Int, key: A )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]): Branch[ S, A ]
+      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
       final def isLeafLike   : Boolean = false
       final def isBranchLike : Boolean = true
       final def asLeafLike   : LeafLike[ S, A ]   = opNotSupported
       final def asBranchLike : BranchLike[ S, A ] = this
-
-      def data( implicit tx: S#Tx ) : BranchData[ S, A ]
    }
 
    sealed trait LeafLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
-      private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]) : Leaf[ S, A ]
-//      private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ]
+      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ]
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ]
       final def isLeafLike   : Boolean = true
       final def isBranchLike : Boolean = false
       final def asLeafLike   : LeafLike[ S, A ]   = this
       final def asBranchLike : BranchLike[ S, A ] = opNotSupported
-
-      def data( implicit tx: S#Tx ) : LeafData[ S, A ]
    }
 
    private final class VirtualLeaf[ S <: Sys[ S ], @specialized( Int ) A ]( protected val main: Leaf[ S, A ],
                                                                             protected val mod: ModVirtual,
                                                                             protected val sib: Leaf[ S, A ])
    extends LeafLike[ S, A ] with VirtualLike[ S, A ] {
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, mf: Manifest[ A ]) : Leaf[ S, A ] = {
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ] = {
+         import list.mf
          val newSz   = size - 1
          val keys    = new Array[ A ]( newSz )
          var i = 0
@@ -983,11 +947,11 @@ object HASkipList {
             keys( i ) = key( i1 )
             i = i1
          }
-         val lid = tx.newID()
-         new Leaf[ S, A ]( lid, keys )
+         new Leaf[ S, A ]( keys )
       }
 
-      private[HASkipList] def devirtualize( implicit tx: S#Tx, mf: Manifest[ A ]): Leaf[ S, A ] = {
+      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]): Leaf[ S, A ] = {
+         import list.mf
          val newSz   = size
          val keys    = new Array[ A ]( newSz )
          var i = 0
@@ -995,26 +959,24 @@ object HASkipList {
             keys( i ) = key( i )
             i += 1
          }
-         val lid = tx.newID()
-         new Leaf[ S, A ]( lid, keys )
+         new Leaf[ S, A ]( keys )
       }
    }
 
    object Leaf {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, access: S#Acc, isRight: Boolean )(
-         implicit tx: S#Tx, mf: Manifest[ A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : Leaf[ S, A ] = {
-
-         val id      = tx.readID( in, access )
+      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, isRight: Boolean )
+                                                                          ( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
+         import list.{mf, keySerializer}
          val sz: Int = in.readUnsignedByte()
-         val szi     = if( isRight ) sz - 1 else sz
-         val keys    = new Array[ A ]( sz )
+         val szi  = if( isRight ) sz - 1 else sz
+         val keys = new Array[ A ]( sz )
          var i = 0; while( i < szi ) {
-            keys( i ) = keySerializer.read( in, access )
+            keys( i ) = keySerializer.read( in )
          i += 1 }
-         new Leaf[ S, A ]( id, keys )
+         new Leaf[ S, A ]( keys )
       }
    }
-   final class Leaf[ S <: Sys[ S ], @specialized( Int ) A ]( val id: S#ID, keys: Array[ A ])
+   final class Leaf[ S <: Sys[ S ], @specialized( Int ) A ]( keys: Array[ A ])
    extends LeafLike[ S, A ] with Node[ S, A ] {
       def key( idx: Int ) = keys( idx )
       def size : Int = keys.length
@@ -1024,7 +986,7 @@ object HASkipList {
       def asLeaf   : Leaf[ S, A ]   = this
       def asBranch : Branch[ S, A ] = opNotSupported
 
-      private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]): Leaf[ S, A ] = this
+      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]): Leaf[ S, A ] = this
 
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = size
 
@@ -1106,7 +1068,7 @@ object HASkipList {
          }
       }
 
-      private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ] = {
          import list.mf
          val sz      = size - 1
          val newKeys = new Array[ A ]( sz )
@@ -1118,7 +1080,7 @@ object HASkipList {
 
 //         override def toString = toString( "Leaf" )
 
-      protected def writeData( out: DataOutput )( implicit list: Impl[ S, A ]) {
+      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
          import list.keySerializer
          val sz      = size
          val sz1     = sz - 1
@@ -1153,8 +1115,8 @@ object HASkipList {
 
       def down( idx: Int )( implicit tx: S#Tx ) : Node[ S, A ] = downRef( idx ).get
 
-      private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]) : Branch[ S, A ] = {
-         import list.{mf, system}
+      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+         import list.mf
          val newSz   = size
          val keys    = new Array[ A ]( newSz )
          val downs   = tx.newVarArray[ Node[ S, A ]]( newSz )
@@ -1168,7 +1130,7 @@ object HASkipList {
       }
 
       private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
-         import list.{mf, system}
+         import list.mf
          val newSz   = size - 1
          val keys    = new Array[ A ]( newSz )
          val downs   = tx.newVarArray[ Node[ S, A ]]( newSz )
@@ -1187,7 +1149,7 @@ object HASkipList {
          new Branch[ S, A ]( keys, downs )
       }
 
-      private[HASkipList] def updateKey( idx: Int, k: A )( implicit list: Impl[ S, A ]) : Branch[ S, A ] = {
+      private[HASkipList] def updateKey( idx: Int, k: A )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
          import list.{size => _, _}
          val newSz   = size
          val keys    = new Array[ A ]( newSz )
@@ -1204,9 +1166,9 @@ object HASkipList {
    }
 
    object Branch {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, access: S#Acc, isRight: Boolean )
-                                                                          ( implicit tx: S#Tx, mf: Manifest[ A ]) : Branch[ S, A ] = {
-         val id      = tx.readID( in, access )
+      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, isRight: Boolean )
+                                                                          ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+         import list._
          val sz: Int = in.readUnsignedByte()
          val keys    = new Array[ A ]( sz )
          val downs   = tx.newVarArray[ Node[ S, A ]]( sz )
@@ -1215,12 +1177,13 @@ object HASkipList {
             keys( i ) = keySerializer.read( in )
          i += 1 }
          i = 0; while( i < sz ) {
-            downs( i ) = tx.readVar[ Node[ S, A ]]( id, in )
+            downs( i ) = tx.readVar[ Node[ S, A ]]( list.id, in )
          i += 1 }
-         new Branch[ S, A ]( id, keys, downs )
+         new Branch[ S, A ]( keys, downs )
       }
    }
-   final class Branch[ S <: Sys[ S ], @specialized( Int ) A ]( val id: S#ID, dataVar: S#Var[ BranchData[ S, A ]])
+   final class Branch[ S <: Sys[ S ], @specialized( Int ) A ]( keys: Array[ A ],
+                                                               downs: Array[ S#Var[ Node[ S, A ]]])
    extends BranchLike[ S, A ] with HeadOrBranch[ S, A ] with Node[ S, A ] {
 //      assert( keys.size == downs.size )
 
@@ -1228,11 +1191,6 @@ object HASkipList {
       def isBranch : Boolean = true
       def asLeaf   : Leaf[ S, A ]   = opNotSupported
       def asBranch : Branch[ S, A ] = this
-
-      private[HASkipList] def data_=( d: BranchData[ S, A ])( implicit tx: S#Tx ) {
-
-      }
-//      private[HASkipList] def data_=( d: NodeData[ S, A ])( implicit tx: S#Tx ) : NodeData[ S, A ]
 
       /**
        * Utility method for bubbling -- this overwrites the
@@ -1244,7 +1202,7 @@ object HASkipList {
          keys( idx ) = k
       }
 
-      private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]) : Branch[ S, A ] = this
+      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = this
 
       private[HASkipList] def virtualize( mod: ModVirtual,
                                           sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ] =
@@ -1286,7 +1244,8 @@ object HASkipList {
 
       def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ] = downs( i ).get
 
-      private[HASkipList] def split( implicit tx: S#Tx, mf: Manifest[ A ]) : (Branch[ S, A ], Branch[ S, A ]) = {
+      private[HASkipList] def split( implicit tx: S#Tx, list: Impl[ S, A ]) : (Branch[ S, A ], Branch[ S, A ]) = {
+         import list.{size => _, _}
          val lsz     = arrMinSz
          val lkeys   = new Array[ A ]( lsz )
          val ldowns  = tx.newVarArray[ Node[ S, A ]]( lsz )
@@ -1308,8 +1267,9 @@ object HASkipList {
          downs( i ).set( n )
       }
 
-      private[HASkipList] def removeColumn( idx: Int )( implicit mf: Manifest[ A ]) : Branch[ S, A ] = {
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
 //assert( idx >= 0 && idx < size, "idx = " + idx + "; size = " + size )
+         import list.{size => _, _}
          val sz         = size - 1
          val newKeys    = new Array[ A ]( sz )
          val newDowns   = tx.newVarArray[ Node[ S, A ]]( sz )
@@ -1325,7 +1285,8 @@ object HASkipList {
          new Branch[ S, A ]( newKeys, newDowns )
       }
 
-      private[HASkipList] def updateKey( idx: Int, key: A )( implicit mf: Manifest[ A ]) : Branch[ S, A ] = {
+      private[HASkipList] def updateKey( idx: Int, key: A )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+         import list.mf
          val sz         = size
          val newKeys    = new Array[ A ]( sz )
          System.arraycopy( keys, 0, newKeys, 0, sz )  // just copy all and then overwrite one
@@ -1334,8 +1295,8 @@ object HASkipList {
       }
 
       private[HASkipList] def insertAfterSplit( idx: Int, splitKey: A, left: Node[ S, A ], right: Node[ S, A ])
-                                              ( implicit tx: S#Tx, mf: Manifest[ A ],
-                                                peerSer: TxnSerializer[ S#Tx, S#Acc, Node[ S, A ]]) : Branch[ S, A ] = {
+                                              ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+         import list.mf
          // we must make a copy of this branch with the
          // size increased by one. the new key is `splitKey`
          // which gets inserted at the index where we went
@@ -1349,9 +1310,8 @@ object HASkipList {
             System.arraycopy( downs, 0, bdowns, 0, idx )
          }
          // insert the left split entry
-         bkeys( idx )      = splitKey
-         val bid           = tx.newID()
-         bdowns( idx )     = tx.newVar[ Node[ S, A ]]( bid, left )
+         bkeys( idx )     = splitKey
+         bdowns( idx )    = tx.newVar( list.id, left )
          // copy entries right to split index
          val rightOff      = idx + 1
          val numr          = bsz - rightOff
@@ -1365,10 +1325,10 @@ object HASkipList {
          System.arraycopy( downs, idx, bdowns, rightOff, numr )
          bdowns( rightOff ).set( right )
 
-         new Branch[ S, A ]( bid, bkeys, bdowns )
+         new Branch[ S, A ]( bkeys, bdowns )
       }
 
-      protected def writeData( out: DataOutput )( implicit list: Impl[ S, A ]) {
+      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
          import list.keySerializer
          val sz      = size
          val sz1     = sz - 1
@@ -1394,5 +1354,5 @@ sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.Skip
    def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A ]]
 
    def write( out: DataOutput ) : Unit
-//   def keySerializer : Serializer[ A ]
+   def keySerializer : Serializer[ A ]
 }
