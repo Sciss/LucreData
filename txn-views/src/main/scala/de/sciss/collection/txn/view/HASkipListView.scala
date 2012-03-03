@@ -28,7 +28,7 @@ package txn
 package view
 
 import java.awt.{Color, Point, Rectangle, Graphics2D}
-import de.sciss.lucrestm.Sys
+import de.sciss.lucre.stm.Sys
 import de.sciss.collection.view.SkipListView
 
 class HASkipListView[ S <: Sys[ S ], A ]( private val l: HASkipList[ S, A ])( implicit system: S )

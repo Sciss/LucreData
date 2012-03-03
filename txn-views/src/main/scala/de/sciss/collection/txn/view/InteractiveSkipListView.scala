@@ -30,7 +30,8 @@ import java.awt.event.{ActionListener, ActionEvent}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
 import javax.swing.{Box, JLabel, SwingConstants, WindowConstants, JFrame, JTextField, JButton, JPanel}
 import java.io.File
-import de.sciss.lucrestm.{BerkeleyDB, Sys, InMemory}
+import de.sciss.lucre.stm.Sys
+import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
 import de.sciss.collection.view.PDFSupport
 
 /**
@@ -52,14 +53,14 @@ object InteractiveSkipListView extends App with Runnable {
          println( f.getAbsolutePath )
          implicit val system = BerkeleyDB.open( f )
          new InteractiveSkipListView[ BerkeleyDB ]( obs => system.atomic { implicit tx =>
-            implicit val reader = HASkipList.reader[ BerkeleyDB, Int ]( obs )
+            implicit val ser = HASkipList.serializer[ BerkeleyDB, Int ]( obs )
             system.root[ HASkipList[ BerkeleyDB, Int ]] {
                HASkipList.empty[ BerkeleyDB, Int ]( minGap = 1, keyObserver = obs )
             }
          })
 
       } else {
-         implicit val system = new InMemory
+         implicit val system = InMemory()
          new InteractiveSkipListView[ InMemory ]( obs => system.atomic { implicit tx =>
             HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = obs )
          })

@@ -71,7 +71,7 @@ object HASkipList {
     * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
     */
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  mf: Manifest[ A ], keySerializer: Serializer[ A ]) : HASkipList[ S, A ] =
+                                  mf: Manifest[ A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] =
       empty()
 
    /**
@@ -92,7 +92,7 @@ object HASkipList {
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                   keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                 ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  mf: Manifest[ A ], keySerializer: Serializer[ A ]) : HASkipList[ S, A ] = {
+                                  mf: Manifest[ A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] = {
 
       // 255 <= arrMaxSz = (minGap + 1) << 1
       // ; this is, so we can write a node's size as signed byte, and
@@ -105,18 +105,19 @@ object HASkipList {
       })
    }
 
-   def reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
-                                 ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
-                                   keySerializer: Serializer[ A ]): MutableReader[ S#ID, S#Tx, HASkipList[ S, A ]] =
-      new Reader[ S, A ]( keyObserver )
+   def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
+                                     ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
+                                       keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): TxnSerializer[ S#Tx, S#Acc, HASkipList[ S, A ]] =
+      new Ser[ S, A ]( keyObserver )
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-   private final class Reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
-                                                 ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
-                                                   keySerializer: Serializer[ A ])
-   extends MutableReader[ S#ID, S#Tx, HASkipList[ S, A ]] {
-      def readData( in: DataInput, id: S#ID )( implicit tx: S#Tx ) : HASkipList[ S, A ] = {
+   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
+                                              ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
+                                                keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+   extends TxnSerializer[ S#Tx, S#Acc, HASkipList[ S, A ]] {
+      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList[ S, A ] = {
+         val id      = tx.readID( in, access )
          val version = in.readUnsignedByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
@@ -134,7 +135,7 @@ object HASkipList {
       ( val id: S#ID, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
         _downNode: Impl[ S, A ] => S#Var[ Node[ S, A ]])
       ( implicit val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
-        val keySerializer: Serializer[ A ])
+        val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
    extends HASkipList[ S, A ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A ]] with HeadOrBranch[ S, A ] {
       impl =>
 
@@ -704,10 +705,10 @@ object HASkipList {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Node[ S, A ] = {
          (in.readUnsignedByte(): @switch) match {
             case 0 => null // .asInstanceOf[ Branch[ S, A ]]
-            case 1 => Branch.read( in, false )
-            case 2 => Leaf.read( in, false )
-            case 5 => Branch.read( in, true )
-            case 6 => Leaf.read( in, true )
+            case 1 => Branch.read( in, access, false )
+            case 2 => Leaf.read( in, access, false )
+            case 5 => Branch.read( in, access, true )
+            case 6 => Leaf.read( in, access, true )
          }
       }
 
@@ -964,14 +965,14 @@ object HASkipList {
    }
 
    object Leaf {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, isRight: Boolean )
-                                                                          ( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
+      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, access: S#Acc, isRight: Boolean )
+                                                                          ( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ] = {
          import list.{mf, keySerializer}
          val sz: Int = in.readUnsignedByte()
          val szi  = if( isRight ) sz - 1 else sz
          val keys = new Array[ A ]( sz )
          var i = 0; while( i < szi ) {
-            keys( i ) = keySerializer.read( in )
+            keys( i ) = keySerializer.read( in, access )
          i += 1 }
          new Leaf[ S, A ]( keys )
       }
@@ -1166,7 +1167,7 @@ object HASkipList {
    }
 
    object Branch {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, isRight: Boolean )
+      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, access: S#Acc, isRight: Boolean )
                                                                           ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
          import list._
          val sz: Int = in.readUnsignedByte()
@@ -1174,7 +1175,7 @@ object HASkipList {
          val downs   = tx.newVarArray[ Node[ S, A ]]( sz )
          val szi     = if( isRight ) sz - 1 else sz
          var i = 0; while( i < szi ) {
-            keys( i ) = keySerializer.read( in )
+            keys( i ) = keySerializer.read( in, access )
          i += 1 }
          i = 0; while( i < sz ) {
             downs( i ) = tx.readVar[ Node[ S, A ]]( list.id, in )
@@ -1354,5 +1355,5 @@ sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.Skip
    def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A ]]
 
    def write( out: DataOutput ) : Unit
-   def keySerializer : Serializer[ A ]
+   def keySerializer : TxnSerializer[ S#Tx, S#Acc, A ]
 }

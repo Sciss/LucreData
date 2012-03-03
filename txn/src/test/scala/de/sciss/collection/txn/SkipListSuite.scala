@@ -5,7 +5,8 @@ import scala.collection.immutable.IntMap
 import scala.collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import concurrent.stm.{InTxn, TxnExecutor, Ref}
-import de.sciss.lucrestm.{BerkeleyDB, InMemory, Sys}
+import de.sciss.lucre.stm.Sys
+import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
 import java.io.File
 
 /**
@@ -50,7 +51,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   if( INMEMORY ) withSys( "Mem", () => new InMemory, (_: InMemory) => () )
+   if( INMEMORY ) withSys( "Mem", () => InMemory(), (_: InMemory) => () )
    if( DATABASE ) {
       withSys[ BerkeleyDB ]( "BDB", () => {
          val dir     = File.createTempFile( "skiplist", "_database" )
@@ -58,7 +59,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
          dir.mkdir()
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
-         BerkeleyDB.open( f )
+         BerkeleyDB.open( f ) : BerkeleyDB // make IDEA happy
       }, bdb => {
          val sz = bdb.numUserRecords
 //         println( "FINAL DB SIZE = " + sz )
