@@ -1343,7 +1343,6 @@ extends SkipOctree[ S, D, A ] {
        * ordered according to its position in this node.
        *
        * @param   qidx  the orthant index of the new leaf in this node
-       * @param   point the point associated with the new leaf
        * @param   value the value associated with the new leaf
        * @return  the new leaf which has already assigned this node as
        *          parent and is already stored in this node's children

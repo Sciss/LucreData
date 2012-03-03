@@ -67,8 +67,7 @@ object HASkipList {
     * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
     *                      for specialized versions and transactional restrictions.
     * @param   mf          the manifest for key type `A`, necessary for internal array constructions.
-    * @param   serKey      the serializer for the elements, in case a persistent STM is used.
-    * @param   stm         the software transactional memory to use.
+    * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
     */
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
                                   mf: Manifest[ A ], keySerializer: Serializer[ A ]) : HASkipList[ S, A ] =
@@ -87,8 +86,7 @@ object HASkipList {
     * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
     *                      for specialized versions and transactional restrictions.
     * @param   mf          the manifest for key type `A`, necessary for internal array constructions.
-    * @param   serKey      the serializer for the elements, in case a persistent STM is used.
-    * @param   stm         the software transactional memory to use.
+    * @param   keySerializer  the serializer for the elements, in case a persistent STM is used.
     */
    def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                   keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
