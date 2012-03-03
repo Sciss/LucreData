@@ -50,8 +50,8 @@ import de.sciss.lucre.stm._
 object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube, skipGap: Int = 2 )
                                                  ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
-                                                   keySerializer: Serializer[ A ],
-                                                   hyperSerializer: Serializer[ D#HyperCube ],
+                                                   keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ],
                                                    amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
 
       new ImplNew[ S, D, A ]( skipGap, tx.newID(), hyperCube, view, tx )
@@ -59,14 +59,14 @@ object DeterministicSkipOctree {
 
    implicit def serializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
-      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ], amf: Manifest[ A ]
+      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]
    ) : TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] = new OctreeSerializer[ S, D, A ]
 
    private val SER_VERSION = 0
 
    private final class OctreeSerializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
-      keySerializer: Serializer[ A ], hyperSerializer: Serializer[ D#HyperCube ], amf: Manifest[ A ]
+      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]
    ) extends TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, D, A ] = {
          val id = tx.readID( in, access )
@@ -74,19 +74,17 @@ object DeterministicSkipOctree {
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
 
-         val hyperCube  = hyperSerializer.read( in )
+         val hyperCube  = hyperSerializer.read( in, access )
          new ImplRead[ S, D, A ]( id, hyperCube, view, in, access, tx )
       }
 
       def write( v: DeterministicSkipOctree[ S, D, A ], out: DataOutput ) { v.write( out )}
    }
 
-   private final class ImplRead[ S <: Sys[ S ], D <: Space[ D ], A ]( val id: S#ID, val hyperCube: D#HyperCube,
-                                                                      val pointView: (A, S#Tx) => D#PointLike,
-                                                                      in: DataInput, access: S#Acc, tx0: S#Tx )
-                                                                    ( implicit val space: D,
-                                                                      val keySerializer: Serializer[ A ],
-                                                                      val hyperSerializer: Serializer[ D#HyperCube ])
+   private final class ImplRead[ S <: Sys[ S ], D <: Space[ D ], A ](
+      val id: S#ID, val hyperCube: D#HyperCube, val pointView: (A, S#Tx) => D#PointLike,  in: DataInput,
+      access: S#Acc, tx0: S#Tx )( implicit val space: D,  val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+                                  val hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ] {
       val totalOrder = {
          val orderReader = TotalOrder.Set.serializer[ S ] // ()
@@ -105,12 +103,10 @@ object DeterministicSkipOctree {
       }
    }
 
-   private final class ImplNew[ S <: Sys[ S ], D <: Space[ D ], A ]( skipGap: Int, val id: S#ID,
-                                                                     val hyperCube: D#HyperCube,
-                                                                     val pointView: (A, S#Tx) => D#PointLike,
-                                                                     tx0: S#Tx )
-                                                                   ( implicit val space: D, val keySerializer: Serializer[ A ],
-                                                                     val hyperSerializer: Serializer[ D#HyperCube ])
+   private final class ImplNew[ S <: Sys[ S ], D <: Space[ D ], A ](
+      skipGap: Int, val id: S#ID, val hyperCube: D#HyperCube, val pointView: (A, S#Tx) => D#PointLike, tx0: S#Tx )
+    ( implicit val space: D, val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+      val hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
 
    extends DeterministicSkipOctree[ S, D, A ] {
       val totalOrder = TotalOrder.Set.empty[ S ]( tx0 ) // ()
@@ -144,8 +140,8 @@ extends SkipOctree[ S, D, A ] {
    private type Order = TotalOrder.Set.Entry[ S ]
 
    implicit def space: D
-   implicit def keySerializer: Serializer[ A ]
-   implicit def hyperSerializer: Serializer[ D#HyperCube ]
+   implicit def keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]
+   implicit def hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]
 
    protected def totalOrder: TotalOrder.Set[ S ]
    protected def skipList: HASkipList[ S, LeafImpl ]
@@ -1024,7 +1020,7 @@ extends SkipOctree[ S, D, A ] {
     * Serialization-id: 1
     */
    private def readLeaf( in: DataInput, access: S#Acc, id: S#ID )( implicit tx: S#Tx ) : LeafImpl = {
-      val value      = keySerializer.read( in )
+      val value      = keySerializer.read( in, access )
       val order      = totalOrder.readEntry( in, access )
       val parentRef  = tx.readVar[ BranchLike ]( id, in )
       new LeafImpl( id, value, order, parentRef )
@@ -1501,7 +1497,7 @@ extends SkipOctree[ S, D, A ] {
     */
    private def readLeftChildBranch( in: DataInput, access: S#Acc, id: S#ID )( implicit tx: S#Tx ) : LeftChildBranch = {
       val parentRef  = tx.readVar[ LeftBranch ]( id, in )
-      val hyperCube  = hyperSerializer.read( in )
+      val hyperCube  = hyperSerializer.read( in, access )
       val startOrder = totalOrder.readEntry( in, access )
       val sz         = numOrthants
       val ch         = tx.newVarArray[ LeftChildOption ]( sz )
@@ -1662,7 +1658,7 @@ extends SkipOctree[ S, D, A ] {
    private def readRightChildBranch( in: DataInput, access: S#Acc, id: S#ID )( implicit tx: S#Tx ) : RightChildBranch = {
       val parentRef  = tx.readVar[ RightBranch ]( id, in )
       val prev       = BranchSerializer.read( in, access )
-      val hyperCube  = hyperSerializer.read( in )
+      val hyperCube  = hyperSerializer.read( in, access )
       val sz         = numOrthants
       val ch         = tx.newVarArray[ RightChildOption ]( sz )
       var i = 0; while( i < sz ) {

@@ -28,7 +28,7 @@ package txn
 
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import de.sciss.lucre.stm.{Serializer, Mutable, Sys}
+import de.sciss.lucre.stm.{TxnSerializer, Mutable, Sys}
 
 object SkipOctree {
    implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {
@@ -37,8 +37,8 @@ object SkipOctree {
 
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube )
                                                  ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
-                                                   keySerializer: Serializer[ A ],
-                                                   hyperSerializer: Serializer[ D#HyperCube ],
+                                                   keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ],
                                                    amf: Manifest[ A ]) : SkipOctree[ S, D, A ] =
       DeterministicSkipOctree.empty[ S, D, A ]( hyperCube )
 

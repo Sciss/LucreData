@@ -26,11 +26,12 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucre.stm.{Mutable, Serializer, Sys}
+import de.sciss.lucre.stm.{TxnSerializer, Mutable, Sys}
+
 
 object SkipList {
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ], mf: Manifest[ A ],
-                                  serKey: Serializer[ A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
+                                  serKey: TxnSerializer[ S#Tx, S#Acc, A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
 
    /**
     * A trait for observing the promotion and demotion of a key
