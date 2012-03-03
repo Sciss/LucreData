@@ -107,7 +107,9 @@ object LucreDataBuild extends Build {
          "Oracle Repository" at "http://download.oracle.com/maven"
       ),
       retrieveManaged := true,
-      
+
+      publishArtifact in (Compile, packageDoc) := false, // scaladoc is broken with sbt 0.11.2 !
+
       publishSetting,
       credentialsSetting,
       pomExtra     := pomSettings,

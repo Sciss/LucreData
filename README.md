@@ -1,7 +1,5 @@
 ## LucreData
 
-__Note__ : This is the work-in-progress branch corresponding to LucreSTM v0.20-SNAPSHOT. The structures are step-by-step updated for the new API. You might want to check out the master branch for the fully functional suite.
-
 ### statement
 
 (C)opyright 2011-2012 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
@@ -29,7 +27,8 @@ Builds with xsbt (sbt 0.11) against Scala 2.9.1. Depends on [LucreSTM](http://gi
 * `mutable-views` &ndash; Some Swing based views to show the mutable data structures
 * `txn-views` &ndash; Some Swing based views to show the transactional data structures
 
-__Note:__ Due to a bug in sbt 0.11.2, you are screwed if you try to do `sbt publish-local` (scaladoc fails). Currently you need to use a snapshot version of sbt to do that.
+__Note:__ Due to a bug in sbt 0.11.2, scaladoc currently fails, and is disabled for `publish` and `publish-local`.
+A workaround is to use a snapshot version of sbt to run `doc`.
 
 ### creating an IntelliJ IDEA project
 
