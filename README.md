@@ -2,7 +2,7 @@
 
 ### statement
 
-(C)opyright 2011 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
+(C)opyright 2011-2012 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
 
 This is a sandbox project for implementing and probing various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries.
 
@@ -35,7 +35,7 @@ If you haven't globally installed the sbt-idea plugin yet, create the following 
 
     resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
     
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "0.11.0")
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
 
 Then to create the IDEA project, run the following two commands from the xsbt shell:
 

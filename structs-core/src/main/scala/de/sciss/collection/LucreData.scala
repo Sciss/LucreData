@@ -2,7 +2,7 @@
  *  LucreData.scala
  *  (LucreData)
  *
- *  Copyright (c) 2011 Hanns Holger Rutz. All rights reserved.
+ *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
  *
  *  This software is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -22,13 +22,14 @@
  *  For further information, please contact Hanns Holger Rutz at
  *  contact@sciss.de
  */
+
 package de.sciss.collection
 
 object LucreData {
    val name          = "LucreData"
-   val version       = 0.13
+   val version       = 0.20
    val copyright     = "(C)opyright 2011 Hanns Holger Rutz"
-   val isSnapshot    = false
+   val isSnapshot    = true
 
    def versionString = {
       val s = (version + 0.001).toString.substring( 0, 4 )
