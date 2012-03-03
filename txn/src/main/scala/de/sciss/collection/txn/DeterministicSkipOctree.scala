@@ -937,7 +937,17 @@ extends SkipOctree[ S, D, A ] {
    protected sealed trait NonEmpty /* extends Down with Child */ {
       protected def shortString : String
 
-      override def toString  = shortString
+      override def toString  = shortString + id
+
+      def id: S#ID
+
+      override def equals( that: Any ) : Boolean = {
+         (if( that.isInstanceOf[ NonEmpty ]) {
+            id == that.asInstanceOf[ NonEmpty ].id
+         } else super.equals( that ))
+      }
+
+      override def hashCode = id.hashCode()
 
 //      def isEmpty : Boolean
 //      def isLeaf : Boolean
@@ -1462,7 +1472,6 @@ extends SkipOctree[ S, D, A ] {
                                       protected val children: Array[ S#Var[ LeftChildOption ]],
                                       protected val nextRef: S#Var[ NextOption ])
    extends LeftBranch with TopBranch with Writer /* Mutable[ S ] */ {
-
       // that's alright, we don't need to do anything special here
       protected def leafRemoved()( implicit tx: S#Tx ) {}
 
