@@ -424,7 +424,7 @@
 //         }
 //         t += root
 //         implicit val orderSer: Serializer[ TotalOrder.Map.Entry[ S, MarkVertex[ S ]]] =
-//            Serializer.fromMutableReader( root.preOrder.EntryReader, system )
+//            Serializer.fromMutableReader( root.preOrder.EntrySerializer, system )
 //
 //         lazy val preList   = {
 //            implicit val ord = new Ordering[ S#Tx, MarkVertex[ S ]] {
