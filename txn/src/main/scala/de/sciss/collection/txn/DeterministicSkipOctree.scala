@@ -69,7 +69,7 @@ object DeterministicSkipOctree {
       keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]
    ) extends TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, D, A ] = {
-         val id = tx.readID( in, access )
+         val id      = tx.readID( in, access )
          val version = in.readUnsignedByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
@@ -86,11 +86,7 @@ object DeterministicSkipOctree {
       access: S#Acc, tx0: S#Tx )( implicit val space: D,  val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
                                   val hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ] {
-      val totalOrder = {
-         val orderReader = TotalOrder.Set.serializer[ S ] // ()
-         orderReader.read( in, access )( tx0 )
-//         system.readMut[ TotalOrder.Set[ S ]]( in )
-      }
+      val totalOrder = TotalOrder.Set.serializer[ S ].read( in, access )( tx0 )
       val skipList = {
          implicit val ord  = LeafOrdering
          implicit val r1   = LeafSerializer
@@ -98,7 +94,7 @@ object DeterministicSkipOctree {
       }
       val head = LeftTopBranchSerializer.read( in, access )( tx0 )
       val lastTreeRef = {
-         implicit val r4   = TopBranchSerializer
+         implicit val r4 = TopBranchSerializer
          tx0.readVar[ TopBranch ]( id, in )
       }
    }
@@ -171,6 +167,7 @@ extends SkipOctree[ S, D, A ] {
          (cookie: @switch) match {
             case 4 => readRightTopBranch( in, access, id )
             case 5 => readRightChildBranch( in, access, id )
+            case _ => sys.error( "Unexpected cookie " + cookie )
          }
       }
 
@@ -210,9 +207,9 @@ extends SkipOctree[ S, D, A ] {
    implicit protected object LeftChildOptionSerializer extends TxnSerializer[ S#Tx, S#Acc, LeftChildOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftChildOption = {
-         val cookie = in.readUnsignedByte()
+         val cookie  = in.readUnsignedByte()
          if( cookie == 0 ) return EmptyValue
-         val id = tx.readID( in, access )
+         val id      = tx.readID( in, access )
          (cookie: @switch) match {
             case 1 => readLeaf( in, access, id )
             case 3 => readLeftChildBranch( in, access, id )
