@@ -26,7 +26,7 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{Mutable, Serializer, Sys}
+import de.sciss.lucre.stm.{Mutable, Serializer, Sys}
 
 object SkipList {
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ], mf: Manifest[ A ],
@@ -82,7 +82,7 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S 
     * a comparison function which guides the
     * binary search.
     *
-    * @param   compare  a function that guides the search.
+    * @param   ord   a function that guides the search.
     *    should return -1 if the argument is smaller
     *    than the search key, 0 if both are equivalent,
     *    or 1 if the argument is greater than the search key.

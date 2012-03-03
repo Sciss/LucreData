@@ -29,7 +29,8 @@ package txn
 import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import annotation.{switch, tailrec}
-import de.sciss.lucrestm.{MutableReader, DataOutput, DataInput, Sink, Serializer, Sys}
+import de.sciss.lucre.{DataOutput, DataInput}
+import de.sciss.lucre.stm.{MutableReader, Sink, Serializer, Sys}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -98,15 +99,15 @@ object HASkipList {
       // no reasonable app would use a node size > 255
       require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
 
-      implicit val system = tx.system
-      new Impl[ S, A ]( system.newID(), minGap, keyObserver, list => {
-         system.newVal[ Node[ S, A ]]( null )( tx, list )
+      val implID = tx.newID()
+      new Impl[ S, A ]( implID, minGap, keyObserver, list => {
+         tx.newVar[ Node[ S, A ]]( implID, null )( list )
       })
    }
 
    def reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                  ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
-                                   keySerializer: Serializer[ A ], system: S ): MutableReader[ S, HASkipList[ S, A ]] =
+                                   keySerializer: Serializer[ A ], system: S ): MutableReader[ S#ID, S#Tx, HASkipList[ S, A ]] =
       new Reader[ S, A ]( keyObserver )
 
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
@@ -114,7 +115,7 @@ object HASkipList {
    private final class Reader[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
                                                  ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
                                                    keySerializer: Serializer[ A ], system: S )
-   extends MutableReader[ S, HASkipList[ S, A ]] {
+   extends MutableReader[ S#ID, S#Tx, HASkipList[ S, A ]] {
       def readData( in: DataInput, id: S#ID ) : HASkipList[ S, A ] = {
          val version = in.readUnsignedByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
@@ -131,7 +132,7 @@ object HASkipList {
 
    private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
       ( val id: S#ID, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
-        _downNode: Impl[ S, A ] => S#Val[ Node[ S, A ]])
+        _downNode: Impl[ S, A ] => S#Var[ Node[ S, A ]])
       ( implicit val mf: Manifest[ A ], val ordering: Ordering[ S#Tx, A ],
         val keySerializer: Serializer[ A ], val system: S )
    extends HASkipList[ S, A ] with Serializer[ Node[ S, A ]] with HeadOrBranch[ S, A ] {
@@ -780,7 +781,7 @@ object HASkipList {
          val bkeys         = new Array[ A ]( 2 )
          bkeys( 0 )        = splitKey  // left node ends in the split key
 //          bkeys( 1 )        = maxKey    // right node ends in max key (remember parent is `Head`!)
-         val bdowns        = system.newValArray[ Node[ S, A ]]( 2 ) // new Array[ S#Val[ Branch ]]( 2 )
+         val bdowns        = tx.newVarArray[ Node[ S, A ]]( 2 ) // new Array[ S#Val[ Branch ]]( 2 )
          bdowns( 0 )       = system.newVal( left )
          bdowns( 1 )       = system.newVal( right )
          new Branch[ S, A ]( bkeys, bdowns ) // new parent branch
@@ -909,7 +910,7 @@ object HASkipList {
 
    sealed trait BranchLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
       def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ]
-      private[HASkipList] def downRef( idx: Int ) : S#Val[ Node[ S, A ]]
+      private[HASkipList] def downRef( idx: Int ) : S#Var[ Node[ S, A ]]
       private[HASkipList] def updateKey( idx: Int, key: A )( implicit list: Impl[ S, A ]) : Branch[ S, A ]
       private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]): Branch[ S, A ]
       private[HASkipList] def devirtualize( implicit list: Impl[ S, A ]) : Branch[ S, A ]
@@ -1097,7 +1098,7 @@ object HASkipList {
                                                                               protected val mod: ModVirtual,
                                                                               protected val sib: Branch[ S, A ])
    extends BranchLike[ S, A ] with VirtualLike[ S, A ] {
-      private[HASkipList] def downRef( idx: Int ) : S#Val[ Node[ S, A ]] = mod match {
+      private[HASkipList] def downRef( idx: Int ) : S#Var[ Node[ S, A ]] = mod match {
          case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
          case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
          case ModBorrowToRight   => if( idx == 0 ) main.downRef( main.size - 1 ) else sib.downRef( idx - 1 )
@@ -1118,7 +1119,7 @@ object HASkipList {
          import list.{mf, system}
          val newSz   = size
          val keys    = new Array[ A ]( newSz )
-         val downs   = system.newValArray[ Node[ S, A ]]( newSz )
+         val downs   = tx.newVarArray[ Node[ S, A ]]( newSz )
          var i = 0
          while( i < newSz ) {
             keys( i )  = key( i )
@@ -1128,11 +1129,11 @@ object HASkipList {
          new Branch[ S, A ]( keys, downs )
       }
 
-      private[HASkipList] def removeColumn( idx: Int )( implicit list: Impl[ S, A ]) : Branch[ S, A ] = {
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
          import list.{mf, system}
          val newSz   = size - 1
          val keys    = new Array[ A ]( newSz )
-         val downs   = system.newValArray[ Node[ S, A ]]( newSz )
+         val downs   = tx.newVarArray[ Node[ S, A ]]( newSz )
          var i = 0
          while( i < idx ) {
             keys( i )   = key( i )
@@ -1152,7 +1153,7 @@ object HASkipList {
          import list.{size => _, _}
          val newSz   = size
          val keys    = new Array[ A ]( newSz )
-         val downs   = system.newValArray[ Node[ S, A ]]( newSz )
+         val downs   = tx.newVarArray[ Node[ S, A ]]( newSz )
          var i = 0
          while( i < newSz ) {
             keys( i )   = key( i )
@@ -1170,7 +1171,7 @@ object HASkipList {
          import list._
          val sz: Int = in.readUnsignedByte()
          val keys    = new Array[ A ]( sz )
-         val downs   = system.newValArray[ Node[ S, A ]]( sz )
+         val downs   = tx.newVarArray[ Node[ S, A ]]( sz )
          val szi     = if( isRight ) sz - 1 else sz
          var i = 0; while( i < szi ) {
             keys( i ) = keySerializer.read( in )
@@ -1182,7 +1183,7 @@ object HASkipList {
       }
    }
    final class Branch[ S <: Sys[ S ], @specialized( Int ) A ]( keys: Array[ A ],
-                                                               downs: Array[ S#Val[ Node[ S, A ]]])
+                                                               downs: Array[ S#Var[ Node[ S, A ]]])
    extends BranchLike[ S, A ] with HeadOrBranch[ S, A ] with Node[ S, A ] {
 //      assert( keys.size == downs.size )
 
@@ -1239,7 +1240,7 @@ object HASkipList {
       def key( idx: Int ) : A = keys( idx )
       def size : Int = keys.length
 
-      private[HASkipList] def downRef( i: Int ) : S#Val[ Node[ S, A ]] = downs( i )
+      private[HASkipList] def downRef( i: Int ) : S#Var[ Node[ S, A ]] = downs( i )
 
       def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ] = downs( i ).get
 
@@ -1247,14 +1248,14 @@ object HASkipList {
          import list.{size => _, _}
          val lsz     = arrMinSz
          val lkeys   = new Array[ A ]( lsz )
-         val ldowns  = system.newValArray[ Node[ S, A ]]( lsz )
+         val ldowns  = tx.newVarArray[ Node[ S, A ]]( lsz )
          System.arraycopy( keys,  0, lkeys,  0, lsz )
          System.arraycopy( downs, 0, ldowns, 0, lsz )
          val left    = new Branch[ S, A ]( lkeys, ldowns )
 
          val rsz     = size - lsz
          val rkeys   = new Array[ A ]( rsz )
-         val rdowns  = system.newValArray[ Node[ S, A ]]( rsz )
+         val rdowns  = tx.newVarArray[ Node[ S, A ]]( rsz )
          System.arraycopy( keys,  lsz, rkeys,  0, rsz )
          System.arraycopy( downs, lsz, rdowns, 0, rsz )
          val right   = new Branch[ S, A ]( rkeys, rdowns )
@@ -1271,7 +1272,7 @@ object HASkipList {
          import list.{size => _, _}
          val sz         = size - 1
          val newKeys    = new Array[ A ]( sz )
-         val newDowns   = system.newValArray[ Node[ S, A ]]( sz )
+         val newDowns   = tx.newVarArray[ Node[ S, A ]]( sz )
          if( idx > 0 ) {
             System.arraycopy( keys,  0, newKeys,  0, idx )
             System.arraycopy( downs, 0, newDowns, 0, idx )
@@ -1302,7 +1303,7 @@ object HASkipList {
          // down, `idx`.
          val bsz           = size + 1
          val bkeys         = new Array[ A ]( bsz )
-         val bdowns        = system.newValArray[ Node[ S, A ]]( bsz ) // new Array[ S#Ref[ Branch ]]( bsz )
+         val bdowns        = tx.newVarArray[ Node[ S, A ]]( bsz ) // new Array[ S#Ref[ Branch ]]( bsz )
          // copy entries left to split index
          if( idx > 0 ) {
             System.arraycopy( keys,  0, bkeys,  0, idx )

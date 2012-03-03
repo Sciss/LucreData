@@ -27,7 +27,8 @@ package de.sciss.collection
 package txn
 
 import annotation.tailrec
-import de.sciss.lucrestm.{Writer, Serializer, MutableReader, DataInput, EmptyMutable, MutableOptionReader, MutableOption, DataOutput, Mutable, Sys}
+import de.sciss.lucre.{DataInput, DataOutput}
+import de.sciss.lucre.stm.{Writer, Serializer, MutableReader, Mutable, Sys}
 import txn.TotalOrder.Set.EmptyEntry
 
 
@@ -56,12 +57,12 @@ object TotalOrder {
       def empty[ S <: Sys[ S ]]( implicit tx: S#Tx ) : Set[ S ] = empty()
 
       def empty[ S <: Sys[ S ]]( rootTag: Int = 0 )( implicit tx: S#Tx ) : Set[ S ] = {
-         val system = tx.system
-         new SetNew( system.newID(), rootTag, system.newInt( 1 ))
+         val id = tx.newID()
+         new SetNew( id, rootTag, tx.newIntVar( id, 1 ), tx )
       }
 
       def reader[ S <: Sys[ S ]] /* ( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]] = NoRelabelObserver ) */
-                                ( implicit system: S ) : MutableReader[ S, Set[ S ]] =
+                                ( implicit system: S ) : MutableReader[ S#ID, S#Tx, Set[ S ]] =
          new SetReader[ S ] // ( relabelObserver )
 
       sealed trait EntryOption[ S <: Sys[ S ]] {
@@ -92,9 +93,9 @@ object TotalOrder {
       }
 //      case object EmptyEntry extends EmptyEntryLike
 
-      final class Entry[ S <: Sys[ S ]] private[TotalOrder]( val id: S#ID, set: Set[ S ], tagVal: S#Val[ Int ],
-                                                             prevRef: S#Ref[ EntryOption[ S ] with MutableOption[ S ]],
-                                                             nextRef: S#Ref[ EntryOption[ S ] with MutableOption[ S ]])
+      final class Entry[ S <: Sys[ S ]] private[TotalOrder]( val id: S#ID, set: Set[ S ], tagVal: S#Var[ Int ],
+                                                             prevRef: S#Var[ EntryOption[ S ] with MutableOption[ S ]],
+                                                             nextRef: S#Var[ EntryOption[ S ] with MutableOption[ S ]])
       extends EntryOption[ S ] with Mutable[ S ] with Ordered[ S#Tx, Entry[ S ]] {
 
          def compare( that: Entry[ S ])( implicit tx: S#Tx ) : Int = {
@@ -156,34 +157,35 @@ object TotalOrder {
 
    private final class SetReader[ S <: Sys[ S ]] /* ( relabelObserver: RelabelObserver[ S#Tx, Set.Entry[ S ]]) */
                                                 ( implicit system: S )
-   extends MutableReader[ S, Set[ S ]] {
-      def readData( in: DataInput, id: S#ID ) : Set[ S ] = {
+   extends MutableReader[ S#ID, S#Tx, Set[ S ]] {
+      def readData( in: DataInput, id: S#ID )( implicit tx: S#Tx ) : Set[ S ] = {
          val version = in.readUnsignedByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
-         val sizeVal = system.readInt( in )
+         val sizeVal = tx.readIntVar( id, in )
 
          new SetRead[ S ]( id, sizeVal, in )
       }
    }
 
-   private final class SetRead[ S <: Sys[ S ]]( val id: S#ID, protected val sizeVal: S#Val[ Int ], in: DataInput )
+   private final class SetRead[ S <: Sys[ S ]]( val id: S#ID, protected val sizeVal: S#Var[ Int ], in: DataInput )
                                               ( implicit val system: S ) extends Set[ S ] {
 
       val root = system.readMut[ Set.Entry[ S ]]( in )( EntryReader )
    }
 
-   private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, rootTag: Int, protected val sizeVal: S#Val[ Int ])
-                                             ( implicit tx: S#Tx ) extends Set[ S ] {
+   private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, rootTag: Int, protected val sizeVal: S#Var[ Int ], tx0: S#Tx )
+   extends Set[ S ] {
       me =>
 
       val system     = tx.system // -sigh-
       val root: E = {
 //         val system  = tx.system
-         val tagVal  = system.newInt( rootTag )
+         val rootID  = tx0.newID()
+         val tagVal  = tx0.newIntVar( rootID, rootTag )
          val prevRef = system.newOptionRef[ EOpt ]( empty )( tx, EntryOptionReader )
          val nextRef = system.newOptionRef[ EOpt ]( empty )( tx, EntryOptionReader )
-         new E( system.newID(), me, tagVal, prevRef, nextRef )
+         new E( rootID, me, tagVal, prevRef, nextRef )
       }
    }
 
@@ -193,7 +195,7 @@ object TotalOrder {
       type E     = Set.Entry[ S ]
       protected type EOpt  = Set.EntryOption[ S ] with MutableOption[ S ]
 
-      protected def sizeVal: S#Val[ Int ]
+      protected def sizeVal: S#Var[ Int ]
       protected val empty  = new Set.EmptyEntry[ S ]
 
       def root: E
@@ -202,9 +204,9 @@ object TotalOrder {
 
       final def readEntry( in: DataInput ) : E = system.readMut[ E ]( in )( EntryReader )
 
-      protected implicit object EntryReader extends MutableReader[ S, E ] {
-         def readData( in: DataInput, id: S#ID ) : E = {
-            val tagVal  = system.readInt( in )
+      protected implicit object EntryReader extends MutableReader[ S#ID, S#Tx, E ] {
+         def readData( in: DataInput, id: S#ID )( implicit tx: S#Tx ) : E = {
+            val tagVal  = tx.readIntVar( id, in )
             val prevRef = system.readOptionRef[ EOpt ]( in )
             val nextRef = system.readOptionRef[ EOpt ]( in )
             new E( id, me, tagVal, prevRef, nextRef )
@@ -232,13 +234,13 @@ object TotalOrder {
       final def insertAfter( prev: E )( implicit tx: S#Tx ) : E = {
          val next       = prev.next
          val nextTag    = next.tagOr( Int.MaxValue )
-         val system     = tx.system
+         val recID      = tx.newID()
          val recPrevRef = system.newOptionRef[ EOpt ]( prev )
          val recNextRef = system.newOptionRef[ EOpt ]( next )
          val prevTag    = prev.tag
          val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal  = system.newInt( recTag )
-         val rec        = new E( system.newID(), this, recTagVal, recPrevRef, recNextRef )
+         val recTagVal  = tx.newIntVar( recID, recTag )
+         val rec        = new E( recID, this, recTagVal, recPrevRef, recNextRef )
          prev.updateNext( rec )
          next.updatePrev( rec )
          sizeVal.transform( _ + 1 )
@@ -249,13 +251,13 @@ object TotalOrder {
       final def insertBefore( next: E )( implicit tx: S#Tx ) : E = {
          val prev       = next.prev
          val prevTag    = prev.tagOr( 0 )
-         val system     = tx.system
+         val recID      = tx.newID()
          val recPrevRef = system.newOptionRef[ EOpt ]( prev )
          val recNextRef = system.newOptionRef[ EOpt ]( next )
          val nextTag    = next.tag
          val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal  = system.newInt( recTag )
-         val rec        = new E( system.newID(), this, recTagVal, recPrevRef, recNextRef )
+         val recTagVal  = tx.newIntVar( recID, recTag )
+         val rec        = new E( recID, this, recTagVal, recPrevRef, recNextRef )
          next.updatePrev( rec )
          prev.updateNext( rec )
          sizeVal.transform( _ + 1 )
@@ -378,11 +380,12 @@ object TotalOrder {
       def empty[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ],
                                      rootTag: Int = 0 )( implicit tx: S#Tx, keySerializer: Serializer[ A ]) : Map[ S, A ] = {
          val system = tx.system
-         new MapNew[ S, A ]( system.newID(), system.newInt( 1 ), relabelObserver, entryView, rootTag )
+         val id = tx.newID()
+         new MapNew[ S, A ]( id, tx.newIntVar( id, 1 ), relabelObserver, entryView, rootTag, tx )
       }
 
       def reader[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ])
-         ( implicit system: S, keySerializer: Serializer[ A ]) : MutableReader[ S, Map[ S, A ]] =
+         ( implicit system: S, keySerializer: Serializer[ A ]) : MutableReader[ S#ID, S#Tx, Map[ S, A ]] =
          new MapReader[ S, A ]( relabelObserver, entryView )
 
       /**
@@ -428,8 +431,8 @@ object TotalOrder {
       }
 
       final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
-         map: Map[ S, A ], val id: S#ID, tagVal: S#Val[ Int ], prevRef: S#Val[ KeyOption[ S, A ]],
-         nextRef: S#Val[ KeyOption[ S, A ]])
+         map: Map[ S, A ], val id: S#ID, tagVal: S#Var[ Int ], prevRef: S#Var[ KeyOption[ S, A ]],
+         nextRef: S#Var[ KeyOption[ S, A ]])
       extends Mutable[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
          private type E    = Entry[ S, A ]
          private type KOpt = KeyOption[ S, A ]
@@ -544,18 +547,18 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    private final class MapReader[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ],
                                                       entryView: A => Map.Entry[ S, A ])
                                                     ( implicit system: S, keySerializer: Serializer[ A ])
-   extends MutableReader[ S, Map[ S, A ]] {
-      def readData( in: DataInput, id: S#ID ) : Map[ S, A ] = {
+   extends MutableReader[ S#ID, S#Tx, Map[ S, A ]] {
+      def readData( in: DataInput, id: S#ID )( implicit tx: S#Tx ) : Map[ S, A ] = {
          val version = in.readUnsignedByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
-         val sizeVal = system.readInt( in )
+         val sizeVal = tx.readIntVar( id, in )
 
          new MapRead[ S, A ]( id, sizeVal, in, relabelObserver, entryView )
       }
    }
 
-   private final class MapRead[ S <: Sys[ S ], A ]( val id: S#ID, protected val sizeVal: S#Val[ Int ], in: DataInput,
+   private final class MapRead[ S <: Sys[ S ], A ]( val id: S#ID, protected val sizeVal: S#Var[ Int ], in: DataInput,
                                                     protected val observer: Map.RelabelObserver[ S#Tx, A ],
                                                     val entryView: A => Map.Entry[ S, A ])
       ( implicit val system: S, private[TotalOrder] val keySerializer: Serializer[ A ])
@@ -564,33 +567,34 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       val root = system.readMut[ E ]( in )( EntryReader )
    }
 
-   private final class MapNew[ S <: Sys[ S ], A ]( val id: S#ID, protected val sizeVal: S#Val[ Int ],
+   private final class MapNew[ S <: Sys[ S ], A ]( val id: S#ID, protected val sizeVal: S#Var[ Int ],
                                                    protected val observer: Map.RelabelObserver[ S#Tx, A ],
-                                                   val entryView: A => Map.Entry[ S, A ], rootTag: Int )
-                                                 ( implicit tx: S#Tx,
-                                                   private[TotalOrder] val keySerializer: Serializer[ A ])
+                                                   val entryView: A => Map.Entry[ S, A ], rootTag: Int,
+                                                   tx0: S#Tx )
+                                                 ( implicit private[TotalOrder] val keySerializer: Serializer[ A ])
    extends Map[ S, A ] {
       val system     = tx.system // -sigh-
       val root: E = {
 //         val system  = tx.system
-         val tagVal  = system.newInt( rootTag )
-         val prevRef = system.newVal[ KOpt ]( emptyKey )
-         val nextRef = system.newVal[ KOpt ]( emptyKey )
-         new Map.Entry[ S, A ]( this, system.newID(), tagVal, prevRef, nextRef )
+         val rootID  = tx0.newID()
+         val tagVal  = tx0.newIntVar( rootID, rootTag )
+         val prevRef = tx0.newVar[ KOpt ]( rootID, emptyKey )
+         val nextRef = tx0.newVar[ KOpt ]( rootID, emptyKey )
+         new Map.Entry[ S, A ]( this, rootID, tagVal, prevRef, nextRef )
       }
    }
 
    private final class MapEntryReader[ S <: Sys[ S ], A ]( map: Map[ S, A ])
-   extends MutableReader[ S, Map.Entry[ S, A ]] {
+   extends MutableReader[ S#ID, S#Tx, Map.Entry[ S, A ]] {
 
       private type E    = Map.Entry[ S, A ]
       private type KOpt = KeyOption[ S, A ]
 
-      def readData( in: DataInput, id: S#ID ) : E = {
-         import map.{keyOptionSer, system}
-         val tagVal  = system.readInt( in )
-         val prevRef = system.readVal[ KOpt ]( in )
-         val nextRef = system.readVal[ KOpt ]( in )
+      def readData( in: DataInput, id: S#ID )( implicit tx: S#Tx ) : E = {
+         import map.keyOptionSer
+         val tagVal  = tx.readIntVar( id, in )
+         val prevRef = tx.readVar[ KOpt ]( id, in )
+         val nextRef = tx.readVar[ KOpt ]( id, in )
          new Map.Entry[ S, A ]( map, id, tagVal, prevRef, nextRef )
       }
    }
@@ -647,11 +651,11 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       private[TotalOrder] def system : S
 
       final private[TotalOrder] val emptyKey: KOpt = new EmptyKey[ S, A ]
-      final implicit val EntryReader: MutableReader[ S, E ] = new MapEntryReader[ S, A ]( this )
+      final implicit val EntryReader: MutableReader[ S#ID, S#Tx, E ] = new MapEntryReader[ S, A ]( this )
 //      final private[TotalOrder] implicit val EntryOptionReader : MutableOptionReader[ S, KOpt ] = new MapEntryOptionReader[ S, A ]( this )
       final private[TotalOrder] implicit val keyOptionSer : Serializer[ KOpt ] = new KeyOptionSerializer[ S, A ]( this )
 
-      protected def sizeVal: S#Val[ Int ]
+      protected def sizeVal: S#Var[ Int ]
       protected def observer: Map.RelabelObserver[ S#Tx, A ]
 
       private[TotalOrder] def keySerializer: Serializer[ A ]
@@ -688,11 +692,11 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
 //      }
 
       def insert()( implicit tx: S#Tx ) : E = {
-         val system        = tx.system
-         val recTagVal     = system.newInt( -1 )
-         val recPrevRef    = system.newVal[ KOpt ]( emptyKey )
-         val recNextRef    = system.newVal[ KOpt ]( emptyKey )
-         new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+         val id            = tx.newID()
+         val recTagVal     = tx.newIntVar( id, -1 )
+         val recPrevRef    = tx.newVar[ KOpt ]( id, emptyKey )
+         val recNextRef    = tx.newVar[ KOpt ]( id, emptyKey )
+         new Map.Entry( this, id, recTagVal, recPrevRef, recNextRef )
       }
 
       def placeAfter( prev: A, key: A )( implicit tx: S#Tx ) {

@@ -28,7 +28,7 @@ package txn
 
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import de.sciss.lucrestm.{Serializer, Mutable, Sys}
+import de.sciss.lucre.stm.{Serializer, Mutable, Sys}
 
 object SkipOctree {
    implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {
@@ -154,9 +154,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
     * than `Point2DLike( -1572067139, -1572067139 )`.
     *
     * @param   point the point of which the nearest neighbor is to be found
-    * @param   a threshold which is an acceptable abortion criterion. I.e.,
-    *    if a point is found whose distance is smaller or equal to this
-    *    value, the search is immediately terminated and that entry is returned
+    * @param   metric   (description missing)
     *
     * @throws  NoSuchElementException  if the tree is empty
     */

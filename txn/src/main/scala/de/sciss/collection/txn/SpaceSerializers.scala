@@ -1,7 +1,8 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucrestm.{Serializer, DataInput, DataOutput}
+import de.sciss.lucre.{DataInput, DataOutput}
+import de.sciss.lucre.stm.Serializer
 import geom.{Cube, Point3D, Square, Point2D}
 
 object SpaceSerializers {

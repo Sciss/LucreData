@@ -26,7 +26,8 @@
 package de.sciss.collection.txn
 
 import de.sciss.collection.geom.{DistanceMeasure3D, Point3D, Cube, Space}
-import de.sciss.lucrestm.{Writer, Serializer, DataOutput, DataInput, Sys}
+import de.sciss.lucre.{DataOutput, DataInput}
+import de.sciss.lucre.stm.{Writer, Serializer, Sys}
 
 object Ancestor {
    private[Ancestor] val cube = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
