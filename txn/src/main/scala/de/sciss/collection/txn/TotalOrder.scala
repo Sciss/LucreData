@@ -198,9 +198,7 @@ object TotalOrder {
 
       def root: E
 
-//      final def readEntry( in: DataInput ) : E = {
-//         system.readMut[ E ]( in )( EntrySerializer )
-//      }
+      final def readEntry( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = EntrySerializer.read( in, access )
 
       protected implicit object EntrySerializer extends TxnSerializer[ S#Tx, S#Acc, E ] {
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = {
@@ -681,7 +679,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       def root: E
 //      final def max: EOpt = Empty  // grmpfff
 
-//      final def readEntry( in: DataInput ) : E = system.readMut[ E ]( in )( EntryReader )
+      final def readEntry( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = EntrySerializer.read( in, access )
 
       final protected def disposeData()( implicit tx: S#Tx ) {
          root.dispose()
