@@ -40,7 +40,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(
-            "org.scalatest" %% "scalatest" % "1.6.1" % "test"
+            "org.scalatest" % "scalatest_2.9.1" % "1.6.1" % "test"
          )
       )
    )
@@ -52,7 +52,7 @@ object LucreDataBuild extends Build {
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
             "de.sciss" %% "lucrestm" % "0.20-SNAPSHOT",
-            "org.scalatest" %% "scalatest" % "1.6.1" % "test"
+            "org.scalatest" % "scalatest_2.9.1" % "1.6.1" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
       )
@@ -101,7 +101,7 @@ object LucreDataBuild extends Build {
    lazy val standardSettings = Defaults.defaultSettings ++ Seq(
       organization    := "de.sciss",
       version         := "0.20-SNAPSHOT",
-      scalaVersion    := "2.9.1",
+      scalaVersion    := "2.10.0-M2",
       resolvers       ++= Seq(
          "itextpdf.com" at "http://maven.itextpdf.com",
          "Oracle Repository" at "http://download.oracle.com/maven"
@@ -117,7 +117,7 @@ object LucreDataBuild extends Build {
 //      traceLevel   := 20,
       testOptions in Test += Tests.Argument( "-oF" ),
 
-      scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
+      scalacOptions ++= Seq( /* "-Yvirtpatmat", */ "-deprecation", "-unchecked" /*, "-no-specialization" */)
    )
    
    lazy val publishSetting = publishTo <<= version { (v: String) =>
