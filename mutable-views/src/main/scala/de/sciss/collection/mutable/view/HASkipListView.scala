@@ -53,7 +53,7 @@ class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView[ A ] {
       if( n.down( 0 ).isBottom ) b else {
          val chb  = IndexedSeq.tabulate( n.size )( i => buildBoxMap( n.down( i )))
          val h    = Horiz( bs = chb )
-         Vert( bs = IndexedSeq( b, h ))
+         Vert( bs = IndexedSeq[Box]( b, h ))
       }
    }
 

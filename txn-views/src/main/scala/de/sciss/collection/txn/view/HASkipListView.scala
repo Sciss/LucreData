@@ -49,11 +49,11 @@ extends SkipListView[ A ] {
          Some( IndexedSeq.tabulate( sz )( i => buildBoxMap( nb.down( i ), isRight && (i == szm) )))
       }
       val b    = NodeBox( n, keys, chbo.map( _.map( _._2 )))
-      val bb   = chbo match {
+      val bb:Box   = chbo match {
          case Some( chbt ) =>
             val chb  = chbt.map( _._1 )
             val h    = Horiz( bs = chb )
-            Vert( bs = IndexedSeq( b, h ))
+            Vert( bs = IndexedSeq[Box]( b, h ))
          case None => b
       }
 
