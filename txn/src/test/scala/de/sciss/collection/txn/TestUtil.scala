@@ -1,4 +1,4 @@
-package de.sciss.collection
+package de.sciss.collection.txn
 
 object TestUtil {
    def formatSeconds( seconds: Double ) : String = {
