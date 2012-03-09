@@ -1,5 +1,6 @@
 import sbt._
 import Keys._
+// import ls.Plugin.LsKeys
 
 object LucreDataBuild extends Build {
    lazy val lucredata = Project(
@@ -40,7 +41,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(
-            "org.scalatest" %% "scalatest" % "1.6.1" % "test"
+            "org.scalatest" %% "scalatest" % "1.7.1" % "test"
          )
       )
    )
@@ -51,8 +52,8 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.20-SNAPSHOT",
-            "org.scalatest" %% "scalatest" % "1.6.1" % "test"
+            "de.sciss" %% "lucrestm" % "0.20",
+            "org.scalatest" %% "scalatest" % "1.7.1" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
       )
@@ -99,8 +100,13 @@ object LucreDataBuild extends Build {
 //   }
 
    lazy val standardSettings = Defaults.defaultSettings ++ Seq(
+//      sbtVersion      := "0.12.0-M1",  // scaladoc broken in 0.11.2 when publishing
+
       organization    := "de.sciss",
-      version         := "0.20-SNAPSHOT",
+      description     := "Transactional data structures (skip list, skip octree, total order) for Scala",
+      homepage        := Some( url( "https://github.com/Sciss/LucreData" )),
+      licenses        := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" )),
+      version         := "0.20",
       scalaVersion    := "2.9.1",
       resolvers       ++= Seq(
          "itextpdf.com" at "http://maven.itextpdf.com",
@@ -108,32 +114,49 @@ object LucreDataBuild extends Build {
       ),
       retrieveManaged := true,
 
-      publishArtifact in (Compile, packageDoc) := false, // scaladoc is broken with sbt 0.11.2 !
+//      publishArtifact in (Compile, packageDoc) := false, // scaladoc is broken with sbt 0.11.2 !
 
+      publishMavenStyle := true,
+      publishArtifact in Test := false,
+      pomIncludeRepository := { _ => false },
       publishSetting,
-      credentialsSetting,
+//      credentialsSetting,
       pomExtra     := pomSettings,
 
 //      traceLevel   := 20,
       testOptions in Test += Tests.Argument( "-oF" ),
 
-      scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
+      scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */) //,
+
+      // ---- ls.implicit.ly ----
+//      (LsKeys.tags   in LsKeys.lsync) := Seq( "data-structures", "transactional", "spatial", "stm" ),
+//      (LsKeys.ghUser in LsKeys.lsync) := Some( "Sciss" ),
+//      (LsKeys.ghRepo in LsKeys.lsync) := Some( "LucreData" ),
+//      // bug in ls -- doesn't find the licenses from global scope
+//      (licenses in LsKeys.lsync) := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
    )
    
    lazy val publishSetting = publishTo <<= version { (v: String) =>
-      Some( "Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/".+(
-         if( v.endsWith( "-SNAPSHOT")) "snapshots/" else "releases/"
-      ))
+      Some( if( v.endsWith( "-SNAPSHOT" ))
+         "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+      else
+         "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+      )
    }
 
-   lazy val credentialsSetting = credentials += Credentials( Path.userHome / ".ivy2" / ".credentials" )
+//   lazy val credentialsSetting = credentials += Credentials( Path.userHome / ".ivy2" / ".credentials" )
 
-   lazy val pomSettings = <licenses>
-  <license>
-    <name>GPL v2+</name>
-    <url>http://www.gnu.org/licenses/gpl-2.0.txt</url>
-    <distribution>repo</distribution>
-  </license>
-</licenses>
+   lazy val pomSettings =
+<scm>
+  <url>git@github.com:Sciss/LucreData.git</url>
+  <connection>scm:git:git@github.com:Sciss/LucreData.git</connection>
+</scm>
+<developers>
+   <developer>
+      <id>sciss</id>
+      <name>Hanns Holger Rutz</name>
+      <url>http://www.sciss.de</url>
+   </developer>
+</developers>
 
 }

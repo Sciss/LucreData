@@ -2,9 +2,9 @@
 
 ### statement
 
-(C)opyright 2011-2012 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
+(C)opyright 2011&ndash;2012 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
 
-This is a sandbox project for implementing and probing various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries.
+LucreData provides implementations for various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries. These are mutable structures implemented transactionally on top of the LucreSTM library.
 
 * Alstrup, S. and Husfeldt, T. and Rauhe, T., "Marked ancestor problems," in Proceedings of the 39th Annual Symposium on Foundations of Computer Science, p. 534, 1998.
 
@@ -32,7 +32,7 @@ A workaround is to use a snapshot version of sbt to run `doc`.
 
 ### creating an IntelliJ IDEA project
 
-If you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
+To develop the sources of LucreData, if you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
 
     resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
     
