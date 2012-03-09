@@ -1,6 +1,5 @@
 import sbt._
 import Keys._
-import ls.Plugin.LsKeys
 
 object LucreDataBuild extends Build {
    lazy val lucredata = Project(
@@ -126,14 +125,7 @@ object LucreDataBuild extends Build {
 //      traceLevel   := 20,
       testOptions in Test += Tests.Argument( "-oF" ),
 
-      scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */),
-
-      // ---- ls.implicit.ly ----
-      (LsKeys.tags   in LsKeys.lsync) := Seq( "data-structures", "transactional", "spatial", "stm" ),
-      (LsKeys.ghUser in LsKeys.lsync) := Some( "Sciss" ),
-      (LsKeys.ghRepo in LsKeys.lsync) := Some( "LucreData" ),
-      // bug in ls -- doesn't find the licenses from global scope
-      (licenses in LsKeys.lsync) := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
+      scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
    )
    
    lazy val publishSetting = publishTo <<= version { (v: String) =>
