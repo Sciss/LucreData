@@ -30,12 +30,12 @@ package view
 import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
-import de.sciss.lucre.stm.Sys
-import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
+import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
 import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, Point2D, Square}
 import Space.TwoDim
 import de.sciss.collection.view.{PDFSupport, QuadView}
+import de.sciss.lucre.stm.{InMemory, Durable, Sys}
 
 /**
  * Options:
@@ -72,16 +72,16 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          dir.mkdir()
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
-         implicit val system = BerkeleyDB.open( f )
+         implicit val system = Durable( BerkeleyDB.open( f ))
          system.atomic { implicit tx =>
             import SpaceSerializers.{Point2DSerializer, SquareSerializer}
             implicit val pointView = (p: Point2D, t: Any) => p
-            implicit val reader = txn.DeterministicSkipOctree.serializer[ BerkeleyDB, TwoDim, Point2D ]
-            val tree = system.root[ txn.DeterministicSkipOctree[ BerkeleyDB, TwoDim, Point2D ]] {
-               txn.DeterministicSkipOctree.empty[ BerkeleyDB, TwoDim, Point2D ](
+            implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, Point2D ]
+            val tree = system.root[ txn.DeterministicSkipOctree[ Durable, TwoDim, Point2D ]] {
+               txn.DeterministicSkipOctree.empty[ Durable, TwoDim, Point2D ](
                   Square( sz, sz, sz ), skipGap = 1 )
             }
-            new Model2D[ BerkeleyDB ]( system, tree, { () =>
+            new Model2D[ Durable ]( system, tree, { () =>
                system.atomic( implicit tx => system.debugListUserRecords() ).foreach( println )
             })
          }

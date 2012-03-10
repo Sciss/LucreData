@@ -7,8 +7,8 @@ import collection.breakOut
 import collection.mutable.{Set => MSet}
 import Space.ThreeDim
 import java.io.File
-import de.sciss.lucre.stm.Sys
-import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
+import de.sciss.lucre.stm.impl.BerkeleyDB
+import de.sciss.lucre.stm.{Durable, InMemory, Sys}
 
 /**
  *
@@ -50,17 +50,16 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    }
    if( DATABASE ) {
 //BerkeleyDB.DB_CONSOLE_LOG_LEVEL = "ALL"
-      withSys[ BerkeleyDB ]( "BDB", () => {
+      withSys[ Durable ]( "BDB", () => {
          val dir     = File.createTempFile( "octree", "_database" )
          dir.delete()
          dir.mkdir()
-         val f       = new File( dir, "data" )
-         println( f.getAbsolutePath )
-         BerkeleyDB.open( f ) : BerkeleyDB /* please IDEA */
+         println( dir.getAbsolutePath )
+         Durable( BerkeleyDB.open( dir )) : Durable /* please IDEA */
       }, { case (bdb, success) =>
 //         println( "FINAL DB SIZE = " + bdb.numUserRecords )
          if( success ) {
-            val sz = bdb.numUserRecords
+            val sz = bdb.atomic( bdb.numUserRecords( _ ))
 //            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
             assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          }

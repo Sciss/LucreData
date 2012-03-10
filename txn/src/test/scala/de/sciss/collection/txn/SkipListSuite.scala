@@ -5,9 +5,9 @@ import scala.collection.immutable.IntMap
 import scala.collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import concurrent.stm.{InTxn, TxnExecutor, Ref}
-import de.sciss.lucre.stm.Sys
-import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
+import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
+import de.sciss.lucre.stm.{Durable, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -53,15 +53,14 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
 
    if( INMEMORY ) withSys( "Mem", () => InMemory(), (_: InMemory) => () )
    if( DATABASE ) {
-      withSys[ BerkeleyDB ]( "BDB", () => {
+      withSys[ Durable ]( "BDB", () => {
          val dir     = File.createTempFile( "skiplist", "_database" )
          dir.delete()
          dir.mkdir()
-         val f       = new File( dir, "data" )
-         println( f.getAbsolutePath )
-         BerkeleyDB.open( f ) : BerkeleyDB // make IDEA happy
+         println( dir.getAbsolutePath )
+         Durable( BerkeleyDB.open( dir )) : Durable   /* please IDEA */
       }, bdb => {
-         val sz = bdb.numUserRecords
+         val sz = bdb.atomic( bdb.numUserRecords( _ ))
 //         println( "FINAL DB SIZE = " + sz )
          assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()

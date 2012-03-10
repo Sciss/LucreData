@@ -51,7 +51,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.20",
+            "de.sciss" %% "lucrestm" % "0.21-SNAPSHOT",
             "org.scalatest" %% "scalatest" % "1.7.1" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
@@ -105,7 +105,7 @@ object LucreDataBuild extends Build {
       description     := "Transactional data structures (skip list, skip octree, total order) for Scala",
       homepage        := Some( url( "https://github.com/Sciss/LucreData" )),
       licenses        := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" )),
-      version         := "0.20",
+      version         := "0.21-SNAPSHOT",
       scalaVersion    := "2.9.1",
       resolvers       ++= Seq(
          "itextpdf.com" at "http://maven.itextpdf.com",
@@ -124,6 +124,7 @@ object LucreDataBuild extends Build {
 
 //      traceLevel   := 20,
       testOptions in Test += Tests.Argument( "-oF" ),
+      parallelExecution in Test := false,
 
       scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
    )

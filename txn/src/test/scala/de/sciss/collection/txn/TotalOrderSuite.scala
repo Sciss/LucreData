@@ -2,9 +2,9 @@ package de.sciss.collection
 package txn
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import de.sciss.lucre.stm.Sys
-import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
+import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
+import de.sciss.lucre.stm.{Durable, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -26,18 +26,17 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
    if( DATABASE ) {
 //      BerkeleyDB.DB_CONSOLE_LOG_LEVEL = "ALL"
-      withSys[ BerkeleyDB ]( "BDB", () => {
+      withSys[ Durable ]( "BDB", () => {
          val dir     = File.createTempFile( "tree", "_database" )
          dir.delete()
          dir.mkdir()
-         val f       = new File( dir, "data" )
-         println( f.getAbsolutePath )
-         val bdb = BerkeleyDB.open( f )
+         println( dir.getAbsolutePath )
+         val bdb = BerkeleyDB.open( dir )
 //         println( "INITIAL DB SIZE = " + bdb.numRefs )
-         bdb : BerkeleyDB /* please IDEA */
+         Durable( bdb ) : Durable   /* please IDEA */
       }, bdb => {
          //println( "FINAL   DB SIZE = " + bdb.numRefs )
-         val sz = bdb.numUserRecords
+         val sz = bdb.atomic( bdb.numUserRecords( _ ))
          assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()
       })

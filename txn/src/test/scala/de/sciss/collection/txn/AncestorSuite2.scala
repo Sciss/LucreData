@@ -3,10 +3,10 @@ package txn
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import java.io.File
-import de.sciss.lucre.stm.Sys
-import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
+import de.sciss.lucre.stm.impl.BerkeleyDB
 import annotation.tailrec
 import collection.immutable.IntMap
+import de.sciss.lucre.stm.{Durable, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -37,13 +37,12 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
       withSys[ InMemory ]( "Mem", () => InMemory() : InMemory /* please IDEA */, (_, _) => () )
    }
    if( DATABASE ) {
-      withSys[ BerkeleyDB ]( "BDB", () => {
+      withSys[ Durable ]( "BDB", () => {
          val dir     = File.createTempFile( "ancestor", "_database" )
          dir.delete()
          dir.mkdir()
-         val f       = new File( dir, "data" )
-         println( f.getAbsolutePath )
-         BerkeleyDB.open( f ) : BerkeleyDB /* please IDEA */
+         println( dir.getAbsolutePath )
+         Durable( BerkeleyDB.open( dir )) : Durable  /* please IDEA */
       }, { case (bdb, success) =>
 //         if( success ) {
 //            val sz = bdb.numUserRecords

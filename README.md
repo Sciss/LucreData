@@ -1,5 +1,7 @@
 ## LucreData
 
+__Note__ this is 0.21-SNAPSHOT. See tag v0.20 for the latest release.
+
 ### statement
 
 (C)opyright 2011&ndash;2012 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).

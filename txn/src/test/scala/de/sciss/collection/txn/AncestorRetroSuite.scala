@@ -6,7 +6,7 @@ import geom.{Point3D, DistanceMeasure3D, Cube, Space}
 import concurrent.stm.Ref
 import java.io.File
 import de.sciss.lucre.{DataInput, DataOutput}
-import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
+import de.sciss.lucre.stm.impl.BerkeleyDB
 import annotation.tailrec
 import de.sciss.lucre.stm._
 
@@ -42,16 +42,15 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       withSys[ InMemory ]( "Mem", () => InMemory() : InMemory /* please IDEA */, (_, _) => () )
    }
    if( DATABASE ) {
-      withSys[ BerkeleyDB ]( "BDB", () => {
+      withSys[ Durable ]( "BDB", () => {
          val dir     = File.createTempFile( "ancestor", "_database" )
          dir.delete()
          dir.mkdir()
-         val f       = new File( dir, "data" )
-         println( f.getAbsolutePath )
-         BerkeleyDB.open( f ) : BerkeleyDB /* please IDEA */
+         println( dir.getAbsolutePath )
+         Durable( BerkeleyDB.open( dir )) : Durable   /* please IDEA */
       }, { case (bdb, success) =>
          if( success ) {
-            val sz = bdb.numUserRecords
+            val sz = bdb.atomic( bdb.numUserRecords( _ ))
 //            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
 //            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          }

@@ -30,9 +30,9 @@ import java.awt.event.{ActionListener, ActionEvent}
 import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
 import javax.swing.{Box, JLabel, SwingConstants, WindowConstants, JFrame, JTextField, JButton, JPanel}
 import java.io.File
-import de.sciss.lucre.stm.Sys
-import de.sciss.lucre.stm.impl.{BerkeleyDB, InMemory}
+import de.sciss.lucre.stm.impl.BerkeleyDB
 import de.sciss.collection.view.PDFSupport
+import de.sciss.lucre.stm.{InMemory, Durable, Sys}
 
 /**
 * Simple GUI app to probe the txn.HASkipList interactively.
@@ -49,13 +49,12 @@ object InteractiveSkipListView extends App with Runnable {
          }
          dir.delete()
          dir.mkdir()
-         val f       = new File( dir, "data" )
-         println( f.getAbsolutePath )
-         implicit val system = BerkeleyDB.open( f )
-         new InteractiveSkipListView[ BerkeleyDB ]( obs => system.atomic { implicit tx =>
-            implicit val ser = HASkipList.serializer[ BerkeleyDB, Int ]( obs )
-            system.root[ HASkipList[ BerkeleyDB, Int ]] {
-               HASkipList.empty[ BerkeleyDB, Int ]( minGap = 1, keyObserver = obs )
+         println( dir.getAbsolutePath )
+         implicit val system = Durable( BerkeleyDB.open( dir ))
+         new InteractiveSkipListView[ Durable ]( obs => system.atomic { implicit tx =>
+            implicit val ser = HASkipList.serializer[ Durable, Int ]( obs )
+            system.root[ HASkipList[ Durable, Int ]] {
+               HASkipList.empty[ Durable, Int ]( minGap = 1, keyObserver = obs )
             }
          })
 
