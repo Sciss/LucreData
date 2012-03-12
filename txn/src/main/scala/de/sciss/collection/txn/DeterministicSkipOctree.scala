@@ -114,7 +114,7 @@ object DeterministicSkipOctree {
 
    extends DeterministicSkipOctree[ S, D, A ] {
       val totalOrder = TotalOrder.Set.empty[ S ]( tx0 ) // ()
-      val skipList   = HASkipList.empty[ S, LeafImpl ]( skipGap, KeyObserver )( tx0, LeafOrdering, manifest[ LeafImpl ], LeafSerializer )
+      val skipList   = HASkipList.empty[ S, LeafImpl ]( skipGap, KeyObserver )( tx0, LeafOrdering, LeafSerializer )
       val head = {
          val sz            = numOrthants
          val ch            = tx0.newVarArray[ LeftChildOption ]( sz )
