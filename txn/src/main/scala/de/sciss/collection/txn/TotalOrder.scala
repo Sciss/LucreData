@@ -61,6 +61,9 @@ object TotalOrder {
          new SetNew( id, rootTag, tx.newIntVar( id, 1 ), tx )
       }
 
+      def read[ S <: Sys[ S ]]( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Set[ S ] =
+         new SetRead( in, access, tx )
+
       implicit def serializer[ S <: Sys[ S ]] : TxnSerializer[ S#Tx, S#Acc, Set[ S ]] =
          new SetSerializer[ S ] // ( relabelObserver )
 
@@ -156,22 +159,23 @@ object TotalOrder {
 
    private final class SetSerializer[ S <: Sys[ S ]] extends TxnSerializer[ S#Tx, S#Acc, Set[ S ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Set[ S ] = {
-         val id = tx.readID( in, access )
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
-         val sizeVal = tx.readIntVar( id, in )
-
-         new SetRead[ S ]( id, sizeVal, in, access, tx )
+         new SetRead[ S ]( in, access, tx )
       }
 
       def write( v: Set[ S ], out: DataOutput ) { v.write( out )}
    }
 
-   private final class SetRead[ S <: Sys[ S ]]( val id: S#ID, protected val sizeVal: S#Var[ Int ],
-                                                in: DataInput, access: S#Acc, tx0: S#Tx ) extends Set[ S ] {
-//      val root = tx0.readVar[ Set.Entry[ S ]]( id, in )( EntrySerializer )
-      val root = EntrySerializer.read( in, access )( tx0 )
+   private final class SetRead[ S <: Sys[ S ]]( in: DataInput, access: S#Acc, tx0: S#Tx ) extends Set[ S ] {
+      val id      = tx0.readID( in, access )
+
+      {
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+      }
+
+      val sizeVal = tx0.readIntVar( id, in )
+      val root    = EntrySerializer.read( in, access )( tx0 )
    }
 
    private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, rootTag: Int, protected val sizeVal: S#Var[ Int ], tx0: S#Tx )
@@ -396,6 +400,12 @@ object TotalOrder {
          new MapNew[ S, A ]( id, tx.newIntVar( id, 1 ), relabelObserver, entryView, rootTag, tx )
       }
 
+      def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc, relabelObserver: Map.RelabelObserver[ S#Tx, A ],
+                                    entryView: A => Map.Entry[ S, A ])
+                                  ( implicit tx: S#Tx, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : Map[ S, A ] =
+         new MapRead[ S, A ]( relabelObserver, entryView, in, access, tx )
+
+
       implicit def serializer[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ])
          ( implicit keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : TxnSerializer[ S#Tx, S#Acc, Map[ S, A ]] =
          new MapSerializer[ S, A ]( relabelObserver, entryView )
@@ -560,26 +570,28 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
                                                           entryView: A => Map.Entry[ S, A ])
                                                         ( implicit keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
    extends TxnSerializer[ S#Tx, S#Acc, Map[ S, A ]] {
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Map[ S, A ] = {
-         val id = tx.readID( in, access )
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
-         val sizeVal = tx.readIntVar( id, in )
-
-         new MapRead[ S, A ]( id, sizeVal, relabelObserver, entryView, in, access, tx )
-      }
+      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Map[ S, A ] =
+         new MapRead[ S, A ]( relabelObserver, entryView, in, access, tx )
 
       def write( v: Map[ S, A ], out: DataOutput ) { v.write( out )}
    }
 
    private final class MapRead[ S <: Sys[ S ], A ](
-      val id: S#ID, protected val sizeVal: S#Var[ Int ], protected val observer: Map.RelabelObserver[ S#Tx, A ],
+      protected val observer: Map.RelabelObserver[ S#Tx, A ],
       val entryView: A => Map.Entry[ S, A ], in: DataInput, access: S#Acc, tx0: S#Tx )(
       implicit private[TotalOrder] val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
    extends Map[ S, A ] {
 
-      val root = EntrySerializer.read( in, access )( tx0 )
+      val id         = tx0.readID( in, access )
+
+      {
+         val version    = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+      }
+
+      val sizeVal    = tx0.readIntVar( id, in )
+      val root       = EntrySerializer.read( in, access )( tx0 )
    }
 
    private final class MapNew[ S <: Sys[ S ], A ](
