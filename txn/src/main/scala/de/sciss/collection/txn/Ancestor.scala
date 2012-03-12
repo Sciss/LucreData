@@ -30,6 +30,8 @@ import de.sciss.lucre.{DataOutput, DataInput}
 import de.sciss.lucre.stm.{Disposable, TxnSerializer, Writer, Sys}
 
 object Ancestor {
+   private val SER_VERSION = 0
+
    private[Ancestor] val cube = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
    private type TreePreOrder[  S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
@@ -109,6 +111,7 @@ object Ancestor {
       }
 
       final def write( out: DataOutput ) {
+         out.writeUnsignedByte( SER_VERSION )
          preOrder.write( out )
          postOrder.write( out )
          root.write( out )
@@ -180,6 +183,12 @@ object Ancestor {
       implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int,
       val versionManifest: Manifest[ A ])
    extends TreeImpl[ S, A ] {
+
+      {
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+      }
 
       protected val preOrder  = TotalOrder.Set.read[ S ]( in, access )( tx0 )
       protected val postOrder = TotalOrder.Set.read[ S ]( in, access )( tx0 )
@@ -280,7 +289,7 @@ object Ancestor {
       protected def postOrder : TotalOrder.Map[ S, MV ]
 
       private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, MV ]
-      protected def root: MV
+//      protected def root: MV
 
       protected def preList : SkipList[ S, MV ]
       protected def postList : SkipList[ S, MV ]
@@ -300,11 +309,19 @@ object Ancestor {
       }
 
       final def write( out: DataOutput ) {
-         sys.error( "TODO" )
+         out.writeUnsignedByte( SER_VERSION )
+         // note: we ask for the full tree through the serializer constructor,
+         // thus we omit writing it out ourselves
+         preList.write( out )
+         postList.write( out )
+         skip.write( out )
+//         root.write( out )
       }
 
       final def dispose()( implicit tx: S#Tx ) {
-         sys.error( "TODO" )
+         preList.dispose()
+         postList.dispose()
+         skip.dispose()
       }
 
       final def add( entry: (K, V) )( implicit tx: S#Tx ) : Boolean = {
@@ -478,6 +495,12 @@ object Ancestor {
    extends MapImpl[ S, A, V ] {
       me =>
 
+      {
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+      }
+
       protected val preOrder  : TotalOrder.Map[ S, MV ] =
          TotalOrder.Map.read[ S, MV ]( in, access, me, _.pre  )( tx0, vertexSerializer )
 
@@ -489,21 +512,6 @@ object Ancestor {
 //         val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
 //         SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )( pointView, tx0, Space.ThreeDim, vertexSerializer,
 //                                                            SpaceSerializers.CubeSerializer, manifest[ MV ])
-//      }
-
-      protected val root: MV = sys.error( "TODO" )
-//      {
-//         val res = new MV {
-//            def map        = me
-//            def fullVertex = full.root
-//            def pre        = preOrder.root
-//            def post       = postOrder.root
-//            def value      = rootValue
-//
-//            override def toString = "Root(" + value + ")"
-//         }
-//         skip.+=( res )( tx0 )
-//         res
 //      }
 
       protected val preList : SkipList[ S, MV ] = sys.error( "TODO" )
