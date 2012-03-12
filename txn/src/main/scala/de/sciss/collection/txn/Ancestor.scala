@@ -251,6 +251,13 @@ object Ancestor {
       new MapNew[ S, A, V ]( full, rootValue, tx )
    }
 
+   def readMap[ S <: Sys[ S ], A, @specialized V ]( in: DataInput, access: S#Acc, full: Tree[ S, A ])(
+      implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ], vmf: Manifest[ V ]) : Map[ S, A, V ] = {
+
+      implicit val smf = Sys.manifest[ S ]( tx.system )
+      new MapRead[ S, A, V ]( full, in, access, tx )
+   }
+
    private final class MapSer[ S <: Sys[ S ], A, V ]( full: Tree[ S, A ])(
       implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ], vmf: Manifest[ V ])
    extends TxnSerializer[ S#Tx, S#Acc, Map[ S, A, V ]] {
@@ -274,6 +281,14 @@ object Ancestor {
       me =>
 
       final type MV = Mark[ S, A, V ]
+
+      protected def preOrdering : Ordering[ S#Tx, MV ] = new Ordering[ S#Tx, MV ] {
+         def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
+      }
+
+      protected def postOrdering : Ordering[ S#Tx, MV ] = new Ordering[ S#Tx, MV ] {
+         def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
+      }
 
 //      protected implicit def system: S
       protected implicit def smf: Manifest[ S ]
@@ -464,25 +479,17 @@ object Ancestor {
       }
 
       protected val preList : SkipList[ S, MV ] = {
-         implicit val ord = new Ordering[ S#Tx, MV ] {
-            def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
-         }
-         implicit val tx                  = tx0
-         implicit val system              = tx0.system
-         implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
-         val res                          = SkipList.empty[ S, MV ]
+         implicit val ord  = preOrdering
+         implicit val tx   = tx0
+         val res           = SkipList.empty[ S, MV ]
          res.add( root )
          res
       }
 
       protected val postList : SkipList[ S, MV ] = {
-         implicit val ord = new Ordering[ S#Tx, MV ] {
-            def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
-         }
-         implicit val tx                  = tx0
-         implicit val system              = tx0.system
-         implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
-         val res                          = SkipList.empty[ S, MV ]
+         implicit val ord  = postOrdering
+         implicit val tx   = tx0
+         val res           = SkipList.empty[ S, MV ]
          res.add( root )
          res
       }
@@ -513,31 +520,17 @@ object Ancestor {
             SpaceSerializers.CubeSerializer, manifest[ MV ])
       }
 
-      protected val preList : SkipList[ S, MV ] = sys.error( "TODO" )
-//      {
-//         implicit val ord = new Ordering[ S#Tx, MV ] {
-//            def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
-//         }
-//         implicit val tx                  = tx0
-//         implicit val system              = tx0.system
-//         implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
-//         val res                          = SkipList.empty[ S, MV ]
-//         res.add( root )
-//         res
-//      }
+      protected val preList : SkipList[ S, MV ] = {
+         implicit val ord  = preOrdering
+         implicit val tx   = tx0
+         SkipList.read[ S, MV ]( in, access )
+      }
 
-      protected val postList : SkipList[ S, MV ] = sys.error( "TODO" )
-//      {
-//         implicit val ord = new Ordering[ S#Tx, MV ] {
-//            def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
-//         }
-//         implicit val tx                  = tx0
-//         implicit val system              = tx0.system
-//         implicit val smf: Manifest[ S ]  = Sys.manifest[ S ]
-//         val res                          = SkipList.empty[ S, MV ]
-//         res.add( root )
-//         res
-//      }
+      protected val postList : SkipList[ S, MV ] = {
+         implicit val ord  = postOrdering
+         implicit val tx   = tx0
+         SkipList.read[ S, MV ]( in, access )
+      }
    }
 
    sealed trait Map[ S <:Sys[ S ], A, @specialized V ] extends Writer with Disposable[ S#Tx ] {

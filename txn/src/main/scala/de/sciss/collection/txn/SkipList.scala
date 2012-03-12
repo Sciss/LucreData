@@ -27,11 +27,20 @@ package de.sciss.collection
 package txn
 
 import de.sciss.lucre.stm.{TxnSerializer, Mutable, Sys}
-
+import de.sciss.lucre.DataInput
 
 object SkipList {
    def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ], mf: Manifest[ A ],
-                                  serKey: TxnSerializer[ S#Tx, S#Acc, A ], stm: S ): SkipList[ S, A ] = HASkipList.empty[ S, A ]
+                                  serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList[ S, A ] = HASkipList.empty[ S, A ]
+
+   def empty[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])(
+      implicit tx: S#Tx, ord: Ordering[ S#Tx, A ], mf: Manifest[ A ],
+      serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList[ S, A ] = HASkipList.empty[ S, A ]( keyObserver = keyObserver )
+
+   def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
+         keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
+         mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : SkipList[ S, A ] =
+      HASkipList.read[ S, A ]( in, access, keyObserver )
 
    /**
     * A trait for observing the promotion and demotion of a key

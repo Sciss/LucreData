@@ -30,7 +30,7 @@ import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import annotation.{switch, tailrec}
 import de.sciss.lucre.{DataOutput, DataInput}
-import de.sciss.lucre.stm._
+import de.sciss.lucre.stm.{Sink, Sys, TxnSerializer}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -105,6 +105,19 @@ object HASkipList {
       })
    }
 
+   def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
+      keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
+      mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] = {
+
+      val id      = tx.readID( in, access )
+      val version = in.readUnsignedByte()
+      require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+         ", required " + SER_VERSION + ")." )
+
+      val minGap  = in.readInt()
+      new Impl[ S, A ]( id, minGap, keyObserver, list => tx.readVar[ Node[ S, A ]]( id, in )( list ))
+   }
+
    def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
                                      ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
                                        keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): TxnSerializer[ S#Tx, S#Acc, HASkipList[ S, A ]] =
@@ -116,15 +129,8 @@ object HASkipList {
                                               ( implicit mf: Manifest[ A ], ordering: Ordering[ S#Tx, A ],
                                                 keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
    extends TxnSerializer[ S#Tx, S#Acc, HASkipList[ S, A ]] {
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList[ S, A ] = {
-         val id      = tx.readID( in, access )
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
-
-         val minGap  = in.readInt()
-         new Impl[ S, A ]( id, minGap, keyObserver, list => tx.readVar[ Node[ S, A ]]( id, in )( list ))
-      }
+      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList[ S, A ] =
+         HASkipList.read[ S, A ]( in, access, keyObserver )
 
       def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
    }
