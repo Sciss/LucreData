@@ -27,7 +27,7 @@ package de.sciss.collection.txn
 
 import de.sciss.collection.geom.{DistanceMeasure3D, Point3D, Cube, Space}
 import de.sciss.lucre.{DataOutput, DataInput}
-import de.sciss.lucre.stm.{TxnSerializer, Writer, Sys}
+import de.sciss.lucre.stm.{Disposable, TxnSerializer, Writer, Sys, Mutable}
 
 object Ancestor {
    private[Ancestor] val cube = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
@@ -39,7 +39,7 @@ object Ancestor {
       private[Ancestor] implicit def toPoint[ S <: Sys[ S ], A ]( v: Vertex[ S, A ], tx: S#Tx ) : Point3D =
          new Point3D( v.preHead.tag( tx ), v.post.tag( tx ), v.version )
    }
-   sealed trait Vertex[ S <: Sys[ S ], A ] /* extends VertexProxy[ S, A ] */ {
+   sealed trait Vertex[ S <: Sys[ S ], A ] extends Writer with Disposable[ S#Tx ] {
       def value: A
       final def version: Int = tree.versionView( value )
 
@@ -56,20 +56,40 @@ object Ancestor {
          post.write( out )
       }
 
+      final def dispose()( implicit tx: S#Tx ) {
+         preHead.dispose()
+         preTail.dispose()
+         post.dispose()
+      }
+
       override def toString = "Vertex(" + value + ")"
    }
+
+   implicit def treeSerializer[ S <: Sys[ S ], A ]( implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+                                                    versionView: A => Int,
+                                                    versionManifest: Manifest[ A ]) : TxnSerializer[ S#Tx, S#Acc, Tree[ S, A ]] =
+      new TreeSer[ S, A ]
 
    def newTree[ S <: Sys[ S ], A ]( rootValue: A )( implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ],
                                                     versionView: A => Int, versionManifest: Manifest[ A ]) : Tree[ S, A ] =
       new TreeNew[ S, A ]( rootValue, tx )
 
-   private final class TreeNew[ S <: Sys[ S ], A ]( rootValue: A, tx0: S#Tx )(
-      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int,
-      val versionManifest: Manifest[ A ])
-   extends Tree[ S, A ] /* with TotalOrder.Map.RelabelObserver[ S#Tx, VertexProxy[ S, A ]] */ {
+   private final class TreeSer[ S <: Sys[ S ], A ]( implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+                                                    versionView: A => Int, versionManifest: Manifest[ A ])
+   extends TxnSerializer[ S#Tx, S#Acc, Tree[ S, A ]] {
+      def write( t: Tree[ S, A ], out: DataOutput ) { t.write( out )}
+
+      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Tree[ S, A ] =
+         new TreeRead[ S, A ]( in, access, tx )
+   }
+
+   private sealed trait TreeImpl[ S <: Sys[ S ], A ] extends Tree[ S, A ] {
       me =>
 
-      private implicit object VertexSerializer extends TxnSerializer[ S#Tx, S#Acc, V ] {
+      protected def preOrder  : TotalOrder.Set[ S ]
+      protected def postOrder : TotalOrder.Set[ S ]
+
+      implicit protected object VertexSerializer extends TxnSerializer[ S#Tx, S#Acc, V ] {
          def write( v: V, out: DataOutput ) { v.write( out )}
 
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : V = {
@@ -83,19 +103,21 @@ object Ancestor {
          }
       }
 
-      def vertexSerializer : TxnSerializer[ S#Tx, S#Acc, V ] = VertexSerializer
-
-      val preOrder      = TotalOrder.Set.empty[ S ]( 0 )( tx0 )
-      val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )( tx0 )
-      val root = new V {
-         def tree: Tree[ S, A ] = me
-         def value   = rootValue
-         val preHead = preOrder.root
-         val preTail = preHead.append()( tx0 ) // preOrder.insert()
-         val post    = postOrder.root
+      final def write( out: DataOutput ) {
+         preOrder.write( out )
+         postOrder.write( out )
+         root.write( out )
       }
 
-      def insertChild( parent: V, newChild: A )( implicit tx: S#Tx ) : V = {
+      final def dispose()( implicit tx: S#Tx ) {
+         preOrder.dispose()
+         postOrder.dispose()
+         root.dispose()
+      }
+
+      final def vertexSerializer : TxnSerializer[ S#Tx, S#Acc, V ] = VertexSerializer
+
+      final def insertChild( parent: V, newChild: A )( implicit tx: S#Tx ) : V = {
          val v = new V {
             def tree    = me
             val value   = newChild
@@ -106,7 +128,7 @@ object Ancestor {
          v
       }
 
-      def insertRetroChild( parent: V, newChild: A )( implicit tx: S#Tx ) : V = {
+      final def insertRetroChild( parent: V, newChild: A )( implicit tx: S#Tx ) : V = {
          val v = new V {
             def tree    = me
             val value   = newChild
@@ -118,7 +140,7 @@ object Ancestor {
          v
       }
 
-      def insertRetroParent( child: V, newParent: A )( implicit tx: S#Tx ) : V = {
+      final def insertRetroParent( child: V, newParent: A )( implicit tx: S#Tx ) : V = {
          require( child != root )
          val v = new V {
             def tree    = me
@@ -132,7 +154,34 @@ object Ancestor {
       }
    }
 
-   sealed trait Tree[ S <:Sys[ S ], A ] {
+   private final class TreeNew[ S <: Sys[ S ], A ]( rootValue: A, tx0: S#Tx )(
+      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int,
+      val versionManifest: Manifest[ A ])
+   extends TreeImpl[ S, A ] {
+      me =>
+
+      protected val preOrder      = TotalOrder.Set.empty[ S ]( 0 )( tx0 )
+      protected val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )( tx0 )
+      val root = new V {
+         def tree: Tree[ S, A ] = me
+         def value   = rootValue
+         val preHead = preOrder.root
+         val preTail = preHead.append()( tx0 ) // preOrder.insert()
+         val post    = postOrder.root
+      }
+   }
+
+   private final class TreeRead[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc, tx0: S#Tx  )(
+      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int,
+      val versionManifest: Manifest[ A ])
+   extends TreeImpl[ S, A ] {
+
+      protected val preOrder  = TotalOrder.Set.serializer[ S ].read( in, access )( tx0 )
+      protected val postOrder = TotalOrder.Set.serializer[ S ].read( in, access )( tx0 )
+      val root                = VertexSerializer.read( in, access )( tx0 )
+   }
+
+   sealed trait Tree[ S <:Sys[ S ], A ] extends Writer with Disposable[ S#Tx ] {
       protected type V = Vertex[ S, A ]
 
       private[Ancestor] def valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ]
