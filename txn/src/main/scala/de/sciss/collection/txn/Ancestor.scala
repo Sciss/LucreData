@@ -32,83 +32,17 @@ import de.sciss.lucre.stm.{TxnSerializer, Writer, Sys}
 object Ancestor {
    private[Ancestor] val cube = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
-//   private object PreKey {
-//      implicit def reader[ S <: Sys[ S ], A ]( implicit vertexReader: Reader[ Vertex[ S, A ]]) : Reader[ PreKey[ S, A ]] =
-//         new ReaderImpl[ S, A ]( vertexReader )
-//
-//      private final class ReaderImpl[ S <: Sys[ S ], A ]( vertexReader: Reader[ Vertex[ S, A ]])
-//      extends Reader[ PreKey[ S, A ]] {
-//         def read( in: DataInput ) : PreKey[ S, A ] = {
-//            val id = in.readUnsignedByte()
-//            val v  = vertexReader.read( in )
-//            if( id == 0 ) v.preHeadKey else v.preTailKey
-//         }
-//      }
-//   }
-
-//   private type PreOrder[  S <: Sys[ S ], A ] = TotalOrder.Map.Entry[ S, PreKey[ S, A ]]
-//   private type PostOrder[ S <: Sys[ S ], A ] = TotalOrder.Map.Entry[ S, Vertex[ S, A ]]
    private type TreePreOrder[  S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
    private type TreePostOrder[ S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
-
-   //   private sealed trait PreKey[ S <: Sys[ S ], A ] extends VertexProxy[ S, A ] {
-   //      def order: PreOrder[ S ]
-   //      def id: Int
-   //
-   //      final def write( out: DataOutput ) {
-   //         out.writeUnsignedByte( id )
-   //         source.write( out )
-   //      }
-   //
-   //      override def equals( that: Any ) : Boolean = {
-   //         (that.isInstanceOf[ PreKey[ _, _ ]] && {
-   //            val thatPre = that.asInstanceOf[ PreKey[ _, _ ]]
-   //            (id == thatPre.id) && (source == thatPre.source)
-   //         })
-   //      }
-   //   }
-   //
-   //   private final class PreHeadKey[ S <: Sys[ S ], A ]( val source: Vertex[ S, A ])
-   //   extends PreKey[ S, A ] {
-   //      def order   = source.preHead
-   //      def id      = 0
-   //
-   //      override def toString = source.toString + "<pre>"
-   //      def debugString( implicit tx: S#Tx ) = toString + "@" + source.preHead.tag
-   //   }
-   //
-   //   private final class PreTailKey[ S <: Sys[ S ], A ]( val source: Vertex[ S, A ])
-   //   extends PreKey[ S, A ] {
-   //      def order   = source.preTail
-   //      def id      = 1
-   //
-   //      override def toString = source.toString + "<pre-tail>"
-   //      def debugString( implicit tx: S#Tx ) = toString + "@" + source.preTail.tag
-   //   }
-   //
-   //   sealed trait VertexProxy[ S <: Sys[ S ], A ] extends Writer {
-   //      private[FullTree] def source: Vertex[ S, A ]
-   //   }
 
    object Vertex {
       private[Ancestor] implicit def toPoint[ S <: Sys[ S ], A ]( v: Vertex[ S, A ], tx: S#Tx ) : Point3D =
          new Point3D( v.preHead.tag( tx ), v.post.tag( tx ), v.version )
-
-//      private[FullTree] implicit def vertexSerializer[ S <: Sys[ S ], A ](
-//         implicit valueReader: Reader[ A ], versionView: A => Int ) : Serializer[ Vertex[ S, A ]] =
-//            new SerializerImpl[ S, A ]( valueReader, versionView )
    }
    sealed trait Vertex[ S <: Sys[ S ], A ] /* extends VertexProxy[ S, A ] */ {
       def value: A
       final def version: Int = tree.versionView( value )
 
-//      private[confluent] final def preCompare(  that: Vertex[ S, A ]) : Int = preHead.compare( that.preHead )
-//      private[confluent] final def postCompare( that: Vertex[ S, A ]) : Int = post.compare(    that.post )
-
-//      private[FullTree] final def source: Vertex[ S, A ] = this
-
-//      private[FullTree] final val preHeadKey  = new PreHeadKey( this )
-//      private[FullTree] final val preTailKey  = new PreTailKey( this )
       private[Ancestor] def preHead: TreePreOrder[ S ]
       private[Ancestor] def preTail: TreePreOrder[ S ]
       private[Ancestor] def post:    TreePostOrder[ S ]
@@ -142,25 +76,15 @@ object Ancestor {
             new V {
                def tree    = me
                val value   = valueSerializer.read( in, access )
-               val preHead = preOrder.readEntry( in, access )
-               val preTail = preOrder.readEntry( in, access )
-               val post    = postOrder.readEntry( in, access )
+               val preHead = preOrder.readEntry(   in, access )
+               val preTail = preOrder.readEntry(   in, access )
+               val post    = postOrder.readEntry(  in, access )
             }
          }
       }
 
       def vertexSerializer : TxnSerializer[ S#Tx, S#Acc, V ] = VertexSerializer
 
-//      val skip : SkipOctree[ S, Space.ThreeDim, V ] = {
-//         import SpaceSerializers.CubeSerializer
-////         implicit val pv      = SkipOctree.nonTxnPointView[ Space.ThreeDim, V ]
-//         implicit val system  = tx.system
-//         implicit val smf     = Sys.manifest[ S ]
-//         SkipOctree.empty[ S, Space.ThreeDim, V ]( cube )
-//      }
-
-//      val preOrder      = TotalOrder.Map.empty[ S, PreKey[ S, A ]]( me, _.order, 0 )
-//      val postOrder     = TotalOrder.Map.empty[ S, V ](             me, _.post,  Int.MaxValue )
       val preOrder      = TotalOrder.Set.empty[ S ]( 0 )( tx0 )
       val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )( tx0 )
       val root = new V {
@@ -169,9 +93,7 @@ object Ancestor {
          val preHead = preOrder.root
          val preTail = preHead.append()( tx0 ) // preOrder.insert()
          val post    = postOrder.root
-//         preOrder.placeAfter( preHeadKey, preTailKey )   // preTailKey must come last
       }
-//      skip += root
 
       def insertChild( parent: V, newChild: A )( implicit tx: S#Tx ) : V = {
          val v = new V {
@@ -180,11 +102,7 @@ object Ancestor {
             val preHead = parent.preTail.prepend() // preOrder.insert()
             val preTail = preHead.append() // preOrder.insert()
             val post    = parent.post.prepend() // postOrder.insert()
-//            preOrder.placeBefore( parent.preTailKey, preHeadKey )
-//            postOrder.placeBefore( parent, this )
-//            preOrder.placeAfter( preHeadKey, preTailKey )   // preTailKey must come last!
          }
-//         skip += v
          v
       }
 
@@ -195,12 +113,8 @@ object Ancestor {
             val preHead = parent.preHead.append()  // preOrder.insert()
             val preTail = parent.preTail.prepend() // preOrder.insert()
             val post    = parent.post.prepend()    // postOrder.insert()
-//            preOrder.placeAfter( parent.preHeadKey, preHeadKey )
-//            postOrder.placeBefore( parent, this )
-//            preOrder.placeBefore( parent.preTailKey, preTailKey ) // preTailKey must come last
             override def toString = super.toString + "@r-ch"
          }
-//         skip += v
          v
       }
 
@@ -212,27 +126,10 @@ object Ancestor {
             val preHead = child.preHead.prepend()  // preOrder.insert()
             val preTail = child.preTail.append()   // preOrder.insert()
             val post    = child.post.append()      // postOrder.insert()
-//            preOrder.placeBefore( child.preHeadKey, preHeadKey )
-//            postOrder.placeAfter( child, this )
-//            preOrder.placeAfter( child.preTailKey, preTailKey )   // preTailKey must come last
             override def toString = super.toString + "@r-par"
          }
-//         skip += v
          v
       }
-
-//      // ---- RelabelObserver ----
-//
-//      def beforeRelabeling( iter: Iterator[ S#Tx, VertexProxy[ S, A ]])( implicit tx: S#Tx ) {
-//         // the nasty thing is, in the pre-order list the items appear twice
-//         // due to pre versus preTail. thus the items might get removed twice
-//         // here, too, and we cannot assert that t.remove( v ) == true
-//         iter.foreach( skip -= _.source )
-//      }
-//
-//      def afterRelabeling( iter: Iterator[ S#Tx, VertexProxy[ S, A ]])( implicit tx: S#Tx ) {
-//         iter.foreach( skip += _.source )
-//      }
    }
 
    sealed trait Tree[ S <:Sys[ S ], A ] {
@@ -488,9 +385,9 @@ object Ancestor {
        * @return  `true` if the mark is new, `false` if there had been a mark for the given vertex.
        */
       def add( entry: (K, V) )( implicit tx: S#Tx ) : Boolean
-      def +=( entry: (K, V) )( implicit tx: S#Tx ) : this.type
+      def +=(  entry: (K, V) )( implicit tx: S#Tx ) : this.type
       def remove( version: K )( implicit tx: S#Tx ) : Boolean
-      def -=( version: K )( implicit tx: S#Tx ) : this.type
+      def -=(     version: K )( implicit tx: S#Tx ) : this.type
 
       /**
        * Queries for a mark at a given version vertex. Unlike `nearest`, this does
