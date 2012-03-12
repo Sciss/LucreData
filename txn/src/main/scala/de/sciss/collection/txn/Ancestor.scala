@@ -445,7 +445,7 @@ object Ancestor {
 
       private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
          val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )( pointView, tx0, Space.ThreeDim, vertexSerializer,
+         SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )( tx0, pointView, Space.ThreeDim, vertexSerializer,
                                                             SpaceSerializers.CubeSerializer, manifest[ MV ])
       }
 
@@ -507,12 +507,11 @@ object Ancestor {
       protected val postOrder : TotalOrder.Map[ S, MV ] =
          TotalOrder.Map.read[ S, MV ]( in, access, me, _.post )( tx0, vertexSerializer )
 
-      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, MV ] = sys.error( "TODO" )
-//      {
-//         val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
-//         SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )( pointView, tx0, Space.ThreeDim, vertexSerializer,
-//                                                            SpaceSerializers.CubeSerializer, manifest[ MV ])
-//      }
+      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
+         val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
+         SkipOctree.read[ S, Space.ThreeDim, MV ]( in, access )( tx0, pointView, Space.ThreeDim, vertexSerializer,
+            SpaceSerializers.CubeSerializer, manifest[ MV ])
+      }
 
       protected val preList : SkipList[ S, MV ] = sys.error( "TODO" )
 //      {

@@ -48,6 +48,8 @@ import de.sciss.lucre.stm._
 * this is `Square( 0x40000000, 0x40000000, 0x40000000 )`.
 */
 object DeterministicSkipOctree {
+   private val SER_VERSION = 0
+
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube, skipGap: Int = 2 )
                                                  ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
                                                    keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
@@ -57,35 +59,41 @@ object DeterministicSkipOctree {
       new ImplNew[ S, D, A ]( skipGap, tx.newID(), hyperCube, view, tx )
    }
 
+   def read[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, access: S#Acc )(
+      implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+      hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] =
+      new ImplRead[ S, D, A ]( view, in, access, tx )
+
    implicit def serializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
       keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]
    ) : TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] = new OctreeSerializer[ S, D, A ]
-
-   private val SER_VERSION = 0
 
    private final class OctreeSerializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
       keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]
    ) extends TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, D, A ] = {
-         val id      = tx.readID( in, access )
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
-
-         val hyperCube  = hyperSerializer.read( in, access )
-         new ImplRead[ S, D, A ]( id, hyperCube, view, in, access, tx )
+         new ImplRead[ S, D, A ]( view, in, access, tx )
       }
 
       def write( v: DeterministicSkipOctree[ S, D, A ], out: DataOutput ) { v.write( out )}
    }
 
    private final class ImplRead[ S <: Sys[ S ], D <: Space[ D ], A ](
-      val id: S#ID, val hyperCube: D#HyperCube, val pointView: (A, S#Tx) => D#PointLike,  in: DataInput,
+      val pointView: (A, S#Tx) => D#PointLike,  in: DataInput,
       access: S#Acc, tx0: S#Tx )( implicit val space: D,  val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
                                   val hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ] {
+      val id      = tx0.readID( in, access )
+
+      {
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+      }
+
+      val hyperCube  = hyperSerializer.read( in, access )( tx0 )
       val totalOrder = TotalOrder.Set.serializer[ S ].read( in, access )( tx0 )
       val skipList = {
          implicit val ord  = LeafOrdering

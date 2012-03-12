@@ -29,6 +29,7 @@ package txn
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import de.sciss.lucre.stm.{TxnSerializer, Mutable, Sys}
+import de.sciss.lucre.DataInput
 
 object SkipOctree {
    implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {
@@ -36,12 +37,16 @@ object SkipOctree {
    }
 
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube )
-                                                 ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
+                                                 ( implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
                                                    keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
                                                    hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ],
                                                    amf: Manifest[ A ]) : SkipOctree[ S, D, A ] =
       DeterministicSkipOctree.empty[ S, D, A ]( hyperCube )
 
+   def read[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, access: S#Acc )(
+         implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+         hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]) : SkipOctree[ S, D, A ] =
+      DeterministicSkipOctree.read[ S, D, A ]( in, access )
 }
 /**
  * A `SkipOctree` is a multi-dimensional data structure that
