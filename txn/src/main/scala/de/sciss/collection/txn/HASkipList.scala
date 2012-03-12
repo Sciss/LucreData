@@ -597,7 +597,6 @@ object HASkipList {
                   // at bNew's index idxP is now the one formerly at
                   // idxP1, hence the right-most key in csib.
                   bNew        = b.removeColumn( idxP )
-//                  system.disposeRef( b.downRef( idxP ))
                   b.downRef( idxP ).dispose()
 //                  bDownIdx    = idxP
                   cNew        = c.virtualize( ModMergeRight, cSib )
@@ -633,7 +632,6 @@ object HASkipList {
                   // The parent needs to remove the
                   // entry of the left sibling.
                   bNew        = b.removeColumn( idxPM1 )
-//                  system.disposeRef( b.downRef( idxPM1 ))
                   b.downRef( idxPM1 ).dispose()
                   bDownIdx    = idxPM1
                   cNew        = c.virtualize( ModMergeLeft, cSib )
@@ -745,7 +743,6 @@ object HASkipList {
          }
 
          def hasNext : Boolean = l ne null // ordering.nequiv( nextKey, maxKey )
-//         def next() : A = system.atomic( nextTxn( _ ))
 
          def next()( implicit tx: S#Tx ) : A = {
             if( !hasNext ) throw new java.util.NoSuchElementException( "next on empty iterator" )
@@ -1362,12 +1359,6 @@ object HASkipList {
          val rightOff      = idx + 1
 //         val numr          = bsz - rightOff
 //         System.arraycopy( keys, idx, bkeys, rightOff, numr )
-////            // while we could copy the right split entry's key,
-////            // the split operation has yielded a new right node
-////            bdowns( rightOff ) = system.newVal( right )
-////            if( numr > 1 ) {
-////               downCopy( this, rightOff, bdowns, rightOff + 1, numr - 1 )
-////            }
 //         System.arraycopy( downs, idx, bdowns, rightOff, numr )
          bdowns( rightOff ).set( right )
 
@@ -1387,7 +1378,6 @@ object HASkipList {
             keySerializer.write( keys( i ), out )
          i += 1 }
          i = 0; while( i < sz ) {
-//            system.writeRef( downs( i ), out )
             downs( i ).write( out )
          i += 1 }
       }
@@ -1395,8 +1385,6 @@ object HASkipList {
 }
 
 sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
-//   def system: S
-
    def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A ]]
 
    def write( out: DataOutput ) : Unit

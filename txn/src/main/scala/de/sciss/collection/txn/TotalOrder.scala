@@ -217,7 +217,6 @@ object TotalOrder {
       }
 
       protected implicit object EntryOptionSerializer extends TxnSerializer[ S#Tx, S#Acc, EOpt ] {
-//         def read( in: DataInput ) : EOpt = system.readOptionMut[ EOpt ]( in )
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : EOpt = {
             (in.readUnsignedByte(): @switch) match {
                case 0 => me.empty
@@ -743,7 +742,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
 assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next is " + nextTag )
 
          val recTag        = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recE          = entryView( key ) // new Map.Entry( this, system.newID(), recTagVal, recPrevRef, recNextRef )
+         val recE          = entryView( key )
 
          require( recE.tag == -1 && prevTag >=0 && nextTag >= 0, {
             val msg = new StringBuilder()
@@ -753,9 +752,6 @@ assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next i
             msg.toString()
          })
 
-//         val recTagVal     = system.newInt( recTag )
-//         val recPrevRef    = system.newVal[ KOpt ]( prevO )
-//         val recNextRef    = system.newVal[ KOpt ]( nextO )
          recE.updateTag( recTag )
          recE.updatePrev( prevO )
          recE.updateNext( nextO )

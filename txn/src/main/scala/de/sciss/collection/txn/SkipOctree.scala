@@ -39,13 +39,12 @@ object SkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube )
                                                  ( implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
                                                    keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ],
-                                                   amf: Manifest[ A ]) : SkipOctree[ S, D, A ] =
+                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : SkipOctree[ S, D, A ] =
       DeterministicSkipOctree.empty[ S, D, A ]( hyperCube )
 
    def read[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, access: S#Acc )(
          implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-         hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]) : SkipOctree[ S, D, A ] =
+         hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : SkipOctree[ S, D, A ] =
       DeterministicSkipOctree.read[ S, D, A ]( in, access )
 }
 /**
@@ -56,7 +55,6 @@ object SkipOctree {
  */
 trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
    def space: D
-//   def system: S
 
    def pointView : (A, S#Tx) => D#PointLike
 

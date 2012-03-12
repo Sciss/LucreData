@@ -394,7 +394,7 @@ if( verbose ) {
    }
 
    object MarkTree {
-      def apply[ S <: Sys[ S ]]( ft: FullTree[ S ])( implicit tx: S#Tx, system: S, smf: Manifest[ S ]) : MarkTree[ S ] = {
+      def apply[ S <: Sys[ S ]]( ft: FullTree[ S ])( implicit tx: S#Tx, system: S ) : MarkTree[ S ] = {
          import SpaceSerializers.CubeSerializer
          implicit val pointView = (p: MarkVertex[ S ], tx: S#Tx) => p.toPoint( tx )
          lazy val orderObserver = new RelabelObserver[ S, MarkVertex[ S ]]( "mark", t )
@@ -466,9 +466,7 @@ if( verbose ) {
       }
    }
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit )
-                              ( implicit smf: Manifest[ S ]) {
-
+   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
       def randomlyFilledTree( n: Int )( implicit system: S ) = new {
          given( "a randomly filled tree, corresponding node orders and their quadtree" )
          val (t, treeSeq, parents) = system.atomic { implicit tx =>

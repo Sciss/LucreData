@@ -53,26 +53,26 @@ object DeterministicSkipOctree {
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube, skipGap: Int = 2 )
                                                  ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
                                                    keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ],
-                                                   amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] = {
+                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : DeterministicSkipOctree[ S, D, A ] = {
 
       new ImplNew[ S, D, A ]( skipGap, tx.newID(), hyperCube, view, tx )
    }
 
    def read[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, access: S#Acc )(
       implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-      hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]) : DeterministicSkipOctree[ S, D, A ] =
+      hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : DeterministicSkipOctree[ S, D, A ] =
       new ImplRead[ S, D, A ]( view, in, access, tx )
 
    implicit def serializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
-      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]
-   ) : TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] = new OctreeSerializer[ S, D, A ]
+      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
+      hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] =
+      new OctreeSerializer[ S, D, A ]
 
    private final class OctreeSerializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
-      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ], amf: Manifest[ A ]
-   ) extends TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] {
+      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
+   extends TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, D, A ] = {
          new ImplRead[ S, D, A ]( view, in, access, tx )
       }
@@ -867,13 +867,6 @@ extends SkipOctree[ S, D, A ] {
             case pi: BranchLike => if( isCritical( pi, 0 )) p0 else findHighestUncritical( pi, area )
          }
       }
-
-//      def next() : A = {
-//         if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
-//         val res = current
-//         system.atomic { implicit tx => findNextValue() }
-//         res
-//      }
 
       def next()( implicit tx: S#Tx ) : A = {
          if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )

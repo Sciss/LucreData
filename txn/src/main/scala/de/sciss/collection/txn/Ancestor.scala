@@ -68,21 +68,20 @@ object Ancestor {
    }
 
    implicit def treeSerializer[ S <: Sys[ S ], A ]( implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                                    versionView: A => Int,
-                                                    versionManifest: Manifest[ A ]) : TxnSerializer[ S#Tx, S#Acc, Tree[ S, A ]] =
+                                                    versionView: A => Int) : TxnSerializer[ S#Tx, S#Acc, Tree[ S, A ]] =
       new TreeSer[ S, A ]
 
    def newTree[ S <: Sys[ S ], A ]( rootValue: A )( implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                                    versionView: A => Int, versionManifest: Manifest[ A ]) : Tree[ S, A ] =
+                                                    versionView: A => Int ) : Tree[ S, A ] =
       new TreeNew[ S, A ]( rootValue, tx )
 
    def readTree[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc )
                                    ( implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                     versionView: A => Int, versionManifest: Manifest[ A ]) : Tree[ S, A ] =
+                                     versionView: A => Int ) : Tree[ S, A ] =
       new TreeRead[ S, A ]( in, access, tx )
 
    private final class TreeSer[ S <: Sys[ S ], A ]( implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                                    versionView: A => Int, versionManifest: Manifest[ A ])
+                                                    versionView: A => Int )
    extends TxnSerializer[ S#Tx, S#Acc, Tree[ S, A ]] {
       def write( t: Tree[ S, A ], out: DataOutput ) { t.write( out )}
 
@@ -163,8 +162,7 @@ object Ancestor {
    }
 
    private final class TreeNew[ S <: Sys[ S ], A ]( rootValue: A, tx0: S#Tx )(
-      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int,
-      val versionManifest: Manifest[ A ])
+      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int )
    extends TreeImpl[ S, A ] {
       me =>
 
@@ -180,8 +178,7 @@ object Ancestor {
    }
 
    private final class TreeRead[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc, tx0: S#Tx  )(
-      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int,
-      val versionManifest: Manifest[ A ])
+      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ], val versionView: A => Int )
    extends TreeImpl[ S, A ] {
 
       {
@@ -202,7 +199,6 @@ object Ancestor {
       private[Ancestor] def versionView: A => Int
 
       def vertexSerializer : TxnSerializer[ S#Tx, S#Acc, V ]
-      implicit def versionManifest : Manifest[ A ]
 
       def root : V
 
@@ -245,26 +241,24 @@ object Ancestor {
    }
 
    def newMap[ S <: Sys[ S ], A, @specialized V ]( full: Tree[ S, A ], rootValue: V )(
-      implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ], vmf: Manifest[ V ]) : Map[ S, A, V ] = {
+      implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ]) : Map[ S, A, V ] = {
 
-      implicit val smf = Sys.manifest[ S ]( tx.system )
       new MapNew[ S, A, V ]( full, rootValue, tx )
    }
 
    def readMap[ S <: Sys[ S ], A, @specialized V ]( in: DataInput, access: S#Acc, full: Tree[ S, A ])(
-      implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ], vmf: Manifest[ V ]) : Map[ S, A, V ] = {
+      implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ]) : Map[ S, A, V ] = {
 
-      implicit val smf = Sys.manifest[ S ]( tx.system )
       new MapRead[ S, A, V ]( full, in, access, tx )
    }
 
    private final class MapSer[ S <: Sys[ S ], A, V ]( full: Tree[ S, A ])(
-      implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ], vmf: Manifest[ V ])
+      implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ])
    extends TxnSerializer[ S#Tx, S#Acc, Map[ S, A, V ]] {
       def write( m: Map[ S, A, V ], out: DataOutput ) { m.write( out )}
 
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Map[ S, A, V ] = {
-         implicit val smf = Sys.manifest[ S ]( tx.system )
+
          new MapRead[ S, A, V ]( full, in, access, tx )
       }
    }
@@ -289,14 +283,6 @@ object Ancestor {
       protected def postOrdering : Ordering[ S#Tx, MV ] = new Ordering[ S#Tx, MV ] {
          def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
       }
-
-//      protected implicit def system: S
-      protected implicit def smf: Manifest[ S ]
-      final protected implicit def amf: Manifest[ A ] = full.versionManifest
-      protected implicit def vmf: Manifest[ V ]
-
-//      final protected implicit def vertexManifest = manifest[ Mark[ S, A, V ]]
-
       protected def full: Tree[ S, A ]
 //      private[Ancestor] implicit def valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ]
 
@@ -308,8 +294,6 @@ object Ancestor {
 
       protected def preList : SkipList[ S, MV ]
       protected def postList : SkipList[ S, MV ]
-
-//      import full.versionManifest
 
       protected implicit object vertexSerializer extends TxnSerializer[ S#Tx, S#Acc, MV ] {
          def write( v: MV, out: DataOutput ) { v.write( out )}
@@ -447,8 +431,7 @@ object Ancestor {
    }
 
    private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( protected val full: Tree[ S, A ], rootValue: V, tx0: S#Tx )(
-      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ], protected val smf: Manifest[ S ],
-      protected val vmf: Manifest[ V ])
+      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ])
    extends MapImpl[ S, A, V ] {
       me =>
 
@@ -461,7 +444,7 @@ object Ancestor {
       private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
          val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
          SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )( tx0, pointView, Space.ThreeDim, vertexSerializer,
-                                                            SpaceSerializers.CubeSerializer, manifest[ MV ])
+                                                            SpaceSerializers.CubeSerializer )
       }
 
       protected val root: MV = {
@@ -497,8 +480,7 @@ object Ancestor {
 
    private final class MapRead[ S <: Sys[ S ], A, @specialized V ]( protected val full: Tree[ S, A ], in: DataInput,
                                                                     access: S#Acc, tx0: S#Tx )(
-      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ], protected val smf: Manifest[ S ],
-      protected val vmf: Manifest[ V ])
+      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ])
    extends MapImpl[ S, A, V ] {
       me =>
 
@@ -517,7 +499,7 @@ object Ancestor {
       private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
          val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
          SkipOctree.read[ S, Space.ThreeDim, MV ]( in, access )( tx0, pointView, Space.ThreeDim, vertexSerializer,
-            SpaceSerializers.CubeSerializer, manifest[ MV ])
+            SpaceSerializers.CubeSerializer )
       }
 
       protected val preList : SkipList[ S, MV ] = {

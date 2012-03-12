@@ -32,8 +32,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val cube          = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit )
-                              ( implicit smf: Manifest[ S ]) {
+   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
       withTree[ S ]( sysName, () => {
          implicit val sys = sysCreator()
          val t = sys.atomic { implicit tx =>

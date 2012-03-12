@@ -53,9 +53,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit )
-                              ( implicit smf: Manifest[ S ]) {
-
+   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
       def scenarioWithTime( name: String, descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
