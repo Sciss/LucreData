@@ -68,27 +68,27 @@ object Ancestor {
    }
 
    implicit def treeSerializer[ S <: Sys[ S ], Version ](
-      implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
+      implicit versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
       intView: Version => Int) : TxnSerializer[ S#Tx, S#Acc, Tree[ S, Version ]] = {
 
       new TreeSer[ S, Version ]
    }
 
    def newTree[ S <: Sys[ S ], Version ]( rootVersion: Version )(
-      implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
+      implicit tx: S#Tx, versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
       intView: Version => Int ) : Tree[ S, Version ] = {
 
       new TreeNew[ S, Version ]( rootVersion, tx )
    }
 
    def readTree[ S <: Sys[ S ], Version ]( in: DataInput, access: S#Acc )(
-      implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
+      implicit tx: S#Tx, versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
       intView: Version => Int ) : Tree[ S, Version ] = {
 
       new TreeRead[ S, Version ]( in, access, tx )
    }
 
-   private final class TreeSer[ S <: Sys[ S ], Version ]( implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
+   private final class TreeSer[ S <: Sys[ S ], Version ]( implicit versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
                                                           versionView: Version => Int )
    extends TxnSerializer[ S#Tx, S#Acc, Tree[ S, Version ]] {
       def write( t: Tree[ S, Version ], out: DataOutput ) { t.write( out )}
@@ -249,23 +249,23 @@ object Ancestor {
    def newMap[ S <: Sys[ S ], Version, @specialized A ]( full: Tree[ S, Version ], rootValue: A )(
       implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : Map[ S, Version, A ] = {
 
-      new MapNew[ S, Version, A ]( full, rootValue, tx )
+      new MapNew[ S, Version, A ]( full, rootValue, tx, valueSerializer )
    }
 
    def readMap[ S <: Sys[ S ], Version, @specialized A ]( in: DataInput, access: S#Acc, full: Tree[ S, Version ])(
       implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : Map[ S, Version, A ] = {
 
-      new MapRead[ S, Version, A ]( full, in, access, tx )
+      new MapRead[ S, Version, A ]( full, in, access, tx, valueSerializer )
    }
 
-   private final class MapSer[ S <: Sys[ S ], Version, A ]( full: Tree[ S, Version ])(
-      implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends TxnSerializer[ S#Tx, S#Acc, Map[ S, Version, A ]] {
-      def write( m: Map[ S, Version, A ], out: DataOutput ) { m.write( out )}
-
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Map[ S, Version, A ] =
-         new MapRead[ S, Version, A ]( full, in, access, tx )
-   }
+//   private final class MapSer[ S <: Sys[ S ], Version, A ]( full: Tree[ S, Version ])(
+//      implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+//   extends TxnSerializer[ S#Tx, S#Acc, Map[ S, Version, A ]] {
+//      def write( m: Map[ S, Version, A ], out: DataOutput ) { m.write( out )}
+//
+//      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Map[ S, Version, A ] =
+//         new MapRead[ S, Version, A ]( full, in, access, tx )
+//   }
 
    private final class IsoResult[ S <: Sys[ S ], Version, @specialized A ](
       val pre: Mark[ S, Version, A ], val preCmp: Int, val post: Mark[ S, Version, A ], val postCmp: Int ) {
@@ -432,8 +432,8 @@ object Ancestor {
       }
    }
 
-   private final class MapNew[ S <: Sys[ S ], Version, @specialized A ]( val full: Tree[ S, Version ], rootValue: A, tx0: S#Tx )(
-      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+   private final class MapNew[ S <: Sys[ S ], Version, @specialized A ]( val full: Tree[ S, Version ], rootValue: A,
+      tx0: S#Tx, val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
    extends MapImpl[ S, Version, A ] {
       me =>
 
@@ -481,7 +481,7 @@ object Ancestor {
    }
 
    private final class MapRead[ S <: Sys[ S ], Version, @specialized A ]( val full: Tree[ S, Version ], in: DataInput,
-      access: S#Acc, tx0: S#Tx )( implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+      access: S#Acc, tx0: S#Tx, val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
    extends MapImpl[ S, Version, A ] {
       me =>
 
