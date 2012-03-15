@@ -278,29 +278,29 @@ object Ancestor {
    extends Map[ S, Version, A ] with TotalOrder.Map.RelabelObserver[ S#Tx, Mark[ S, Version, A ]] {
       me =>
 
-      final type MV = Mark[ S, Version, A ]
+      final type M = Mark[ S, Version, A ]
 
-      protected def preOrdering : Ordering[ S#Tx, MV ] = new Ordering[ S#Tx, MV ] {
-         def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
+      protected def preOrdering : Ordering[ S#Tx, M ] = new Ordering[ S#Tx, M ] {
+         def compare( a: M, b: M )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
       }
 
-      protected def postOrdering : Ordering[ S#Tx, MV ] = new Ordering[ S#Tx, MV ] {
-         def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
+      protected def postOrdering : Ordering[ S#Tx, M ] = new Ordering[ S#Tx, M ] {
+         def compare( a: M, b: M )( implicit tx: S#Tx ) : Int = a.post compare b.post
       }
 
-      protected def preOrder  : TotalOrder.Map[ S, MV ]
-      protected def postOrder : TotalOrder.Map[ S, MV ]
+      protected def preOrder  : TotalOrder.Map[ S, M ]
+      protected def postOrder : TotalOrder.Map[ S, M ]
 
-      private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, MV ]
+      private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, M ]
 //      protected def root: MV
 
-      protected def preList : SkipList[ S, MV ]
-      protected def postList : SkipList[ S, MV ]
+      protected def preList : SkipList[ S, M ]
+      protected def postList : SkipList[ S, M ]
 
-      protected implicit object vertexSerializer extends TxnSerializer[ S#Tx, S#Acc, MV ] {
-         def write( v: MV, out: DataOutput ) { v.write( out )}
+      protected implicit object markSerializer extends TxnSerializer[ S#Tx, S#Acc, M ] {
+         def write( v: M, out: DataOutput ) { v.write( out )}
 
-         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : MV = new MV {
+         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : M = new M {
             def map        = me
             val fullVertex = full.vertexSerializer.read( in, access )
             val pre        = preOrder.readEntry( in, access )
@@ -339,24 +339,24 @@ object Ancestor {
 
       private def query( vertex: K )( implicit tx: S#Tx ) : IsoResult[ S, Version, A ] = {
          val cfPre = vertex.preHead
-         val (cmPreN, cmPreCmp) = preList.isomorphicQuery( new Ordered[ S#Tx, MV ] {
-            def compare( that: MV )( implicit tx: S#Tx ) : Int = {
+         val (cmPreN, cmPreCmp) = preList.isomorphicQuery( new Ordered[ S#Tx, M ] {
+            def compare( that: M )( implicit tx: S#Tx ) : Int = {
                cfPre.compare( that.fullVertex.preHead )
             }
          })
          val cfPost = vertex.post
-         val (cmPostN, cmPostCmp ) = postList.isomorphicQuery( new Ordered[ S#Tx, MV ] {
-            def compare( that: MV )( implicit tx: S#Tx ) : Int = {
+         val (cmPostN, cmPostCmp ) = postList.isomorphicQuery( new Ordered[ S#Tx, M ] {
+            def compare( that: M )( implicit tx: S#Tx ) : Int = {
                cfPost.compare( that.fullVertex.post )
             }
          })
          new IsoResult[ S, Version, A ]( cmPreN, cmPreCmp, cmPostN, cmPostCmp )
       }
 
-      private def wrap( entry: (K, A) )( implicit tx: S#Tx ) : MV = {
+      private def wrap( entry: (K, A) )( implicit tx: S#Tx ) : M = {
          val vertex = entry._1
          val iso = query( vertex )
-         new MV {
+         new M {
             def map        = me
             val fullVertex = vertex
             val pre        = preOrder.insert()
@@ -413,7 +413,7 @@ object Ancestor {
       }
 
       // ---- RelabelObserver ----
-      final def beforeRelabeling( iter: Iterator[ S#Tx, MV ])( implicit tx: S#Tx ) {
+      final def beforeRelabeling( iter: Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
 //println( "RELABEL - ::: BEGIN :::" )
          iter.foreach { mv =>
 //println( "RELABEL - " + mv )
@@ -422,7 +422,7 @@ object Ancestor {
 //println( "RELABEL - ::: END :::" )
       }
 
-      final def afterRelabeling( iter: Iterator[ S#Tx, MV ])( implicit tx: S#Tx ) {
+      final def afterRelabeling( iter: Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
 //println( "RELABEL + ::: BEGIN :::" )
          iter.foreach { mv =>
 //println( "RELABEL + " + mv )
@@ -437,20 +437,20 @@ object Ancestor {
    extends MapImpl[ S, Version, A ] {
       me =>
 
-      protected val preOrder  : TotalOrder.Map[ S, MV ] =
-         TotalOrder.Map.empty[ S, MV ]( me, _.pre )( tx0, vertexSerializer )
+      protected val preOrder  : TotalOrder.Map[ S, M ] =
+         TotalOrder.Map.empty[ S, M ]( me, _.pre )( tx0, markSerializer )
 
-      protected val postOrder : TotalOrder.Map[ S, MV ] =
-         TotalOrder.Map.empty[ S, MV ]( me, _.post, rootTag = Int.MaxValue )( tx0, vertexSerializer )
+      protected val postOrder : TotalOrder.Map[ S, M ] =
+         TotalOrder.Map.empty[ S, M ]( me, _.post, rootTag = Int.MaxValue )( tx0, markSerializer )
 
-      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
-         val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.empty[ S, Space.ThreeDim, MV ]( cube )( tx0, pointView, Space.ThreeDim, vertexSerializer,
+      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, M ] = {
+         val pointView = (p: M, tx: S#Tx) => p.toPoint( tx )
+         SkipOctree.empty[ S, Space.ThreeDim, M ]( cube )( tx0, pointView, Space.ThreeDim, markSerializer,
                                                             SpaceSerializers.CubeSerializer )
       }
 
-      protected val root: MV = {
-         val res = new MV {
+      protected val root: M = {
+         val res = new M {
             def map        = me
             def fullVertex = full.root
             def pre        = preOrder.root
@@ -463,18 +463,18 @@ object Ancestor {
          res
       }
 
-      protected val preList : SkipList[ S, MV ] = {
+      protected val preList : SkipList[ S, M ] = {
          implicit val ord  = preOrdering
          implicit val tx   = tx0
-         val res           = SkipList.empty[ S, MV ]
+         val res           = SkipList.empty[ S, M ]
          res.add( root )
          res
       }
 
-      protected val postList : SkipList[ S, MV ] = {
+      protected val postList : SkipList[ S, M ] = {
          implicit val ord  = postOrdering
          implicit val tx   = tx0
-         val res           = SkipList.empty[ S, MV ]
+         val res           = SkipList.empty[ S, M ]
          res.add( root )
          res
       }
@@ -491,28 +491,28 @@ object Ancestor {
             ", required " + SER_VERSION + ")." )
       }
 
-      protected val preOrder  : TotalOrder.Map[ S, MV ] =
-         TotalOrder.Map.read[ S, MV ]( in, access, me, _.pre  )( tx0, vertexSerializer )
+      protected val preOrder  : TotalOrder.Map[ S, M ] =
+         TotalOrder.Map.read[ S, M ]( in, access, me, _.pre  )( tx0, markSerializer )
 
-      protected val postOrder : TotalOrder.Map[ S, MV ] =
-         TotalOrder.Map.read[ S, MV ]( in, access, me, _.post )( tx0, vertexSerializer )
+      protected val postOrder : TotalOrder.Map[ S, M ] =
+         TotalOrder.Map.read[ S, M ]( in, access, me, _.post )( tx0, markSerializer )
 
-      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, MV ] = {
-         val pointView = (p: MV, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.read[ S, Space.ThreeDim, MV ]( in, access )( tx0, pointView, Space.ThreeDim, vertexSerializer,
+      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, M ] = {
+         val pointView = (p: M, tx: S#Tx) => p.toPoint( tx )
+         SkipOctree.read[ S, Space.ThreeDim, M ]( in, access )( tx0, pointView, Space.ThreeDim, markSerializer,
             SpaceSerializers.CubeSerializer )
       }
 
-      protected val preList : SkipList[ S, MV ] = {
+      protected val preList : SkipList[ S, M ] = {
          implicit val ord  = preOrdering
          implicit val tx   = tx0
-         SkipList.read[ S, MV ]( in, access )
+         SkipList.read[ S, M ]( in, access )
       }
 
-      protected val postList : SkipList[ S, MV ] = {
+      protected val postList : SkipList[ S, M ] = {
          implicit val ord  = postOrdering
          implicit val tx   = tx0
-         SkipList.read[ S, MV ]( in, access )
+         SkipList.read[ S, M ]( in, access )
       }
    }
 
