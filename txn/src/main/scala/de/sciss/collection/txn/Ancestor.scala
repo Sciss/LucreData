@@ -38,12 +38,12 @@ object Ancestor {
    private type TreePostOrder[ S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
 
    object Vertex {
-      private[Ancestor] implicit def toPoint[ S <: Sys[ S ], A ]( v: Vertex[ S, A ], tx: S#Tx ) : Point3D =
-         new Point3D( v.preHead.tag( tx ), v.post.tag( tx ), v.version )
+      private[Ancestor] implicit def toPoint[ S <: Sys[ S ], Version ]( v: Vertex[ S, Version ], tx: S#Tx ) : Point3D =
+         new Point3D( v.preHead.tag( tx ), v.post.tag( tx ), v.versionInt )
    }
    sealed trait Vertex[ S <: Sys[ S ], Version ] extends Writer with Disposable[ S#Tx ] {
-      def value: Version
-      final def version: Int = tree.versionView( value )
+      def version: Version
+      final def versionInt: Int = tree.intView( version )
 
       private[Ancestor] def preHead: TreePreOrder[ S ]
       private[Ancestor] def preTail: TreePreOrder[ S ]
@@ -52,7 +52,7 @@ object Ancestor {
       private[Ancestor] def tree: Tree[ S, Version ]
 
       final def write( out: DataOutput ) {
-         tree.versionSerializer.write( value, out )
+         tree.versionSerializer.write( version, out )
          preHead.write( out )
          preTail.write( out )
          post.write( out )
@@ -64,26 +64,26 @@ object Ancestor {
          post.dispose()
       }
 
-      override def toString = "Vertex(" + value + ")"
+      override def toString = "Vertex(" + version + ")"
    }
 
    implicit def treeSerializer[ S <: Sys[ S ], Version ](
       implicit valueSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
-      versionView: Version => Int) : TxnSerializer[ S#Tx, S#Acc, Tree[ S, Version ]] = {
+      intView: Version => Int) : TxnSerializer[ S#Tx, S#Acc, Tree[ S, Version ]] = {
 
       new TreeSer[ S, Version ]
    }
 
-   def newTree[ S <: Sys[ S ], Version ]( rootValue: Version )(
+   def newTree[ S <: Sys[ S ], Version ]( rootVersion: Version )(
       implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
-      versionView: Version => Int ) : Tree[ S, Version ] = {
+      intView: Version => Int ) : Tree[ S, Version ] = {
 
-      new TreeNew[ S, Version ]( rootValue, tx )
+      new TreeNew[ S, Version ]( rootVersion, tx )
    }
 
    def readTree[ S <: Sys[ S ], Version ]( in: DataInput, access: S#Acc )(
       implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, Version ],
-      versionView: Version => Int ) : Tree[ S, Version ] = {
+      intView: Version => Int ) : Tree[ S, Version ] = {
 
       new TreeRead[ S, Version ]( in, access, tx )
    }
@@ -109,7 +109,7 @@ object Ancestor {
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : K = {
             new K {
                def tree    = me
-               val value   = versionSerializer.read( in, access )
+               val version = versionSerializer.read( in, access )
                val preHead = preOrder.readEntry(   in, access )
                val preTail = preOrder.readEntry(   in, access )
                val post    = postOrder.readEntry(  in, access )
@@ -135,7 +135,7 @@ object Ancestor {
       final def insertChild( parent: K, newChild: Version )( implicit tx: S#Tx ) : K = {
          val v = new K {
             def tree    = me
-            val value   = newChild
+            val version = newChild
             val preHead = parent.preTail.prepend() // preOrder.insert()
             val preTail = preHead.append() // preOrder.insert()
             val post    = parent.post.prepend() // postOrder.insert()
@@ -146,7 +146,7 @@ object Ancestor {
       final def insertRetroChild( parent: K, newChild: Version )( implicit tx: S#Tx ) : K = {
          val v = new K {
             def tree    = me
-            val value   = newChild
+            val version = newChild
             val preHead = parent.preHead.append()  // preOrder.insert()
             val preTail = parent.preTail.prepend() // preOrder.insert()
             val post    = parent.post.prepend()    // postOrder.insert()
@@ -159,7 +159,7 @@ object Ancestor {
          require( child != root )
          val v = new K {
             def tree    = me
-            val value   = newParent
+            val version = newParent
             val preHead = child.preHead.prepend()  // preOrder.insert()
             val preTail = child.preTail.append()   // preOrder.insert()
             val post    = child.post.append()      // postOrder.insert()
@@ -169,8 +169,8 @@ object Ancestor {
       }
    }
 
-   private final class TreeNew[ S <: Sys[ S ], Version ]( rootValue: Version, tx0: S#Tx )(
-      implicit val versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ], val versionView: Version => Int )
+   private final class TreeNew[ S <: Sys[ S ], Version ]( rootVersion: Version, tx0: S#Tx )(
+      implicit val versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ], val intView: Version => Int )
    extends TreeImpl[ S, Version ] {
       me =>
 
@@ -178,7 +178,7 @@ object Ancestor {
       protected val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )( tx0 )
       val root = new K {
          def tree: Tree[ S, Version ] = me
-         def value   = rootValue
+         def version = rootVersion
          val preHead = preOrder.root
          val preTail = preHead.append()( tx0 ) // preOrder.insert()
          val post    = postOrder.root
@@ -186,12 +186,12 @@ object Ancestor {
    }
 
    private final class TreeRead[ S <: Sys[ S ], Version ]( in: DataInput, access: S#Acc, tx0: S#Tx  )(
-      implicit val versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ], val versionView: Version => Int )
+      implicit val versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ], val intView: Version => Int )
    extends TreeImpl[ S, Version ] {
 
       {
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+         val serVer = in.readUnsignedByte()
+         require( serVer == SER_VERSION, "Incompatible serialized version (found " + serVer +
             ", required " + SER_VERSION + ")." )
       }
 
@@ -204,7 +204,7 @@ object Ancestor {
       protected type K = Vertex[ S, Version ]
 
       private[Ancestor] def versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ]
-      private[Ancestor] def versionView: Version => Int
+      private[Ancestor] def intView: Version => Int
 
       def vertexSerializer : TxnSerializer[ S#Tx, S#Acc, K ]
 
@@ -223,7 +223,7 @@ object Ancestor {
 
    private sealed trait Mark[ S <: Sys[ S ], Version, @specialized A ] extends Writer {
       def fullVertex: Vertex[ S, Version ]
-      final def toPoint( implicit tx: S#Tx ): Point3D = new Point3D( pre.tag, post.tag, fullVertex.version )
+      final def toPoint( implicit tx: S#Tx ): Point3D = new Point3D( pre.tag, post.tag, fullVertex.versionInt )
       def pre:  MarkOrder[ S, Version, A ]
       def post: MarkOrder[ S, Version, A ]
       def value: A
@@ -243,7 +243,7 @@ object Ancestor {
          post.removeAndDispose()
       }
 
-      override def toString = "Mark(" + fullVertex.value + " -> " + value + ")"
+      override def toString = "Mark(" + fullVertex.version + " -> " + value + ")"
    }
 
    def newMap[ S <: Sys[ S ], Version, @specialized A ]( full: Tree[ S, Version ], rootValue: A )(
@@ -337,14 +337,14 @@ object Ancestor {
          this
       }
 
-      private def query( version: K )( implicit tx: S#Tx ) : IsoResult[ S, Version, A ] = {
-         val cfPre = version.preHead
+      private def query( vertex: K )( implicit tx: S#Tx ) : IsoResult[ S, Version, A ] = {
+         val cfPre = vertex.preHead
          val (cmPreN, cmPreCmp) = preList.isomorphicQuery( new Ordered[ S#Tx, MV ] {
             def compare( that: MV )( implicit tx: S#Tx ) : Int = {
                cfPre.compare( that.fullVertex.preHead )
             }
          })
-         val cfPost = version.post
+         val cfPost = vertex.post
          val (cmPostN, cmPostCmp ) = postList.isomorphicQuery( new Ordered[ S#Tx, MV ] {
             def compare( that: MV )( implicit tx: S#Tx ) : Int = {
                cfPost.compare( that.fullVertex.post )
@@ -354,11 +354,11 @@ object Ancestor {
       }
 
       private def wrap( entry: (K, A) )( implicit tx: S#Tx ) : MV = {
-         val version = entry._1
-         val iso = query( version )
+         val vertex = entry._1
+         val iso = query( vertex )
          new MV {
             def map        = me
-            val fullVertex = version
+            val fullVertex = vertex
             val pre        = preOrder.insert()
             val post       = postOrder.insert()
             if( iso.preCmp <= 0 ) {
@@ -375,8 +375,8 @@ object Ancestor {
          }
       }
 
-      final def remove( version: K )( implicit tx: S#Tx ) : Boolean = {
-         val iso = query( version )
+      final def remove( vertex: K )( implicit tx: S#Tx ) : Boolean = {
+         val iso = query( vertex )
          (iso.preCmp == 0) /* && (iso.postCmp == 0) */ && {
             assert( iso.postCmp == 0 )
             iso.pre.removeAndDispose() // iso.pre is a VM!
@@ -384,30 +384,30 @@ object Ancestor {
          }
       }
 
-      final def -=( version: K )( implicit tx: S#Tx ) : this.type = {
-         remove( version )
+      final def -=( vertex: K )( implicit tx: S#Tx ) : this.type = {
+         remove( vertex )
          this
       }
 
-      final def get( version: K )( implicit tx: S#Tx ) : Option[ A ] = {
-         val iso = query( version )
+      final def get( vertex: K )( implicit tx: S#Tx ) : Option[ A ] = {
+         val iso = query( vertex )
          if( iso.preCmp == 0 ) {
             assert( iso.postCmp == 0 )
             Some( iso.pre.value )
          } else None
       }
 
-      final def nearest( version: K )( implicit tx: S#Tx ) : (K, A) = {
-         val iso = query( version )
+      final def nearest( vertex: K )( implicit tx: S#Tx ) : (K, A) = {
+         val iso = query( vertex )
          if( iso.preCmp == 0 ) {
             assert( iso.postCmp == 0 )
-            (version, iso.pre.value)
+            (vertex, iso.pre.value)
          } else {
             val preTag  = iso.pre.pre.tag
             val postTag = iso.post.post.tag
             val x       = if( iso.preCmp  < 0 ) preTag  - 1 else preTag
             val y       = if( iso.postCmp > 0 ) postTag + 1 else postTag
-            val nn      = skip.nearestNeighbor( Point3D( x, y, version.version ), metric )
+            val nn      = skip.nearestNeighbor( Point3D( x, y, vertex.versionInt ), metric )
             (nn.fullVertex, nn.value)
          }
       }
@@ -432,9 +432,9 @@ object Ancestor {
       }
    }
 
-   private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( val full: Tree[ S, A ], rootValue: V, tx0: S#Tx )(
-      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ])
-   extends MapImpl[ S, A, V ] {
+   private final class MapNew[ S <: Sys[ S ], Version, @specialized A ]( val full: Tree[ S, Version ], rootValue: A, tx0: S#Tx )(
+      implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+   extends MapImpl[ S, Version, A ] {
       me =>
 
       protected val preOrder  : TotalOrder.Map[ S, MV ] =
@@ -486,8 +486,8 @@ object Ancestor {
       me =>
 
       {
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+         val serVer = in.readUnsignedByte()
+         require( serVer == SER_VERSION, "Incompatible serialized version (found " + serVer +
             ", required " + SER_VERSION + ")." )
       }
 
@@ -529,18 +529,18 @@ object Ancestor {
        */
       def add( entry: (K, A) )( implicit tx: S#Tx ) : Boolean
       def +=(  entry: (K, A) )( implicit tx: S#Tx ) : this.type
-      def remove( version: K )( implicit tx: S#Tx ) : Boolean
-      def -=(     version: K )( implicit tx: S#Tx ) : this.type
+      def remove( vertex: K )( implicit tx: S#Tx ) : Boolean
+      def -=(     vertex: K )( implicit tx: S#Tx ) : this.type
 
       /**
        * Queries for a mark at a given version vertex. Unlike `nearest`, this does
        * not search in the map, but merely tests if the given vertex has been
        * marked or not.
        *
-       * @param   version  the version vertex to look up
+       * @param   vertex  the version vertex to look up
        * @return  the value associated with that vertex, or `None` if the vertex is unmarked.
        */
-      def get( version: K )( implicit tx: S#Tx ) : Option[ A ]
+      def get( vertex: K )( implicit tx: S#Tx ) : Option[ A ]
 
       /**
        * Finds the nearest marked ancestor of a given version key.
@@ -549,14 +549,14 @@ object Ancestor {
        * it will return the root value (unless the `version` argument is
        * illegal, i.e. has a version lower than the root vertex' version).
        *
-       * @param   version  the key to look for. The algorithm searches for
+       * @param   vertex  the key to look for. The algorithm searches for
        *          the nearest ancestor in the marked map with a version less than or
        *          equal to the given version
        * @return  a pair consisting of the tree vertex found and the value with which
        *          it has been marked. If the query `version` vertex was marked, it will be
        *          that vertex which is returned, and not an ancestor.
        */
-      def nearest( version: K )( implicit tx: S#Tx ) : (K, A)
+      def nearest( vertex: K )( implicit tx: S#Tx ) : (K, A)
 
       def valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ]
    }

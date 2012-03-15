@@ -155,7 +155,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
                         val (fullVertex, ancValue) = system.atomic { implicit tx =>
                            map.nearest( mapFV( query ))
                         }
-                        val ancVersion = fullVertex.version
+                        val ancVersion = fullVertex.versionInt
                         @tailrec def findManual( i: Int ) : (Int, Int) = {
                            val v = mapRepr( i )
                            v.mark match {
