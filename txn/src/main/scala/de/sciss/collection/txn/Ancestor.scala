@@ -283,7 +283,7 @@ object Ancestor {
       protected def postOrdering : Ordering[ S#Tx, MV ] = new Ordering[ S#Tx, MV ] {
          def compare( a: MV, b: MV )( implicit tx: S#Tx ) : Int = a.post compare b.post
       }
-      protected def full: Tree[ S, A ]
+
 //      private[Ancestor] implicit def valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ]
 
       protected def preOrder  : TotalOrder.Map[ S, MV ]
@@ -430,7 +430,7 @@ object Ancestor {
       }
    }
 
-   private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( protected val full: Tree[ S, A ], rootValue: V, tx0: S#Tx )(
+   private final class MapNew[ S <: Sys[ S ], A, @specialized V ]( val full: Tree[ S, A ], rootValue: V, tx0: S#Tx )(
       implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ])
    extends MapImpl[ S, A, V ] {
       me =>
@@ -478,7 +478,7 @@ object Ancestor {
       }
    }
 
-   private final class MapRead[ S <: Sys[ S ], A, @specialized V ]( protected val full: Tree[ S, A ], in: DataInput,
+   private final class MapRead[ S <: Sys[ S ], A, @specialized V ]( val full: Tree[ S, A ], in: DataInput,
                                                                     access: S#Acc, tx0: S#Tx )(
       implicit val valueSerializer: TxnSerializer[ S#Tx, S#Acc, V ])
    extends MapImpl[ S, A, V ] {
@@ -517,6 +517,8 @@ object Ancestor {
 
    sealed trait Map[ S <:Sys[ S ], A, @specialized V ] extends Writer with Disposable[ S#Tx ] {
       type K = Vertex[ S, A ]
+
+      def full: Tree[ S, A ]
 
       /**
        * Marks a given key with a given value.
