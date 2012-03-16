@@ -294,7 +294,7 @@ object Ancestor {
       private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, M ]
 //      protected def root: MV
 
-      protected def preList : SkipList[ S, M ]
+      protected def preList  : SkipList[ S, M ]
       protected def postList : SkipList[ S, M ]
 
       protected implicit object markSerializer extends TxnSerializer[ S#Tx, S#Acc, M ] {
