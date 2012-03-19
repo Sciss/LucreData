@@ -85,7 +85,6 @@ object DeterministicSkipOctree {
       access: S#Acc, tx0: S#Tx )( implicit val space: D,  val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
                                   val hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ] {
-      val id      = tx0.readID( in, access )
 
       {
          val version = in.readUnsignedByte()
@@ -93,6 +92,7 @@ object DeterministicSkipOctree {
             ", required " + SER_VERSION + ")." )
       }
 
+      val id         = tx0.readID( in, access )
       val hyperCube  = hyperSerializer.read( in, access )( tx0 )
       val totalOrder = TotalOrder.Set.serializer[ S ].read( in, access )( tx0 )
       val skipList = {
@@ -354,7 +354,7 @@ extends SkipOctree[ S, D, A ] {
 //      val (totalOrder, skipList)    = _scaffFun( this )
 //      val (head, lastTreeRef)   = _treeFun( this )
 
-   def numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
+   final def numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
 
    sealed trait Child
 
@@ -371,11 +371,12 @@ extends SkipOctree[ S, D, A ] {
 
    sealed trait Empty extends Child
 
-   def headTree : Branch = head
-   def lastTree( implicit tx: S#Tx ) : Branch = lastTreeImpl
+   final def headTree : Branch = head
+   final def lastTree( implicit tx: S#Tx ) : Branch = lastTreeImpl
 
-   protected def writeData( out: DataOutput ) {
+   final def write( out: DataOutput ) {
       out.writeUnsignedByte( SER_VERSION )
+      id.write( out )
       hyperSerializer.write( hyperCube, out )
       totalOrder.write( out )
       skipList.write( out )
@@ -383,7 +384,7 @@ extends SkipOctree[ S, D, A ] {
       lastTreeRef.write( out )
    }
 
-   def clear()( implicit tx: S#Tx ) {
+   final def clear()( implicit tx: S#Tx ) {
       val sz = numOrthants
       @tailrec def removeAllLeaves( b: BranchLike ) {
          @tailrec def stepB( down: BranchLike, i: Int ) : ChildOption = {
@@ -413,7 +414,7 @@ extends SkipOctree[ S, D, A ] {
       removeAllLeaves( lastTreeImpl )
    }
 
-   protected def disposeData()( implicit tx: S#Tx ) {
+   final def dispose()( implicit tx: S#Tx ) {
 //      val sz = numOrthants
 //
 //      def disposeBranch( b: BranchLike ) {
@@ -435,45 +436,46 @@ extends SkipOctree[ S, D, A ] {
 //         }
 //      }
 //      disposeTree( lastTreeImpl )
+      id.dispose()
       lastTreeRef.dispose()
       head.dispose()
       totalOrder.dispose()
       skipList.dispose()
    }
 
-   def lastTreeImpl( implicit tx: S#Tx ) : TopBranch = lastTreeRef.get
-   def lastTreeImpl_=( node: TopBranch )( implicit tx: S#Tx ) {
+   final def lastTreeImpl( implicit tx: S#Tx ) : TopBranch = lastTreeRef.get
+   final def lastTreeImpl_=( node: TopBranch )( implicit tx: S#Tx ) {
       lastTreeRef.set( node )
    }
 
-   def size( implicit tx: S#Tx ) : Int = skipList.size
+   final def size( implicit tx: S#Tx ) : Int = skipList.size
 
-   def add( elem: A )( implicit tx: S#Tx ) : Boolean = {
+   final def add( elem: A )( implicit tx: S#Tx ) : Boolean = {
       insertLeaf( elem ) match {
          case EmptyValue => true
          case oldLeaf: LeafImpl => oldLeaf.value != elem
       }
    }
 
-   def update( elem: A )( implicit tx: S#Tx ) : Option[ A ] = {
+   final def update( elem: A )( implicit tx: S#Tx ) : Option[ A ] = {
       insertLeaf( elem ) match {
          case EmptyValue => None
          case oldLeaf: LeafImpl => Some( oldLeaf.value )
       }
    }
 
-   def remove( elem: A )( implicit tx: S#Tx ) : Boolean = {
+   final def remove( elem: A )( implicit tx: S#Tx ) : Boolean = {
       removeLeafAt( pointView( elem, tx )) != EmptyValue
    }
 
-   def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
+   final def removeAt( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
       removeLeafAt( point ) match {
          case EmptyValue => None
          case oldLeaf: LeafImpl => Some( oldLeaf.value )
       }
    }
 
-   def contains( elem: A )( implicit tx: S#Tx ) : Boolean = {
+   final def contains( elem: A )( implicit tx: S#Tx ) : Boolean = {
       val point = pointView( elem, tx )
       if( !hyperCube.contains( point )) return false
       findAt( point ) match {
@@ -482,12 +484,12 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   def isDefinedAt( point: D#PointLike )( implicit tx: S#Tx ) : Boolean = {
+   final def isDefinedAt( point: D#PointLike )( implicit tx: S#Tx ) : Boolean = {
       if( !hyperCube.contains( point )) return false
       findAt( point ) != EmptyValue
    }
 
-   def get( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
+   final def get( point: D#PointLike )( implicit tx: S#Tx ) : Option[ A ] = {
       if( !hyperCube.contains( point )) return None
       findAt( point ) match {
          case l: LeafImpl => Some( l.value )
@@ -495,7 +497,7 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   def nearestNeighbor[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
+   final def nearestNeighbor[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                 ( implicit tx: S#Tx ) : A = {
       new NN( point, metric ).find() match {
          case EmptyValue   => throw new NoSuchElementException( "nearestNeighbor on an empty tree" )
@@ -503,7 +505,7 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   def nearestNeighborOption[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
+   final def nearestNeighborOption[ @specialized( Long ) M ]( point: D#PointLike, metric: DistanceMeasure[ M, D ])
                                                       ( implicit tx: S#Tx ) : Option[ A ] = {
       new NN( point, metric ).find() match {
          case EmptyValue   => None
@@ -511,7 +513,7 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   def isEmpty( implicit tx: S#Tx ) : Boolean = {
+   final def isEmpty( implicit tx: S#Tx ) : Boolean = {
       val n = head
       val sz = numOrthants
       @tailrec def step( i: Int ) : Boolean = if( i == sz ) true else n.child( i ) match {
@@ -521,7 +523,7 @@ extends SkipOctree[ S, D, A ] {
       step( 0 )
    }
 
-   def numLevels( implicit tx: S#Tx ) : Int = {
+   final def numLevels( implicit tx: S#Tx ) : Int = {
       @tailrec def step( b: BranchLike, num: Int ) : Int = {
          b.next match {
             case EmptyValue      => num
@@ -531,7 +533,7 @@ extends SkipOctree[ S, D, A ] {
       step( head, 1 )
    }
 
-   def +=( elem: A )( implicit tx: S#Tx ) : this.type = {
+   final def +=( elem: A )( implicit tx: S#Tx ) : this.type = {
       insertLeaf( elem )
 //      match {
 //         case oldLeaf: LeafImpl => oldLeaf.dispose()
@@ -540,7 +542,7 @@ extends SkipOctree[ S, D, A ] {
       this
    }
 
-   def -=( elem: A )( implicit tx: S#Tx ) : this.type = {
+   final def -=( elem: A )( implicit tx: S#Tx ) : this.type = {
       removeLeafAt( pointView( elem, tx ))
 //      match {
 //         case oldLeaf: LeafImpl => oldLeaf.dispose()
@@ -549,16 +551,16 @@ extends SkipOctree[ S, D, A ] {
       this
    }
 
-   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
+   final def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
       val q = new RangeQuery( qs )
       q.findNextValue()
       q
    }
 
-   def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ] = iterator.toIndexedSeq
-   def toList( implicit tx: S#Tx ) : List[ A ] = iterator.toList
-   def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toIndexedSeq // note that `toSeq` produces a `Stream` !!
-   def toSet(  implicit tx: S#Tx ) : Set[  A ] = iterator.toSet
+   final def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ] = iterator.toIndexedSeq
+   final def toList( implicit tx: S#Tx ) : List[ A ] = iterator.toList
+   final def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = iterator.toIndexedSeq // note that `toSeq` produces a `Stream` !!
+   final def toSet(  implicit tx: S#Tx ) : Set[  A ] = iterator.toSet
 
    private def findAt( point: D#PointLike )( implicit tx: S#Tx ) : LeafOrEmpty = {
       val p0 = findP0( point ) // lastTreeImpl.findP0( point )
@@ -672,7 +674,7 @@ extends SkipOctree[ S, D, A ] {
       l.parent.demoteLeaf( point /* pointView( l.value ) */, l )
    }
 
-   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.iterator.map( _.value )
+   final def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.iterator.map( _.value )
 
    private final class NNIter[ @specialized( Long ) M ]( val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M )
 
@@ -929,7 +931,7 @@ extends SkipOctree[ S, D, A ] {
    }
 
 //   protected sealed trait Down extends Child
-   protected type ChildOption = Child with Writer /* MutableOption[ S ] */
+   final protected type ChildOption = Child with Writer /* MutableOption[ S ] */
 
    /**
     * A node is an object that can be
@@ -1188,7 +1190,7 @@ extends SkipOctree[ S, D, A ] {
    protected sealed trait ChildBranch extends BranchLike with NonEmptyChild
 
    protected sealed trait Next // { def toOption: Option[ RightBranch ]}
-   protected type NextOption = Next with Writer /* MutableOption[ S ] */
+   final protected type NextOption = Next with Writer /* MutableOption[ S ] */
 
    /**
     * A right tree node implementation provides more specialized child nodes

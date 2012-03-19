@@ -28,8 +28,8 @@ package txn
 
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import de.sciss.lucre.stm.{TxnSerializer, Mutable, Sys}
 import de.sciss.lucre.DataInput
+import de.sciss.lucre.stm.{Disposable, Writer, TxnSerializer, Mutable, Sys}
 
 object SkipOctree {
    implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {
@@ -53,8 +53,10 @@ object SkipOctree {
  * of scala's mutable `Map` and adds further operations such
  * as range requires and nearest neighbour search.
  */
-trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Mutable[ S ] {
+trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Writer with Disposable[ S#Tx ] {
    def space: D
+
+   def id: S#ID
 
    def pointView : (A, S#Tx) => D#PointLike
 

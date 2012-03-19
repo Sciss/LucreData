@@ -42,14 +42,19 @@ object Ancestor {
          new Point3D( v.preHead.tag( tx ), v.post.tag( tx ), v.versionInt )
    }
    sealed trait Vertex[ S <: Sys[ S ], Version ] extends Writer with Disposable[ S#Tx ] {
-      def version: Version
-      final def versionInt: Int = tree.intView( version )
 
+      // ---- abstract ----
+
+      def version: Version
       private[Ancestor] def preHead: TreePreOrder[ S ]
       private[Ancestor] def preTail: TreePreOrder[ S ]
       private[Ancestor] def post:    TreePostOrder[ S ]
 
       private[Ancestor] def tree: Tree[ S, Version ]
+
+      // ---- implementation ----
+
+      final def versionInt: Int = tree.intView( version )
 
       final def write( out: DataOutput ) {
          tree.versionSerializer.write( version, out )
@@ -100,20 +105,23 @@ object Ancestor {
    private sealed trait TreeImpl[ S <: Sys[ S ], Version ] extends Tree[ S, Version ] {
       me =>
 
+      // ---- abstract ----
+
       protected def preOrder  : TotalOrder.Set[ S ]
       protected def postOrder : TotalOrder.Set[ S ]
+      // def root : K
+
+      // ---- implementation ----
 
       implicit protected object VertexSerializer extends TxnSerializer[ S#Tx, S#Acc, K ] {
          def write( v: K, out: DataOutput ) { v.write( out )}
 
-         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : K = {
-            new K {
-               def tree    = me
-               val version = versionSerializer.read( in, access )
-               val preHead = preOrder.readEntry(   in, access )
-               val preTail = preOrder.readEntry(   in, access )
-               val post    = postOrder.readEntry(  in, access )
-            }
+         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : K = new K {
+            def tree    = me
+            val version = versionSerializer.read( in, access )
+            val preHead = preOrder.readEntry(   in, access )
+            val preTail = preOrder.readEntry(   in, access )
+            val post    = postOrder.readEntry(  in, access )
          }
       }
 
@@ -176,7 +184,7 @@ object Ancestor {
 
       protected val preOrder      = TotalOrder.Set.empty[ S ]( 0 )( tx0 )
       protected val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )( tx0 )
-      val root = new K {
+      val root: K = new K {
          def tree: Tree[ S, Version ] = me
          def version = rootVersion
          val preHead = preOrder.root
@@ -222,22 +230,28 @@ object Ancestor {
    private val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
 
    private sealed trait Mark[ S <: Sys[ S ], Version, @specialized A ] extends Writer {
+
+      // ---- abstract ----
+
       def fullVertex: Vertex[ S, Version ]
-      final def toPoint( implicit tx: S#Tx ): Point3D = new Point3D( pre.tag, post.tag, fullVertex.versionInt )
       def pre:  MarkOrder[ S, Version, A ]
       def post: MarkOrder[ S, Version, A ]
       def value: A
 
       def map: MapImpl[ S, Version, A ]
 
-      def write( out: DataOutput ) {
+      // ---- implementation ----
+
+      final def toPoint( implicit tx: S#Tx ): Point3D = new Point3D( pre.tag, post.tag, fullVertex.versionInt )
+
+      final def write( out: DataOutput ) {
          fullVertex.write( out )
          pre.write( out )
          post.write( out )
          map.valueSerializer.write( value, out )
       }
 
-      def removeAndDispose()( implicit tx: S#Tx ) {
+      final def removeAndDispose()( implicit tx: S#Tx ) {
          map.skip.remove( this )
          pre.removeAndDispose()
          post.removeAndDispose()
@@ -280,22 +294,25 @@ object Ancestor {
 
       final type M = Mark[ S, Version, A ]
 
-      protected def preOrdering : Ordering[ S#Tx, M ] = new Ordering[ S#Tx, M ] {
-         def compare( a: M, b: M )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
-      }
-
-      protected def postOrdering : Ordering[ S#Tx, M ] = new Ordering[ S#Tx, M ] {
-         def compare( a: M, b: M )( implicit tx: S#Tx ) : Int = a.post compare b.post
-      }
+      // ---- abstract ----
 
       protected def preOrder  : TotalOrder.Map[ S, M ]
       protected def postOrder : TotalOrder.Map[ S, M ]
 
-      private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, M ]
-//      protected def root: MV
-
       protected def preList  : SkipList[ S, M ]
       protected def postList : SkipList[ S, M ]
+
+      private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, M ]
+
+      // ---- implementation ----
+
+      final protected def preOrdering : Ordering[ S#Tx, M ] = new Ordering[ S#Tx, M ] {
+         def compare( a: M, b: M )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
+      }
+
+      final protected def postOrdering : Ordering[ S#Tx, M ] = new Ordering[ S#Tx, M ] {
+         def compare( a: M, b: M )( implicit tx: S#Tx ) : Int = a.post compare b.post
+      }
 
       protected implicit object markSerializer extends TxnSerializer[ S#Tx, S#Acc, M ] {
          def write( v: M, out: DataOutput ) { v.write( out )}
@@ -313,6 +330,8 @@ object Ancestor {
          out.writeUnsignedByte( SER_VERSION )
          // note: we ask for the full tree through the serializer constructor,
          // thus we omit writing it out ourselves
+         preOrder.write( out )
+         postOrder.write( out )
          preList.write( out )
          postList.write( out )
          skip.write( out )
@@ -320,6 +339,8 @@ object Ancestor {
       }
 
       final def dispose()( implicit tx: S#Tx ) {
+         preOrder.dispose()
+         postOrder.dispose()
          preList.dispose()
          postList.dispose()
          skip.dispose()
@@ -497,12 +518,6 @@ object Ancestor {
       protected val postOrder : TotalOrder.Map[ S, M ] =
          TotalOrder.Map.read[ S, M ]( in, access, me, _.post )( tx0, markSerializer )
 
-      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, M ] = {
-         val pointView = (p: M, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.read[ S, Space.ThreeDim, M ]( in, access )( tx0, pointView, Space.ThreeDim, markSerializer,
-            SpaceSerializers.CubeSerializer )
-      }
-
       protected val preList : SkipList[ S, M ] = {
          implicit val ord  = preOrdering
          implicit val tx   = tx0
@@ -513,6 +528,12 @@ object Ancestor {
          implicit val ord  = postOrdering
          implicit val tx   = tx0
          SkipList.read[ S, M ]( in, access )
+      }
+
+      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, M ] = {
+         val pointView = (p: M, tx: S#Tx) => p.toPoint( tx )
+         SkipOctree.read[ S, Space.ThreeDim, M ]( in, access )( tx0, pointView, Space.ThreeDim, markSerializer,
+            SpaceSerializers.CubeSerializer )
       }
    }
 
