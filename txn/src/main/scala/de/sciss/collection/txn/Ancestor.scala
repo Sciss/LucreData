@@ -359,6 +359,7 @@ object Ancestor {
          new M {
             def map        = me
             val fullVertex = vertex
+            val value      = entry._2
             val pre        = preOrder.insert()
             val post       = postOrder.insert()
             if( iso.preCmp <= 0 ) {
@@ -371,7 +372,6 @@ object Ancestor {
             } else {
                postOrder.placeAfter( iso.post, this )
             }
-            val value      = entry._2
          }
       }
 
@@ -450,7 +450,7 @@ object Ancestor {
       }
 
       protected val root: M = {
-         val res = new M {
+         val res: M = new M {
             def map        = me
             def fullVertex = full.root
             def pre        = preOrder.root
