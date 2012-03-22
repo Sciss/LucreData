@@ -35,7 +35,7 @@ import java.io.File
 import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, Point2D, Square}
 import Space.TwoDim
 import de.sciss.collection.view.{PDFSupport, QuadView}
-import de.sciss.lucre.stm.{InMemory, Durable, Sys}
+import de.sciss.lucre.stm.{Cursor, InMemory, Durable, Sys}
 
 /**
  * Options:
@@ -51,7 +51,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       val a = args.headOption.getOrElse( "" )
 
 //      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
-//         system.atomic { implicit tx =>
+//         system.step { implicit tx =>
 ////         if( xs.contains( "--3d" )) {
 ////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, Point3DLike ](
 ////               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
@@ -73,7 +73,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
          implicit val system = Durable( BerkeleyDB.open( f ))
-         system.atomic { implicit tx =>
+         system.step { implicit tx =>
             import SpaceSerializers.{Point2DSerializer, SquareSerializer}
             implicit val pointView = (p: Point2D, t: Any) => p
             implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, Point2D ]
@@ -82,13 +82,13 @@ object InteractiveSkipOctreePanel extends App with Runnable {
                   Square( sz, sz, sz ), skipGap = 1 )
             }
             new Model2D[ Durable ]( system, tree, { () =>
-               system.atomic( implicit tx => system.debugListUserRecords() ).foreach( println )
+               system.step( implicit tx => system.debugListUserRecords() ).foreach( println )
             })
          }
 
       } else {
          implicit val system = InMemory()
-         system.atomic { implicit tx =>
+         system.step { implicit tx =>
             import SpaceSerializers.{Point2DSerializer, SquareSerializer}
             implicit val pointView = (p: Point2D, t: Any) => p
             val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
@@ -111,7 +111,9 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    private val sz = 256
 
-   private final class Model2D[ S <: Sys[ S ]]( val system: S, val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ], cons: () => Unit )
+   private final class Model2D[ S <: Sys[ S ]]( val cursor: Cursor[ S ],
+                                                val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ],
+                                                cons: () => Unit )
    extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
@@ -127,7 +129,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def consistency() { cons() }
 
       val view = {
-         val res = new SkipQuadtreeView[ S, Point2D ]( tree, system, identity )
+         val res = new SkipQuadtreeView[ S, Point2D ]( tree, cursor, identity )
          res.topPainter = Some( topPaint _ )
          res
       }
@@ -210,7 +212,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def repaint() : Unit
       def rangeHyperCube : Option[ D#HyperCube ]
       def rangeHyperCube_=( q: Option[ D#HyperCube ]) : Unit
-      def system : S
+      def cursor : Cursor[ S ]
 
       final def addMouseAdapter( ma: MouseListener with MouseMotionListener ) {
          view.addMouseListener( ma )
@@ -348,7 +350,7 @@ extends JPanel( new BorderLayout() ) {
       if( s.isEmpty ) "(empty)" else s
    }
 
-   private def atomic[ Z ]( block: S#Tx => Z ) : Z = model.system.atomic( block )
+   private def atomic[ Z ]( block: S#Tx => Z ) : Z = model.cursor.step( block )
 
    def findNN() { tryPoint { p =>
       val set = atomic { implicit tx => t.nearestNeighborOption( p, metric = distMeasure ).map( Set( _ )).getOrElse( Set.empty )}

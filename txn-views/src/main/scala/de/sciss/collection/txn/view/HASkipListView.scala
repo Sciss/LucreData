@@ -28,10 +28,10 @@ package txn
 package view
 
 import java.awt.{Color, Point, Rectangle, Graphics2D}
-import de.sciss.lucre.stm.Sys
 import de.sciss.collection.view.SkipListView
+import de.sciss.lucre.stm.{Cursor, Sys}
 
-class HASkipListView[ S <: Sys[ S ], A ]( private val l: HASkipList[ S, A ])( implicit system: S )
+class HASkipListView[ S <: Sys[ S ] with Cursor[ S ], A ]( private val l: HASkipList[ S, A ])( implicit system: S )
 extends SkipListView[ A ] {
    import HASkipList.Node
 
@@ -61,7 +61,7 @@ extends SkipListView[ A ] {
    }
 
    protected def paintList( g2: Graphics2D ) {
-      system.atomic { implicit tx =>
+      system.step { implicit tx =>
          l.top match {
             case Some( n ) =>
                val (bb, nb) = buildBoxMap( n, true )

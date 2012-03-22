@@ -4,7 +4,7 @@ package txn
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
-import de.sciss.lucre.stm.{Durable, InMemory, Sys}
+import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -36,13 +36,13 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
          Durable( bdb ) : Durable   /* please IDEA */
       }, bdb => {
          //println( "FINAL   DB SIZE = " + bdb.numRefs )
-         val sz = bdb.atomic( bdb.numUserRecords( _ ))
+         val sz = bdb.step( bdb.numUserRecords( _ ))
          assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          bdb.close()
       })
    }
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: S => Unit ) {
+   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S with Cursor[ S ], sysCleanUp: S => Unit ) {
       def scenarioWithTime( descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
@@ -62,7 +62,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 //            type E = TotalOrder.Set.Entry[ S ]
             implicit val system = sysCreator()
             try {
-               val to = system.atomic { implicit tx =>
+               val to = system.step { implicit tx =>
                   TotalOrder.Set.empty[ S ] /* ( new RelabelObserver[ S#Tx, E ] {
                      def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
                         if( MONITOR_LABELING ) {
@@ -81,7 +81,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                val n     = NUM // 113042 // 3041
       //        to        = to.append() // ( 0 )
 
-               val set = system.atomic { implicit tx =>
+               val set = system.step { implicit tx =>
                   var e = to.root
                   var coll = Set[ TotalOrder.Set.Entry[ S ]]() // ( e )
                   for( i <- 1 until n ) {
@@ -98,7 +98,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 //println( "AQUI" )
 
                when( "the structure size is determined" )
-               val sz = system.atomic { implicit tx => to.size }
+               val sz = system.step { implicit tx => to.size }
       //        val sz = {
       //           var i = 1; var x = to; while( !x.isHead ) { x = x.prev; i +=1 }
       //           x = to; while( !x.isLast ) { x = x.next; i += 1 }
@@ -108,7 +108,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                assert( sz == n, sz.toString + " != " + n )
 
                when( "the structure is mapped to its pairwise comparisons" )
-               val result = system.atomic { implicit tx =>
+               val result = system.step { implicit tx =>
                   var res   = Set.empty[ Int ]
                   var prev  = to.head
                   var next  = prev.next.orNull
@@ -122,10 +122,10 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                }
 
                then( "the resulting set should only contain -1" )
-               assert( result == Set( -1 ), result.toString + " -- " + system.atomic( implicit tx => to.tagList( to.head )))
+               assert( result == Set( -1 ), result.toString + " -- " + system.step( implicit tx => to.tagList( to.head )))
 
                when( "the structure is emptied" )
-               val sz2 = system.atomic { implicit tx =>
+               val sz2 = system.step { implicit tx =>
 //                  set.foreach( _.remove() )
                   set.foreach( _.removeAndDispose() )
                   to.size
@@ -133,7 +133,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                then( "the order should have size 1" )
                assert( sz2 == 1, "Size is " + sz2 + " and not 1" )
 
-               system.atomic { implicit tx =>
+               system.step { implicit tx =>
 //                  set.foreach( _.removeAndDispose() )
                   to.dispose()
                }

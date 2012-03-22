@@ -8,7 +8,7 @@ import collection.mutable.{Set => MSet}
 import Space.ThreeDim
 import java.io.File
 import de.sciss.lucre.stm.impl.BerkeleyDB
-import de.sciss.lucre.stm.{Durable, InMemory, Sys}
+import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
 
 /**
  *
@@ -32,10 +32,10 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    val cube          = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
+   def withSys[ S <: Sys[ S ] with Cursor[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
       withTree[ S ]( sysName, () => {
          implicit val sys = sysCreator()
-         val t = sys.atomic { implicit tx =>
+         val t = sys.step { implicit tx =>
             import SpaceSerializers.{Point3DSerializer, CubeSerializer}
             implicit val pointView = (p: Point3D, _: Any) => p
             txn.DeterministicSkipOctree.empty[ S, ThreeDim, Point3D ]( cube )
@@ -58,8 +58,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       }, { case (bdb, success) =>
 //         println( "FINAL DB SIZE = " + bdb.numUserRecords )
          if( success ) {
-            val sz = bdb.atomic( bdb.numUserRecords( _ ))
-//            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
+            val sz = bdb.step( bdb.numUserRecords( _ ))
+//            if( sz != 0 ) bdb.step( implicit tx => bdb.debugListUserRecords() ).foreach( println )
             assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          }
          bdb.close()
@@ -69,22 +69,23 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val pointFun3D = (mask: Int) => Point3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )
 
    def randFill[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
-                                                  pointFun: Int => D#Point )( implicit system: S ) {
+                                                  pointFun: Int => D#Point )( implicit cursor: Cursor[ S ]) {
       given( "a randomly filled structure" )
 
       for( i <- 0 until n ) {
          val k = pointFun( 0x7FFFFFFF )
-         system.atomic { implicit tx => t += k }
+         cursor.step { implicit tx => t += k }
          m += k
       }
    }
 
-   def verifyConsistency[ S <: Sys[ S ], D <: Space[ D ]]( t: DeterministicSkipOctree[ S, D, D#Point ])( implicit system: S ) {
+   def verifyConsistency[ S <: Sys[ S ], D <: Space[ D ]]( t: DeterministicSkipOctree[ S, D, D#Point ])
+                                                         ( implicit cursor: Cursor[ S ]) {
       when( "the internals of the structure are checked" )
       then( "they should be consistent with the underlying algorithm" )
 
       val q = t.hyperCube
-      var h: t.Branch = system.atomic { implicit tx => t.lastTreeImpl }
+      var h: t.Branch = cursor.step { implicit tx => t.lastTreeImpl }
       var currUnlinkedOcs  = Set.empty[ D#HyperCube ]
       var currPoints       = Set.empty[ D#PointLike ]
       var prevs = 0
@@ -127,7 +128,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
                }
             i += 1 }
          }
-         system.atomic { implicit tx => checkChildren( h, 0 )}
+         cursor.step { implicit tx => checkChildren( h, 0 )}
          val pointsOnlyInNext    = nextPoints.filterNot( currPoints.contains( _ ))
          assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + "); in level n-" + prevs )
          h = h.prevOption.orNull
@@ -135,13 +136,14 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       } while( h != null )
    }
 
-   def verifyElems[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ])( implicit system: S ) {
+   def verifyElems[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
+                                                     m: MSet[ D#Point ])( implicit cursor: Cursor[ S ]) {
       when( "the structure t is compared to an independently maintained map m" )
-      val onlyInM  = system.atomic { implicit tx => m.filterNot { e =>
+      val onlyInM  = cursor.step { implicit tx => m.filterNot { e =>
          t.contains( e )
       }}
-      val onlyInT  = system.atomic { implicit tx => t.iterator.toList.filterNot( e => m.contains( e ))}
-      val szT      = system.atomic { implicit tx => t.size }
+      val onlyInT  = cursor.step { implicit tx => t.iterator.toList.filterNot( e => m.contains( e ))}
+      val szT      = cursor.step { implicit tx => t.size }
       val szM      = m.size
       then( "all elements of m should be contained in t" )
       assert( onlyInM.isEmpty, onlyInM.take( 10 ).toString() )
@@ -151,15 +153,17 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       assert( szT == szM, "octree has size " + szT + " / map has size " + szM )
    }
 
-   def verifyContainsNot[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
-                                                           pointFun: Int => D#Point )( implicit system: S ) {
+   def verifyContainsNot[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
+                                                           m: MSet[ D#Point ],
+                                                           pointFun: Int => D#Point )
+                                                         ( implicit cursor: Cursor[ S ]) {
       when( "the structure t is queried for keys not in the independently maintained map m" )
       var testSet = Set.empty[ D#Point ]
       while( testSet.size < 100 ) {
          val x = pointFun( 0xFFFFFFFF )
          if( !m.contains( x )) testSet += x
       }
-      val inT = system.atomic { implicit tx => testSet.filter { p =>
+      val inT = cursor.step { implicit tx => testSet.filter { p =>
          t.contains( p )
       }}
       then( "none of them should be contained in t" )
@@ -167,23 +171,24 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    }
 
    def verifyAddRemoveAll[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
-                                                            m: MSet[ D#Point ])( implicit system: S ) {
+                                                            m: MSet[ D#Point ])
+                                                          ( implicit cursor: Cursor[ S ]) {
       when( "all elements of the independently maintained map are added again to t" )
-      val szBefore = system.atomic { implicit tx => t.size }
-//println( "BEFORE " + t.system.atomic { implicit tx => t.toList })
-      val newInT   = system.atomic { implicit tx => m.take(1).filter( e =>
+      val szBefore = cursor.step { implicit tx => t.size }
+//println( "BEFORE " + t.system.step { implicit tx => t.toList })
+      val newInT   = cursor.step { implicit tx => m.take(1).filter( e =>
          t.update( e ).isEmpty
       )}
-//println( "AFTER " + t.system.atomic { implicit tx => t.toList })
-      val szAfter  = system.atomic { implicit tx => t.size }
+//println( "AFTER " + t.system.step { implicit tx => t.toList })
+      val szAfter  = cursor.step { implicit tx => t.size }
       then( "all of the put operations should return 'Some'" )
       assert( newInT.isEmpty, newInT.take( 10 ).toString() )
       then( "the size of t should not change" )
       assert( szBefore == szAfter, "t had size " + szBefore + " before, but now reports " + szAfter )
 
       when( "all elements of the independently maintained map are removed from t" )
-      val keptInT  = system.atomic { implicit tx => m.filter( e => t.removeAt( e ).isEmpty )}
-      val szAfter2 = system.atomic { implicit tx => t.size }
+      val keptInT  = cursor.step { implicit tx => m.filter( e => t.removeAt( e ).isEmpty )}
+      val szAfter2 = cursor.step { implicit tx => t.size }
       then( "all of the remove operations should return 'Some'" )
       assert( keptInT.isEmpty, keptInT.take( 10 ).toString() )
       then( "the size of t should be zero" )
@@ -197,10 +202,10 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyRangeSearch[ S <: Sys[ S ], A, D <: Space[ D ], Sort ]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
                           queryFun: (Int, Int, Int) => QueryShape[ A, D ],
-                          sortFun: D#PointLike => Sort )( implicit ord: math.Ordering[ Sort ], system: S ) {
+                          sortFun: D#PointLike => Sort )( implicit ord: math.Ordering[ Sort ], cursor: Cursor[ S ]) {
       when( "the octree is range searched" )
       val qs = Seq.fill( n2 )( queryFun( 0x7FFFFFFF, 0x40000000, 0x40000000 ))
-      val rangesT = system.atomic { implicit tx => qs.map( q => t.rangeQuery( q ).toSet )}
+      val rangesT = cursor.step { implicit tx => qs.map( q => t.rangeQuery( q ).toSet )}
       val ks      = m // keySet
       val rangesM = qs.map( q => ks.filter( q.contains( _ )))
       then( "the results should match brute force with the corresponding set" )
@@ -225,14 +230,14 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    // JUHUUUUU SPECIALIZATION BROKEN ONCE MORE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    def verifyNN[ S <: Sys[ S ], M, D <: Space[ D ]](
       t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
-      pointFilter: D#PointLike => Boolean, euclideanDist: DistanceMeasure[ M, D ])( implicit ord: math.Ordering[ M ], system: S ) {
+      pointFilter: D#PointLike => Boolean, euclideanDist: DistanceMeasure[ M, D ])( implicit ord: math.Ordering[ M ], cursor: Cursor[ S ]) {
 
       when( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( pointFun( 0xFFFFFFFF ))
       // tricky: this guarantees that there are no 63 bit overflows,
       // while still allowing points outside the root hyperCube to enter the test
       val ps = ps0.filter( pointFilter )
-      val nnT: Map[ D#Point, D#Point ] = system.atomic { implicit tx =>
+      val nnT: Map[ D#Point, D#Point ] = cursor.step { implicit tx =>
          ps.map( p => p -> t.nearestNeighbor( p, euclideanDist ))( breakOut )
       }
       val ks   = m // .keySet
@@ -246,27 +251,27 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
 //   def no[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
 //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
-//      t.system.atomic( implicit tx => () )
+//      t.system.step( implicit tx => () )
 //   }
 //
 //   def yes1[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
 //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
-//      t.system.atomic( tx => () )
+//      t.system.step( tx => () )
 //   }
 //
 //   def yes2[ S <: Sys[ S ], M, D <: Space[ D ]](
 //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
-//      t.system.atomic( implicit tx => () )
+//      t.system.step( implicit tx => () )
 //   }
 
 //   def yes[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point ) {
 //      val ps = Seq.empty[ D#Point ]
-//      t.system.atomic { implicit tx =>
+//      t.system.step { implicit tx =>
 //         ps.map( p => p -> p )
 //      }
 //   }
 
-   def withTree[ S <: Sys[ S ]]( name: String, tf: () => (S, DeterministicSkipOctree[ S, ThreeDim, ThreeDim#Point ], Boolean => Unit) ) {
+   def withTree[ S <: Sys[ S ]]( name: String, tf: () => (S with Cursor[ S ], DeterministicSkipOctree[ S, ThreeDim, ThreeDim#Point ], Boolean => Unit) ) {
       feature( "The " + name + " octree structure should be consistent" ) {
          info( "Several mass operations on the structure" )
          info( "are tried and expected behaviour verified" )
@@ -296,7 +301,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
                if( NN_SEARCH ) verifyNN[ S, BigInt, ThreeDim ]( t, m, pointFun3D, pointFilter3D, euclideanDist3D )
                if( REMOVAL ) verifyAddRemoveAll[ S, ThreeDim ]( t, m )
 
-               system.atomic { implicit tx =>
+               system.step { implicit tx =>
                   try {
                      t.clear()
                      t.dispose()

@@ -50,8 +50,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          Durable( BerkeleyDB.open( dir )) : Durable   /* please IDEA */
       }, { case (bdb, success) =>
          if( success ) {
-            val sz = bdb.atomic( bdb.numUserRecords( _ ))
-//            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
+            val sz = bdb.step( bdb.numUserRecords( _ ))
+//            if( sz != 0 ) bdb.step( implicit tx => bdb.debugListUserRecords() ).foreach( println )
 //            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          }
          bdb.close()
@@ -239,7 +239,7 @@ if( verbose ) {
 //      def validate() {
 ////         when( "the size of the vertices is queried from the quadtree" )
 ////         then( "it should be equal to the number of observed labelings and relabelings" )
-////         val qsz = t.system.atomic { implicit tx => t.size }
+////         val qsz = t.system.step { implicit tx => t.size }
 ////         assert( qsz == preObserver.map.size,
 ////            "pre-observer size (" + preObserver.map.size + ") is different from quad size (" + qsz + ")" )
 ////         assert( qsz == postObserver.map.size,
@@ -281,8 +281,8 @@ if( verbose ) {
          (that.isInstanceOf[ FullVertex[ _ ]] && (that.asInstanceOf[ FullVertex[ _ ]].version == version))
       }
 
-//      final def x : Int = system.atomic { implicit tx => pre.tag }
-//      final def y : Int = system.atomic { implicit tx => post.tag }
+//      final def x : Int = system.step { implicit tx => pre.tag }
+//      final def y : Int = system.step { implicit tx => post.tag }
 //      final def z : Int = version
 
       final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
@@ -365,8 +365,8 @@ if( verbose ) {
       def pre: MarkOrder[ S ]
       def post: MarkOrder[ S ]
 
-//      final def x : Int = system.atomic { implicit tx => pre.tag }
-//      final def y : Int = system.atomic { implicit tx => post.tag }
+//      final def x : Int = system.step { implicit tx => pre.tag }
+//      final def y : Int = system.step { implicit tx => post.tag }
       final def version : Int = full.version
 //      final def z : Int = full.version
 
@@ -448,7 +448,7 @@ if( verbose ) {
             res
          }
          val mt = new MarkTree( ft, t, root, preList, postList )
-         if( verbose ) mt.printInsertion( root )
+//         if( verbose ) mt.printInsertion( root )
          mt
       }
    }
@@ -460,16 +460,16 @@ if( verbose ) {
 
       def system = ft.system
 
-      def printInsertion( vm: V ) {
-         val (mStr, fStr) = system.atomic { implicit tx => vm.toPoint -> vm.full.toPoint }
+      def printInsertion( vm: V )( implicit cursor: Cursor[ S ]) {
+         val (mStr, fStr) = cursor.step { implicit tx => vm.toPoint -> vm.full.toPoint }
          println( "Mark ins. node " + mStr + " with full " + fStr )
       }
    }
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
+   def withSys[ S <: Sys[ S ] with Cursor[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
       def randomlyFilledTree( n: Int )( implicit system: S ) = new {
          given( "a randomly filled tree, corresponding node orders and their quadtree" )
-         val (t, treeSeq, parents) = system.atomic { implicit tx =>
+         val (t, treeSeq, parents) = system.step { implicit tx =>
             val tr         = FullTree[ S ]()
             val rnd        = new util.Random( seed )
             var treeSeq    = IndexedSeq[ FullVertex[ S ]]( tr.root )
@@ -582,7 +582,7 @@ if( verbose ) {
                         case None =>
 
                         case Some( parent ) if( parent.version <= version ) =>
-                           val found: Option[ FullVertex[ S ]] = system.atomic { implicit tx =>
+                           val found: Option[ FullVertex[ S ]] = system.step { implicit tx =>
                               val p0 = child.toPoint
          //                     val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
                               val point = p0.copy( x = p0.x - 1, y = p0.y + 1 )
@@ -624,7 +624,7 @@ if( verbose ) {
                   import gagaism._
          if( DEBUG_LAST ) verbose = false
                   type V      = FullVertex[ S ]
-                  val tm      = system.atomic { implicit tx => MarkTree( t )}
+                  val tm      = system.step { implicit tx => MarkTree( t )}
                   val rnd     = new util.Random( seed )
 
                   implicit val ord: Ordering[ S#Tx, MarkOrder[ S ]] = new Ordering[ S#Tx, MarkOrder[ S ]] {
@@ -638,7 +638,7 @@ if( verbose ) {
          //         val mPreList   = {
          //            import tm.orderSer
          //            implicit def s = tm.t.system
-         //            tm.t.system.atomic { implicit tx =>
+         //            tm.t.system.step { implicit tx =>
          //               val res = SkipList.empty[ S, tm.Order ]
          //               res.add( tm.preOrder.root )
          //               res
@@ -647,7 +647,7 @@ if( verbose ) {
          //         val mPostList = {
          //            import tm.orderSer
          //            implicit def s = tm.t.system
-         //            tm.t.system.atomic { implicit tx =>
+         //            tm.t.system.step { implicit tx =>
          //               val res = SkipList.empty[ S, tm.Order ]
          //               res.add( tm.postOrder.root )
          //               res
@@ -663,7 +663,7 @@ if( verbose ) {
                   treeSeq.zipWithIndex.drop(1).foreach { case (child, i) =>
          if( DEBUG_LAST && i == NUM2 - 1 ) verbose = true
                      if( rnd.nextDouble() < MARKER_PERCENTAGE ) {
-                        system.atomic { implicit tx =>
+                        system.step { implicit tx =>
          if( verbose ) println( ":: mark insert for full " + child.toPoint )
                            val cfPre = child.pre
                            val (cmPreN, cmPreCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkVertex[ S ]] {
@@ -711,11 +711,11 @@ if( verbose ) {
 
                   when( "full and marked tree are decomposed into pre and post order traversals" )
 
-                  val preVals    = system.atomic { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
-                  val postVals   = system.atomic { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
-                  val mPreSeq    = system.atomic { implicit tx => tm.preList.toIndexedSeq }
+                  val preVals    = system.step { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
+                  val postVals   = system.step { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
+                  val mPreSeq    = system.step { implicit tx => tm.preList.toIndexedSeq }
                   val mPreVals   = mPreSeq.map( _.version ) // ( t => t.value.version preTagValueMap( t ))
-                  val mPostSeq   = system.atomic { implicit tx => tm.postList.toIndexedSeq }
+                  val mPostSeq   = system.step { implicit tx => tm.postList.toIndexedSeq }
                   val mPostVals  = mPostSeq.map( _.version ) // ( t => postTagValueMap( t ))
 
                   if( PRINT_ORDERS ) {
@@ -753,7 +753,7 @@ if( verbose ) {
          //println()
          //verbose = false
                   if( VERIFY_MARKTREE_CONTENTS ) {
-                     val markPt  = system.atomic { implicit tx => tm.t.toIndexedSeq.map( _.toPoint )}
+                     val markPt  = system.step { implicit tx => tm.t.toIndexedSeq.map( _.toPoint )}
                      val obsPre  = markPt.sortBy( _.x ).map( _.z )
                      val obsPost = markPt.sortBy( _.y ).map( _.z )
          //            println( "managed mark-pre:" )
@@ -768,7 +768,7 @@ if( verbose ) {
          if( DEBUG_LAST ) verbose = false
                   treeSeq.zipWithIndex.foreach { case (child, i) =>
          if( DEBUG_LAST && i == NUM2 - 1 ) verbose = true
-                     val (found, parent, point) = system.atomic { implicit tx =>
+                     val (found, parent, point) = system.step { implicit tx =>
                         val cfPre = child.pre
                         val (preIso, preIsoCmp) = tm.preList.isomorphicQuery( new Ordered[ S#Tx, MarkVertex[ S ]] {
                            def compare( that: MarkVertex[ S ])( implicit tx: S#Tx ) : Int = {

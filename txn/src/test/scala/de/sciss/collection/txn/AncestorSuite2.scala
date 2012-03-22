@@ -6,7 +6,7 @@ import java.io.File
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import annotation.tailrec
 import collection.immutable.IntMap
-import de.sciss.lucre.stm.{Durable, InMemory, Sys}
+import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -46,14 +46,14 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
       }, { case (bdb, success) =>
 //         if( success ) {
 //            val sz = bdb.numUserRecords
-////            if( sz != 0 ) bdb.atomic( implicit tx => bdb.debugListUserRecords() ).foreach( println )
+////            if( sz != 0 ) bdb.step( implicit tx => bdb.debugListUserRecords() ).foreach( println )
 ////            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
 //         }
          bdb.close()
       })
    }
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
+   def withSys[ S <: Sys[ S ] with Cursor[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
       def scenarioWithTime( name: String, descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
@@ -71,10 +71,10 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
             try {
                given( "a randomly filled and marked tree, and a manually maintained duplicate" )
 
-               val full    = system.atomic { implicit tx =>
+               val full    = system.step { implicit tx =>
                   Ancestor.newTree[ S, Int ]( 0 )
                }
-               val map     = system.atomic { implicit tx =>
+               val map     = system.step { implicit tx =>
                   Ancestor.newMap[ S, Int, Int ]( full, full.root, 0 )
                }
                val rnd     = new util.Random( seed )
@@ -91,7 +91,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
 
                for( version <- 1 to NUM1 ) {
 //println( version )
-                  val update = system.atomic { implicit tx =>
+                  val update = system.step { implicit tx =>
                      val ref        = rnd.nextInt( version )
                      val draw       = rnd.nextDouble()
                      var _mapFV     = mapFV
@@ -152,7 +152,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
 // println( version )
                      // now verify all marked ancestors
                      for( query <- 1 to version ) {
-                        val (fullVertex, ancValue) = system.atomic { implicit tx =>
+                        val (fullVertex, ancValue) = system.step { implicit tx =>
                            map.nearest( mapFV( query ))
                         }
                         val ancVersion = fullVertex.versionInt

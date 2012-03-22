@@ -28,11 +28,12 @@ package txn
 package view
 
 import java.awt.{Color, Dimension}
-import de.sciss.lucre.stm.Sys
 import de.sciss.collection.view.QuadView
 import geom.{Point2DLike, Space}
+import de.sciss.lucre.stm.{Cursor, Sys}
 
-class SkipQuadtreeView[ S <: Sys[ S ], A ]( t: DeterministicSkipOctree[ S, Space.TwoDim, A ], system: S, pointView: A => Point2DLike )
+class SkipQuadtreeView[ S <: Sys[ S ], A ]( t: DeterministicSkipOctree[ S, Space.TwoDim, A ],
+                                            cursor: Cursor[ S ], pointView: A => Point2DLike )
 extends QuadView {
 //   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.TwoDim, A ]
 
@@ -54,7 +55,7 @@ extends QuadView {
    }
 
    def adjustPreferredSize() {
-      setPrefSz( system.atomic { implicit tx => t.numLevels })
+      setPrefSz( cursor.step { implicit tx => t.numLevels })
    }
 
    protected def draw( h: QuadView.PaintHelper ) {
@@ -65,7 +66,7 @@ extends QuadView {
       while( n != null ) {
          draw( h, n )
          h.translate( dx, 0 )
-         n = system.atomic { implicit tx => n.nextOption.orNull }
+         n = cursor.step { implicit tx => n.nextOption.orNull }
       }
    }
 
@@ -76,7 +77,7 @@ extends QuadView {
          case n: t.Branch =>
             for( idx <- 0 until 4 ) {
                h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
-               draw( h, system.atomic { implicit tx => n.child( idx )})
+               draw( h, cursor.step { implicit tx => n.child( idx )})
             }
          case _ =>
       }
