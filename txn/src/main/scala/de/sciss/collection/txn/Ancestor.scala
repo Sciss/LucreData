@@ -260,10 +260,11 @@ object Ancestor {
       override def toString = "Mark(" + fullVertex.version + " -> " + value + ")"
    }
 
-   def newMap[ S <: Sys[ S ], Version, @specialized A ]( full: Tree[ S, Version ], rootValue: A )(
+   def newMap[ S <: Sys[ S ], Version, @specialized A ]( full: Tree[ S, Version ],
+                                                         rootVertex: Vertex[ S, Version ], rootValue: A )(
       implicit tx: S#Tx, valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : Map[ S, Version, A ] = {
 
-      new MapNew[ S, Version, A ]( full, rootValue, tx, valueSerializer )
+      new MapNew[ S, Version, A ]( full, rootVertex, rootValue, tx, valueSerializer )
    }
 
    def readMap[ S <: Sys[ S ], Version, @specialized A ]( in: DataInput, access: S#Acc, full: Tree[ S, Version ])(
@@ -453,8 +454,8 @@ object Ancestor {
       }
    }
 
-   private final class MapNew[ S <: Sys[ S ], Version, @specialized A ]( val full: Tree[ S, Version ], rootValue: A,
-      tx0: S#Tx, val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+   private final class MapNew[ S <: Sys[ S ], Version, @specialized A ]( val full: Tree[ S, Version ],
+      rootVertex: Vertex[ S, Version ], rootValue: A, tx0: S#Tx, val valueSerializer: TxnSerializer[ S#Tx, S#Acc, A ])
    extends MapImpl[ S, Version, A ] {
       me =>
 
@@ -473,10 +474,10 @@ object Ancestor {
       protected val root: M = {
          val res: M = new M {
             def map        = me
-            def fullVertex = full.root
+            val fullVertex = rootVertex // full.root
             def pre        = preOrder.root
             def post       = postOrder.root
-            def value      = rootValue
+            val value      = rootValue
 
             override def toString = "Root(" + value + ")"
          }

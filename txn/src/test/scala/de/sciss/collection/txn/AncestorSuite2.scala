@@ -75,7 +75,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
                   Ancestor.newTree[ S, Int ]( 0 )
                }
                val map     = system.atomic { implicit tx =>
-                  Ancestor.newMap[ S, Int, Int ]( full, 0 )
+                  Ancestor.newMap[ S, Int, Int ]( full, full.root, 0 )
                }
                val rnd     = new util.Random( seed )
 //               val empty   = IndexedSeq.empty[ Int ]
