@@ -31,11 +31,15 @@ import java.awt.{Color, Point, Rectangle, Graphics2D}
 import de.sciss.collection.view.SkipListView
 import de.sciss.lucre.stm.{Cursor, Sys}
 
-class HASkipListView[ S <: Sys[ S ] with Cursor[ S ], A ]( private val l: HASkipList[ S, A ])( implicit system: S )
+class HASkipListView[ S <: Sys[ S ], A ]( access: S#Tx => HASkipList[ S, A ])( implicit cursor: Cursor[ S ])
 extends SkipListView[ A ] {
    import HASkipList.Node
 
 //   private val stm      = l.system
+
+   private val maxGap : Int = cursor.step( l( _ ).maxGap )
+
+   def l( implicit tx: S#Tx ) : HASkipList[ S, A ] = access( tx )
 
    private def buildBoxMap( n: Node[ S, A ], isRight: Boolean )( implicit tx: S#Tx ) : (Box, NodeBox) = {
       val sz   = n.size
@@ -61,7 +65,7 @@ extends SkipListView[ A ] {
    }
 
    protected def paintList( g2: Graphics2D ) {
-      system.step { implicit tx =>
+      cursor.step { implicit tx =>
          l.top match {
             case Some( n ) =>
                val (bb, nb) = buildBoxMap( n, true )
@@ -136,7 +140,7 @@ extends SkipListView[ A ] {
 
    private final case class NodeBox( n: Node[ S, A ], keys: IndexedSeq[ (A, String) ], downs: Option[ IndexedSeq[ NodeBox ]])
    extends Box {
-      r.width  = 23 * (l.maxGap + 1) + 1
+      r.width  = 23 * (/*l.*/maxGap + 1) + 1
       r.height = if( n.isLeaf ) 23 else 46
 
       def updateChildren() {}

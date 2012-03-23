@@ -51,18 +51,26 @@ object InteractiveSkipListView extends App with Runnable {
          dir.mkdir()
          println( dir.getAbsolutePath )
          implicit val system = Durable( BerkeleyDB.open( dir ))
-         new InteractiveSkipListView[ Durable ]( obs => system.step { implicit tx =>
-            implicit val ser = HASkipList.serializer[ Durable, Int ]( obs )
+         val fut = new FutureObserver[ Durable ]
+         implicit val ser = HASkipList.serializer[ Durable, Int ]( fut )
+         val access = system.step { implicit tx =>
             system.root[ HASkipList[ Durable, Int ]] {
-               HASkipList.empty[ Durable, Int ]( minGap = 1, keyObserver = obs )
+               HASkipList.empty[ Durable, Int ]( minGap = 1, keyObserver = fut )
             }
-         })
+         }
+         val res = new InteractiveSkipListView[ Durable ]( _ => access )
+         fut.init( res )
+         res
 
       } else {
          implicit val system = InMemory()
-         new InteractiveSkipListView[ InMemory ]( obs => system.step { implicit tx =>
-            HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = obs )
-         })
+         val fut = new FutureObserver[ InMemory ]
+         val access = system.step { implicit tx =>
+            HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = fut )
+         }
+         val res = new InteractiveSkipListView[ InMemory ]( _ => access )
+         fut.init( res )
+         res
       }
 
       val f    = new JFrame( "SkipList" )
@@ -77,9 +85,22 @@ object InteractiveSkipListView extends App with Runnable {
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
       f.setVisible( true )
    }
+
+   final class FutureObserver[ S <: Sys[ S ]] extends SkipList.KeyObserver[ S#Tx, Int ] {
+      @volatile private var view: SkipList.KeyObserver[ S#Tx, Int ] = null
+
+      def keyUp( key: Int )( implicit tx: S#Tx ) {
+         if( view != null ) view.keyUp( key )
+      }
+
+      def keyDown( key: Int )( implicit tx: S#Tx ) {
+         if( view != null ) view.keyDown( key )
+      }
+
+      def init( v: SkipList.KeyObserver[ S#Tx, Int ]) { view = v }
+   }
 }
-class InteractiveSkipListView[ S <: Sys[ S ] with Cursor[ S ]]( _create: SkipList.KeyObserver[ S#Tx, Int ] => HASkipList[ S, Int ])(
-   implicit system: S )
+class InteractiveSkipListView[ S <: Sys[ S ]]( access: S#Tx => HASkipList[ S, Int ])( implicit cursor: Cursor[ S ])
 extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
    view =>
 
@@ -91,8 +112,11 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
 //      implicit val sys = system
 //      sys.step { implicit tx => txn.HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = view )}
 //   }
-   val l = _create( this )
-   val slv = new HASkipListView( l )
+
+//   val l = _create( this )
+   val slv: HASkipListView[ S, Int ] = new HASkipListView( l( _ ))
+
+   def l( implicit tx: S#Tx ) : HASkipList[ S, Int ] = access( tx )
 
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
 
@@ -126,7 +150,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
    def butAddRemove( name: String )( fun: (S#Tx, Int) => Boolean ) { but( name ) { tryNum { i =>
       obsUp = IndexedSeq.empty
       obsDn = IndexedSeq.empty
-      val res = system.step( tx => fun( tx, i ))
+      val res = cursor.step( tx => fun( tx, i ))
       status( res.toString )
       slv.highlight = (obsUp.map( _ -> colrGreen ) ++ obsDn.map( _ -> Color.red )).toMap + (i -> Color.blue)
    }}}
@@ -136,14 +160,14 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
 //   }
 
    butAddRemove( "Add" )( (txn, key) =>
-      l.add( key )( txn )
+      l( txn ).add( key )( txn )
    )
    butAddRemove( "Remove" ) { (txn, key) =>
-      l.remove( key )( txn )
+      l( txn ).remove( key )( txn )
    }
 
    but( "Contains" ) { tryNum { key =>
-      val res = system.step { implicit tx => l.contains( key )}
+      val res = cursor.step { implicit tx => l.contains( key )}
       status( res.toString )
       slv.highlight = Map( key -> Color.blue )
    }}
@@ -157,7 +181,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
       val ps = Seq.fill( num )( rnd.nextInt( 100 ))
 println( ps )
       status( ps.lastOption.map( _.toString ).getOrElse( "" ))
-      system.step { implicit tx =>
+      cursor.step { implicit tx =>
          ps.foreach( l add _ )
       }
       slv.highlight = (obsUp.map( _ -> colrGreen ) ++ obsDn.map( _ -> Color.red ) ++ ps.map( _ -> Color.blue )).toMap
@@ -168,7 +192,7 @@ println( ps )
 
    space()
    but( "Print List" ) {
-      println( system.step( implicit tx => l.toList ))
+      println( cursor.step( implicit tx => l.toList ))
    }
 
    p.add( ggStatus )
