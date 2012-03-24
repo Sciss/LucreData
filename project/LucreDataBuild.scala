@@ -51,7 +51,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.21",
+            "de.sciss" %% "lucrestm" % "0.22-SNAPSHOT",
             "org.scalatest" %% "scalatest" % "1.7.1" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!

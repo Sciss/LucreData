@@ -131,6 +131,8 @@ object HASkipList {
          HASkipList.read[ S, A ]( in, access, keyObserver )
 
       def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
+
+      override def toString = "HASkipList.serializer"
    }
 
    private val SER_VERSION = 0
@@ -149,6 +151,8 @@ object HASkipList {
 
       def arrMinSz = minGap + 1
       private def arrMaxSz = (minGap + 1) << 1   // aka arrMinSz << 1
+
+      override def toString = "SkipList" + id
 
       protected def writeData( out: DataOutput ) {
          out.writeUnsignedByte( SER_VERSION )
@@ -723,6 +727,8 @@ object HASkipList {
          private val stack             = collection.mutable.Stack.empty[ (Branch[ S, A ], Int, Boolean) ]
 //         pushDown( 0, Head )
 
+         override def toString = impl.toString + ".iterator"
+
          @tailrec private def pushDown( n: Node[ S, A ], idx0: Int, r: Boolean )( implicit tx: S#Tx ) {
             if( n.isLeaf ) {
                val l2   = n.asLeaf
@@ -939,6 +945,8 @@ object HASkipList {
                                                                             protected val mod: ModVirtual,
                                                                             protected val sib: Leaf[ S, A ])
    extends LeafLike[ S, A ] with VirtualLike[ S, A ] {
+      override def toString = "VirtualLeaf(" + main + ", " + mod + ", " + sib + ")"
+
       private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ] = {
          val newSz   = size - 1
 //         val keys    = new Array[ A ]( newSz )
@@ -989,6 +997,8 @@ object HASkipList {
    }
    final class Leaf[ S <: Sys[ S ], @specialized( Int ) A ]( keys: IIdxSeq[ A ])
    extends LeafLike[ S, A ] with Node[ S, A ] {
+      override def toString = keys.mkString( "Leaf(", ",", ")" )
+
       def key( idx: Int ) = keys( idx )
       def size : Int = keys.length
 
@@ -1113,6 +1123,8 @@ object HASkipList {
                                                                               protected val mod: ModVirtual,
                                                                               protected val sib: Branch[ S, A ])
    extends BranchLike[ S, A ] with VirtualLike[ S, A ] {
+      override def toString = "VirtualBranch(" + main + ", " + mod + ", " + sib + ")"
+
       private[HASkipList] def downRef( idx: Int ) : S#Var[ Node[ S, A ]] = mod match {
          case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
          case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
@@ -1171,7 +1183,7 @@ object HASkipList {
       }
 
       private[HASkipList] def updateKey( idx: Int, k: A )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
-         import list.{size => _, _}
+//         import list.{size => _, _}
          val newSz   = size
 //         val keys    = new Array[ A ]( newSz )
 //         val downs   = tx.newVarArray[ Node[ S, A ]]( newSz )
@@ -1215,6 +1227,8 @@ object HASkipList {
                                                                downs: IIdxSeq[ S#Var[ Node[ S, A ]]])
    extends BranchLike[ S, A ] with HeadOrBranch[ S, A ] with Node[ S, A ] {
 //      assert( keys.size == downs.size )
+
+      override def toString = keys.mkString( "Branch(", ",", ")" )
 
       def isLeaf   : Boolean = false
       def isBranch : Boolean = true
