@@ -4,7 +4,10 @@ package txn
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
-import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
+import txn.TotalOrder.Map.RelabelObserver
+import de.sciss.lucre.{DataOutput, DataInput}
+import de.sciss.lucre.stm.{Writer, TxnSerializer, Cursor, Durable, InMemory, Sys}
+import collection.immutable.{IndexedSeq => IIdxSeq}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -13,9 +16,11 @@ import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
  * }}
  */
 class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
-   val MONITOR_LABELING = false
+//   val MONITOR_LABELING = false
    val INMEMORY         = true
    val DATABASE         = true
+   val TEST1            = true   // large consistency test
+   val TEST2            = true   // small boundary cases test
 
    val NUM              = 0x10000 // 0x80000  // 0x200000
    val RND_SEED         = 0L
@@ -52,7 +57,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
          }
       }
 
-      feature( "The ordering of the structure should be consistent" ) {
+      if( TEST1 ) feature( "The ordering of the structure should be consistent" ) {
          info( "Each two successive elements of the structure" )
          info( "should yield '<' in comparison" )
 
@@ -142,6 +147,117 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                sysCleanUp( system )
             }
          }
+      }
+
+      if( TEST2 ) feature( "The structure should accept boundary cases" ) {
+         scenarioWithTime( "Triggering overflows at the boundaries in a " + sysName + " structure" ) {
+            implicit val system = sysCreator()
+            try {
+               given( "an empty map structure" )
+
+               val order = system.step { implicit tx =>
+                  val ser = new MapHolder.Serializer( new RelabelObserver[ S#Tx, MapHolder[ S ]] {
+                     def beforeRelabeling( dirty: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
+                        dirty.toIndexedSeq   // just to make sure the iterator succeeds
+                     }
+
+                     def afterRelabeling( clean: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
+                        clean.toIndexedSeq   // just to make sure the iterator succeeds
+                     }
+                  }, tx )
+                  ser.map
+               }
+
+               when( "the structure is filled by 1000x repeated appending" )
+               val rootHolder = new MapHolder( 0, order.root )
+               var e = rootHolder
+               var holders = IIdxSeq( e )
+               for( i <- 1 to 1000 ) {
+                  e = system.step { implicit tx =>
+                     val prev = e
+                     val next = new MapHolder( i, order.insert() )
+                     order.placeAfter( prev, next )
+                     next
+                  }
+                  holders :+= e
+               }
+               then( "the resulting sequence should match (0 to 1000)" )
+               val checkApp = system.step { implicit tx =>
+                  holders.sliding( 2, 1 ).forall {
+                     case Seq( prev, next ) => prev.num.compare( next.num) == prev.entry.compare( next.entry )
+                  }
+               }
+               assert( checkApp )
+
+               when( "all elements are removed" )
+               val szApp = system.step { implicit tx =>
+                  holders.drop( 1 ).foreach { h =>
+                     h.entry.removeAndDispose()
+                  }
+                  order.size
+               }
+               then( "the structure should have size 1 (root)" )
+               assert( szApp === 1 )
+
+               when( "the structure is filled by 1000x repeated prepending" )
+               e = rootHolder
+               holders = IIdxSeq( e )
+               for( i <- 1 to 1000 ) {
+                  e = system.step { implicit tx =>
+                     val prev = e
+                     val next = new MapHolder( i, order.insert() )
+                     order.placeBefore( prev, next )
+                     next
+                  }
+                  holders :+= e
+               }
+               then( "the resulting sequence should match (0 to 1000)" )
+               val checkPrep = system.step { implicit tx =>
+                  holders.sliding( 2, 1 ).forall {
+                     case Seq( prev, next ) => next.num.compare( prev.num ) == prev.entry.compare( next.entry )
+                  }
+               }
+               assert( checkPrep )
+
+               when( "all elements are removed" )
+               val szPrep = system.step { implicit tx =>
+                  holders.drop( 1 ).foreach { h =>
+                     h.entry.removeAndDispose()
+                  }
+                  order.size
+               }
+               then( "the structure should have size 1 (root)" )
+               assert( szPrep === 1 )
+
+               // dispose
+               system.step { implicit tx => order.dispose() }
+
+            } finally {
+               sysCleanUp( system )
+            }
+         }
+      }
+   }
+
+   object MapHolder {
+      final class Serializer[ S <: Sys[ S ]]( observer: RelabelObserver[ S#Tx, MapHolder[ S ]], tx0: S#Tx )
+      extends TxnSerializer[ S#Tx, S#Acc, MapHolder[ S ]] {
+         val map = TotalOrder.Map.empty[ S, MapHolder[ S ]]( observer, _.entry )( tx0, this )
+
+         def write( v: MapHolder[ S ], out: DataOutput ) { v.write( out )}
+
+         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : MapHolder[ S ] = {
+            val num = in.readInt()
+            val e   = map.readEntry( in, access )
+            new MapHolder( num, e )
+         }
+      }
+   }
+   final case class MapHolder[ S <: Sys[ S ]]( num: Int, entry: TotalOrder.Map.Entry[ S, MapHolder[ S ]])
+   extends Writer {
+      def write( out: DataOutput ) {
+         out.writeInt( num )
+         entry.write( out )
       }
    }
 }

@@ -759,7 +759,10 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
          val prevTag       = if( prevE ne null ) prevE.tag else 0 // could use Int.MinValue+1, but that collides with Octree max space
          val nextTag       = if( nextE ne null ) nextE.tag else Int.MaxValue
 
-assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next is " + nextTag )
+// This assertion does _not_ hold: If we repeatedly prepend to the order,
+// we might end up with a next element having tag 0, which is the same
+// as prev if prev is empty
+//assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next is " + nextTag )
 
          val recTag        = prevTag + ((nextTag - prevTag + 1) >>> 1)
          val recE          = entryView( key )
