@@ -27,7 +27,6 @@ package de.sciss.collection
 package txn
 
 import de.sciss.lucre.{DataInput, DataOutput}
-import txn.TotalOrder.Set.EmptyEntry
 import de.sciss.lucre.stm._
 import annotation.{switch, tailrec}
 
@@ -92,6 +91,8 @@ object TotalOrder {
          private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) = empty
          def isDefined = false
          def isEmpty   = true
+
+         override def toString = "<empty>"
       }
 //      case object EmptyEntry extends EmptyEntryLike
 
@@ -99,6 +100,8 @@ object TotalOrder {
                                                              prevRef: S#Var[ EntryOption[ S ] /* with MutableOption[ S ] */],
                                                              nextRef: S#Var[ EntryOption[ S ] /* with MutableOption[ S ] */])
       extends EntryOption[ S ] with Mutable[ S ] with Ordered[ S#Tx, Entry[ S ]] {
+
+         override def toString = "Set.Entry" + id
 
          def compare( that: Entry[ S ])( implicit tx: S#Tx ) : Int = {
             val thisTag = tag
@@ -163,6 +166,8 @@ object TotalOrder {
       }
 
       def write( v: Set[ S ], out: DataOutput ) { v.write( out )}
+
+      override def toString = "Set.serializer"
    }
 
    private final class SetRead[ S <: Sys[ S ]]( in: DataInput, access: S#Acc, tx0: S#Tx ) extends Set[ S ] {
@@ -201,6 +206,8 @@ object TotalOrder {
       protected val empty  = new Set.EmptyEntry[ S ]
 
       def root: E
+
+      override def toString = "Set" + id
 
       final def readEntry( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = EntrySerializer.read( in, access )
 
@@ -449,6 +456,8 @@ object TotalOrder {
       extends RelabelObserver[ Tx, A ] {
          def beforeRelabeling( /* inserted: A, */ dirty: Iterator[ Tx, A ])( implicit tx: Tx ) {}
          def afterRelabeling(  /* inserted: A, */ clean: Iterator[ Tx, A ])( implicit tx: Tx ) {}
+
+         override def toString = "NoRelabelObserver"
       }
 
       final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
@@ -472,7 +481,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    }
 }
 
-         override def toString() = "Entry" + id.toString
+         override def toString() = "Map.Entry" + id
 
          private[TotalOrder] def prev( implicit tx: S#Tx ) : KOpt = prevRef.get
          private[TotalOrder] def next( implicit tx: S#Tx ) : KOpt = nextRef.get
@@ -573,6 +582,8 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
          new MapRead[ S, A ]( relabelObserver, entryView, in, access, tx )
 
       def write( v: Map[ S, A ], out: DataOutput ) { v.write( out )}
+
+      override def toString = "Map.serializer"
    }
 
    private final class MapRead[ S <: Sys[ S ], A ](
@@ -669,7 +680,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    sealed trait Map[ S <: Sys[ S ], A ] extends TotalOrder[ S ] {
       map =>
 
-      override def toString() = "TotalOrder.Map" + id.toString
+      override def toString         = "Map" + id
 
       final type E                  = Map.Entry[ S, A ]
       final protected type KOpt     = KeyOption[ S, A ]
