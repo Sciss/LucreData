@@ -628,8 +628,8 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
          import map.keyOptionSer
          val id      = tx.readID( in, access )
          val tagVal  = tx.readIntVar( id, in )
-         val prevRef = tx.readVar[ KOpt ]( id, in )
-         val nextRef = tx.readVar[ KOpt ]( id, in )
+         val prevRef = tx.readVar[ KOpt ]( id, in )( keyOptionSer )
+         val nextRef = tx.readVar[ KOpt ]( id, in )( keyOptionSer )
          new Map.Entry[ S, A ]( map, id, tagVal, prevRef, nextRef )
       }
 
@@ -653,21 +653,30 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    /*
     * A special iterator used for the relabel observer.
     */
-   private final class RelabelIterator[ S <: Sys[ S ], A ]( recOff: Int, num: Int, recE: Map.Entry[ S, A ], firstK: A,
+   private final class RelabelIterator[ S <: Sys[ S ], A ]( recOff: Int, num: Int, recE: Map.Entry[ S, A ],
+                                                            firstK: KeyOption[ S, A ],
                                                             entryView: A => Map.Entry[ S, A ])
    extends Iterator[ S#Tx, A ] {
 
-      private var currK       = firstK
+      private var currK: KeyOption[ S, A ] = firstK
       private var cnt         = 0
       def hasNext : Boolean   = cnt < num
 
       def next()( implicit tx: S#Tx ) : A = {
          if( cnt == num ) throw new NoSuchElementException( "next on empty iterator" )
-         val res     = currK
+         val res     = currK.get
          cnt        += 1
-         // if we're reaching the recE, skip it
-         val currE   = if( cnt == recOff ) recE else entryView( currK )
-         currK       = currE.next.get
+         // if we're reaching the recE, skip it.
+         // that is to say, `num` is the returned iteration sequence,
+         // while skipping the newly inserted entry (`recE`).
+         // there may be the case that the last returned element
+         // (`res`) has a `next` field pointing to `EmptyKey`.
+         // This is the reason, why we _must not_ call `get` on the
+         // value read from `next`. Instead, we store the key _option_
+         // in `currK` and resolve it if there is another valid call
+         // to `iterator.next()`.
+         val currE   = if( cnt == recOff ) recE else entryView( res )
+         currK       = currE.next // .get
          res
       }
 
@@ -885,9 +894,9 @@ assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next i
                if( inc >= thresh ) {   // found rebalanceable range
                   val numM1 = num - 1
                   val relabelIter = if( recOff == 0 ) {
-                     new RelabelIterator( -1, numM1, recE, firstE.next.get, entryView )
+                     new RelabelIterator( -1, numM1, recE, firstE.next, entryView )
                   } else {
-                     new RelabelIterator( recOff, numM1, /* if( recOff == numM1 ) numM1 else num, */ recE, firstK, entryView )
+                     new RelabelIterator( recOff, numM1, recE, new DefinedKey( this, firstK ), entryView )
                   }
                   observer.beforeRelabeling( /* recK, */ relabelIter )
 
@@ -897,13 +906,14 @@ assert( prevTag < nextTag, "placeBetween - prev is " + prevTag + ", while next i
                   // seems now it is correct with the inclusion
                   // of last in the tag updating.
                   var curr = firstE
-                  var cnt = 0; while( cnt < num ) {
+                  var cnt = 0; while( cnt < numM1 ) {
                      curr.updateTag( base )
                      val nextK   = curr.next.get
                      base       += inc
                      cnt        += 1
                      curr        = if( cnt == recOff ) recE else entryView( nextK )
                   }
+                  curr.updateTag( base )  // last one
                   relabelIter.reset()
                   observer.afterRelabeling( /* recK, */ relabelIter )
                   return

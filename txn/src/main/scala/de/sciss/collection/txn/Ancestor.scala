@@ -100,6 +100,8 @@ object Ancestor {
 
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Tree[ S, Version ] =
          new TreeRead[ S, Version ]( in, access, tx )
+
+      override def toString = "Ancestor.treeSerializer"
    }
 
    private sealed trait TreeImpl[ S <: Sys[ S ], Version ] extends Tree[ S, Version ] {
@@ -112,6 +114,8 @@ object Ancestor {
       // def root : K
 
       // ---- implementation ----
+
+      override def toString = "Ancestor.Tree(root=" + root + ")"
 
       implicit protected object VertexSerializer extends TxnSerializer[ S#Tx, S#Acc, K ] {
          def write( v: K, out: DataOutput ) { v.write( out )}
@@ -306,6 +310,8 @@ object Ancestor {
       private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, M ]
 
       // ---- implementation ----
+
+      override def toString = "Ancestor.Map(tree=" + full + ")"
 
       final protected def preOrdering : Ordering[ S#Tx, M ] = new Ordering[ S#Tx, M ] {
          def compare( a: M, b: M )( implicit tx: S#Tx ) : Int = a.pre compare b.pre
