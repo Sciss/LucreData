@@ -77,6 +77,8 @@ object DeterministicSkipOctree {
          new ImplRead[ S, D, A ]( view, in, access, tx )
       }
 
+      override def toString = "DeterministicSkipOctree.serializer"
+
       def write( v: DeterministicSkipOctree[ S, D, A ], out: DataOutput ) { v.write( out )}
    }
 
@@ -151,6 +153,8 @@ extends SkipOctree[ S, D, A ] {
    protected def skipList: HASkipList[ S, LeafImpl ]
    protected def head: LeftTopBranch
    protected def lastTreeRef: S#Var[ TopBranch ]
+
+   override def toString = "Octree-" + space.dim + "d" + id
 
    implicit protected object LeafOrdering extends Ordering[ S#Tx, LeafImpl ] {
       /**
@@ -818,6 +822,8 @@ extends SkipOctree[ S, D, A ] {
       stabbing += head -> qs.overlapArea( head.hyperCube )
 //      findNextValue()
 
+      override def toString = octree.toString + ".rangeQuery(" + qs + ")"
+
       // search downwards:
       // "At each square q ∈ Qi we either go to a child square in Qi
       // that covers the same area of R ∪ A as p does, if such a child
@@ -1180,7 +1186,7 @@ extends SkipOctree[ S, D, A ] {
    protected sealed trait LeafOrEmpty extends LeftChild
 
    case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with Writer /* EmptyMutable */ {
-      override def toString = "-"
+      override def toString = "<empty>"
       def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
    }
 
