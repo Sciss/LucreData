@@ -110,9 +110,9 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    private val sz = 256
 
-   private final class Model2D[ S <: Sys[ S ]]( val cursor: Cursor[ S ],
-                                                access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, Point2D ]],
-                                                cons: () => Unit )
+   final class Model2D[ S <: Sys[ S ]]( val cursor: Cursor[ S ],
+                                        access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, Point2D ]],
+                                        cons: () => Unit )
    extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
