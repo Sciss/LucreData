@@ -35,7 +35,7 @@ import java.io.File
 import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, Point2D, Square}
 import Space.TwoDim
 import de.sciss.collection.view.{PDFSupport, QuadView}
-import de.sciss.lucre.stm.{Cursor, InMemory, Durable, Sys}
+import de.sciss.lucre.stm.{Source, Cursor, InMemory, Durable, Sys}
 
 /**
  * Options:
@@ -73,28 +73,27 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
          implicit val system = Durable( BerkeleyDB.open( f ))
-         system.step { implicit tx =>
-            import SpaceSerializers.{Point2DSerializer, SquareSerializer}
-            implicit val pointView = (p: Point2D, t: Any) => p
-            implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, Point2D ]
-            val tree = system.root[ txn.DeterministicSkipOctree[ Durable, TwoDim, Point2D ]] {
-               txn.DeterministicSkipOctree.empty[ Durable, TwoDim, Point2D ](
-                  Square( sz, sz, sz ), skipGap = 1 )
-            }
-            new Model2D[ Durable ]( system, tree, { () =>
-               system.step( implicit tx => system.debugListUserRecords() ).foreach( println )
-            })
+         import SpaceSerializers.{Point2DSerializer, SquareSerializer}
+         implicit val pointView = (p: Point2D, t: Any) => p
+         implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, Point2D ]
+         val access = system.root { implicit tx =>
+            txn.DeterministicSkipOctree.empty[ Durable, TwoDim, Point2D ](
+               Square( sz, sz, sz ), skipGap = 1 )
          }
+         new Model2D[ Durable ]( system, access, { () =>
+            system.step( implicit tx => system.debugListUserRecords() ).foreach( println )
+         })
 
       } else {
          implicit val system = InMemory()
-         system.step { implicit tx =>
-            import SpaceSerializers.{Point2DSerializer, SquareSerializer}
-            implicit val pointView = (p: Point2D, t: Any) => p
-            val tree = txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
+         import SpaceSerializers.{Point2DSerializer, SquareSerializer}
+         implicit val pointView = (p: Point2D, t: Any) => p
+         implicit val reader = txn.DeterministicSkipOctree.serializer[ InMemory, TwoDim, Point2D ]
+         val access = system.root { implicit tx =>
+            txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
                Square( sz, sz, sz ), skipGap = 1 )
-            new Model2D[ InMemory ]( system, tree, { () => println( "(Consistency not checked)" )})
          }
+         new Model2D[ InMemory ]( system, access, { () => println( "(Consistency not checked)" )})
       }
 
       val f    = new JFrame( "Skip Octree" )
@@ -112,10 +111,12 @@ object InteractiveSkipOctreePanel extends App with Runnable {
    private val sz = 256
 
    private final class Model2D[ S <: Sys[ S ]]( val cursor: Cursor[ S ],
-                                                val tree: txn.DeterministicSkipOctree[ S, TwoDim, Point2D ],
+                                                access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, Point2D ]],
                                                 cons: () => Unit )
    extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
+
+      def tree( implicit tx: S#Tx ) : txn.SkipOctree[ S, TwoDim, Point2D ] = access.get
 
       def queryShape( sq: Square ) = sq
       def point( coords: IndexedSeq[ Int ]) = coords match {
@@ -129,7 +130,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def consistency() { cons() }
 
       val view = {
-         val res = new SkipQuadtreeView[ S, Point2D ]( tree, cursor, identity )
+         val res = new SkipQuadtreeView[ S, Point2D ]( access, cursor, identity )
          res.topPainter = Some( topPaint _ )
          res
       }
@@ -196,7 +197,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    trait Model[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ] {
       def consistency() : Unit
-      def tree: txn.SkipOctree[ S, D, Point ]
+      def tree( implicit tx: S#Tx ): txn.SkipOctree[ S, D, Point ]
       def view: JComponent
       final def insets: Insets = view.getInsets
       def point( coords: IndexedSeq[ Int ]) : Point
@@ -227,7 +228,10 @@ class InteractiveSkipOctreePanel[ S <: Sys[ S ], D <: Space[ D ], Point <: D#Poi
 extends JPanel( new BorderLayout() ) {
    import InteractiveSkipOctreePanel._
 
-   val t = model.tree
+   import model.{tree => t}
+
+   private val (space, numOrthants) = model.cursor.step { implicit tx => val tr = t; (tr.space, tr.numOrthants) }
+
    private val rnd = new util.Random( seed )
 
    private val in = model.insets
@@ -238,7 +242,7 @@ extends JPanel( new BorderLayout() ) {
 
    def recalcDistMeasure() { distMeasure = distFilter( baseDistance )}
 
-   private val ggCoord  = IndexedSeq.fill( t.space.dim )( new JTextField( 3 ))
+   private val ggCoord  = IndexedSeq.fill( space.dim )( new JTextField( 3 ))
 
    private val ggExt = new JTextField( 3 )
 
@@ -298,7 +302,7 @@ extends JPanel( new BorderLayout() ) {
       p.add( b )
       b
    }
-   private def space() {
+   private def makeSpace() {
       p.add( Box.createHorizontalStrut( 8 ))
    }
    private def label( text: String ) {
@@ -363,7 +367,7 @@ extends JPanel( new BorderLayout() ) {
       recalcDistMeasure()
    }
 
-   combo( ("All Orthants" +: Seq.tabulate( t.numOrthants )( i => (i + 1).toString )): _* ) { i =>
+   combo( ("All Orthants" +: Seq.tabulate( numOrthants )( i => (i + 1).toString )): _* ) { i =>
       if( i > 0 ) {
          distFilter = _.orthant( i - 1 )
       } else {
@@ -380,11 +384,11 @@ extends JPanel( new BorderLayout() ) {
       println( rangeString( set ))
    }}
 
-   space()
+   makeSpace()
    label( "Randomly:" )
 
    private def addPoints( num: Int ) {
-      val ps = Seq.fill( num )( model.point( IndexedSeq.fill( t.space.dim )( rnd.nextInt( 512 ))))
+      val ps = Seq.fill( num )( model.point( IndexedSeq.fill( space.dim )( rnd.nextInt( 512 ))))
       atomic { implicit tx => ps.foreach( t += _ )}
       model.highlight = ps.toSet
    }
@@ -392,7 +396,7 @@ extends JPanel( new BorderLayout() ) {
    but( "Add 1x" )  { addPoints(  1 )}
    but( "Add 10x" ) { addPoints( 10 )}
 
-   space()
+   makeSpace()
    label( "In order:" )
 
    private def removePoints( num: Int ) {
@@ -414,7 +418,7 @@ extends JPanel( new BorderLayout() ) {
    }
    but( "Remove 10x" ) { removePoints( 10 )}
 
-   space()
+   makeSpace()
 
    but( "Consistency" ) {
       model.consistency()

@@ -30,16 +30,20 @@ package view
 import java.awt.{Color, Dimension}
 import de.sciss.collection.view.QuadView
 import geom.{Point2DLike, Space}
-import de.sciss.lucre.stm.{Cursor, Sys}
+import de.sciss.lucre.stm.{Source, Cursor, Sys}
 
-class SkipQuadtreeView[ S <: Sys[ S ], A ]( t: DeterministicSkipOctree[ S, Space.TwoDim, A ],
+class SkipQuadtreeView[ S <: Sys[ S ], A ]( access: Source[ S#Tx, DeterministicSkipOctree[ S, Space.TwoDim, A ]],
                                             cursor: Cursor[ S ], pointView: A => Point2DLike )
 extends QuadView {
 //   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.TwoDim, A ]
 
+   def t( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, Space.TwoDim, A ] = access.get
+
    var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
    private var scaleVar = 1.0
+
+   private val hyperCube = cursor.step { implicit tx => t.hyperCube }
 
    setPrefSz( 3 )
 
@@ -49,7 +53,7 @@ extends QuadView {
    }
 
    private def setPrefSz( lvl: Int ) {
-      val w1   = ((t.hyperCube.extent.toLong << 1) * scale + 0.5).toInt + 1
+      val w1   = ((hyperCube.extent.toLong << 1) * scale + 0.5).toInt + 1
       val in   = getInsets
       setPreferredSize( new Dimension( ((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom) ))
    }
@@ -59,25 +63,26 @@ extends QuadView {
    }
 
    protected def draw( h: QuadView.PaintHelper ) {
-      var n = t.headTree
-      val q = t.hyperCube
+      var (tr, n) = cursor.step { implicit tx => val res = t; (res, res.headTree) }
+      val q = hyperCube
       val dx = ((q.extent.toLong << 1) * scale + 0.5).toInt + 16
       h.scale= scale
       while( n != null ) {
-         draw( h, n )
+         draw( tr, h, n )
          h.translate( dx, 0 )
          n = cursor.step { implicit tx => n.nextOption.orNull }
       }
    }
 
-   private def draw( h: QuadView.PaintHelper, quad: t.Child ) {
+   private def draw( tr: DeterministicSkipOctree[ S, Space.TwoDim, A ],
+                     h: QuadView.PaintHelper, quad: DeterministicSkipOctree[ S, Space.TwoDim, A ]#Child ) {
       quad match {
-         case l: t.Leaf =>
+         case l: tr.Leaf =>
             h.drawPoint( pointView( l.value ), highlight.contains( l.value ))
-         case n: t.Branch =>
+         case n: tr.Branch =>
             for( idx <- 0 until 4 ) {
                h.drawFrame( n.hyperCube.orthant( idx ), gridColor )
-               draw( h, cursor.step { implicit tx => n.child( idx )})
+               draw( tr, h, cursor.step { implicit tx => n.child( idx )})
             }
          case _ =>
       }

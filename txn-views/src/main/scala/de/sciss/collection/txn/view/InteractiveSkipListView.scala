@@ -32,7 +32,7 @@ import javax.swing.{Box, JLabel, SwingConstants, WindowConstants, JFrame, JTextF
 import java.io.File
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import de.sciss.collection.view.PDFSupport
-import de.sciss.lucre.stm.{Cursor, InMemory, Durable, Sys}
+import de.sciss.lucre.stm.{Source, Cursor, InMemory, Durable, Sys}
 
 /**
 * Simple GUI app to probe the txn.HASkipList interactively.
@@ -53,22 +53,21 @@ object InteractiveSkipListView extends App with Runnable {
          implicit val system = Durable( BerkeleyDB.open( dir ))
          val fut = new FutureObserver[ Durable ]
          implicit val ser = HASkipList.serializer[ Durable, Int ]( fut )
-         val access = system.step { implicit tx =>
-            system.root[ HASkipList[ Durable, Int ]] {
-               HASkipList.empty[ Durable, Int ]( minGap = 1, keyObserver = fut )
-            }
+         val access = system.root[ HASkipList[ Durable, Int ]] { implicit tx =>
+            HASkipList.empty[ Durable, Int ]( minGap = 1, keyObserver = fut )
          }
-         val res = new InteractiveSkipListView[ Durable ]( _ => access )
+         val res = new InteractiveSkipListView[ Durable ]( access )
          fut.init( res )
          res
 
       } else {
          implicit val system = InMemory()
          val fut = new FutureObserver[ InMemory ]
-         val access = system.step { implicit tx =>
+         implicit val ser = HASkipList.serializer[ InMemory, Int ]( fut )
+         val access = system.root { implicit tx =>
             HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = fut )
          }
-         val res = new InteractiveSkipListView[ InMemory ]( _ => access )
+         val res = new InteractiveSkipListView[ InMemory ]( access )
          fut.init( res )
          res
       }
@@ -100,7 +99,7 @@ object InteractiveSkipListView extends App with Runnable {
       def init( v: SkipList.KeyObserver[ S#Tx, Int ]) { view = v }
    }
 }
-class InteractiveSkipListView[ S <: Sys[ S ]]( access: S#Tx => HASkipList[ S, Int ])( implicit cursor: Cursor[ S ])
+class InteractiveSkipListView[ S <: Sys[ S ]]( access: Source[ S#Tx, HASkipList[ S, Int ]])( implicit cursor: Cursor[ S ])
 extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
    view =>
 
@@ -116,7 +115,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
 //   val l = _create( this )
    val slv: HASkipListView[ S, Int ] = new HASkipListView( l( _ ))
 
-   def l( implicit tx: S#Tx ) : HASkipList[ S, Int ] = access( tx )
+   def l( implicit tx: S#Tx ) : HASkipList[ S, Int ] = access.get
 
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
 
