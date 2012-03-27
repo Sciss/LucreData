@@ -1185,9 +1185,15 @@ extends SkipOctree[ S, D, A ] {
 
    protected sealed trait LeafOrEmpty extends LeftChild
 
+   // fix for deserialization equality problem thanks to
+   // Eugene Yokota
+   // (http://stackoverflow.com/questions/9893522/fixing-case-object-identity-pattern-matching-under-serialization/9894036#9894036)
    case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with Writer /* EmptyMutable */ {
       override def toString = "<empty>"
       def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
+      override def hashCode : Int = 0
+      override def equals( that: Any ) : Boolean =
+         that.isInstanceOf[ x.EmptyValue.type forSome { val x: DeterministicSkipOctree[ _, _, _ ]}]
    }
 
    /**
