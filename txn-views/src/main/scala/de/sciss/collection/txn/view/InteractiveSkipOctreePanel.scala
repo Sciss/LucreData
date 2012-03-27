@@ -112,7 +112,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    final class Model2D[ S <: Sys[ S ]]( val cursor: Cursor[ S ],
                                         access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, Point2D ]],
-                                        cons: () => Unit )
+                                        cons: () => Unit, val nTimes: Int = 10 )
    extends Model[ S, TwoDim, Point2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
@@ -196,6 +196,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //   }
 
    trait Model[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ] {
+      def nTimes: Int
       def consistency() : Unit
       def tree( implicit tx: S#Tx ): txn.SkipOctree[ S, D, Point ]
       def view: JComponent
@@ -394,7 +395,7 @@ extends JPanel( new BorderLayout() ) {
    }
 
    but( "Add 1x" )  { addPoints(  1 )}
-   but( "Add 10x" ) { addPoints( 10 )}
+   but( "Add " + model.nTimes + "x" ) { addPoints( model.nTimes )}
 
    makeSpace()
    label( "In order:" )
@@ -416,7 +417,7 @@ extends JPanel( new BorderLayout() ) {
 //break
       removePoints(  1 )
    }
-   but( "Remove 10x" ) { removePoints( 10 )}
+   but( "Remove " + model.nTimes + "x" ) { removePoints( model.nTimes )}
 
    makeSpace()
 
