@@ -123,7 +123,7 @@ object LucreDataBuild extends Build {
       pomExtra     := pomSettings,
 
 //      traceLevel   := 20,
-      testOptions in Test += Tests.Argument( "-oF" ),
+      testOptions in Test += Tests.Argument( "-oDF" ),   // ScalaTest: durations and full stack traces
       parallelExecution in Test := false,
 
       scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
