@@ -113,7 +113,7 @@ object LucreDataBuild extends Build {
       ),
       retrieveManaged := true,
 
-      publishArtifact in (Compile, packageDoc) := false, // scaladoc is broken with sbt 0.11.2 !
+//      publishArtifact in (Compile, packageDoc) := false, // scaladoc is broken with sbt 0.11.2 !
 
       publishMavenStyle := true,
       publishArtifact in Test := false,
@@ -124,7 +124,7 @@ object LucreDataBuild extends Build {
 
 //      traceLevel   := 20,
       testOptions in Test += Tests.Argument( "-oDF" ),   // ScalaTest: durations and full stack traces
-      parallelExecution in Test := false,
+      parallelExecution /* in Test */ := false,
 
       scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
    )

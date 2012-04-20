@@ -27,9 +27,6 @@ Builds with xsbt (sbt 0.11) against Scala 2.9.2. Depends on [LucreSTM](http://gi
 * `mutable-views` &ndash; Some Swing based views to show the mutable data structures
 * `txn-views` &ndash; Some Swing based views to show the transactional data structures
 
-__Note:__ Due to a bug in sbt 0.11.2, scaladoc currently fails, and is disabled for `publish` and `publish-local`.
-A workaround is to use a snapshot version of sbt to run `doc`.
-
 ### creating an IntelliJ IDEA project
 
 To develop the sources of LucreData, if you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:

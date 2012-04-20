@@ -35,10 +35,10 @@ object DeterministicSkipQuadtree {
    import Space.TwoDim
    import TwoDim._
 
-   def empty[ A ]( quad: HyperCube, skipGap: Int = 2 )( implicit view: A => PointLike ) : SkipQuadtree[ A ] =
+   def empty[ A ]( quad: HyperCube, skipGap: Int = 2 )( implicit view: A => PointLike ) : SkipOctree[ Space.TwoDim, A ] =
       DeterministicSkipOctree.empty[ TwoDim, A ]( TwoDim, quad, skipGap )
 
-   def apply[ A <% PointLike ]( quad: HyperCube, skipGap: Int = 2 )( xs: A* ) : SkipQuadtree[ A ] = {
+   def apply[ A <% PointLike ]( quad: HyperCube, skipGap: Int = 2 )( xs: A* ) : SkipOctree[ Space.TwoDim, A ] = {
       val t = empty[ A ]( quad, skipGap )
       xs.foreach( t.+=( _ ))
       t

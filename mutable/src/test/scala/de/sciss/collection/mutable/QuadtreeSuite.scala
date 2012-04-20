@@ -6,6 +6,7 @@ import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
 import Space.TwoDim
+import mutable.SkipOctree
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -38,6 +39,8 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       rnd.setSeed( RND_SEED )
       withTree( "deterministic", DeterministicSkipQuadtree.empty[ TwoDim#Point ]( quad ))
    }
+
+   private type SkipQuadtree[ A ] = SkipOctree[ Space.TwoDim, A ]
 
    def randFill( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       given( "a randomly filled structure" )
