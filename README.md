@@ -18,7 +18,7 @@ LucreData provides implementations for various data structures in the Scala prog
 
 ### requirements
 
-Builds with xsbt (sbt 0.11) against Scala 2.9.1. Depends on [LucreSTM](http://github.com/Sciss/LucreSTM). Sub projects:
+Builds with xsbt (sbt 0.11) against Scala 2.9.2. Depends on [LucreSTM](http://github.com/Sciss/LucreSTM). Sub projects:
 
 * `structs-core` &ndash; Some basic stuff used by the data structure implementations. Also the geometry types.
 * `mutable` &ndash; Mutable data structures
