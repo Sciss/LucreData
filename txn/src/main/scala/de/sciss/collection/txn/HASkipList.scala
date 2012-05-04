@@ -57,6 +57,9 @@ import de.sciss.lucre.stm.{Sink, Sys, TxnSerializer}
  * (3) Since there is a bug with the top-down one-pass removal, we might end up removing
  * the creation of instances of virtual branches altogether again when replacing the
  * current algorithm by a two-pass one.
+ *
+ * TODO: nodes or at least leaves should be horizontally connected for a faster iterator
+ *       and fast pair (interval) search
  */
 object HASkipList {
    /**
@@ -152,7 +155,7 @@ object HASkipList {
       def arrMinSz = minGap + 1
       private def arrMaxSz = (minGap + 1) << 1   // aka arrMinSz << 1
 
-      override def toString = "SkipList" + id
+      override def toString() = "SkipList" + id
 
       protected def writeData( out: DataOutput ) {
          out.writeUnsignedByte( SER_VERSION )
@@ -212,6 +215,22 @@ object HASkipList {
       @inline private def topN( implicit tx: S#Tx ) : Node[ S, A ] = /* Head.*/ downNode.get
 
       def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( true ).mkString( "\n" )
+
+//      def pred( succ: A )( implicit tx: S#Tx ) : Option[ A ] = {
+//         require( minGap > 1, "Algorithm not working yet for gap size 1" )
+//         @tailrec def stepRight( n: Node[ S, A ]) : Boolean = {
+//            val idx0 = indexInNodeR( v, n )
+//            val idx  = if( idx0 < 0 ) -idx0 + 2 else idx0
+//            if( n.isLeaf ) {
+//               if( idx >= 0 ) Some( n.asLeaf.key( idx )) else None
+//            } else {
+//               ???
+//            }
+//         }
+//
+//         val c = topN
+//         if( c eq null ) None else stepRight( c )
+//      }
 
       def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int) = {
          def isoIndexR( n: NodeLike[ S, A ]) : Int = {

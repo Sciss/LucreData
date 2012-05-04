@@ -6,7 +6,6 @@ import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
 import Space.TwoDim
-import mutable.SkipOctree
 
 /**
  * To run this test copy + paste the following into sbt:

@@ -101,6 +101,14 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S 
     */
    def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int)
 
+//   /**
+//    * Finds the item preceeding a given item
+//    *
+//    * @param succ the item whose predecessor is to be found
+//    * @return     the predecessor, or `None` if the given item `succ` is the head of the list
+//    */
+//   def pred( succ: A )( implicit tx: S#Tx ) : Option[ A ]
+
    /**
     * Inserts a new key into the list.
     *
