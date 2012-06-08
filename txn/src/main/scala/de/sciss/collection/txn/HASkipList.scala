@@ -200,7 +200,7 @@ object HASkipList {
       def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( isRight = true ).mkString( "\n" )
 
       def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int) = {
-         def isoIndexR( n: NodeLike[ S, A ]) : Int = {
+         def isoIndexR( n: Node[ S, A ]) : Int = {
             var idx  = 0
             val sz   = n.size - 1
             do {
@@ -211,7 +211,7 @@ object HASkipList {
             sz
          }
 
-         def isoIndexL( n: NodeLike[ S, A ])( implicit tx: S#Tx ) : Int = {
+         def isoIndexL( n: Node[ S, A ])( implicit tx: S#Tx ) : Int = {
             @tailrec def step( idx : Int ) : Int = {
                val cmp = ord.compare( n.key( idx ))
                if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
@@ -286,7 +286,7 @@ object HASkipList {
        * @return  the index to go down (a node whose key is greater than `v`),
         *         or `-(index+1)` if `v` was found at `index`
        */
-      private def indexInNodeR( v: A, n: NodeLike[ S, A ])( implicit tx: S#Tx ) : Int = {
+      private def indexInNodeR( v: A, n: Node[ S, A ])( implicit tx: S#Tx ) : Int = {
          var idx  = 0
          val sz   = n.size - 1
          do {
@@ -297,7 +297,7 @@ object HASkipList {
          sz
       }
 
-      private def indexInNodeL( v: A, n: NodeLike[ S, A ])( implicit tx: S#Tx ) : Int = {
+      private def indexInNodeL( v: A, n: Node[ S, A ])( implicit tx: S#Tx ) : Int = {
          @tailrec def step( idx : Int ) : Int = {
             val cmp = ordering.compare( v, n.key( idx ))
             if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
@@ -389,29 +389,29 @@ object HASkipList {
          if( c eq null ) {
             false
          } else if( c.isLeaf ) {
-            removeFromLeaf(   v, /* Head. */downNode, c.asLeaf, isRight = true )
+            removeFromLeaf(   v, /* Head. */downNode, c.asLeaf, isRight = true, false )
          } else {
-            removeFromBranch( v, /* Head. */ downNode, c.asBranch, isRight = true )
+            removeFromBranch( v, /* Head. */ downNode, c.asBranch, isRight = true, false )
          }
       }
 
-      private def removeFromLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: LeafLike[ S, A ],
-                              isRight: Boolean )( implicit tx: S#Tx ) : Boolean = {
+      private def removeFromLeaf( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], l: Leaf[ S, A ],
+                              isRight: Boolean, lDirty: Boolean )( implicit tx: S#Tx ) : Boolean = {
          val idx     = if( isRight ) indexInNodeR( v, l ) else indexInNodeL( v, l )
          val found   = idx < 0
          val lNew    = if( found ) {
             val idxP = -(idx + 1)
             l.removeColumn( idxP )
          } else {
-            l.devirtualize
+            l // .devirtualize
          }
-         if( lNew ne l ) {
+         if( lDirty || (lNew ne l) ) {
             pDown.set( if( lNew.size > 1 ) lNew else null )
          }
          found
       }
 
-      @tailrec private def removeFromBranchAndBubble( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ],
+      @tailrec private def removeFromBranchAndBubble( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: Branch[ S, A ],
                                                       leafUpKey: A )( implicit tx: S#Tx ) : Boolean = {
          val bsz        = b.size
          val idxP       = bsz - 1   // that we know
@@ -421,7 +421,7 @@ object HASkipList {
 
          var bNew: Branch[ S, A ] = null
          var bDownIdx         = idxP
-         var cNew: NodeLike[ S, A ] = c
+         var cNew: Node[ S, A ] = c
 
          keyObserver.keyDown( v )
 
@@ -447,7 +447,8 @@ object HASkipList {
                bNew        = bNew0.updateKey( idxPM1, leafUpKey ) // XXX optimise by merging with previous operation
                b.downRef( idxPM1 ).dispose()
                bDownIdx    = idxPM1
-               cNew        = c.virtualize( ModMergeLeft, cSib )
+//               cNew        = c.virtualize( ModMergeLeft, cSib )
+               cNew        = c.mergeLeft( cSib )
             } else {                                        // borrow from the left
                // the parent needs to update the key for the
                // left sibling to match the before-last key in
@@ -459,7 +460,8 @@ object HASkipList {
                keyObserver.keyUp( upKey )
                val bDown1  = b.downRef( idxPM1 )
                bDown1.set( cSib.removeColumn( cSibSz - 1 ))
-               cNew        = c.virtualize( ModBorrowFromLeft, cSib )
+//               cNew        = c.virtualize( ModBorrowFromLeft, cSib )
+               cNew        = c.borrowLeft( cSib )
             }
          } else {
             bNew  = b.updateKey( idxP, leafUpKey )
@@ -479,15 +481,15 @@ object HASkipList {
          }
 
 //         val bDown = bNew.downRef( bDownIdx )
-         if( cNew.isLeafLike ) {
-            removeFromLeaf( v, bDown, cNew.asLeafLike, isRight = false )
+         if( cNew.isLeaf ) {
+            removeFromLeaf( v, bDown, cNew.asLeaf, isRight = false, cNew ne c )
          } else {
-            removeFromBranchAndBubble( v, bDown, cNew.asBranchLike, leafUpKey )
+            removeFromBranchAndBubble( v, bDown, cNew.asBranch, leafUpKey )
          }
       }
 
-      @tailrec private def removeFromBranch( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: BranchLike[ S, A ],
-                                         isRight: Boolean )( implicit tx: S#Tx ) : Boolean = {
+      @tailrec private def removeFromBranch( v: A, pDown: Sink[ S#Tx, Node[ S, A ]], b: Branch[ S, A ],
+                                         isRight: Boolean, bDirty: Boolean )( implicit tx: S#Tx ) : Boolean = {
          val idx        = if( isRight ) indexInNodeR( v, b ) else indexInNodeL( v, b )
          val found      = idx < 0
          val idxP       = if( found ) -(idx + 1) else idx
@@ -512,11 +514,11 @@ object HASkipList {
             // we are here, because the key was found and it would appear in the right-most position
             // in the child, unless we treat it specially here, by finding the key that will bubble
             // up!
-            @tailrec def findUpKey( n: NodeLike[ S, A ]) : A = {
-               if( n.isLeafLike ) {
+            @tailrec def findUpKey( n: Node[ S, A ]) : A = {
+               if( n.isLeaf ) {
                   n.key( n.size - 2 )
                } else {
-                  findUpKey( n.asBranchLike.down( n.size - 1 ))
+                  findUpKey( n.asBranch.down( n.size - 1 ))
                }
             }
             val leafUpKey = findUpKey( c )
@@ -526,17 +528,17 @@ object HASkipList {
 
             pDown.set( bNew ) // update down ref from which we came
             val bDown = bNew.downRef( idxP )
-            return if( c.isLeafLike ) {
-               removeFromLeaf( v, bDown, c.asLeafLike, isRight = false )
+            return if( c.isLeaf ) {
+               removeFromLeaf( v, bDown, c.asLeaf, isRight = false, false )
             } else {
-               removeFromBranchAndBubble( v, bDown, c.asBranchLike, leafUpKey )
+               removeFromBranchAndBubble( v, bDown, c.asBranch, leafUpKey )
             }
          }
 
          var isRightNew = isRight && (idxP == bsz - 1)
-         var bNew: Branch[ S, A ] = null
+         var bNew: Branch[ S, A ] = b // null
          var bDownIdx         = idxP
-         var cNew: NodeLike[ S, A ] = c
+         var cNew: Node[ S, A ] = c
 
          // a merge or borrow is necessary either when we descend
          // to a minimally filled child (because that child might
@@ -559,8 +561,8 @@ object HASkipList {
                   // idxP1, hence the right-most key in csib.
                   bNew        = b.removeColumn( idxP )
                   b.downRef( idxP ).dispose()
-//                  bDownIdx    = idxP
-                  cNew        = c.virtualize( ModMergeRight, cSib )
+//                  cNew        = c.virtualize( ModMergeRight, cSib )
+                  cNew        = c.mergeRight( cSib )
                   isRightNew  = isRight && (idxP == bsz - 2) // ! we might be in the right-most branch now
                } else {                                      // borrow from the right
                   assert( cSibSz > mns )
@@ -570,10 +572,10 @@ object HASkipList {
                   val upKey   = cSib.key( 0 )
                   bNew        = b.updateKey( idxP, upKey )
                   keyObserver.keyUp( upKey )
-//                  bDownIdx    = idxP
                   val bDown1  = b.downRef( idxP1 )
                   bDown1.set( cSib.removeColumn( 0 ))
-                  cNew        = c.virtualize( ModBorrowFromRight, cSib )
+//                  cNew        = c.virtualize( ModBorrowFromRight, cSib )
+                  cNew        = c.borrowRight( cSib )
                }
 
             } else {                                           // merge with or borrow from the left
@@ -595,7 +597,8 @@ object HASkipList {
                   bNew        = b.removeColumn( idxPM1 )
                   b.downRef( idxPM1 ).dispose()
                   bDownIdx    = idxPM1
-                  cNew        = c.virtualize( ModMergeLeft, cSib )
+//                  cNew        = c.virtualize( ModMergeLeft, cSib )
+                  cNew        = c.mergeLeft( cSib )
                } else {                                        // borrow from the left
                   // the parent needs to update the key for the
                   // left sibling to match the before-last key in
@@ -603,17 +606,17 @@ object HASkipList {
                   val upKey   = cSib.key( cSibSz - 2 )
                   bNew        = b.updateKey( idxPM1, upKey )
                   keyObserver.keyUp( upKey )
-//                  bDownIdx    = idxP
                   val bDown1  = b.downRef( idxPM1 )
                   bDown1.set( cSib.removeColumn( cSibSz - 1 ))
-                  cNew        = c.virtualize( ModBorrowFromLeft, cSib )
+//                  cNew        = c.virtualize( ModBorrowFromLeft, cSib )
+                  cNew        = c.borrowLeft( cSib )
                }
             }
-         } else {
-            bNew  = b.devirtualize
+//         } else {
+//            bNew  = b.devirtualize
          }
 
-         val bDown = if( bNew ne b ) { // branch changed
+         val bDown = if( bDirty || (bNew ne b) ) { // branch changed
             if( bNew.size > 1 ) {
                pDown.set( bNew ) // update down ref from which it came
                bNew.downRef( bDownIdx )
@@ -628,10 +631,11 @@ object HASkipList {
          }
 
 //         val bDown = bNew.downRef( bDownIdx )
-         if( cNew.isLeafLike ) {
-            removeFromLeaf(   v, bDown, cNew.asLeafLike, isRightNew )
+         val cDirty = cNew ne c
+         if( cNew.isLeaf ) {
+            removeFromLeaf(   v, bDown, cNew.asLeaf, isRightNew, cDirty )
          } else {
-            removeFromBranch( v, bDown, cNew.asBranchLike, isRightNew )
+            removeFromBranch( v, bDown, cNew.asBranch, isRightNew, cDirty )
          }
       }
 
@@ -742,96 +746,6 @@ object HASkipList {
       }
    }
 
-   private sealed trait ModVirtual  // extends ModMaybe
-
-   /*
-    * In merge-with-right, the right sibling's
-    * identifier is re-used for the merged node.
-    * Thus after the merge, the originating sibling
-    * should be disposed (when using an ephemeral
-    * datastore). The parent needs to remove the
-    * entry of the originating sibling.
-    *
-    * (thus the disposal corresponds with the ref
-    * removed from the `downs` array)
-    */
-   private case object ModMergeRight extends ModVirtual
-
-   /*
-    * In borrow-from-right, both parents' downs need
-    * update, but identifiers are kept.
-    * the parent needs to update the key for the
-    * originating sibling to match the first key in
-    * the right sibling (or the new last key in the
-    * originating sibling).
-    */
-   private case object ModBorrowFromRight extends ModVirtual
-
-   /*
-    * In merge-with-left, the originating sibling's
-    * identifier is re-used for the merged node.
-    * Thus after the merge, the left sibling
-    * should be disposed (when using an ephemeral
-    * datastore). The parent needs to remove the
-    * entry of the left sibling.
-    *
-    * (thus the disposal corresponds with the ref
-    * removed from the `downs` array)
-    */
-   private case object ModMergeLeft extends ModVirtual
-
-   /*
-    * In borrow-from-left, both parents' downs need
-    * update, but identifiers are kept.
-    * the parent needs to update the key for the
-    * left sibling to match the before-last key in
-    * the left sibling.
-    */
-   private case object ModBorrowFromLeft extends ModVirtual
-
-   /**
-    * Borrow-to-right is a special case encountered when
-    * going down from a branch containing the search node,
-    * where the child cannot be merged to the right.
-    * Instead of merging to the left, or borrowing from
-    * the left which would keep the query key in the
-    * right-most position, causing successive update
-    * problems, we hereby achieve that the query key
-    * ends up in a position that is not the last in
-    * any node: We remove the query key -- the right
-    * most entry -- from the originating sibling and
-    * prepend it to its right sibling.
-    *
-    * Like in a normal borrow, both parents' downs need
-    * update, but identifiers are kept. The parent needs
-    * to update the key for the originating sibling to
-    * match the before-last key in the originating sibling
-    * (or the new last key in the new originating sibling).
-    */
-   private case object ModBorrowToRight extends ModVirtual
-
-   private sealed trait VirtualLike[ S <: Sys[ S ], @specialized( Int ) A ] {
-      protected def mod:  ModVirtual
-      protected def main: Node[ S, A ]
-      protected def sib:  Node[ S, A ]
-
-      def size : Int = mod match {
-         case ModMergeRight      => main.size + sib.size
-         case ModBorrowFromRight => main.size + 1
-         case ModBorrowToRight   => sib.size + 1
-         case ModMergeLeft       => main.size + sib.size
-         case ModBorrowFromLeft  => main.size + 1
-      }
-
-      final def key( idx: Int ) : A = mod match {
-         case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.key( idx ) else sib.key( ridx )
-         case ModBorrowFromRight => if( idx == main.size ) sib.key( 0 ) else main.key( idx )
-         case ModBorrowToRight   => if( idx == 0 ) main.key( main.size - 1 ) else sib.key( idx - 1 )
-         case ModMergeLeft       => val ridx = idx - sib.size; if( ridx < 0 ) sib.key( idx ) else main.key( ridx )
-         case ModBorrowFromLeft  => if( idx == 0 ) sib.key( sib.size - 1 ) else main.key( idx - 1 )
-      }
-   }
-
    sealed trait HeadOrBranch[ S <: Sys[ S ], A ] /* extends Branch */ {
       private[HASkipList] def updateDown( i: Int, n: Node[ S, A ])( implicit tx: S#Tx ) : Unit
 
@@ -839,67 +753,64 @@ object HASkipList {
                                               ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
    }
 
-   sealed trait NodeLike[ S <: Sys[ S ], @specialized( Int ) A ] /* extends Node[ S, A ] */ {
+   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] {
       private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Node[ S, A ]
       def size : Int
       def key( i: Int ): A
-      def isLeafLike : Boolean
-      def isBranchLike: Boolean
-      def asLeafLike : LeafLike[ S, A ]
-      def asBranchLike : BranchLike[ S, A ]
-   }
 
-   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] /* with Node[ S, A ] */ {
-      private[HASkipList] def virtualize( mod: ModVirtual, sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ]
       private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) : Unit
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
       private[HASkipList] def printNode( isRight: Boolean )( implicit tx: S#Tx ) : IndexedSeq[ String ]
+
+      /*
+       * In merge-with-right, the right sibling's
+       * identifier is re-used for the merged node.
+       * Thus after the merge, the originating sibling
+       * should be disposed (when using an ephemeral
+       * datastore). The parent needs to remove the
+       * entry of the originating sibling.
+       *
+       * (thus the disposal corresponds with the ref
+       * removed from the `downs` array)
+       */
+      private[HASkipList] def mergeRight( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ]
+
+      /*
+       * In borrow-from-right, both parents' downs need
+       * update, but identifiers are kept.
+       * the parent needs to update the key for the
+       * originating sibling to match the first key in
+       * the right sibling (or the new last key in the
+       * originating sibling).
+       */
+      private[HASkipList] def borrowRight( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ]
+
+      /*
+       * In merge-with-left, the originating sibling's
+       * identifier is re-used for the merged node.
+       * Thus after the merge, the left sibling
+       * should be disposed (when using an ephemeral
+       * datastore). The parent needs to remove the
+       * entry of the left sibling.
+       *
+       * (thus the disposal corresponds with the ref
+       * removed from the `downs` array)
+       */
+      private[HASkipList] def mergeLeft( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ]
+
+      /*
+       * In borrow-from-left, both parents' downs need
+       * update, but identifiers are kept.
+       * the parent needs to update the key for the
+       * left sibling to match the before-last key in
+       * the left sibling.
+       */
+      private[HASkipList] def borrowLeft( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ]
+
       def isLeaf   : Boolean
       def isBranch : Boolean
       def asLeaf   : Leaf[ S, A ]
       def asBranch : Branch[ S, A ]
-   }
-
-   sealed trait BranchLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
-      def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ]
-      private[HASkipList] def downRef( idx: Int ) : S#Var[ Node[ S, A ]]
-      private[HASkipList] def updateKey( idx: Int, key: A )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]): Branch[ S, A ]
-      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
-      final def isLeafLike   : Boolean = false
-      final def isBranchLike : Boolean = true
-      final def asLeafLike   : LeafLike[ S, A ]   = opNotSupported
-      final def asBranchLike : BranchLike[ S, A ] = this
-   }
-
-   sealed trait LeafLike[ S <: Sys[ S ], @specialized( Int ) A ] extends NodeLike[ S, A ] {
-      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ]
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ]
-      final def isLeafLike   : Boolean = true
-      final def isBranchLike : Boolean = false
-      final def asLeafLike   : LeafLike[ S, A ]   = this
-      final def asBranchLike : BranchLike[ S, A ] = opNotSupported
-   }
-
-   private final class VirtualLeaf[ S <: Sys[ S ], @specialized( Int ) A ]( protected val main: Leaf[ S, A ],
-                                                                            protected val mod: ModVirtual,
-                                                                            protected val sib: Leaf[ S, A ])
-   extends LeafLike[ S, A ] with VirtualLike[ S, A ] {
-      override def toString = "VirtualLeaf(" + main + ", " + mod + ", " + sib + ")"
-
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ] = {
-         val newSz   = size - 1
-         val keys    = IIdxSeq.tabulate[ A ]( newSz ) { i =>
-            if( i < idx ) key( i ) else key( i + 1 )
-         }
-         new Leaf[ S, A ]( keys )
-      }
-
-      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]): Leaf[ S, A ] = {
-         val newSz   = size
-         val keys = IIdxSeq.tabulate[ A ]( newSz )( key( _ ))
-         new Leaf[ S, A ]( keys )
-      }
    }
 
    object Leaf {
@@ -914,8 +825,8 @@ object HASkipList {
          new Leaf[ S, A ]( keys )
       }
    }
-   final class Leaf[ S <: Sys[ S ], @specialized( Int ) A ]( keys: IIdxSeq[ A ])
-   extends LeafLike[ S, A ] with Node[ S, A ] {
+   final class Leaf[ S <: Sys[ S ], @specialized( Int ) A ]( private[HASkipList] val keys: IIdxSeq[ A ])
+   extends /* LeafLike[ S, A ] with */ Node[ S, A ] {
       override def toString = keys.mkString( "Leaf(", ",", ")" )
 
       def key( idx: Int ) = keys( idx )
@@ -937,9 +848,25 @@ object HASkipList {
          IndexedSeq( keys.mkString( "--" ))
       }
 
-      private[HASkipList] def virtualize( mod: ModVirtual,
-                                          sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ] =
-         new VirtualLeaf[ S, A ]( this, mod, sib.asLeaf )
+      private[HASkipList] def mergeRight( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val lSib = sib.asLeaf
+         new Leaf( keys ++ lSib.keys )
+      }
+
+      private[HASkipList] def borrowRight( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val lSib = sib.asLeaf
+         new Leaf( keys :+ lSib.keys.head )
+      }
+
+      private[HASkipList] def mergeLeft( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val lSib = sib.asLeaf
+         new Leaf( lSib.keys ++ keys )
+      }
+
+      private[HASkipList] def borrowLeft( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val lSib = sib.asLeaf
+         new Leaf( lSib.keys.last +: keys )
+      }
 
       private[HASkipList] def insert( v: A, idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
          val lkeys = keys.patch( idx, IIdxSeq( v ), 0 )
@@ -989,58 +916,6 @@ object HASkipList {
       }
    }
 
-   private final class VirtualBranch[ S <: Sys[ S ], @specialized( Int ) A ]( protected val main: Branch[ S, A ],
-                                                                              protected val mod: ModVirtual,
-                                                                              protected val sib: Branch[ S, A ])
-   extends BranchLike[ S, A ] with VirtualLike[ S, A ] {
-      override def toString = "VirtualBranch(" + main + ", " + mod + ", " + sib + ")"
-
-      private[HASkipList] def downRef( idx: Int ) : S#Var[ Node[ S, A ]] = mod match {
-         case ModMergeRight      => val ridx = idx - main.size; if( ridx < 0 ) main.downRef( idx ) else sib.downRef( ridx )
-         case ModBorrowFromRight => if( idx == main.size ) sib.downRef( 0 ) else main.downRef( idx )
-         case ModBorrowToRight   => if( idx == 0 ) main.downRef( main.size - 1 ) else sib.downRef( idx - 1 )
-         case ModMergeLeft       => // val ridx = idx - sib.size; if( ridx < 0 ) sib.downRef( idx ) else main.downRef( ridx )
-            val ridx = idx - sib.size
-            if( ridx < 0 ) {
-               sib.downRef( idx )
-            } else {
-//assert( ridx < main.size, "HALLO ridx = " + ridx + " sib.size = " + sib.size + " ; main.size = " + main.size )
-               main.downRef( ridx )
-            }
-         case ModBorrowFromLeft  => if( idx == 0 ) sib.downRef( sib.size - 1 ) else main.downRef( idx - 1 )
-      }
-
-      def down( idx: Int )( implicit tx: S#Tx ) : Node[ S, A ] = downRef( idx ).get
-
-      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
-         val newSz   = size
-         val keys    = IIdxSeq.tabulate( newSz )( key( _ ))
-         val downs   = IIdxSeq.tabulate( newSz )( downRef( _ ))
-         new Branch[ S, A ]( keys, downs )
-      }
-
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
-         val newSz   = size - 1
-         val keys = IIdxSeq.tabulate[ A ]( newSz ) { i =>
-            if( i < idx ) key( i ) else key( i + 1 )
-         }
-         val downs = IIdxSeq.tabulate[ S#Var[ Node[ S, A ]]]( newSz ) { i =>
-            if( i < idx ) downRef( i ) else downRef( i + 1 )
-         }
-         new Branch[ S, A ]( keys, downs )
-      }
-
-      private[HASkipList] def updateKey( idx: Int, k: A )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
-//         import list.{size => _, _}
-         val newSz   = size
-         val keys = IIdxSeq.tabulate( newSz ) { i =>
-            if( i == idx ) k else key( i )
-         }
-         val downs = IIdxSeq.tabulate( newSz )( downRef( _ ))
-         new Branch[ S, A ]( keys, downs )
-      }
-   }
-
    object Branch {
       private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, access: S#Acc, isRight: Boolean )
                                                                           ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
@@ -1054,9 +929,9 @@ object HASkipList {
          new Branch[ S, A ]( keys, downs )
       }
    }
-   final class Branch[ S <: Sys[ S ], @specialized( Int ) A ]( keys: IIdxSeq[ A ],
-                                                               downs: IIdxSeq[ S#Var[ Node[ S, A ]]])
-   extends BranchLike[ S, A ] with HeadOrBranch[ S, A ] with Node[ S, A ] {
+   final class Branch[ S <: Sys[ S ], @specialized( Int ) A ]( private[HASkipList] val keys: IIdxSeq[ A ],
+                                                               private[HASkipList] val downs: IIdxSeq[ S#Var[ Node[ S, A ]]])
+   extends /* BranchLike[ S, A ] with */ HeadOrBranch[ S, A ] with Node[ S, A ] {
 //      assert( keys.size == downs.size )
 
       override def toString = keys.mkString( "Branch(", ",", ")" )
@@ -1066,11 +941,30 @@ object HASkipList {
       def asLeaf   : Leaf[ S, A ]   = opNotSupported
       def asBranch : Branch[ S, A ] = this
 
-      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = this
+      private[HASkipList] def mergeRight( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val bSib = sib.asBranch
+         new Branch( keys ++ bSib.keys, downs ++ bSib.downs )
+      }
 
-      private[HASkipList] def virtualize( mod: ModVirtual,
-                                          sib: Node[ S, A ]) : NodeLike[ S, A ] with VirtualLike[ S, A ] =
-         new VirtualBranch[ S, A ]( this, mod, sib.asBranch )
+      private[HASkipList] def borrowRight( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val bSib = sib.asBranch
+         new Branch( keys :+ bSib.keys.head, downs :+ bSib.downs.head )
+      }
+
+      private[HASkipList] def mergeLeft( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val bSib = sib.asBranch
+         new Branch( bSib.keys ++ keys, bSib.downs ++ downs )
+      }
+
+      private[HASkipList] def borrowLeft( sib: Node[ S, A ])( implicit tx: S#Tx ) : Node[ S, A ] = {
+         val bSib = sib.asBranch
+         new Branch( bSib.keys.last +: keys, bSib.downs.last +: downs )
+      }
+
+      private[HASkipList] def insert( v: A, idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
+         val lkeys = keys.patch( idx, IIdxSeq( v ), 0 )
+         new Leaf[ S, A ]( lkeys )
+      }
 
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = {
          var res  = 0
