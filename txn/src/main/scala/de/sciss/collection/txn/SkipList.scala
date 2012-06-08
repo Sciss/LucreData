@@ -95,14 +95,17 @@ object SkipList {
        */
       def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int)
 
+      def floor( key: A )( implicit tx: S#Tx ) : Option[ A ]
+      def ceil( key: A )(  implicit tx: S#Tx ) : Option[ A ]
+
       /**
        * Inserts a new key into the list.
        *
-       * @param   v  the key to insert
+       * @param   key  the key to insert
        * @return  `true` if the key was successfully inserted,
        *          `false` if a node with the given key already existed
        */
-      def add( v: A )( implicit tx: S#Tx ) : Boolean
+      def add( key: A )( implicit tx: S#Tx ) : Boolean
 
       def remove( key: A )( implicit tx: S#Tx ) : Boolean
 
@@ -112,6 +115,24 @@ object SkipList {
       def toList( implicit tx: S#Tx ) : List[ A ]
       def toSeq( implicit tx: S#Tx ) : Seq[ A ]
       def toSet( implicit tx: S#Tx ) : ISet[ A ]
+   }
+
+   trait Map[ S <: Sys[ S ], @specialized( Int, Long ) A, B ] extends SkipList[ S, A ] {
+//      def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, B, Int)
+
+      def put( key: A, value: B )( implicit tx: S#Tx ) : Option[ B ]
+
+      def remove( key: A )( implicit tx: S#Tx ) : Option[ B ]
+
+      def +=( entry: (A, B) )( implicit tx: S#Tx ) : this.type
+
+      def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ (A, B) ]
+      def toList( implicit tx: S#Tx ) : List[ (A, B) ]
+      def toSeq( implicit tx: S#Tx ) : Seq[ (A, B) ]
+      def toSet( implicit tx: S#Tx ) : ISet[ (A, B) ]
+
+      def floor( key: A )( implicit tx: S#Tx ) : Option[ (A, B) ]
+      def ceil( key: A )(  implicit tx: S#Tx ) : Option[ (A, B) ]
    }
 }
 sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S ] {

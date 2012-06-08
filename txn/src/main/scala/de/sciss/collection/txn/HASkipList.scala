@@ -78,7 +78,7 @@ object HASkipList {
 
    private val SER_VERSION = 0
 
-   private final class SetImpl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
+   private final class SetImpl[ S <: Sys[ S ], @specialized( Int, Long ) A ]
       ( val id: S#ID, val minGap: Int, protected val keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
         _downNode: SetImpl[ S, A ] => S#Var[ Node[ S, A, A ]])
       ( implicit val ordering: Ordering[ S#Tx, A ],
@@ -93,6 +93,9 @@ object HASkipList {
 
       def +=( key: A )( implicit tx: S#Tx ) : this.type = { add( key ); this }
       def -=( key: A )( implicit tx: S#Tx ) : this.type = { remove( key ); this }
+
+      def floor( key: A )( implicit tx: S#Tx ) : Option[ A ] = sys.error( "TODO" )
+      def ceil(  key: A )( implicit tx: S#Tx ) : Option[ A ] = sys.error( "TODO" )
 
       protected def newLeaf( key: A, value: A ) : Leaf[ S, A, A ] = {
          val lkeys   = IIdxSeq[ A ]( key, null.asInstanceOf[ A ])
@@ -110,7 +113,7 @@ object HASkipList {
       }
    }
 
-   private sealed trait Impl[ S <: Sys[ S ], A, @specialized( Int ) B ]
+   private sealed trait Impl[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ]
    extends HeadOrBranch[ S, A, B ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A, B ]] {
       impl =>
 
@@ -539,7 +542,6 @@ object HASkipList {
                   // idxP1, hence the right-most key in csib.
                   bNew        = b.removeColumn( idxP )
                   b.downRef( idxP ).dispose()
-//                  cNew        = c.virtualize( ModMergeRight, cSib )
                   cNew        = c.mergeRight( cSib )
                   isRightNew  = isRight && (idxP == bsz - 2) // ! we might be in the right-most branch now
                } else {                                      // borrow from the right
@@ -552,7 +554,6 @@ object HASkipList {
                   keyObserver.keyUp( upKey )
                   val bDown1  = b.downRef( idxP1 )
                   bDown1.set( cSib.removeColumn( 0 ))
-//                  cNew        = c.virtualize( ModBorrowFromRight, cSib )
                   cNew        = c.borrowRight( cSib )
                }
 
@@ -575,7 +576,6 @@ object HASkipList {
                   bNew        = b.removeColumn( idxPM1 )
                   b.downRef( idxPM1 ).dispose()
                   bDownIdx    = idxPM1
-//                  cNew        = c.virtualize( ModMergeLeft, cSib )
                   cNew        = c.mergeLeft( cSib )
                } else {                                        // borrow from the left
                   // the parent needs to update the key for the
@@ -586,12 +586,9 @@ object HASkipList {
                   keyObserver.keyUp( upKey )
                   val bDown1  = b.downRef( idxPM1 )
                   bDown1.set( cSib.removeColumn( cSibSz - 1 ))
-//                  cNew        = c.virtualize( ModBorrowFromLeft, cSib )
                   cNew        = c.borrowLeft( cSib )
                }
             }
-//         } else {
-//            bNew  = b.devirtualize
          }
 
          val bDown = if( bDirty || (bNew ne b) ) { // branch changed
@@ -762,7 +759,7 @@ object HASkipList {
                                               ( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ]
    }
 
-   sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A, @specialized( Int ) B ] {
+   sealed trait Node[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ] {
       private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Node[ S, A, B ]
       def size : Int
       def key( i: Int ): A
@@ -822,7 +819,7 @@ object HASkipList {
       def asBranch : Branch[ S, A, B ]
    }
 
-   sealed trait Leaf[ S <: Sys[ S ], @specialized( Int ) A, @specialized( Int ) B ] extends Node[ S, A, B ] {
+   sealed trait Leaf[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ] extends Node[ S, A, B ] {
       private[HASkipList] def keys: IIdxSeq[ A ]
 
       def value( idx: Int ) : B
@@ -934,7 +931,7 @@ object HASkipList {
    }
 
    object Branch {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A, @specialized( Int ) B ](
+      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ](
          in: DataInput, access: S#Acc, isRight: Boolean )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ] = {
 
          import list.keySerializer
@@ -947,8 +944,8 @@ object HASkipList {
          new Branch[ S, A, B ]( keys, downs )
       }
    }
-   final class Branch[ S <: Sys[ S ], @specialized( Int ) A, @specialized( Int ) B ]( private[HASkipList] val keys: IIdxSeq[ A ],
-                                                               private[HASkipList] val downs: IIdxSeq[ S#Var[ Node[ S, A, B ]]])
+   final class Branch[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ](
+      private[HASkipList] val keys: IIdxSeq[ A ], private[HASkipList] val downs: IIdxSeq[ S#Var[ Node[ S, A, B ]]])
    extends /* BranchLike[ S, A ] with */ HeadOrBranch[ S, A, B ] with Node[ S, A, B ] {
 //      assert( keys.size == downs.size )
 
@@ -1149,8 +1146,12 @@ object HASkipList {
 
    }
 
-   sealed trait Set[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList.Set[ S, A ] {
+   sealed trait Set[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends txn.SkipList.Set[ S, A ] {
       def top( implicit tx: S#Tx ) : Option[ HASkipList.Set.Node[ S, A ]]
+   }
+
+   sealed trait Map[ S <: Sys[ S ], @specialized( Int, Long ) A, B ] extends txn.SkipList.Map[ S, A, B ] {
+      def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A, B ]]
    }
 }
 //sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
