@@ -678,7 +678,7 @@ extends SkipOctree[ S, D, A ] {
       l.parent.demoteLeaf( point /* pointView( l.value ) */, l )
    }
 
-   final def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.keysIterator.map( _.value )
+   final def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.iterator.map( _.value )
 
    private final class NNIter[ @specialized( Long ) M ]( val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M )
 

@@ -76,43 +76,7 @@ object SkipList {
 
    }
 
-   trait Set[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends SkipList[ S, A ] {
-      /**
-       * Finds the nearest item equal or greater
-       * than an unknown item from an isomorphic
-       * set. The isomorphism is represented by
-       * a comparison function which guides the
-       * binary search.
-       *
-       * @param   ord   a function that guides the search.
-       *    should return -1 if the argument is smaller
-       *    than the search key, 0 if both are equivalent,
-       *    or 1 if the argument is greater than the search key.
-       *    E.g., using some mapping, the function could look
-       *    like `mapping.apply(_).compare(queryKey)`
-       *
-       * @return  the nearest item, or the maximum item
-       */
-      def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int)
-
-      /**
-       * Finds the largest key which is smaller than or equal to the search key.
-       *
-       * @param key  the search key
-       * @return     the found key, or `None` if there is no key smaller than or equal
-       *             to the search key (e.g. the set is empty)
-       */
-      def floor( key: A )( implicit tx: S#Tx ) : Option[ A ]
-
-      /**
-       * Finds the smallest key which is greater than or equal to the search key.
-       *
-       * @param key  the search key
-       * @return     the found key, or `None` if there is no key greater than or equal
-       *             to the search key (e.g. the set is empty)
-       */
-      def ceil( key: A )( implicit tx: S#Tx ) : Option[ A ]
-
+   trait Set[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends SkipList[ S, A, A ] {
       /**
        * Inserts a new key into the set.
        *
@@ -129,26 +93,21 @@ object SkipList {
        * @return     `true` if the key was found and removed, `false` if it was not found
        */
       def remove( key: A )( implicit tx: S#Tx ) : Boolean
-
-      def +=( key: A )( implicit tx: S#Tx ) : this.type
-
-      def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ]
-      def toList( implicit tx: S#Tx ) : List[ A ]
-      def toSeq( implicit tx: S#Tx ) : Seq[ A ]
-      def toSet( implicit tx: S#Tx ) : ISet[ A ]
    }
 
-   trait Map[ S <: Sys[ S ], @specialized( Int, Long ) A, B ] extends SkipList[ S, A ] {
+   trait Map[ S <: Sys[ S ], @specialized( Int, Long ) A, B ] extends SkipList[ S, A, (A, B) ] {
 //      def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, B, Int)
+
+      def keysIterator(   implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
+      def valuesIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, B ]
 
       /**
        * Inserts a new entry into the map.
        *
-       * @param   key  the key at which to insert
-       * @param   value the value to store with the key
+       * @param   entry  the key-value pair to insert
        * @return  the previous value stored at the key, or `None` if the key was not in the map
        */
-      def put( key: A, value: B )( implicit tx: S#Tx ) : Option[ B ]
+      def add( entry: (A, B) )( implicit tx: S#Tx ) : Option[ B ]
 
       /**
        * Removes an entry from the map.
@@ -157,34 +116,9 @@ object SkipList {
        * @return  the removed value which had been stored at the key, or `None` if the key was not in the map
        */
       def remove( key: A )( implicit tx: S#Tx ) : Option[ B ]
-
-      def +=( entry: (A, B) )( implicit tx: S#Tx ) : this.type
-
-      def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ (A, B) ]
-      def toList( implicit tx: S#Tx ) : List[ (A, B) ]
-      def toSeq( implicit tx: S#Tx ) : Seq[ (A, B) ]
-      def toSet( implicit tx: S#Tx ) : ISet[ (A, B) ]
-
-      /**
-       * Finds the entry with the largest key which is smaller than or equal to the search key.
-       *
-       * @param key  the search key
-       * @return     the found entry, or `None` if there is no key smaller than or equal
-       *             to the search key (e.g. the map is empty)
-       */
-      def floor( key: A )( implicit tx: S#Tx ) : Option[ (A, B) ]
-
-      /**
-       * Finds the entry with the smallest key which is greater than or equal to the search key.
-       *
-       * @param key  the search key
-       * @return     the found entry, or `None` if there is no key greater than or equal
-       *             to the search key (e.g. the map is empty)
-       */
-      def ceil( key: A )( implicit tx: S#Tx ) : Option[ (A, B) ]
    }
 }
-sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S ] {
+sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends Mutable[ S ] {
    /**
     * Searches for the Branch of a given key.
     *
@@ -193,13 +127,56 @@ sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Muta
     */
    def contains( key: A )( implicit tx: S#Tx ) : Boolean
 
+   /**
+    * Finds the entry with the largest key which is smaller than or equal to the search key.
+    *
+    * @param key  the search key
+    * @return     the found entry, or `None` if there is no key smaller than or equal
+    *             to the search key (e.g. the list is empty)
+    */
+   def floor( key: A )( implicit tx: S#Tx ) : Option[ E ]
+
+   /**
+    * Finds the entry with the smallest key which is greater than or equal to the search key.
+    *
+    * @param key  the search key
+    * @return     the found entry, or `None` if there is no key greater than or equal
+    *             to the search key (e.g. the list is empty)
+    */
+   def ceil( key: A )( implicit tx: S#Tx ) : Option[ E ]
+
+   def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ E ]
+   def toList( implicit tx: S#Tx ) : List[ E ]
+   def toSeq( implicit tx: S#Tx ) : Seq[ E ]
+   def toSet( implicit tx: S#Tx ) : ISet[ E ]
+
+   /**
+    * Finds the nearest item equal or greater
+    * than an unknown item from an isomorphic
+    * set. The isomorphism is represented by
+    * a comparison function which guides the
+    * binary search.
+    *
+    * @param   ord   a function that guides the search.
+    *    should return -1 if the argument is smaller
+    *    than the search key, 0 if both are equivalent,
+    *    or 1 if the argument is greater than the search key.
+    *    E.g., using some mapping, the function could look
+    *    like `mapping.apply(_).compare(queryKey)`
+    *
+    * @return  the nearest item, or the maximum item
+    */
+   def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (E, Int)
+
    // ---- stuff lost from collection.mutable.Set ----
 
+   def +=( entry: E )( implicit tx: S#Tx ) : this.type
    def -=( key: A )( implicit tx: S#Tx ) : this.type
    def isEmpty( implicit tx: S#Tx ) : Boolean
    def notEmpty( implicit tx: S#Tx ) : Boolean
 
-   def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
+//   def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
+   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, E ]
 
    def debugPrint( implicit tx: S#Tx ) : String
 
