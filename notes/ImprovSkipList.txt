@@ -1,0 +1,23 @@
+with virtualisation (before)
+
+For HA-1 (Mem) the tests took 15.604s
+For HA-1 (Mem) the tests took 7.145s
+For HA-2 (Mem) the tests took 8.698s
+For HA-2 (Mem) the tests took 4.394s
+For HA-1 (BDB) the tests took 1:47.847s
+For HA-1 (BDB) the tests took 35.891s
+For HA-2 (BDB) the tests took 1:09.266s
+For HA-2 (BDB) the tests took 22.743s
+
+without virtualisation (after)
+
+For HA-1 (Mem) the tests took 17.083s
+For HA-1 (Mem) the tests took 6.953s
+For HA-2 (Mem) the tests took 8.432s
+For HA-2 (Mem) the tests took 4.413s
+For HA-1 (BDB) the tests took 1:44.491s
+For HA-1 (BDB) the tests took 33.628s
+For HA-2 (BDB) the tests took 1:05.693s
+For HA-2 (BDB) the tests took 21.724s
+
+in other words, it got simpler at no cost (seems even a tiny bit faster)
