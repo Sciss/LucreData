@@ -170,17 +170,23 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
       status( res.toString )
       slv.highlight = Map( key -> Color.blue )
    }}
-   but( "Floor" ) { tryNum { key =>
-      val res = cursor.step { implicit tx => l.floor( key )}
-      res match {
-         case Some( key2 ) =>
-            status( key2.toString )
-            slv.highlight = Map( key2 -> Color.blue )
-         case None =>
-            status( "not found" )
-            slv.highlight = Map.empty
-      }
-   }}
+
+   private def butFloorCeil( label: String )( fun: (HASkipList.Set[ S, Int ], Int, S#Tx) => Option[ Int ]) {
+      but( label ) { tryNum { key =>
+         val res = cursor.step( implicit tx => fun( l, key, tx ))
+         res match {
+            case Some( key2 ) =>
+               status( key2.toString )
+               slv.highlight = Map( key2 -> Color.blue )
+            case None =>
+               status( "not found" )
+               slv.highlight = Map.empty
+         }
+      }}
+   }
+
+   butFloorCeil( "Floor" )( (l, key, tx) => l.floor( key )( tx ))
+   butFloorCeil( "Ceil"  )( (l, key, tx) => l.ceil(  key )( tx ))
 
    space()
    label( "Randomly:" )

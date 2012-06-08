@@ -95,18 +95,39 @@ object SkipList {
        */
       def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int)
 
+      /**
+       * Finds the largest key which is smaller than or equal to the search key.
+       *
+       * @param key  the search key
+       * @return     the found key, or `None` if there is no key smaller than or equal
+       *             to the search key (e.g. the set is empty)
+       */
       def floor( key: A )( implicit tx: S#Tx ) : Option[ A ]
-      def ceil( key: A )(  implicit tx: S#Tx ) : Option[ A ]
 
       /**
-       * Inserts a new key into the list.
+       * Finds the smallest key which is greater than or equal to the search key.
+       *
+       * @param key  the search key
+       * @return     the found key, or `None` if there is no key greater than or equal
+       *             to the search key (e.g. the set is empty)
+       */
+      def ceil( key: A )( implicit tx: S#Tx ) : Option[ A ]
+
+      /**
+       * Inserts a new key into the set.
        *
        * @param   key  the key to insert
-       * @return  `true` if the key was successfully inserted,
+       * @return  `true` if the key was new to the set,
        *          `false` if a node with the given key already existed
        */
       def add( key: A )( implicit tx: S#Tx ) : Boolean
 
+      /**
+       * Removes a key from the set.
+       *
+       * @param key  the key to remove
+       * @return     `true` if the key was found and removed, `false` if it was not found
+       */
       def remove( key: A )( implicit tx: S#Tx ) : Boolean
 
       def +=( key: A )( implicit tx: S#Tx ) : this.type
@@ -120,8 +141,21 @@ object SkipList {
    trait Map[ S <: Sys[ S ], @specialized( Int, Long ) A, B ] extends SkipList[ S, A ] {
 //      def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, B, Int)
 
+      /**
+       * Inserts a new entry into the map.
+       *
+       * @param   key  the key at which to insert
+       * @param   value the value to store with the key
+       * @return  the previous value stored at the key, or `None` if the key was not in the map
+       */
       def put( key: A, value: B )( implicit tx: S#Tx ) : Option[ B ]
 
+      /**
+       * Removes an entry from the map.
+       *
+       * @param   key  the key to remove
+       * @return  the removed value which had been stored at the key, or `None` if the key was not in the map
+       */
       def remove( key: A )( implicit tx: S#Tx ) : Option[ B ]
 
       def +=( entry: (A, B) )( implicit tx: S#Tx ) : this.type
@@ -131,8 +165,23 @@ object SkipList {
       def toSeq( implicit tx: S#Tx ) : Seq[ (A, B) ]
       def toSet( implicit tx: S#Tx ) : ISet[ (A, B) ]
 
+      /**
+       * Finds the entry with the largest key which is smaller than or equal to the search key.
+       *
+       * @param key  the search key
+       * @return     the found entry, or `None` if there is no key smaller than or equal
+       *             to the search key (e.g. the map is empty)
+       */
       def floor( key: A )( implicit tx: S#Tx ) : Option[ (A, B) ]
-      def ceil( key: A )(  implicit tx: S#Tx ) : Option[ (A, B) ]
+
+      /**
+       * Finds the entry with the smallest key which is greater than or equal to the search key.
+       *
+       * @param key  the search key
+       * @return     the found entry, or `None` if there is no key greater than or equal
+       *             to the search key (e.g. the map is empty)
+       */
+      def ceil( key: A )( implicit tx: S#Tx ) : Option[ (A, B) ]
    }
 }
 sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S ] {

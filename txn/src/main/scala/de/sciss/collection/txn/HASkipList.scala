@@ -186,7 +186,7 @@ object HASkipList {
        * @param key  the search key
        * @param tx   the current transaction
        * @return     if `Some`, holds the leaf and index for the floor element (whose key is <= the search key),
-       *             if `None`, there is no key smaller or equal to the search key in the set
+       *             if `None`, there is no key smaller than or equal to the search key in the list
        */
       protected def floorLeaf( key: A )( implicit tx: S#Tx ) : Option[ (Leaf[ S, A, B ], Int) ] = {
          // the algorithm is as follows: find the index of the search key in the current level.
@@ -234,8 +234,28 @@ object HASkipList {
          if( n0 eq null ) None else step( n0, null, 0, isRight = true )
       }
 
+      /**
+       * Finds the leaf and index in the leaf corresponding to the entry that holds either the given
+       * search key or the smallest key in the set greater than the search key.
+       *
+       * @param key  the search key
+       * @param tx   the current transaction
+       * @return     if `Some`, holds the leaf and index for the ceiling element (whose key is >= the search key),
+       *             if `None`, there is no key greater than or equal to the search key in the list
+       */
       protected def ceilLeaf( key: A )( implicit tx: S#Tx ) : Option[ (Leaf[ S, A, B ], Int) ] = {
-         sys.error( "TODO" )
+         @tailrec def step( n: Node[ S, A, B ], isRight: Boolean ): Option[ (Leaf[ S, A, B ], Int) ] = {
+            val idx        = if( isRight ) indexInNodeR( key, n ) else indexInNodeL( key, n )
+            val idxP       = if( idx < 0 ) -(idx + 1) else idx
+            val newRight   = isRight && (idxP == n.size - 1)
+            if( n.isLeaf ) {
+               if( newRight ) None else Some( (n.asLeaf, idxP) )
+            } else {
+               step( n.asBranch.down( idxP ), newRight )
+            }
+         }
+         val c = topN
+         if( c eq null ) None else step( c, isRight = true )
       }
 
       def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int) = {
