@@ -94,8 +94,13 @@ object HASkipList {
       def +=( key: A )( implicit tx: S#Tx ) : this.type = { add( key ); this }
       def -=( key: A )( implicit tx: S#Tx ) : this.type = { remove( key ); this }
 
-      def floor( key: A )( implicit tx: S#Tx ) : Option[ A ] = sys.error( "TODO" )
-      def ceil(  key: A )( implicit tx: S#Tx ) : Option[ A ] = sys.error( "TODO" )
+      def floor( key: A )( implicit tx: S#Tx ) : Option[ A ] = {
+         floorLeaf( key ).map( tup => tup._1.key( tup._2 ))
+      }
+
+      def ceil(  key: A )( implicit tx: S#Tx ) : Option[ A ] = {
+         ceilLeaf( key ).map( tup => tup._1.key( tup._2 ))
+      }
 
       protected def newLeaf( key: A, value: A ) : Leaf[ S, A, A ] = {
          val lkeys   = IIdxSeq[ A ]( key, null.asInstanceOf[ A ])
@@ -173,6 +178,65 @@ object HASkipList {
       @inline private def topN( implicit tx: S#Tx ) : Node[ S, A, B ] = /* Head.*/ downNode.get
 
       def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( isRight = true ).mkString( "\n" )
+
+      /**
+       * Finds the leaf and index in the leaf corresponding to the entry that holds either the given
+       * search key or the greatest key in the set smaller than the search key.
+       *
+       * @param key  the search key
+       * @param tx   the current transaction
+       * @return     if `Some`, holds the leaf and index for the floor element (whose key is <= the search key),
+       *             if `None`, there is no key smaller or equal to the search key in the set
+       */
+      protected def floorLeaf( key: A )( implicit tx: S#Tx ) : Option[ (Leaf[ S, A, B ], Int) ] = {
+         // the algorithm is as follows: find the index of the search key in the current level.
+         // if the key was found, just go down straight to the leaf. if not:
+         //  - the index points to an element greater than the search key
+         //  - if the index is >0, let the key at index-1 be the backup-key, the node is the backup-node
+         //  - if a leaf is reached and the index is 0
+         //       - if no backup-node exists, return None
+         //       - if a backup-node exists, follow that node straight down along the backup-key to the leaf
+         // In the worst case, we descend the list twice, still giving O(log n) performance, while
+         // saving the effort to horizontally connect the leaves.
+
+         @tailrec def straight( n: Node[ S, A, B ], idx: Int ) : (Leaf[ S, A, B ], Int) = {
+            if( n.isLeaf ) {
+               (n.asLeaf, idx)
+            } else {
+               val c = n.asBranch.down( idx )
+               straight( c, c.size - 1 )
+            }
+         }
+
+         @tailrec def step( n: Node[ S, A, B ], _bckNode: Node[ S, A, B ], _bckIdx: Int,
+                            isRight: Boolean ) : Option[ (Leaf[ S, A, B ], Int) ] = {
+
+            val idx = if( isRight ) indexInNodeR( key, n ) else indexInNodeL( key, n )
+
+            if( idx < 0 ) {   // found
+               Some( straight( n, -(idx + 1) ))
+            } else { // not found
+               var bckNode = _bckNode
+               var bckIdx  = _bckIdx
+               if( idx > 0 ) {   // new backup exists, because there is an entry smaller than the search key
+                  bckNode  = n
+                  bckIdx   = idx - 1
+               }
+               if( n.isLeaf ) {
+                  if( bckNode eq null ) None else Some( straight( bckNode, bckIdx ))
+               } else {
+                  step( n.asBranch.down( idx ), bckNode, bckIdx, isRight && (idx == n.size - 1) )
+               }
+            }
+         }
+
+         val n0 = topN
+         if( n0 eq null ) None else step( n0, null, 0, isRight = true )
+      }
+
+      protected def ceilLeaf( key: A )( implicit tx: S#Tx ) : Option[ (Leaf[ S, A, B ], Int) ] = {
+         sys.error( "TODO" )
+      }
 
       def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int) = {
          def isoIndexR( n: Node[ S, A, B ]) : Int = {
