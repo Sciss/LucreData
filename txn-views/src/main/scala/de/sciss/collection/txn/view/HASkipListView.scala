@@ -33,7 +33,7 @@ import de.sciss.lucre.stm.{Cursor, Sys}
 
 class HASkipListView[ S <: Sys[ S ], A ]( access: S#Tx => HASkipList.Set[ S, A ])( implicit cursor: Cursor[ S ])
 extends SkipListView[ A ] {
-   import HASkipList.Node
+   import HASkipList.Set.Node
 
 //   private val stm      = l.system
 
