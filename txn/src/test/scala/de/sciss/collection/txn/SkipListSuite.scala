@@ -40,13 +40,13 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       if( TWO_GAP_SIZES ) {
          withList[ S ]( "HA-1 (" + sysName + ")", { oo =>
             implicit val sys = sysCreator()
-            val l = sys.step { implicit tx => HASkipList.empty[ S, Int ]( minGap = 1, keyObserver = oo )}
+            val l = sys.step { implicit tx => HASkipList.Set.empty[ S, Int ]( minGap = 1, keyObserver = oo )}
             (sys, l, () => sysCleanUp( sys ))
          })
       }
       withList[ S ]( "HA-2 (" + sysName + ")", { oo =>
          implicit val sys = sysCreator()
-         val l = sys.step { implicit tx => HASkipList.empty[ S, Int ]( minGap = 2, keyObserver = oo )}
+         val l = sys.step { implicit tx => HASkipList.Set.empty[ S, Int ]( minGap = 2, keyObserver = oo )}
          (sys, l, () => sysCleanUp( sys ))
       })
    }
@@ -69,7 +69,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
 
    def atomic[ A ]( fun: InTxn => A ) : A = TxnExecutor.defaultAtomic( fun )
 
-   def randFill[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
+   def randFill[ S <: Sys[ S ]]( l: SkipList.Set[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
       given( "a randomly filled structure" )
       for( i <- 0 until NUM1 ) {
          val x = rnd.nextInt( 0x7FFFFFFF )
@@ -102,7 +102,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       res
    }
 
-   def verifyOrder[ S <: Sys[ S ]]( l: SkipList[ S, Int ])( implicit cursor: Cursor[ S ]) {
+   def verifyOrder[ S <: Sys[ S ]]( l: SkipList.Set[ S, Int ])( implicit cursor: Cursor[ S ]) {
       when( "the structure is mapped to its pairwise comparisons" )
 //atomic { implicit tx => println( l.toList )}
       var res  = Set.empty[ Int ]
@@ -118,7 +118,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       then( "the resulting set should only contain -1" )
       assert( res == Set( -1 ), res.toString() )
    }
-   def verifyElems[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
+   def verifyElems[ S <: Sys[ S ]]( l: SkipList.Set[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
       when( "the structure l is compared to an independently maintained set s" )
       val ll       = cursor.step( l.toIndexedSeq( _ ))
       val onlyInS  = cursor.step { implicit tx => s.filterNot( l.contains( _ ))}
@@ -137,7 +137,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       assert( ll.size == szL, "skip list has size " + szL + " / iterator has size " + ll.size )
    }
 
-   def verifyContainsNot[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
+   def verifyContainsNot[ S <: Sys[ S ]]( l: SkipList.Set[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
       when( "the structure l is queried for keys not in the independently maintained set s" )
       var testSet = Set.empty[ Int ]
       val inL = cursor.step { implicit tx =>
@@ -151,7 +151,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
       assert( inL.isEmpty, inL.take( 10 ).toString() )
    }
 
-   def verifyAddRemoveAll[ S <: Sys[ S ]]( l: SkipList[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
+   def verifyAddRemoveAll[ S <: Sys[ S ]]( l: SkipList.Set[ S, Int ], s: MSet[ Int ])( implicit cursor: Cursor[ S ]) {
       when( "all elements of the independently maintained set are added again to l" )
       val szBefore = cursor.step { implicit tx => l.size }
       val newInL   = cursor.step { implicit tx => s.filter( l.add( _ ))}
@@ -173,7 +173,7 @@ class SkipListSuite extends FeatureSpec with GivenWhenThen {
    }
 
    private def withList[ S <: Sys[ S ]]( name: String,
-                                         lf: SkipList.KeyObserver[ S#Tx, Int ] => (S with Cursor[ S ], SkipList[ S, Int ], () => Unit) ) {
+                                         lf: SkipList.KeyObserver[ S#Tx, Int ] => (S with Cursor[ S ], SkipList.Set[ S, Int ], () => Unit) ) {
       def scenarioWithTime( descr: String )( body: => Unit ) {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()

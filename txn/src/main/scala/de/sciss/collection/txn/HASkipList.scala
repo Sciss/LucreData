@@ -27,7 +27,7 @@ package de.sciss.collection
 package txn
 
 import collection.mutable.Builder
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
 import de.sciss.lucre.{DataOutput, DataInput}
 import de.sciss.lucre.stm.{Sink, Sys, TxnSerializer}
@@ -62,90 +62,28 @@ import de.sciss.lucre.stm.{Sink, Sys, TxnSerializer}
  *       and fast pair (interval) search
  */
 object HASkipList {
-   /**
-    * Creates a new empty skip list with default minimum gap parameter of `2` and no key observer.
-    * Type parameter `S` specifies the STM system to use. Type parameter `A`
-    * specifies the type of the keys stored in the list.
-    *
-    * @param   tx          the transaction in which to initialize the structure
-    * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
-    *                      for specialized versions and transactional restrictions.
-    * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
-    */
-   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] =
-      empty()
-
-   /**
-    * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
-    * specifies the type of the keys stored in the list.
-    *
-    * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 126 inclusive.
-    * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
-    *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
-    *                      for synchronized decimations of related data structures, such as the deterministic
-    *                      skip quadtree.
-    * @param   tx          the transaction in which to initialize the structure
-    * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
-    *                      for specialized versions and transactional restrictions.
-    * @param   keySerializer  the serializer for the elements, in case a persistent STM is used.
-    */
-   def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
-                                  keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
-                                ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] = {
-
-      // 255 <= arrMaxSz = (minGap + 1) << 1
-      // ; this is, so we can write a node's size as signed byte, and
-      // no reasonable app would use a node size > 255
-      require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
-
-      val implID = tx.newID()
-      new Impl[ S, A ]( implID, minGap, keyObserver, list => {
-         tx.newVar[ Node[ S, A ]]( implID, null )( list )
-      })
-   }
-
-   def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
-      keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
-      ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList[ S, A ] = {
-
-      val id      = tx.readID( in, access )
-      val version = in.readUnsignedByte()
-      require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-         ", required " + SER_VERSION + ")." )
-
-      val minGap  = in.readInt()
-      new Impl[ S, A ]( id, minGap, keyObserver, list => tx.readVar[ Node[ S, A ]]( id, in )( list ))
-   }
-
-   def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
-                                     ( implicit ordering: Ordering[ S#Tx, A ],
-                                       keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): TxnSerializer[ S#Tx, S#Acc, HASkipList[ S, A ]] =
-      new Ser[ S, A ]( keyObserver )
-
    private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-   private final class Ser[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
+   private final class SetSer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ])
                                               ( implicit ordering: Ordering[ S#Tx, A ],
                                                 keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends TxnSerializer[ S#Tx, S#Acc, HASkipList[ S, A ]] {
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList[ S, A ] =
-         HASkipList.read[ S, A ]( in, access, keyObserver )
+   extends TxnSerializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] {
+      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList.Set[ S, A ] =
+         HASkipList.Set.read[ S, A ]( in, access, keyObserver )
 
-      def write( list: HASkipList[ S, A ], out: DataOutput ) { list.write( out )}
+      def write( list: HASkipList.Set[ S, A ], out: DataOutput ) { list.write( out )}
 
       override def toString = "HASkipList.serializer"
    }
 
    private val SER_VERSION = 0
 
-   private final class Impl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
+   private final class SetImpl[ S <: Sys[ S ], /* @specialized( Int ) */ A ]
       ( val id: S#ID, val minGap: Int, keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ],
-        _downNode: Impl[ S, A ] => S#Var[ Node[ S, A ]])
+        _downNode: SetImpl[ S, A ] => S#Var[ Node[ S, A ]])
       ( implicit val ordering: Ordering[ S#Tx, A ],
         val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends HASkipList[ S, A ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A ]] with HeadOrBranch[ S, A ] {
+   extends HASkipList.Set[ S, A ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A ]] with HeadOrBranch[ S, A ] {
       impl =>
 
       implicit private def head = this
@@ -180,7 +118,7 @@ object HASkipList {
       def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ] = fillBuilder( IIdxSeq.newBuilder[ A ])
       def toList( implicit tx: S#Tx ) : List[ A ] = fillBuilder( List.newBuilder[ A ])
       def toSeq(  implicit tx: S#Tx ) : Seq[  A ] = fillBuilder( Seq.newBuilder[  A ])
-      def toSet(  implicit tx: S#Tx ) : Set[  A ] = fillBuilder( Set.newBuilder[  A ])
+      def toSet(  implicit tx: S#Tx ) : ISet[ A ] = fillBuilder( ISet.newBuilder[  A ])
 
       def height( implicit tx: S#Tx ) : Int = {
          var n = topN
@@ -308,8 +246,8 @@ object HASkipList {
       override def add( v: A )( implicit tx: S#Tx ) : Boolean = {
          val c = topN
          if( c eq null ) {
-            val lkeys = IIdxSeq[ A ]( v, null.asInstanceOf[ A ])
-            val l             = new Leaf[ S, A ]( lkeys )
+            val lkeys   = IIdxSeq[ A ]( v, null.asInstanceOf[ A ])
+            val l       = new Leaf[ S, A ]( lkeys )
             /*Head.*/ downNode.set( l )
             true
          } else if( c.isLeaf ) {
@@ -639,7 +577,7 @@ object HASkipList {
          }
       }
 
-      def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
+      def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
          val i = new IteratorImpl
          i.init()
          i
@@ -736,7 +674,7 @@ object HASkipList {
       }
 
       def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A ], right: Node[ S, A ])
-                          ( implicit tx: S#Tx, head: Impl[ S, A ]) : Branch[ S, A ] = {
+                          ( implicit tx: S#Tx, head: SetImpl[ S, A ]) : Branch[ S, A ] = {
          val bkeys = IIdxSeq[ A ]( splitKey, null.asInstanceOf[ A ])
          val bdowns = IIdxSeq[ S#Var[ Node[ S, A ]]](
             tx.newVar( head.id, left ),
@@ -750,15 +688,15 @@ object HASkipList {
       private[HASkipList] def updateDown( i: Int, n: Node[ S, A ])( implicit tx: S#Tx ) : Unit
 
       private[HASkipList] def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A ], right: Node[ S, A ])
-                                              ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ]
+                                              ( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Branch[ S, A ]
    }
 
    sealed trait Node[ S <: Sys[ S ], @specialized( Int ) A ] {
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Node[ S, A ]
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Node[ S, A ]
       def size : Int
       def key( i: Int ): A
 
-      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) : Unit
+      private[HASkipList] def write( out: DataOutput )( implicit list: SetImpl[ S, A ]) : Unit
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
       private[HASkipList] def printNode( isRight: Boolean )( implicit tx: S#Tx ) : IndexedSeq[ String ]
 
@@ -815,7 +753,7 @@ object HASkipList {
 
    object Leaf {
       private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, access: S#Acc, isRight: Boolean )
-                                                                          ( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ] = {
+                                                                          ( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Leaf[ S, A ] = {
          import list.keySerializer
          val sz: Int = in.readUnsignedByte()
          val szi  = if( isRight ) sz - 1 else sz
@@ -837,7 +775,7 @@ object HASkipList {
       def asLeaf   : Leaf[ S, A ]   = this
       def asBranch : Branch[ S, A ] = opNotSupported
 
-      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: Impl[ S, A ]): Leaf[ S, A ] = this
+      private[HASkipList] def devirtualize( implicit tx: S#Tx, list: SetImpl[ S, A ]): Leaf[ S, A ] = this
 
       private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = size
 
@@ -868,13 +806,13 @@ object HASkipList {
          new Leaf( lSib.keys.last +: keys )
       }
 
-      private[HASkipList] def insert( v: A, idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
+      private[HASkipList] def insert( v: A, idx: Int )( implicit list: SetImpl[ S, A ]) : Leaf[ S, A ] = {
          val lkeys = keys.patch( idx, IIdxSeq( v ), 0 )
          new Leaf[ S, A ]( lkeys )
       }
 
       private[HASkipList] def splitAndInsert( v: A, idx: Int )
-                                            ( implicit list: Impl[ S, A ]) : (Leaf[ S, A ], Leaf[ S, A ]) = {
+                                            ( implicit list: SetImpl[ S, A ]) : (Leaf[ S, A ], Leaf[ S, A ]) = {
 //         assert( size == arrMaxSz )
          val arrMinSz = list.arrMinSz
          val (lkeys0, rkeys0) = keys.splitAt( arrMinSz )
@@ -895,14 +833,14 @@ object HASkipList {
          }
       }
 
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Leaf[ S, A ] = {
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Leaf[ S, A ] = {
          val newKeys = keys.patch( idx, IIdxSeq.empty, 1 )
          new Leaf[ S, A ]( newKeys )
       }
 
 //         override def toString = toString( "Leaf" )
 
-      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
+      private[HASkipList] def write( out: DataOutput )( implicit list: SetImpl[ S, A ]) {
          import list.keySerializer
          val sz      = size
          val sz1     = sz - 1
@@ -918,7 +856,7 @@ object HASkipList {
 
    object Branch {
       private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int ) A ]( in: DataInput, access: S#Acc, isRight: Boolean )
-                                                                          ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+                                                                          ( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Branch[ S, A ] = {
          import list._
          val sz: Int = in.readUnsignedByte()
          val szi     = if( isRight ) sz - 1 else sz
@@ -961,7 +899,7 @@ object HASkipList {
          new Branch( bSib.keys.last +: keys, bSib.downs.last +: downs )
       }
 
-      private[HASkipList] def insert( v: A, idx: Int )( implicit list: Impl[ S, A ]) : Leaf[ S, A ] = {
+      private[HASkipList] def insert( v: A, idx: Int )( implicit list: SetImpl[ S, A ]) : Leaf[ S, A ] = {
          val lkeys = keys.patch( idx, IIdxSeq( v ), 0 )
          new Leaf[ S, A ]( lkeys )
       }
@@ -1002,7 +940,7 @@ object HASkipList {
 
       def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A ] = downs( i ).get
 
-      private[HASkipList] def split( implicit tx: S#Tx, list: Impl[ S, A ]) : (Branch[ S, A ], Branch[ S, A ]) = {
+      private[HASkipList] def split( implicit tx: S#Tx, list: SetImpl[ S, A ]) : (Branch[ S, A ], Branch[ S, A ]) = {
          import list.{size => _, _}
          val lsz     = arrMinSz
          val (lkeys, rkeys)   = keys.splitAt( lsz )
@@ -1017,19 +955,19 @@ object HASkipList {
          downs( i ).set( n )
       }
 
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Branch[ S, A ] = {
          val newKeys    = keys.patch(  idx, IIdxSeq.empty, 1 )
          val newDowns   = downs.patch( idx, IIdxSeq.empty, 1 )
          new Branch[ S, A ]( newKeys, newDowns )
       }
 
-      private[HASkipList] def updateKey( idx: Int, key: A )( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+      private[HASkipList] def updateKey( idx: Int, key: A )( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Branch[ S, A ] = {
          val newKeys    = keys.updated( idx, key )
          new Branch[ S, A ]( newKeys, downs )
       }
 
       private[HASkipList] def insertAfterSplit( idx: Int, splitKey: A, left: Node[ S, A ], right: Node[ S, A ])
-                                              ( implicit tx: S#Tx, list: Impl[ S, A ]) : Branch[ S, A ] = {
+                                              ( implicit tx: S#Tx, list: SetImpl[ S, A ]) : Branch[ S, A ] = {
          // we must make a copy of this branch with the
          // size increased by one. the new key is `splitKey`
          // which gets inserted at the index where we went
@@ -1044,7 +982,7 @@ object HASkipList {
          new Branch[ S, A ]( bkeys, bdowns )
       }
 
-      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A ]) {
+      private[HASkipList] def write( out: DataOutput )( implicit list: SetImpl[ S, A ]) {
          import list.keySerializer
          val sz      = size
          val sz1     = sz - 1
@@ -1061,11 +999,75 @@ object HASkipList {
          i += 1 }
       }
    }
-}
 
-sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
-   def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A ]]
+   object Set {
+      /**
+       * Creates a new empty skip list with default minimum gap parameter of `2` and no key observer.
+       * Type parameter `S` specifies the STM system to use. Type parameter `A`
+       * specifies the type of the keys stored in the list.
+       *
+       * @param   tx          the transaction in which to initialize the structure
+       * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+       *                      for specialized versions and transactional restrictions.
+       * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
+       */
+      def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
+                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] =
+         empty()
 
-   def write( out: DataOutput ) : Unit
-   def keySerializer : TxnSerializer[ S#Tx, S#Acc, A ]
+      /**
+       * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
+       * specifies the type of the keys stored in the list.
+       *
+       * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 126 inclusive.
+       * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
+       *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
+       *                      for synchronized decimations of related data structures, such as the deterministic
+       *                      skip quadtree.
+       * @param   tx          the transaction in which to initialize the structure
+       * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+       *                      for specialized versions and transactional restrictions.
+       * @param   keySerializer  the serializer for the elements, in case a persistent STM is used.
+       */
+      def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
+                                     keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
+                                   ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
+                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
+
+         // 255 <= arrMaxSz = (minGap + 1) << 1
+         // ; this is, so we can write a node's size as signed byte, and
+         // no reasonable app would use a node size > 255
+         require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
+
+         val implID = tx.newID()
+         new SetImpl[ S, A ]( implID, minGap, keyObserver, list => {
+            tx.newVar[ Node[ S, A ]]( implID, null )( list )
+         })
+      }
+
+      def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
+         keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
+         ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
+
+         val id      = tx.readID( in, access )
+         val version = in.readUnsignedByte()
+         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
+            ", required " + SER_VERSION + ")." )
+
+         val minGap  = in.readInt()
+         new SetImpl[ S, A ]( id, minGap, keyObserver, list => tx.readVar[ Node[ S, A ]]( id, in )( list ))
+      }
+
+      def serializer[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
+                                        ( implicit ordering: Ordering[ S#Tx, A ],
+                                          keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): TxnSerializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] =
+         new SetSer[ S, A ]( keyObserver )
+
+   }
+
+   sealed trait Set[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList.Set[ S, A ] {
+      def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A ]]
+   }
 }
+//sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
+//}

@@ -433,7 +433,7 @@ if( verbose ) {
                def compare( a: MarkVertex[ S ], b: MarkVertex[ S ])( implicit tx: S#Tx ) : Int = a.pre.compare( b.pre )
             }
             implicit val keySer = _vertexSer
-            val res = SkipList.empty[ S, MarkVertex[ S ]]
+            val res = SkipList.Set.empty[ S, MarkVertex[ S ]]
             res.add( root )
             res
          }
@@ -443,7 +443,7 @@ if( verbose ) {
                def compare( a: MarkVertex[ S ], b: MarkVertex[ S ])( implicit tx: S#Tx ) : Int = a.post.compare( b.post )
             }
             implicit val keySer = _vertexSer
-            val res = SkipList.empty[ S, MarkVertex[ S ]]
+            val res = SkipList.Set.empty[ S, MarkVertex[ S ]]
             res.add( root )
             res
          }
@@ -454,8 +454,8 @@ if( verbose ) {
    }
    final class MarkTree[ S <: Sys[ S ]] private( val ft: FullTree[ S ],
                                                  val t: SkipOctree[ S, Space.ThreeDim, MarkVertex[ S ]],
-                                 val root: MarkRootVertex[ S ], val preList: SkipList[ S, MarkVertex[ S ]],
-                                 val postList: SkipList[ S, MarkVertex[ S ]]) {
+                                 val root: MarkRootVertex[ S ], val preList: SkipList.Set[ S, MarkVertex[ S ]],
+                                 val postList: SkipList.Set[ S, MarkVertex[ S ]]) {
       type V = MarkVertex[ S ]
 
       def system = ft.system

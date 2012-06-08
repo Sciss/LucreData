@@ -100,7 +100,7 @@ object DeterministicSkipOctree {
       val skipList = {
          implicit val ord  = LeafOrdering
          implicit val r1   = LeafSerializer
-         HASkipList.serializer[ S, LeafImpl ]( KeyObserver ).read( in, access )( tx0 )
+         HASkipList.Set.serializer[ S, LeafImpl ]( KeyObserver ).read( in, access )( tx0 )
       }
       val head = LeftTopBranchSerializer.read( in, access )( tx0 )
       val lastTreeRef = {
@@ -116,7 +116,7 @@ object DeterministicSkipOctree {
 
    extends DeterministicSkipOctree[ S, D, A ] {
       val totalOrder = TotalOrder.Set.empty[ S ]( tx0 ) // ()
-      val skipList   = HASkipList.empty[ S, LeafImpl ]( skipGap, KeyObserver )( tx0, LeafOrdering, LeafSerializer )
+      val skipList   = HASkipList.Set.empty[ S, LeafImpl ]( skipGap, KeyObserver )( tx0, LeafOrdering, LeafSerializer )
       val head = {
          val sz            = numOrthants
          val ch            = tx0.newVarArray[ LeftChildOption ]( sz )
@@ -150,7 +150,7 @@ extends SkipOctree[ S, D, A ] {
    implicit def hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]
 
    protected def totalOrder: TotalOrder.Set[ S ]
-   protected def skipList: HASkipList[ S, LeafImpl ]
+   protected def skipList: HASkipList.Set[ S, LeafImpl ]
    protected def head: LeftTopBranch
    protected def lastTreeRef: S#Var[ TopBranch ]
 
@@ -678,7 +678,7 @@ extends SkipOctree[ S, D, A ] {
       l.parent.demoteLeaf( point /* pointView( l.value ) */, l )
    }
 
-   final def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.iterator.map( _.value )
+   final def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = skipList.keysIterator.map( _.value )
 
    private final class NNIter[ @specialized( Long ) M ]( val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M )
 

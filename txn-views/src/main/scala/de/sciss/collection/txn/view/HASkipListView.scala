@@ -31,7 +31,7 @@ import java.awt.{Color, Point, Rectangle, Graphics2D}
 import de.sciss.collection.view.SkipListView
 import de.sciss.lucre.stm.{Cursor, Sys}
 
-class HASkipListView[ S <: Sys[ S ], A ]( access: S#Tx => HASkipList[ S, A ])( implicit cursor: Cursor[ S ])
+class HASkipListView[ S <: Sys[ S ], A ]( access: S#Tx => HASkipList.Set[ S, A ])( implicit cursor: Cursor[ S ])
 extends SkipListView[ A ] {
    import HASkipList.Node
 
@@ -39,7 +39,7 @@ extends SkipListView[ A ] {
 
    private val maxGap : Int = cursor.step( l( _ ).maxGap )
 
-   def l( implicit tx: S#Tx ) : HASkipList[ S, A ] = access( tx )
+   def l( implicit tx: S#Tx ) : HASkipList.Set[ S, A ] = access( tx )
 
    private def buildBoxMap( n: Node[ S, A ], isRight: Boolean )( implicit tx: S#Tx ) : (Box, NodeBox) = {
       val sz   = n.size

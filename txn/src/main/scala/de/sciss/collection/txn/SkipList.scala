@@ -27,21 +27,10 @@ package de.sciss.collection
 package txn
 
 import de.sciss.lucre.stm.{TxnSerializer, Mutable, Sys}
-import de.sciss.lucre.DataInput
+import de.sciss.lucre.{DataOutput, DataInput}
+import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 
 object SkipList {
-   def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                  serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList[ S, A ] = HASkipList.empty[ S, A ]
-
-   def empty[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])(
-      implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-      serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList[ S, A ] = HASkipList.empty[ S, A ]( keyObserver = keyObserver )
-
-   def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
-         keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
-         ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : SkipList[ S, A ] =
-      HASkipList.read[ S, A ]( in, access, keyObserver )
-
    /**
     * A trait for observing the promotion and demotion of a key
     * in the skip list's level hierarchy
@@ -71,68 +60,81 @@ object SkipList {
       def keyUp( key : A )( implicit tx: Any ) {}
       def keyDown( key : A )( implicit tx: Any ) {}
    }
-}
-trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S ] {
-//   override def empty: SkipList[ A ] = SkipList.empty[ A ]( ordering, MaxKey( maxKey ))
 
+   object Set {
+      def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
+                                     serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList.Set[ S, A ] = HASkipList.Set.empty[ S, A ]
+
+      def empty[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])(
+         implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
+         serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList.Set[ S, A ] = HASkipList.Set.empty[ S, A ]( keyObserver = keyObserver )
+
+      def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
+            keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
+            ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : SkipList.Set[ S, A ] =
+         HASkipList.Set.read[ S, A ]( in, access, keyObserver )
+
+   }
+
+   trait Set[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends SkipList[ S, A ] {
+      /**
+       * Finds the nearest item equal or greater
+       * than an unknown item from an isomorphic
+       * set. The isomorphism is represented by
+       * a comparison function which guides the
+       * binary search.
+       *
+       * @param   ord   a function that guides the search.
+       *    should return -1 if the argument is smaller
+       *    than the search key, 0 if both are equivalent,
+       *    or 1 if the argument is greater than the search key.
+       *    E.g., using some mapping, the function could look
+       *    like `mapping.apply(_).compare(queryKey)`
+       *
+       * @return  the nearest item, or the maximum item
+       */
+      def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int)
+
+      /**
+       * Inserts a new key into the list.
+       *
+       * @param   v  the key to insert
+       * @return  `true` if the key was successfully inserted,
+       *          `false` if a node with the given key already existed
+       */
+      def add( v: A )( implicit tx: S#Tx ) : Boolean
+
+      def remove( key: A )( implicit tx: S#Tx ) : Boolean
+
+      def +=( key: A )( implicit tx: S#Tx ) : this.type
+
+      def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ A ]
+      def toList( implicit tx: S#Tx ) : List[ A ]
+      def toSeq( implicit tx: S#Tx ) : Seq[ A ]
+      def toSet( implicit tx: S#Tx ) : ISet[ A ]
+   }
+}
+sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S ] {
    /**
     * Searches for the Branch of a given key.
     *
-    * @param   v  the key to search for
+    * @param   key   the key to search for
     * @return  `true` if the key is in the list, `false` otherwise
     */
-   def contains( v: A )( implicit tx: S#Tx ) : Boolean
-
-   /**
-    * Finds the nearest item equal or greater
-    * than an unknown item from an isomorphic
-    * set. The isomorphism is represented by
-    * a comparison function which guides the
-    * binary search.
-    *
-    * @param   ord   a function that guides the search.
-    *    should return -1 if the argument is smaller
-    *    than the search key, 0 if both are equivalent,
-    *    or 1 if the argument is greater than the search key.
-    *    E.g., using some mapping, the function could look
-    *    like `mapping.apply(_).compare(queryKey)`
-    *
-    * @return  the nearest item, or the maximum item
-    */
-   def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, Int)
-
-//   /**
-//    * Finds the item preceeding a given item
-//    *
-//    * @param succ the item whose predecessor is to be found
-//    * @return     the predecessor, or `None` if the given item `succ` is the head of the list
-//    */
-//   def pred( succ: A )( implicit tx: S#Tx ) : Option[ A ]
-
-   /**
-    * Inserts a new key into the list.
-    *
-    * @param   v  the key to insert
-    * @return  `true` if the key was successfully inserted,
-    *          `false` if a node with the given key already existed
-    */
-   def add( v: A )( implicit tx: S#Tx ) : Boolean
+   def contains( key: A )( implicit tx: S#Tx ) : Boolean
 
    // ---- stuff lost from collection.mutable.Set ----
 
-   def remove( v: A )( implicit tx: S#Tx ) : Boolean
-   def +=( elem: A )( implicit tx: S#Tx ) : this.type
-   def -=( elem: A )( implicit tx: S#Tx ) : this.type
+   def -=( key: A )( implicit tx: S#Tx ) : this.type
    def isEmpty( implicit tx: S#Tx ) : Boolean
    def notEmpty( implicit tx: S#Tx ) : Boolean
 
-   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
-   def toIndexedSeq( implicit tx: S#Tx ) : collection.immutable.IndexedSeq[ A ]
-   def toList( implicit tx: S#Tx ) : List[ A ]
-   def toSeq( implicit tx: S#Tx ) : Seq[ A ]
-   def toSet( implicit tx: S#Tx ) : Set[ A ]
+   def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
 
    def debugPrint( implicit tx: S#Tx ) : String
+
+   def write( out: DataOutput ) : Unit
+   def keySerializer : TxnSerializer[ S#Tx, S#Acc, A ]
 
    /**
     * The number of levels in the skip list.
@@ -144,14 +146,6 @@ trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends Mutable[ S 
     * This operation may take up to O(n) time, depending on the implementation.
     */
    def size( implicit tx: S#Tx ) : Int
-
-//   /**
-//    * The 'maximum' key. In the ordering of the skip list,
-//    * no is allowed to be greater or equal to this maximum key.
-//    */
-//   def maxKey : A
-//
-//   implicit def maxKeyHolder : MaxKey[ A ] // = MaxKey( maxKey )
 
    /**
     * The ordering used for the keys of this list.

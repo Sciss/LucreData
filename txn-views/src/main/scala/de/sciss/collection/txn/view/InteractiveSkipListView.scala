@@ -52,9 +52,9 @@ object InteractiveSkipListView extends App with Runnable {
          println( dir.getAbsolutePath )
          implicit val system = Durable( BerkeleyDB.open( dir ))
          val fut = new FutureObserver[ Durable ]
-         implicit val ser = HASkipList.serializer[ Durable, Int ]( fut )
-         val access = system.root[ HASkipList[ Durable, Int ]] { implicit tx =>
-            HASkipList.empty[ Durable, Int ]( minGap = 1, keyObserver = fut )
+         implicit val ser = HASkipList.Set.serializer[ Durable, Int ]( fut )
+         val access = system.root[ HASkipList.Set[ Durable, Int ]] { implicit tx =>
+            HASkipList.Set.empty[ Durable, Int ]( minGap = 1, keyObserver = fut )
          }
          val res = new InteractiveSkipListView[ Durable ]( access )
          fut.init( res )
@@ -63,9 +63,9 @@ object InteractiveSkipListView extends App with Runnable {
       } else {
          implicit val system = InMemory()
          val fut = new FutureObserver[ InMemory ]
-         implicit val ser = HASkipList.serializer[ InMemory, Int ]( fut )
+         implicit val ser = HASkipList.Set.serializer[ InMemory, Int ]( fut )
          val access = system.root { implicit tx =>
-            HASkipList.empty[ InMemory, Int ]( minGap = 1, keyObserver = fut )
+            HASkipList.Set.empty[ InMemory, Int ]( minGap = 1, keyObserver = fut )
          }
          val res = new InteractiveSkipListView[ InMemory ]( access )
          fut.init( res )
@@ -99,7 +99,7 @@ object InteractiveSkipListView extends App with Runnable {
       def init( v: SkipList.KeyObserver[ S#Tx, Int ]) { view = v }
    }
 }
-class InteractiveSkipListView[ S <: Sys[ S ]]( access: Source[ S#Tx, HASkipList[ S, Int ]])( implicit cursor: Cursor[ S ])
+class InteractiveSkipListView[ S <: Sys[ S ]]( access: Source[ S#Tx, HASkipList.Set[ S, Int ]])( implicit cursor: Cursor[ S ])
 extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
    view =>
 
@@ -115,7 +115,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
 //   val l = _create( this )
    val slv: HASkipListView[ S, Int ] = new HASkipListView( l( _ ))
 
-   def l( implicit tx: S#Tx ) : HASkipList[ S, Int ] = access.get
+   def l( implicit tx: S#Tx ) : HASkipList.Set[ S, Int ] = access.get
 
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
 

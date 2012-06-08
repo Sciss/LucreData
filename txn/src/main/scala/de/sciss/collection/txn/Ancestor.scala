@@ -304,8 +304,8 @@ object Ancestor {
       protected def preOrder  : TotalOrder.Map[ S, M ]
       protected def postOrder : TotalOrder.Map[ S, M ]
 
-      protected def preList  : SkipList[ S, M ]
-      protected def postList : SkipList[ S, M ]
+      protected def preList  : SkipList.Set[ S, M ]
+      protected def postList : SkipList.Set[ S, M ]
 
       private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, M ]
 
@@ -491,18 +491,18 @@ object Ancestor {
          res
       }
 
-      protected val preList : SkipList[ S, M ] = {
+      protected val preList : SkipList.Set[ S, M ] = {
          implicit val ord  = preOrdering
          implicit val tx   = tx0
-         val res           = SkipList.empty[ S, M ]
+         val res           = SkipList.Set.empty[ S, M ]
          res.add( root )
          res
       }
 
-      protected val postList : SkipList[ S, M ] = {
+      protected val postList : SkipList.Set[ S, M ] = {
          implicit val ord  = postOrdering
          implicit val tx   = tx0
-         val res           = SkipList.empty[ S, M ]
+         val res           = SkipList.Set.empty[ S, M ]
          res.add( root )
          res
       }
@@ -525,16 +525,16 @@ object Ancestor {
       protected val postOrder : TotalOrder.Map[ S, M ] =
          TotalOrder.Map.read[ S, M ]( in, access, me, _.post )( tx0, markSerializer )
 
-      protected val preList : SkipList[ S, M ] = {
+      protected val preList : SkipList.Set[ S, M ] = {
          implicit val ord  = preOrdering
          implicit val tx   = tx0
-         SkipList.read[ S, M ]( in, access )
+         SkipList.Set.read[ S, M ]( in, access )
       }
 
-      protected val postList : SkipList[ S, M ] = {
+      protected val postList : SkipList.Set[ S, M ] = {
          implicit val ord  = postOrdering
          implicit val tx   = tx0
-         SkipList.read[ S, M ]( in, access )
+         SkipList.Set.read[ S, M ]( in, access )
       }
 
       private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, M ] = {
