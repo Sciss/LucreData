@@ -63,16 +63,39 @@ object SkipList {
 
    object Set {
       def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                     serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList.Set[ S, A ] = HASkipList.Set.empty[ S, A ]
+                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList.Set[ S, A ] =
+         HASkipList.Set.empty[ S, A ]
 
-      def empty[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])(
-         implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-         serKey: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList.Set[ S, A ] = HASkipList.Set.empty[ S, A ]( keyObserver = keyObserver )
+      def empty[ S <: Sys[ S ], A ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
+                                   ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
+                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : SkipList.Set[ S, A ] =
+         HASkipList.Set.empty[ S, A ]( keyObserver = keyObserver )
 
       def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
             keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
             ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : SkipList.Set[ S, A ] =
          HASkipList.Set.read[ S, A ]( in, access, keyObserver )
+
+   }
+
+   object Map {
+      def empty[ S <: Sys[ S ], A, B ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
+                                        keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
+                                        valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]): SkipList.Map[ S, A, B ] =
+         HASkipList.Map.empty[ S, A, B ]
+
+      def empty[ S <: Sys[ S ], A, B ]( keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
+                                      ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
+                                        keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
+                                        valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]) : SkipList.Map[ S, A, B ] =
+         HASkipList.Map.empty[ S, A, B ]( keyObserver = keyObserver )
+
+      def read[ S <: Sys[ S ], A, B ]( in: DataInput, access: S#Acc,
+                                       keyObserver: txn.SkipList.KeyObserver[ S#Tx, A ] = txn.SkipList.NoKeyObserver[ A ])
+                                     ( implicit tx: S#Tx, ordering: Ordering[ S#Tx, A ],
+                                       keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
+                                       valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]) : SkipList.Map[ S, A, B ] =
+         HASkipList.Map.read[ S, A, B ]( in, access, keyObserver )
 
    }
 
@@ -173,7 +196,7 @@ sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends M
    def +=( entry: E )( implicit tx: S#Tx ) : this.type
    def -=( key: A )( implicit tx: S#Tx ) : this.type
    def isEmpty( implicit tx: S#Tx ) : Boolean
-   def notEmpty( implicit tx: S#Tx ) : Boolean
+   def nonEmpty( implicit tx: S#Tx ) : Boolean
 
 //   def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
    def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, E ]

@@ -235,7 +235,7 @@ object HASkipList {
       final def maxGap : Int = (minGap << 1) + 1 // aka arrMaxSz - 1
 
       final def isEmpty( implicit tx: S#Tx )   = topN eq null
-      final def notEmpty( implicit tx: S#Tx )  = !isEmpty
+      final def nonEmpty( implicit tx: S#Tx )  = !isEmpty
 
       final def height( implicit tx: S#Tx ) : Int = {
          var n = topN
