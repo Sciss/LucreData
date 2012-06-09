@@ -223,6 +223,22 @@ object HASkipList {
          downNode.write( out )
       }
 
+      final def clear()( implicit tx: S#Tx ) {
+         def step( n: Node[ S, A, E ]) {
+            if( n.isBranch ) {
+               val b    = n.asBranch
+               var bsz  = b.size
+               var i = 0; while( i < bsz ) {
+                  step( b.down( i ))
+                  b.downRef( i ).dispose()
+               i += 1 }
+            }
+         }
+
+         val c = topN
+         if( c ne null ) step( c )
+      }
+
       final protected def disposeData()( implicit tx: S#Tx ) {
          downNode.dispose()
       }

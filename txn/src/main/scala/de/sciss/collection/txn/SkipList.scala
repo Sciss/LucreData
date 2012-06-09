@@ -173,6 +173,8 @@ sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends M
    def toSeq( implicit tx: S#Tx ) : Seq[ E ]
    def toSet( implicit tx: S#Tx ) : ISet[ E ]
 
+   def clear()( implicit tx: S#Tx ) : Unit
+
    /**
     * Finds the nearest item equal or greater
     * than an unknown item from an isomorphic
