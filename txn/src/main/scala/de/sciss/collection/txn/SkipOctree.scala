@@ -100,6 +100,19 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Writer with Dispos
    def add( elem: A )( implicit tx: S#Tx ) : Boolean
 
    /**
+    * Looks up a point and applies a transformation to the entry associated with it.
+    * This can be used to update an element in-place, or used for maintaining a spatial multi-map.
+    *
+    * @param point   the location at which to perform the transformation
+    * @param fun  a function to transform the element found, or generate a new element. The argument is the
+    *             element previously stored with the point, or `None` if no element is found. The result is
+    *             expected to be `Some` new element to be stored, or `None` if no element is to be stored
+    *             (in this case, if an element was previously stored, it is removed)
+    * @return     the previously stored element (if any)
+    */
+   def transformAt( point: D#PointLike )( fun: Option[ A ] => Option[ A ])( implicit tx: S#Tx ) : Option[ A ]
+
+   /**
     * Removes an element from the tree
     *
     * @param   elem  the element to remove

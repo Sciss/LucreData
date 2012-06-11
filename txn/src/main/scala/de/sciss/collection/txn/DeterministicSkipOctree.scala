@@ -622,6 +622,35 @@ extends SkipOctree[ S, D, A ] {
       res
    }
 
+   def transformAt( point: D#PointLike )( fun: Option[ A ] => Option[ A ])( implicit tx: S#Tx ) : Option[ A ] = {
+      require( hyperCube.contains( point ), point.toString + " lies out of root hyper-cube " + hyperCube )
+
+      val p0 = findP0( point )
+      findLeafInP0( p0, point ) match {
+         case EmptyValue =>
+            val res = None
+            fun( res ).foreach { elem =>
+               val leaf = p0.insert( point, elem )
+               skipList.add( leaf )
+            }
+            res
+
+         case oldLeaf: LeafImpl =>
+            // it's not possible currently to update a leaf's value...
+            // remove previous leaf
+            val res = Some( oldLeaf.value )
+            removeLeaf( point, oldLeaf )
+            fun( res ).foreach { elem =>
+               // search anew
+               val p0b = findP0( point )
+               assert( findLeafInP0( p0b, point ) == EmptyValue )
+               val leaf = p0b.insert( point, elem )
+               skipList.add( leaf )
+            }
+            res
+      }
+   }
+
    /*
     * After arriving at this node from a `findP0` call, this resolves
     * the given point to an actual leaf.
