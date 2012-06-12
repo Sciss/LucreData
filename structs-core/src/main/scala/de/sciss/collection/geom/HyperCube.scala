@@ -48,15 +48,9 @@ object HyperCube {
       }
    }
 }
-trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
-//   def extent: Int
+trait HyperCube[ D <: Space[ D ]] {
 
    def orthant( idx: Int ) : D#HyperCube
-
-   /**
-    * The side length is two times the extent.
-    */
-//   def side : Int //   = extent << 1
 
    def contains( point: D#PointLike ) : Boolean
 
@@ -65,10 +59,6 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * This is also the case if their bounds full match.
     */
    def contains( hyperCube: D#HyperCube ) : Boolean
-
-//   def area : D#BigNum
-
-//   def overlapArea( hyperCube: D#HyperCube ) : D#BigNum
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.
@@ -81,21 +71,6 @@ trait HyperCube[ D <: Space[ D ]] /* extends RectangleLike[ D ] */ {
     * This calls `maxDistanceSq` and then takes the square root.
     */
    def maxDistance( point: D#PointLike ) : Double
-
-//   /**
-//    * The squared euclidean distance of the
-//    * closest of the hyper-cube's corners or sides to the point, if the point is outside the hyper-cube,
-//    * or zero, if the point is contained
-//    */
-//   def minDistanceSq( point: D#Point ) : D#BigNum
-
-//   /**
-//    * Calculates the maximum squared euclidean
-//    * distance to a point in the euclidean metric.
-//    * This is the distance (pow space) to the corner which is the furthest from
-//    * the `point`, no matter if it lies within the hyper-cube or not.
-//    */
-//   def maxDistanceSq( point: D#Point ) : D#BigNum
 
    /**
     * Determines the orthant index of a point `point`.

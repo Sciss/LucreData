@@ -31,9 +31,6 @@ package de.sciss.collection.geom
  */
 trait QueryShape[ @specialized( Long ) Area, D <: Space[ D ]] {
    def overlapArea( q: D#HyperCube ) : Area
-//   def area : Long
-
-//   def compareArea( a: D#BigNum, b: D#BigNum ) : Int
 
    def isAreaGreater( a: D#HyperCube, b: Area ) : Boolean
 
