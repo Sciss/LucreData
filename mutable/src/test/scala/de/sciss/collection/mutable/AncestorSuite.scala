@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{DistanceMeasure2D, IntPoint2D, IntSquare, IntPoint2DLike}
+import geom.{IntDistanceMeasure2D, IntPoint2D, IntSquare, IntPoint2DLike}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 /**
@@ -165,7 +165,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          // is south west (2))
          when( "each vertex is asked for its parent node through NN search in the quadtree" )
          then( "the results should be identical to an independently maintained map" )
-         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
+         val metric = IntDistanceMeasure2D.chebyshev.orthant( 2 )
          treeSeq.foreach { child => parents.get( child ).foreach { parent =>
             val point = IntPoint2D( child.x - 1, child.y + 1 ) // make sure we skip the child itself
             val found = t.t.nearestNeighborOption( point, metric )
@@ -323,7 +323,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
          then( "the results should be identical to those obtained from independent brute force" )
 
-         val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
+         val metric = IntDistanceMeasure2D.chebyshev.orthant( 2 )
          treeSeq.foreach { child =>
 //            val iso = tm.hyperCube.isomorphicQuery { vm =>
 //               val v = markMap2( vm )

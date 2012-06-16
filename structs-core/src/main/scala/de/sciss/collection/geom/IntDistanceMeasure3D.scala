@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-object DistanceMeasure3D {
+object IntDistanceMeasure3D {
    import IntSpace.ThreeDim
    import ThreeDim._
 
@@ -50,7 +50,7 @@ object DistanceMeasure3D {
    val vehsybehcXY : DistanceMeasure[ Long, ThreeDim ] = VehsybehcXY
 
    private object EuclideanSq extends ImplBigInt {
-      override def toString = "DistanceMeasure3D.euclideanSq"
+      override def toString = "IntDistanceMeasure3D.euclideanSq"
       def distance( a: PointLike, b: PointLike ) = b.distanceSq( a )
       def minDistance( a: PointLike, b: HyperCube ) = b.minDistanceSq( a )
       def maxDistance( a: PointLike, b: HyperCube ) = b.maxDistanceSq( a )
@@ -138,12 +138,12 @@ object DistanceMeasure3D {
    extends OrthantLike[ Long ] with ImplLong
 
    private object ChebyshevXY extends ChebyshevXYLike {
-      override def toString = "DistanceMeasure3D.chebyshevXY"
+      override def toString = "IntDistanceMeasure3D.chebyshevXY"
       protected def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
    }
 
    private object VehsybehcXY extends ChebyshevXYLike {
-      override def toString = "DistanceMeasure3D.vehsybehcXY"
+      override def toString = "IntDistanceMeasure3D.vehsybehcXY"
       protected def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
    }
 

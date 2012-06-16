@@ -2,7 +2,7 @@ package de.sciss.collection
 package txn
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import geom.{IntSpace, IntPoint3D, DistanceMeasure3D, IntCube}
+import geom.{IntSpace, IntPoint3D, IntDistanceMeasure3D, IntCube}
 import concurrent.stm.Ref
 import java.io.File
 import de.sciss.lucre.{DataInput, DataOutput}
@@ -573,7 +573,7 @@ if( verbose ) {
                   // is expressed by a XY chebychev distance measure.
                   when( "each vertex is asked for its parent node through NN search in the quadtree" )
                   then( "the results should be identical to an independently maintained map" )
-                  val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+                  val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
 
          //         if( verbose ) printPrePost( t, treeSeq )
 
@@ -764,7 +764,7 @@ if( verbose ) {
                      assert( obsPost == mPostVals )
                   }
 
-                  val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+                  val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
          if( DEBUG_LAST ) verbose = false
                   treeSeq.zipWithIndex.foreach { case (child, i) =>
          if( DEBUG_LAST && i == NUM2 - 1 ) verbose = true

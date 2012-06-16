@@ -3,7 +3,7 @@ package mutable
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
-import geom.{IntSpace, IntPoint3D, DistanceMeasure3D, IntCube, IntPoint3DLike}
+import geom.{IntSpace, IntPoint3D, IntDistanceMeasure3D, IntCube, IntPoint3DLike}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -241,7 +241,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
          // is expressed by a XY chebychev distance measure.
          when( "each vertex is asked for its parent node through NN search in the quadtree" )
          then( "the results should be identical to an independently maintained map" )
-         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+         val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
 
          if( verbose ) printPrePost( t, treeSeq )
 
@@ -360,7 +360,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
 //println( "\n-----PARE-----" ); parents.foreach( println )
 //println()
 
-         val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 ) // XXX THIS IS WRONG ???
+         val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 ) // XXX THIS IS WRONG ???
          treeSeq.foreach { child =>
 //println( " -- testing " + child )
             val preIso  = mPreList.isomorphicQuery  { e => preTagIsoMap.get(  e ).map( _.compare( child.pre  )).getOrElse( 1 )}

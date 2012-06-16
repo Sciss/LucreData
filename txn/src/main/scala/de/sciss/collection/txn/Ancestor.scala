@@ -25,7 +25,7 @@
 
 package de.sciss.collection.txn
 
-import de.sciss.collection.geom.{IntSpace, DistanceMeasure3D, IntPoint3D, IntCube}
+import de.sciss.collection.geom.{IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
 import de.sciss.lucre.{DataOutput, DataInput}
 import de.sciss.lucre.stm.{Disposable, TxnSerializer, Writer, Sys}
 
@@ -231,7 +231,7 @@ object Ancestor {
 
    private type MarkOrder[ S <: Sys[ S ], Version, A ] = TotalOrder.Map.Entry[ S, Mark[ S, Version, A ]]
 
-   private val metric = DistanceMeasure3D.chebyshevXY.orthant( 2 )
+   private val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
 
    private sealed trait Mark[ S <: Sys[ S ], Version, @specialized A ] extends Writer {
 

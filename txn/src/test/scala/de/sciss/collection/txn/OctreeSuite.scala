@@ -1,7 +1,7 @@
 package de.sciss.collection
 package txn
 
-import geom.{IntSpace, DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
+import geom.{IntSpace, IntDistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -223,7 +223,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          (dy * dy + dz * dz > 0L)
    }
 
-   val euclideanDist3D = DistanceMeasure3D.euclideanSq
+   val euclideanDist3D = IntDistanceMeasure3D.euclideanSq
 
    // JUHUUUUU SPECIALIZATION BROKEN ONCE MORE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    def verifyNN[ S <: Sys[ S ], M, D <: Space[ D ]](

@@ -31,7 +31,7 @@ import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.collection.view.{PDFSupport, QuadView}
-import geom.{IntSpace, QueryShape, DistanceMeasure, DistanceMeasure3D, IntCube, IntPoint3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
+import geom.{IntSpace, QueryShape, DistanceMeasure, IntDistanceMeasure3D, IntCube, IntPoint3D, IntDistanceMeasure2D, IntSquare, IntPoint2D, Space}
 
 object InteractiveSkipOctreePanel extends App with Runnable {
    val seed = 0L
@@ -82,15 +82,15 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          res
       }
       def repaint() { view.repaint() }
-//      val baseDistance = DistanceMeasure2D.euclideanSq
+//      val baseDistance = IntDistanceMeasure2D$.euclideanSq
 
       def highlight: Set[ Point ] = view.highlight
       def highlight_=( points: Set[ Point ]) { view.highlight = points }
 
       val distanceMeasures = IndexedSeq(
-         "Euclidean" -> DistanceMeasure2D.euclideanSq,
-         "Maximum" -> DistanceMeasure2D.chebyshev,
-         "Minimum" -> DistanceMeasure2D.vehsybehc
+         "Euclidean" -> IntDistanceMeasure2D.euclideanSq,
+         "Maximum"   -> IntDistanceMeasure2D.chebyshev,
+         "Minimum"   -> IntDistanceMeasure2D.vehsybehc
       )
 
       var rangeHyperCube = Option.empty[ HyperCube ]
@@ -133,14 +133,14 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
       val view = new SkipOctree3DView[ Point ]( tree )
       def repaint() { view.treeUpdated() }
-//      val baseDistance = DistanceMeasure3D.euclideanSq
+//      val baseDistance = IntDistanceMeasure3D$.euclideanSq
       def highlight: Set[ Point ] = view.highlight
       def highlight_=( points: Set[ Point ]) { view.highlight = points }
 
       val distanceMeasures = IndexedSeq(
-         "Euclidean" -> DistanceMeasure3D.euclideanSq,
-         "MaximumXY" -> DistanceMeasure3D.chebyshevXY,
-         "MinimumXY" -> DistanceMeasure3D.vehsybehcXY
+         "Euclidean" -> IntDistanceMeasure3D.euclideanSq,
+         "MaximumXY" -> IntDistanceMeasure3D.chebyshevXY,
+         "MinimumXY" -> IntDistanceMeasure3D.vehsybehcXY
       )
 
       var rangeHyperCube = Option.empty[ HyperCube ]

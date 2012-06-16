@@ -1,5 +1,5 @@
 /*
- *  DistanceMeasure2D.scala
+ *  IntDistanceMeasure2D.scala
  *  (LucreData)
  *
  *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-object DistanceMeasure2D {
+object IntDistanceMeasure2D {
    import IntSpace.TwoDim
    import TwoDim._
 
@@ -49,25 +49,25 @@ object DistanceMeasure2D {
    val vehsybehc : DistanceMeasure[ Long, TwoDim ] = Vehsybehc
 
    private object Chebyshev extends ChebyshevLike {
-      override def toString = "DistanceMeasure2D.chebyshev"
+      override def toString = "IntDistanceMeasure2D.chebyshev"
       protected def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
    }
 
    private object Vehsybehc extends ChebyshevLike {
-      override def toString = "DistanceMeasure2D.vehsybehc"
+      override def toString = "IntDistanceMeasure2D.vehsybehc"
       protected def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
    }
 
    private object EuclideanSq extends Impl {
-      override def toString = "DistanceMeasure2D.euclideanSq"
-      def distance( a: PointLike, b: PointLike )        = b.distanceSq( a )
+      override def toString = "IntDistanceMeasure2D.euclideanSq"
+      def distance( a: PointLike, b: PointLike )    = b.distanceSq( a )
       def minDistance( a: PointLike, b: HyperCube ) = b.minDistanceSq( a )
       def maxDistance( a: PointLike, b: HyperCube ) = b.maxDistanceSq( a )
    }
 
    private final class Clip( underlying: Impl, quad: HyperCube ) extends Impl {
       override def toString = underlying.toString + ".clip(" + quad + ")"
-      def distance( a: PointLike, b: PointLike )       = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
+      def distance( a: PointLike, b: PointLike )    = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
       def minDistance( a: PointLike, b: HyperCube ) = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
       def maxDistance( a: PointLike, b: HyperCube ) = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
    }

@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{IntSpace, DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
+import geom.{IntSpace, IntDistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -180,7 +180,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          (dy * dy + dz * dz > 0L)
    }
 
-   val euclideanDist3D = DistanceMeasure3D.euclideanSq
+   val euclideanDist3D = IntDistanceMeasure3D.euclideanSq
 
    def verifyNN[ @specialized( Long ) M : math.Ordering, D <: Space[ D ]]( t: SkipOctree[ D, D#PointLike ], m: MSet[ D#PointLike ], pointFun: Int => D#PointLike,
                                    pointFilter: D#PointLike => Boolean, euclideanDist: DistanceMeasure[ M, D ]) {

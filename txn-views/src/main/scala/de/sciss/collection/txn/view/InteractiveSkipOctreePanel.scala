@@ -32,7 +32,7 @@ import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JC
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
-import geom.{IntSpace, Space, QueryShape, DistanceMeasure2D, DistanceMeasure, IntPoint2D, IntSquare}
+import geom.{IntSpace, Space, QueryShape, IntDistanceMeasure2D, DistanceMeasure, IntPoint2D, IntSquare}
 import IntSpace.TwoDim
 import de.sciss.collection.view.{PDFSupport, QuadView}
 import de.sciss.lucre.stm.{Source, Cursor, InMemory, Durable, Sys}
@@ -135,15 +135,15 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          res
       }
       def repaint() { view.repaint() }
-//      val baseDistance = DistanceMeasure2D.euclideanSq
+//      val baseDistance = IntDistanceMeasure2D$.euclideanSq
 
       def highlight: Set[ IntPoint2D ] = view.highlight
       def highlight_=( points: Set[ IntPoint2D ]) { view.highlight = points }
 
       val distanceMeasures = IndexedSeq(
-         "Euclidean" -> DistanceMeasure2D.euclideanSq,
-         "Maximum" -> DistanceMeasure2D.chebyshev,
-         "Minimum" -> DistanceMeasure2D.vehsybehc
+         "Euclidean" -> IntDistanceMeasure2D.euclideanSq,
+         "Maximum" -> IntDistanceMeasure2D.chebyshev,
+         "Minimum" -> IntDistanceMeasure2D.vehsybehc
       )
 
       var rangeHyperCube = Option.empty[ IntSquare ]
@@ -178,14 +178,14 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //
 //      val view = new SkipOctree3DView( tree )
 //      def repaint() { view.treeUpdated() }
-////      val baseDistance = DistanceMeasure3D.euclideanSq
+////      val baseDistance = IntDistanceMeasure3D$.euclideanSq
 //      def highlight: Set[ IntPoint3DLike ] = view.highlight
 //      def highlight_=( points: Set[ IntPoint3DLike ]) { view.highlight = points }
 //
 //      val distanceMeasures = IndexedSeq(
-//         "Euclidean" -> DistanceMeasure3D.euclideanSq,
-//         "MaximumXY" -> DistanceMeasure3D.chebyshevXY,
-//         "MinimumXY" -> DistanceMeasure3D.vehsybehcXY
+//         "Euclidean" -> IntDistanceMeasure3D$.euclideanSq,
+//         "MaximumXY" -> IntDistanceMeasure3D$.chebyshevXY,
+//         "MinimumXY" -> IntDistanceMeasure3D$.vehsybehcXY
 //      )
 //
 //      var rangeHyperCube = Option.empty[ IntCubeLike ]
