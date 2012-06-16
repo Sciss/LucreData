@@ -28,6 +28,7 @@ package de.sciss.collection.geom
 object IntDistanceMeasure3D {
    import IntSpace.ThreeDim
    import ThreeDim._
+   import Space.bigZero
 
    /**
     * A measure that uses the euclidean squared distance
@@ -75,7 +76,7 @@ object IntDistanceMeasure3D {
       def maxDistance( a: PointLike, b: HyperCube ) : BigInt = underlying.maxDistance( a, b )
       def distance( a: PointLike, b: PointLike ) : BigInt = {
          val res = b.distanceSq( a )
-         if( res > thresh ) res else ThreeDim.bigZero
+         if( res > thresh ) res else bigZero
       }
    }
 
@@ -245,7 +246,7 @@ object IntDistanceMeasure3D {
       final val manifest : Manifest[ BigInt ] = Manifest.classType[ BigInt ]( classOf[ BigInt ])
 
       final val maxValue : BigInt = BigInt( 0x7FFFFFFFFFFFFFFFL ) * BigInt( 0x7FFFFFFFFFFFFFFFL )
-      final def isMeasureZero( m: BigInt ) : Boolean = m == ThreeDim.bigZero
+      final def isMeasureZero( m: BigInt ) : Boolean = m == bigZero
       final def isMeasureGreater( a: BigInt, b: BigInt ) : Boolean = a > b
       final def compareMeasure( a: BigInt, b: BigInt ) : Int = if( a > b ) 1 else if( a < b ) -1 else 0
 

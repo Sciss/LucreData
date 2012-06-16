@@ -81,7 +81,8 @@ trait IntSquareLike extends HyperCube[ IntSpace.TwoDim ] with QueryShape[ Long, 
    final def right : Int   = cx + (extent - 1)
 
    /**
-    * The side length is two times the extent.
+    * The side length is two times the extent. Note that this may overflow if the extent
+    * is greater than `0x3FFFFFFF`.
     */
    final def side : Int    = extent << 1
 
@@ -99,7 +100,7 @@ trait IntSquareLike extends HyperCube[ IntSpace.TwoDim ] with QueryShape[ Long, 
       quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
 
    final def area : Long = {
-      val sd = side.toLong
+      val sd = extent.toLong << 1
       sd * sd
    }
 

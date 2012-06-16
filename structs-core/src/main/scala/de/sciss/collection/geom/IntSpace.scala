@@ -46,7 +46,6 @@ object IntSpace {
    implicit object ThreeDim extends ThreeDim {
       val maxPoint         = IntPoint3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
       val dim              = 3
-      val bigZero          = BigInt( 0 )
    }
 
 //   /**

@@ -61,6 +61,7 @@ import IntSpace.ThreeDim
  */
 trait IntCubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ] {
    import ThreeDim._
+   import Space.bigZero
 
    /**
     * X coordinate of the cube's center

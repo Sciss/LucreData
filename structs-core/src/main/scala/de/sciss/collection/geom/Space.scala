@@ -25,6 +25,10 @@
 
 package de.sciss.collection.geom
 
+object Space {
+   val bigZero = BigInt( 0 )
+}
+
 /**
  * A `Space` abstracts over the number of dimensions
  * that are used for point and hypercube operations.

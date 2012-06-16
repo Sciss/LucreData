@@ -79,7 +79,8 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
    final def right : Long   = cx + (extent - 1)
 
    /**
-    * The side length is two times the extent.
+    * The side length is two times the extent. Note that this may overflow if the extent
+    * is greater than `0x3FFFFFFFFFFFFFFF`.
     */
    final def side : Long    = extent << 1
 
@@ -96,9 +97,8 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
    final def contains( quad: HyperCube ) : Boolean =
       quad.left >= left && quad.top >= top && quad.right <= right && quad.bottom <= bottom
 
-   final def area : Long = {
-      sys.error( "TODO" )
-      val sd = side.toLong
+   final def area : BigInt = {
+      val sd = BigInt( extent ) << 1
       sd * sd
    }
 
@@ -106,9 +106,9 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
 
    final def overlapArea( q: HyperCube ) : BigInt = {
       sys.error( "TODO" )
-      val l = math.max( q.left, left ).toLong
-      val r = math.min( q.right, right ).toLong
-      val w = r - l + 1 // (r - l).toLong + 1
+      val l = BigInt( math.max( q.left, left ))
+      val r = BigInt( math.min( q.right, right ))
+      val w = r - l + 1
       if( w <= 0L ) return 0L
       val t = math.max( q.top, top ).toLong
       val b = math.min( q.bottom, bottom ).toLong
