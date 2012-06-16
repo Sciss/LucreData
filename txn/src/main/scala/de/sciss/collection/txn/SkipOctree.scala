@@ -169,7 +169,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Writer with Dispos
     * furthest corner of the tree's root hyper-cube exceeds 63 bits.
     * For a root `Square( 0x40000000, 0x40000000, 0x40000000 )`, this
     * happens for example for any point going more towards north-west
-    * than `Point2DLike( -1572067139, -1572067139 )`.
+    * than `IntPoint2DLike( -1572067139, -1572067139 )`.
     *
     * @param   point the point of which the nearest neighbor is to be found
     * @param   metric   (description missing)

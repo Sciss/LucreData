@@ -53,7 +53,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
    def numOrthants : Int
 
    def get( point: D#PointLike ) : Option[ A ]
-//   def apply( point: Point2DLike ) : A = get.getOrElse( throw new )
+//   def apply( point: IntPoint2DLike ) : A = get.getOrElse( throw new )
    def isDefinedAt( point: D#PointLike ) : Boolean
 
    /**
@@ -93,7 +93,7 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     * furthest corner of the tree's root hyper-cube exceeds 63 bits.
     * For a root `Square( 0x40000000, 0x40000000, 0x40000000 )`, this
     * happens for example for any point going more towards north-west
-    * than `Point2DLike( -1572067139, -1572067139 )`.
+    * than `IntPoint2DLike( -1572067139, -1572067139 )`.
     *
     * @param   point the point of which the nearest neighbor is to be found
     * @param   a threshold which is an acceptable abortion criterion. I.e.,

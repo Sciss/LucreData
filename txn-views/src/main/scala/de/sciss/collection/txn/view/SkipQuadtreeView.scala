@@ -29,11 +29,11 @@ package view
 
 import java.awt.{Color, Dimension}
 import de.sciss.collection.view.QuadView
-import geom.{Point2DLike, Space}
+import geom.{IntPoint2DLike, Space}
 import de.sciss.lucre.stm.{Source, Cursor, Sys}
 
 class SkipQuadtreeView[ S <: Sys[ S ], A ]( access: Source[ S#Tx, DeterministicSkipOctree[ S, Space.TwoDim, A ]],
-                                            cursor: Cursor[ S ], pointView: A => Point2DLike )
+                                            cursor: Cursor[ S ], pointView: A => IntPoint2DLike )
 extends QuadView {
 //   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.TwoDim, A ]
 

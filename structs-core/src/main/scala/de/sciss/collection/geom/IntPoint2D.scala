@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-trait Point2DLike /* extends PointLike[ Space.TwoDim ] */ {
+trait IntPoint2DLike /* extends PointLike[ Space.TwoDim ] */ {
    def x: Int
    def y: Int
 
@@ -37,7 +37,7 @@ trait Point2DLike /* extends PointLike[ Space.TwoDim ] */ {
 //   final def width            = 1
 //   final def height           = 1
 
-   def distanceSq( that: Point2DLike ) : Long = {
+   def distanceSq( that: IntPoint2DLike ) : Long = {
       val dx = that.x.toLong - x.toLong
       val dy = that.y.toLong - y.toLong
       dx * dx + dy * dy
@@ -49,13 +49,13 @@ trait Point2DLike /* extends PointLike[ Space.TwoDim ] */ {
 
    /**
     * Queries the overlap of this shape with a given
-    * `Point2D p`. The point is considered to have
+    * `IntPoint2D p`. The point is considered to have
     * a side length of 1!
     *
     * @return  `true` if this shape contains or partly overlaps
     *          the given point
     */
-   final def contains( p: Point2DLike ) : Boolean = p.x == this.x && p.y == this.y
+   final def contains( p: IntPoint2DLike ) : Boolean = p.x == this.x && p.y == this.y
 
    /**
     * Returns the orientation of the given point wrt this point, according
@@ -73,11 +73,11 @@ trait Point2DLike /* extends PointLike[ Space.TwoDim ] */ {
     *  '3' for 'after', so that if the orient is before or
     *  after, the sign can be retrieved via `_ - 2`
     *
-    *  For example, if this is `Point2D(4, 4)` and the query
-    *  point is `Point2D(4, 5)`, the result is `12`. If the
-    *  query is `Point2D(0, 0)`, the result is `5`, etc.
+    *  For example, if this is `IntPoint2D(4, 4)` and the query
+    *  point is `IntPoint2D(4, 5)`, the result is `12`. If the
+    *  query is `IntPoint2D(0, 0)`, the result is `5`, etc.
     */
-   final def orient( b: Point2DLike ) : Int = {
+   final def orient( b: IntPoint2DLike ) : Int = {
       val ax = x
       val ay = y
       val bx = b.x
@@ -88,7 +88,7 @@ trait Point2DLike /* extends PointLike[ Space.TwoDim ] */ {
    }
 }
 
-final case class Point2D( x: Int, y: Int ) extends Point2DLike {
-   def +( p: Point2D ) = Point2D( x + p.x, y + p.y )
-   def -( p: Point2D ) = Point2D( x - p.x, y - p.y )
+final case class IntPoint2D( x: Int, y: Int ) extends IntPoint2DLike {
+   def +( p: IntPoint2D ) = IntPoint2D( x + p.x, y + p.y )
+   def -( p: IntPoint2D ) = IntPoint2D( x - p.x, y - p.y )
 }

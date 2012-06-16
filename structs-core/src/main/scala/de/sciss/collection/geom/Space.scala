@@ -27,13 +27,13 @@ package de.sciss.collection.geom
 
 object Space {
    sealed trait TwoDim extends Space[ TwoDim ] {
-      type PointLike       = Point2DLike
-      type Point           = Point2D
+      type PointLike       = IntPoint2DLike
+      type Point           = IntPoint2D
       type HyperCubeLike   = SquareLike
       type HyperCube       = Square
    }
    implicit object TwoDim extends TwoDim {
-      val maxPoint         = Point2D( Int.MaxValue, Int.MaxValue )
+      val maxPoint         = IntPoint2D( Int.MaxValue, Int.MaxValue )
       val dim              = 2
    }
 

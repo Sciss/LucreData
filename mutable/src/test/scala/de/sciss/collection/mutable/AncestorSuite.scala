@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{DistanceMeasure2D, Point2D, Square, Point2DLike}
+import geom.{DistanceMeasure2D, IntPoint2D, Square, IntPoint2DLike}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 /**

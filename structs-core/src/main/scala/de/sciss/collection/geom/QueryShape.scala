@@ -38,7 +38,7 @@ trait QueryShape[ @specialized( Long ) Area, D <: Space[ D ]] {
 
    /**
     * Queries the overlap of this shape with a given
-    * `Point2D p`. The point is considered to have
+    * `IntPoint2D p`. The point is considered to have
     * a side length of 1!
     *
     * @return  `true` if this shape contains or partly overlaps

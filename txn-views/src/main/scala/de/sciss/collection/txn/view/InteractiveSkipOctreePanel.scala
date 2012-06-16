@@ -32,7 +32,7 @@ import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JC
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
-import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, Point2D, Square}
+import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, IntPoint2D, Square}
 import Space.TwoDim
 import de.sciss.collection.view.{PDFSupport, QuadView}
 import de.sciss.lucre.stm.{Source, Cursor, InMemory, Durable, Sys}
@@ -74,10 +74,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          println( f.getAbsolutePath )
          implicit val system = Durable( BerkeleyDB.open( f ))
          import SpaceSerializers.{Point2DSerializer, SquareSerializer}
-         implicit val pointView = (p: Point2D, t: Any) => p
-         implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, Point2D ]
+         implicit val pointView = (p: IntPoint2D, t: Any) => p
+         implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, IntPoint2D ]
          val access = system.root { implicit tx =>
-            txn.DeterministicSkipOctree.empty[ Durable, TwoDim, Point2D ](
+            txn.DeterministicSkipOctree.empty[ Durable, TwoDim, IntPoint2D ](
                Square( sz, sz, sz ), skipGap = 1 )
          }
          new Model2D[ Durable ]( system, access, { () =>
@@ -87,10 +87,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       } else {
          implicit val system = InMemory()
          import SpaceSerializers.{Point2DSerializer, SquareSerializer}
-         implicit val pointView = (p: Point2D, t: Any) => p
-         implicit val reader = txn.DeterministicSkipOctree.serializer[ InMemory, TwoDim, Point2D ]
+         implicit val pointView = (p: IntPoint2D, t: Any) => p
+         implicit val reader = txn.DeterministicSkipOctree.serializer[ InMemory, TwoDim, IntPoint2D ]
          val access = system.root { implicit tx =>
-            txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
+            txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, IntPoint2D ](
                Square( sz, sz, sz ), skipGap = 1 )
          }
          new Model2D[ InMemory ]( system, access, { () => println( "(Consistency not checked)" )})
@@ -111,16 +111,16 @@ object InteractiveSkipOctreePanel extends App with Runnable {
    private val sz = 256
 
    final class Model2D[ S <: Sys[ S ]]( val cursor: Cursor[ S ],
-                                        access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, Point2D ]],
+                                        access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, IntPoint2D ]],
                                         cons: () => Unit, val nTimes: Int = 10 )
-   extends Model[ S, TwoDim, Point2D ] {
+   extends Model[ S, TwoDim, IntPoint2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
 
-      def tree( implicit tx: S#Tx ) : txn.SkipOctree[ S, TwoDim, Point2D ] = access.get
+      def tree( implicit tx: S#Tx ) : txn.SkipOctree[ S, TwoDim, IntPoint2D ] = access.get
 
       def queryShape( sq: Square ) = sq
       def point( coords: IndexedSeq[ Int ]) = coords match {
-         case IndexedSeq( x, y ) => Point2D( x, y )
+         case IndexedSeq( x, y ) => IntPoint2D( x, y )
       }
       def coords( p: TwoDim#PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
@@ -130,15 +130,15 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def consistency() { cons() }
 
       val view = {
-         val res = new SkipQuadtreeView[ S, Point2D ]( access, cursor, identity )
+         val res = new SkipQuadtreeView[ S, IntPoint2D ]( access, cursor, identity )
          res.topPainter = Some( topPaint _ )
          res
       }
       def repaint() { view.repaint() }
 //      val baseDistance = DistanceMeasure2D.euclideanSq
 
-      def highlight: Set[ Point2D ] = view.highlight
-      def highlight_=( points: Set[ Point2D ]) { view.highlight = points }
+      def highlight: Set[ IntPoint2D ] = view.highlight
+      def highlight_=( points: Set[ IntPoint2D ]) { view.highlight = points }
 
       val distanceMeasures = IndexedSeq(
          "Euclidean" -> DistanceMeasure2D.euclideanSq,
@@ -160,7 +160,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
 
       def addPDFSupport( f: JFrame ) {
-         PDFSupport.addMenu[ SkipQuadtreeView[ S, Point2D ]]( f, view :: Nil, _.adjustPreferredSize() )
+         PDFSupport.addMenu[ SkipQuadtreeView[ S, IntPoint2D ]]( f, view :: Nil, _.adjustPreferredSize() )
       }
    }
 
@@ -255,7 +255,7 @@ extends JPanel( new BorderLayout() ) {
 
    private def tryPoint( fun: Point => Unit ) {
       try {
-//         val p = Point2D( ggX.getText.toInt, ggY.getText.toInt )
+//         val p = IntPoint2D( ggX.getText.toInt, ggY.getText.toInt )
          val p = model.point( ggCoord.map( _.getText.toInt ))
          fun( p )
       } catch {

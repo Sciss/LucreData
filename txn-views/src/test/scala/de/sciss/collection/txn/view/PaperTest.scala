@@ -4,7 +4,7 @@ import java.awt.{BorderLayout, EventQueue}
 import javax.swing.{JFrame, WindowConstants}
 import de.sciss.lucre.stm.InMemory
 import de.sciss.collection.txn.view.InteractiveSkipOctreePanel.Model2D
-import de.sciss.collection.geom.{Point2D, Square}
+import de.sciss.collection.geom.{IntPoint2D, Square}
 import de.sciss.collection.geom.Space.TwoDim
 import de.sciss.collection.txn.{DeterministicSkipOctree, SpaceSerializers}
 

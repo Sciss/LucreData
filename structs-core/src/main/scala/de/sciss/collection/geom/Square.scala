@@ -45,7 +45,7 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
     */
    def extent: Int
 
-//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: Point2DLike ) : SquareLike
+//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: IntPoint2DLike ) : SquareLike
 
    final def orthant( idx: Int ) : HyperCube = {
       val e = extent >> 1

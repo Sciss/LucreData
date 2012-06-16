@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{Space, SquareLike, DistanceMeasure2D, Point2D, Square}
+import geom.{Space, SquareLike, DistanceMeasure2D, IntPoint2D, Square}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -47,7 +47,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       // seed = 2
 //      val n     = 0x4000 // 0x10000 // 0x467 // 0x467 // 0x2F80
       for( i <- 0 until n ) {
-//         val k = Point2D( rnd.nextInt( 0x40000000 ),
+//         val k = IntPoint2D( rnd.nextInt( 0x40000000 ),
 //                        rnd.nextInt( 0x40000000 ))
          val k = Point2D( rnd.nextInt() & 0x7FFFFFFF,
                         rnd.nextInt() & 0x7FFFFFFF )
