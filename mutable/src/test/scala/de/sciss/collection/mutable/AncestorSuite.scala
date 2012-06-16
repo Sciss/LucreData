@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{DistanceMeasure2D, IntPoint2D, Square, IntPoint2DLike}
+import geom.{DistanceMeasure2D, IntPoint2D, IntSquare, IntPoint2DLike}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 
 /**
@@ -29,7 +29,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
       val preOrder   = TotalOrder( preObserver )
       val postOrder  = TotalOrder( postObserver )
       val root       = newVertex( _init, preOrder.root, postOrder.root )
-      val quad       = Square( 0x40000000, 0x40000000, 0x40000000 )
+      val quad       = IntSquare( 0x40000000, 0x40000000, 0x40000000 )
       val t          = if( USE_DET ) {
          DeterministicSkipQuadtree.empty[ V ]( quad )
       } else {
@@ -40,7 +40,7 @@ class AncestorSuite extends FeatureSpec with GivenWhenThen {
 
       def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry ) : V
 
-      trait VertexLike extends Point2DLike /* with Writer */ {
+      trait VertexLike extends IntPoint2DLike /* with Writer */ {
          def value: A
          def pre: preOrder.Entry
          def post: postOrder.Entry
@@ -167,7 +167,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
          then( "the results should be identical to an independently maintained map" )
          val metric = DistanceMeasure2D.chebyshev.orthant( 2 )
          treeSeq.foreach { child => parents.get( child ).foreach { parent =>
-            val point = Point2D( child.x - 1, child.y + 1 ) // make sure we skip the child itself
+            val point = IntPoint2D( child.x - 1, child.y + 1 ) // make sure we skip the child itself
             val found = t.t.nearestNeighborOption( point, metric )
             assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
          }}
@@ -337,7 +337,7 @@ if( verbose ) println( "insertChild( parent = " + parent.value + ", child = " + 
             val atPreIso= preTagIsoMap.get( preIso )
             val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
             val y       = postIso.tag
-            val point   = Point2D( x, y )
+            val point   = IntPoint2D( x, y )
 
             val found = tm.t.nearestNeighborOption( point, metric ).map( _.value )
             val parent = {

@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{Space, SquareLike, DistanceMeasure2D, IntPoint2D, Square}
+import geom.{Space, DistanceMeasure2D, IntPoint2D, IntSquare}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -27,8 +27,8 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
    val rnd           = new util.Random()
 
-//   val hyperCube = Square( 0x20000000, 0x20000000, 0x20000000 )
-   val quad          = Square( 0x40000000, 0x40000000, 0x40000000 )
+//   val hyperCube = IntSquare( 0x20000000, 0x20000000, 0x20000000 )
+   val quad          = IntSquare( 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED ) {
       rnd.setSeed( RND_SEED )
       withTree( "randomized", RandomizedSkipQuadtree.empty[ TwoDim#Point ]( quad,
@@ -49,8 +49,8 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       for( i <- 0 until n ) {
 //         val k = IntPoint2D( rnd.nextInt( 0x40000000 ),
 //                        rnd.nextInt( 0x40000000 ))
-         val k = Point2D( rnd.nextInt() & 0x7FFFFFFF,
-                        rnd.nextInt() & 0x7FFFFFFF )
+         val k = IntPoint2D( rnd.nextInt() & 0x7FFFFFFF,
+                             rnd.nextInt() & 0x7FFFFFFF )
 //         val v = rnd.nextInt()
 //println( i.toString + " - " + k )
          t += k // .put( k, v )
@@ -63,7 +63,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       then( "they should be consistent with the underlying algorithm" )
       val q = t.hyperCube
       var h = t.lastTree
-      var currUnlinkedQuads   = Set.empty[ SquareLike ]
+      var currUnlinkedQuads   = Set.empty[ TwoDim#HyperCubeLike ]
       var currPoints          = Set.empty[ TwoDim#Point ]
       var prevs = 0
       do {
@@ -128,9 +128,9 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyContainsNot( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "the structure t is queried for keys not in the independently maintained map m" )
-      var testSet = Set.empty[ Point2D ]
+      var testSet = Set.empty[ TwoDim#Point ]
       while( testSet.size < 100 ) {
-         val x = Point2D( rnd.nextInt(), rnd.nextInt() )
+         val x = IntPoint2D( rnd.nextInt(), rnd.nextInt() )
          if( !m.contains( x )) testSet += x
       }
       val inT = testSet.filter { p =>
@@ -162,8 +162,8 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyRangeSearch( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "the quadtree is range searched" )
-      val qs = Seq.fill( n2 )( Square( rnd.nextInt( 0x7FFFFFFF ) - 0x40000000,
-                                     rnd.nextInt( 0x7FFFFFFF ) - 0x40000000, rnd.nextInt( 0x40000000 )))
+      val qs = Seq.fill( n2 )( IntSquare( rnd.nextInt( 0x7FFFFFFF ) - 0x40000000,
+                                          rnd.nextInt( 0x7FFFFFFF ) - 0x40000000, rnd.nextInt( 0x40000000 )))
       val rangesT = qs.map( q => t.rangeQuery( q ).toSet )
       val ks      = m // keySet
       val rangesM = qs.map( q => ks.filter( q.contains( _ )))
@@ -176,7 +176,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyNN( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       when( "the quadtree is searched for nearest neighbours" )
-      val ps0 = Seq.fill( n2 )( Point2D( rnd.nextInt(), rnd.nextInt() ))
+      val ps0 = Seq.fill( n2 )( IntPoint2D( rnd.nextInt(), rnd.nextInt() ))
       // tricky: this guarantees that there are no 63 bit overflows,
       // while still allowing points outside the root hyperCube to enter the test
       val ps = ps0.filter( p => {

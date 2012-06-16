@@ -4,7 +4,7 @@ import java.awt.{BorderLayout, EventQueue}
 import javax.swing.{JFrame, WindowConstants}
 import de.sciss.lucre.stm.InMemory
 import de.sciss.collection.txn.view.InteractiveSkipOctreePanel.Model2D
-import de.sciss.collection.geom.{IntPoint2D, Square}
+import de.sciss.collection.geom.{IntPoint2D, IntSquare}
 import de.sciss.collection.geom.Space.TwoDim
 import de.sciss.collection.txn.{DeterministicSkipOctree, SpaceSerializers}
 
@@ -16,11 +16,11 @@ object PaperTest extends App with Runnable {
   def run() {
     implicit val system = InMemory()
     import SpaceSerializers.{Point2DSerializer, SquareSerializer}
-    implicit val pointView = (p: Point2D, t: Any) => p
-    implicit val reader = DeterministicSkipOctree.serializer[ InMemory, TwoDim, Point2D ]
+    implicit val pointView = (p: TwoDim#Point, t: Any) => p
+    implicit val reader = DeterministicSkipOctree.serializer[ InMemory, TwoDim, TwoDim#Point ]
     val access = system.root { implicit tx =>
-       DeterministicSkipOctree.empty[ InMemory, TwoDim, Point2D ](
-          Square( sz, sz, sz ), skipGap = 1 )
+       DeterministicSkipOctree.empty[ InMemory, TwoDim, TwoDim#Point ](
+          IntSquare( sz, sz, sz ), skipGap = 1 )
     }
     val model = new Model2D[ InMemory ]( system, access, { () => println( "(Consistency not checked)" )})
 
@@ -56,7 +56,7 @@ object PaperTest extends App with Runnable {
      system.step { implicit tx =>
         full.foreach {
            case (x, y) =>
-               model.tree.add( Point2D( x, y ))
+               model.tree.add( IntPoint2D( x, y ))
         }
      }
 

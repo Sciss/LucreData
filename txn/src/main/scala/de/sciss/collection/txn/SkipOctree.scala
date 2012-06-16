@@ -167,7 +167,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Writer with Dispos
     * Note: There is a potential numeric overflow if the
     * squared distance of the query point towards the
     * furthest corner of the tree's root hyper-cube exceeds 63 bits.
-    * For a root `Square( 0x40000000, 0x40000000, 0x40000000 )`, this
+    * For a root `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`, this
     * happens for example for any point going more towards north-west
     * than `IntPoint2DLike( -1572067139, -1572067139 )`.
     *

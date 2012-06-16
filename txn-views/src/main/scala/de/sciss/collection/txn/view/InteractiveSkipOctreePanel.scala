@@ -32,7 +32,7 @@ import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JC
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
-import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, IntPoint2D, Square}
+import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, IntPoint2D, IntSquare}
 import Space.TwoDim
 import de.sciss.collection.view.{PDFSupport, QuadView}
 import de.sciss.lucre.stm.{Source, Cursor, InMemory, Durable, Sys}
@@ -78,10 +78,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, IntPoint2D ]
          val access = system.root { implicit tx =>
             txn.DeterministicSkipOctree.empty[ Durable, TwoDim, IntPoint2D ](
-               Square( sz, sz, sz ), skipGap = 1 )
+               IntSquare( sz, sz, sz ), skipGap = 1 )
          }
          new Model2D[ Durable ]( system, access, { () =>
-            system.step( implicit tx => system.debugListUserRecords() ).foreach( println )
+            system.step( implicit tx => system.debugListUserRecords() ).foreach( println _ )
          })
 
       } else {
@@ -91,7 +91,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          implicit val reader = txn.DeterministicSkipOctree.serializer[ InMemory, TwoDim, IntPoint2D ]
          val access = system.root { implicit tx =>
             txn.DeterministicSkipOctree.empty[ InMemory, TwoDim, IntPoint2D ](
-               Square( sz, sz, sz ), skipGap = 1 )
+               IntSquare( sz, sz, sz ), skipGap = 1 )
          }
          new Model2D[ InMemory ]( system, access, { () => println( "(Consistency not checked)" )})
       }
@@ -114,17 +114,17 @@ object InteractiveSkipOctreePanel extends App with Runnable {
                                         access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, IntPoint2D ]],
                                         cons: () => Unit, val nTimes: Int = 10 )
    extends Model[ S, TwoDim, IntPoint2D ] {
-//      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, Square( sz, sz, sz ), skipGap = 1 )
+//      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, IntSquare( sz, sz, sz ), skipGap = 1 )
 
       def tree( implicit tx: S#Tx ) : txn.SkipOctree[ S, TwoDim, IntPoint2D ] = access.get
 
-      def queryShape( sq: Square ) = sq
+      def queryShape( sq: IntSquare ) = sq
       def point( coords: IndexedSeq[ Int ]) = coords match {
          case IndexedSeq( x, y ) => IntPoint2D( x, y )
       }
       def coords( p: TwoDim#PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
-         case IndexedSeq( x, y ) => Square( x, y, ext )
+         case IndexedSeq( x, y ) => IntSquare( x, y, ext )
       }
 
       def consistency() { cons() }
@@ -146,7 +146,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          "Minimum" -> DistanceMeasure2D.vehsybehc
       )
 
-      var rangeHyperCube = Option.empty[ Square ]
+      var rangeHyperCube = Option.empty[ IntSquare ]
 
       private val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
       private def topPaint( h: QuadView.PaintHelper ) {
@@ -267,7 +267,7 @@ extends JPanel( new BorderLayout() ) {
       try {
          val ext = ggExt.getText.toInt
          require( ext > 0 )
-//         val q = Square( ggX.getText.toInt, ggY.getText.toInt, ext )
+//         val q = IntSquare( ggX.getText.toInt, ggY.getText.toInt, ext )
          val q = model.hyperCube( ggCoord.map( _.getText.toInt ), ext )
          fun( q )
       } catch {

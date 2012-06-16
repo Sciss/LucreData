@@ -3,7 +3,7 @@ package txn
 
 import de.sciss.lucre.{DataInput, DataOutput}
 import de.sciss.lucre.stm.Serializer
-import geom.{Cube, Point3D, Square, IntPoint2D}
+import geom.{Cube, Point3D, IntSquare, IntPoint2D}
 
 object SpaceSerializers {
    implicit object Point2DSerializer extends Serializer[ geom.IntPoint2D ] {
@@ -19,15 +19,15 @@ object SpaceSerializers {
       }
    }
 
-   implicit object SquareSerializer extends Serializer[ geom.Square ] {
-      def read( in: DataInput ) : Square = {
+   implicit object SquareSerializer extends Serializer[ geom.IntSquare ] {
+      def read( in: DataInput ) : IntSquare = {
          val cx      = in.readInt()
          val cy      = in.readInt()
          val extent  = in.readInt()
-         Square( cx, cy, extent )
+         IntSquare( cx, cy, extent )
       }
 
-      def write( q: Square, out: DataOutput ) {
+      def write( q: IntSquare, out: DataOutput ) {
          out.writeInt( q.cx )
          out.writeInt( q.cy )
          out.writeInt( q.extent )

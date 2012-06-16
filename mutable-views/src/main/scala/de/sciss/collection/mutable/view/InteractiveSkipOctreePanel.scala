@@ -31,7 +31,7 @@ import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.collection.view.{PDFSupport, QuadView}
-import geom.{QueryShape, DistanceMeasure, DistanceMeasure3D, Cube, Point3D, DistanceMeasure2D, Square, IntPoint2D, Space}
+import geom.{QueryShape, DistanceMeasure, DistanceMeasure3D, Cube, Point3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
 
 object InteractiveSkipOctreePanel extends App with Runnable {
    val seed = 0L
@@ -62,9 +62,9 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
       val tree = mode match {
          case Randomized =>
-            RandomizedSkipQuadtree.empty[    Point ]( Square( sz, sz, sz ))
+            RandomizedSkipQuadtree.empty[    Point ]( IntSquare( sz, sz, sz ))
          case Deterministic =>
-            DeterministicSkipQuadtree.empty[ Point ]( Square( sz, sz, sz ), skipGap = 1 )
+            DeterministicSkipQuadtree.empty[ Point ]( IntSquare( sz, sz, sz ), skipGap = 1 )
       }
 
       def queryShape( sq: HyperCube ) = sq
@@ -73,7 +73,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
       def coords( p: PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
-         case IndexedSeq( x, y ) => Square( x, y, ext )
+         case IndexedSeq( x, y ) => IntSquare( x, y, ext )
       }
 
       val view = {
@@ -85,7 +85,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //      val baseDistance = DistanceMeasure2D.euclideanSq
 
       def highlight: Set[ Point ] = view.highlight
-      def highlight_=( points: Set[ Point ]) { view highlight = points }
+      def highlight_=( points: Set[ Point ]) { view.highlight = points }
 
       val distanceMeasures = IndexedSeq(
          "Euclidean" -> DistanceMeasure2D.euclideanSq,
@@ -219,7 +219,7 @@ extends JPanel( new BorderLayout() ) {
       try {
          val ext = ggExt.getText.toInt
          require( ext > 0 )
-//         val q = Square( ggX.getText.toInt, ggY.getText.toInt, ext )
+//         val q = IntSquare( ggX.getText.toInt, ggY.getText.toInt, ext )
          val q = model.hyperCube( ggCoord.map( _.getText.toInt ), ext )
          fun( q )
       } catch {

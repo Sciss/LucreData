@@ -27,7 +27,7 @@ package de.sciss.collection.geom
 
 // import de.sciss.lucrestm.{DataOutput, Writer}
 
-trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.TwoDim ] {
+trait IntSquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.TwoDim ] {
    import Space.TwoDim._
 
    /**
@@ -45,15 +45,15 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
     */
    def extent: Int
 
-//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: IntPoint2DLike ) : SquareLike
+//   def greatestInteresting( aleft: Int, atop: Int, asize: Int, b: IntPoint2DLike ) : IntSquareLike
 
    final def orthant( idx: Int ) : HyperCube = {
       val e = extent >> 1
       idx match {
-         case 0 => Square( cx + e, cy - e, e ) // ne
-         case 1 => Square( cx - e, cy - e, e ) // nw
-         case 2 => Square( cx - e, cy + e, e ) // sw
-         case 3 => Square( cx + e, cy + e, e ) // se
+         case 0 => IntSquare( cx + e, cy - e, e ) // ne
+         case 1 => IntSquare( cx - e, cy - e, e ) // nw
+         case 2 => IntSquare( cx - e, cy + e, e ) // sw
+         case 3 => IntSquare( cx + e, cy + e, e ) // se
          case _ => throw new IllegalArgumentException( idx.toString )
       }
    }
@@ -289,11 +289,11 @@ trait SquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.
 
       // that means the x extent is greater (x grid more coarse).
       if( mx <= my ) {
-         Square( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
+         IntSquare( tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx )
       } else {
-         Square( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
+         IntSquare( tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my )
       }
    }
 }
 
-final case class Square( cx: Int, cy: Int, extent: Int ) extends SquareLike
+final case class IntSquare( cx: Int, cy: Int, extent: Int ) extends IntSquareLike

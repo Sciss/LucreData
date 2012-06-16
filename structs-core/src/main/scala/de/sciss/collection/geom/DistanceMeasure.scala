@@ -82,7 +82,7 @@ trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
 
    /**
     * Applies a filter to this measure by constraining distances
-    * to objects `b` which lie within the given `Square`. That
+    * to objects `b` which lie within the given `IntSquare`. That
     * is, if for example `distance( a, b )` is called, first it
     * is checked if `b` is within `hyperCube`. If so, the underlying
     * measure is calculated, otherwise, `Long.MaxValue` is returned.

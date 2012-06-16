@@ -45,7 +45,7 @@ import de.sciss.lucre.stm._
 * The current implementation, backed by `impl.SkipOctreeImpl`, uses the types of
 * the `geom` package, assuming that coordinates are integers, with the maximum
 * root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.TwoDim`,
-* this is `Square( 0x40000000, 0x40000000, 0x40000000 )`.
+* this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
 */
 object DeterministicSkipOctree {
    private val SER_VERSION = 0

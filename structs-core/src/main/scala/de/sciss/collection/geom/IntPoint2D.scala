@@ -44,7 +44,7 @@ trait IntPoint2DLike /* extends PointLike[ Space.TwoDim ] */ {
    }
 
 //   // ---- QueryShape2D ----
-//   final def overlapArea( q: SquareLike ) : Long = if( q.contains( this )) 1L else 0L
+//   final def overlapArea( q: IntSquareLike ) : Long = if( q.contains( this )) 1L else 0L
 //   final def area : Long = 1L
 
    /**

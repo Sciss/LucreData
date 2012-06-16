@@ -29,8 +29,8 @@ object Space {
    sealed trait TwoDim extends Space[ TwoDim ] {
       type PointLike       = IntPoint2DLike
       type Point           = IntPoint2D
-      type HyperCubeLike   = SquareLike
-      type HyperCube       = Square
+      type HyperCubeLike   = IntSquareLike
+      type HyperCube       = IntSquare
    }
    implicit object TwoDim extends TwoDim {
       val maxPoint         = IntPoint2D( Int.MaxValue, Int.MaxValue )
