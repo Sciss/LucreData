@@ -25,7 +25,7 @@
 
 package de.sciss.collection.txn
 
-import de.sciss.collection.geom.{DistanceMeasure3D, Point3D, Cube, Space}
+import de.sciss.collection.geom.{DistanceMeasure3D, IntPoint3D, Cube, Space}
 import de.sciss.lucre.{DataOutput, DataInput}
 import de.sciss.lucre.stm.{Disposable, TxnSerializer, Writer, Sys}
 
@@ -38,8 +38,8 @@ object Ancestor {
    private type TreePostOrder[ S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
 
    object Vertex {
-      private[Ancestor] implicit def toPoint[ S <: Sys[ S ], Version ]( v: Vertex[ S, Version ], tx: S#Tx ) : Point3D =
-         new Point3D( v.preHead.tag( tx ), v.post.tag( tx ), v.versionInt )
+      private[Ancestor] implicit def toPoint[ S <: Sys[ S ], Version ]( v: Vertex[ S, Version ], tx: S#Tx ) : IntPoint3D =
+         IntPoint3D( v.preHead.tag( tx ), v.post.tag( tx ), v.versionInt )
    }
    sealed trait Vertex[ S <: Sys[ S ], Version ] extends Writer with Disposable[ S#Tx ] {
 
@@ -246,7 +246,7 @@ object Ancestor {
 
       // ---- implementation ----
 
-      final def toPoint( implicit tx: S#Tx ): Point3D = new Point3D( pre.tag, post.tag, fullVertex.versionInt )
+      final def toPoint( implicit tx: S#Tx ): IntPoint3D = IntPoint3D( pre.tag, post.tag, fullVertex.versionInt )
 
       final def write( out: DataOutput ) {
          fullVertex.write( out )
@@ -435,7 +435,7 @@ object Ancestor {
             val postTag = iso.post.post.tag
             val x       = if( iso.preCmp  < 0 ) preTag  - 1 else preTag
             val y       = if( iso.postCmp > 0 ) postTag + 1 else postTag
-            val nn      = skip.nearestNeighbor( Point3D( x, y, vertex.versionInt ), metric )
+            val nn      = skip.nearestNeighbor( IntPoint3D( x, y, vertex.versionInt ), metric )
             (nn.fullVertex, nn.value)
          }
       }

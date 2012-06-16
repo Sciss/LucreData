@@ -31,7 +31,7 @@ import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.collection.view.{PDFSupport, QuadView}
-import geom.{QueryShape, DistanceMeasure, DistanceMeasure3D, Cube, Point3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
+import geom.{QueryShape, DistanceMeasure, DistanceMeasure3D, Cube, IntPoint3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
 
 object InteractiveSkipOctreePanel extends App with Runnable {
    val seed = 0L
@@ -111,7 +111,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
    }
 
-   private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim, Point3D ] {
+   private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim, IntPoint3D ] {
       import Space.ThreeDim
       import ThreeDim._
 
@@ -124,7 +124,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
       def queryShape( c: HyperCube ) = c
       def point( coords: IndexedSeq[ Int ]) = coords match {
-         case IndexedSeq( x, y, z ) => Point3D( x, y, z )
+         case IndexedSeq( x, y, z ) => IntPoint3D( x, y, z )
       }
       def coords( p: PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {

@@ -3,7 +3,7 @@ package mutable
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
-import geom.{Point3D, DistanceMeasure3D, Cube, Point3DLike, Space}
+import geom.{IntPoint3D, DistanceMeasure3D, Cube, IntPoint3DLike, Space}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -50,7 +50,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
 //      def newVertex( value: A, pre: preOrder.Entry, post: postOrder.Entry, version: Int ) : V
 
-      trait VertexLike extends Point3DLike /* with Writer */ {
+      trait VertexLike extends IntPoint3DLike /* with Writer */ {
          def value: A
          def version: Int
          def pre: preOrder.Entry
@@ -250,7 +250,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
                case None =>
 
                case Some( parent ) if( parent.version <= version ) =>
-                  val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
+                  val point = IntPoint3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
                   val found = t.t.nearestNeighborOption( point, metric )
                   assert( found == Some( parent ), "For child " + child + ", found " + found + " instead of " + parent )
 
@@ -368,7 +368,7 @@ if( verbose ) println( "v" + i + " is child to " + refIdx )
             val atPreIso= preTagIsoMap.get( preIso )
             val x       = if( atPreIso == Some( child.pre )) preIso.tag else preIso.tag - 1
             val y       = postIso.tag
-            val point   = Point3D( x, y, child.version )
+            val point   = IntPoint3D( x, y, child.version )
 
             val found = tm.t.nearestNeighborOption( point, metric ).map( _.value )
             val parent = {

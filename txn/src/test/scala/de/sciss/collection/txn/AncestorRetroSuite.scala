@@ -2,7 +2,7 @@ package de.sciss.collection
 package txn
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import geom.{Point3D, DistanceMeasure3D, Cube, Space}
+import geom.{IntPoint3D, DistanceMeasure3D, Cube, Space}
 import concurrent.stm.Ref
 import java.io.File
 import de.sciss.lucre.{DataInput, DataOutput}
@@ -257,7 +257,7 @@ if( verbose ) {
 
    sealed trait VertexLike[ S <: Sys[ S ], Repr ] extends Writer with VertexSource[ S, Repr ] {
       def version : Int
-      def toPoint( implicit tx: S#Tx ) : Point3D
+      def toPoint( implicit tx: S#Tx ) : IntPoint3D
    }
 
    sealed trait FullVertex[ S <: Sys[ S ]] extends VertexLike[ S, FullVertex[ S ]] {
@@ -285,7 +285,7 @@ if( verbose ) {
 //      final def y : Int = system.step { implicit tx => post.tag }
 //      final def z : Int = version
 
-      final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
+      final def toPoint( implicit tx: S#Tx ) = IntPoint3D( pre.tag, post.tag, version )
 
       final def debugString( implicit tx: S#Tx ) = toString + "<post>@" + post.tag
 
@@ -376,7 +376,7 @@ if( verbose ) {
          post.write( out )
       }
 
-      final def toPoint( implicit tx: S#Tx ) = Point3D( pre.tag, post.tag, version )
+      final def toPoint( implicit tx: S#Tx ) = IntPoint3D( pre.tag, post.tag, version )
 
       override def toString = "Mark(" + version + ")"
 
@@ -584,7 +584,7 @@ if( verbose ) {
                         case Some( parent ) if( parent.version <= version ) =>
                            val found: Option[ FullVertex[ S ]] = system.step { implicit tx =>
                               val p0 = child.toPoint
-         //                     val point = Point3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
+         //                     val point = IntPoint3D( child.x - 1, child.y + 1, child.version ) // make sure we skip the child itself
                               val point = p0.copy( x = p0.x - 1, y = p0.y + 1 )
                               val f = t.t.nearestNeighborOption( point, metric )
                               f
@@ -809,13 +809,13 @@ if( verbose ) {
                         }
                         if( preIsoCmp == 0 ) {
                            assert( postIsoCmp == 0 )
-                           val _pnt = Point3D( preIso.pre.tag, postIso.post.tag, child.version )
+                           val _pnt = IntPoint3D( preIso.pre.tag, postIso.post.tag, child.version )
                            val _f   = Some( preIso.version )
                            (_f, par, _pnt)
                         } else {
                            val x       = if( preIsoCmp < 0 )  preIso.pre.tag - 1 else preIso.pre.tag
                            val y       = if( postIsoCmp > 0 ) postIso.post.tag + 1 else postIso.post.tag
-                           val _pnt    = Point3D( x, y, child.version )
+                           val _pnt    = IntPoint3D( x, y, child.version )
                            val _f      = tm.t.nearestNeighborOption( _pnt, metric ).map( _.version )
                            (_f, par, _pnt)
                         }

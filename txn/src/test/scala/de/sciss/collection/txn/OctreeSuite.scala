@@ -1,7 +1,7 @@
 package de.sciss.collection
 package txn
 
-import geom.{DistanceMeasure3D, QueryShape, Point3D, DistanceMeasure, Space, Cube}
+import geom.{DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, Cube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -37,8 +37,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          implicit val sys = sysCreator()
          val t = sys.step { implicit tx =>
             import SpaceSerializers.{Point3DSerializer, CubeSerializer}
-            implicit val pointView = (p: Point3D, _: Any) => p
-            txn.DeterministicSkipOctree.empty[ S, ThreeDim, Point3D ]( cube )
+            implicit val pointView = (p: IntPoint3D, _: Any) => p
+            txn.DeterministicSkipOctree.empty[ S, ThreeDim, IntPoint3D ]( cube )
          }
          (sys, t, succ => sysCleanUp( sys, succ ))
       })
@@ -66,7 +66,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   val pointFun3D = (mask: Int) => Point3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )
+   val pointFun3D = (mask: Int) => IntPoint3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )
 
    def randFill[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
                                                   pointFun: Int => D#Point )( implicit cursor: Cursor[ S ]) {

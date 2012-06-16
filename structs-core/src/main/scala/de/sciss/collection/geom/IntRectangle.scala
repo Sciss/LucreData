@@ -28,7 +28,7 @@ package de.sciss.collection.geom
 /**
  * A 2D rectangular query shape.
  */
-trait RectangleLike extends QueryShape[ Long, Space.TwoDim ] {
+trait IntRectangleLike extends QueryShape[ Long, Space.TwoDim ] {
    import Space.TwoDim._
 
    def left: Int
@@ -61,4 +61,4 @@ trait RectangleLike extends QueryShape[ Long, Space.TwoDim ] {
 
    def isAreaNonEmpty( area: Long ) : Boolean = area > 0L
 }
-final case class Rectangle( left: Int, top: Int, width: Int, height: Int ) extends RectangleLike
+final case class IntRectangle( left: Int, top: Int, width: Int, height: Int ) extends IntRectangleLike

@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-trait Point3DLike {
+trait IntPoint3DLike {
    import Space.ThreeDim._
 
    def x: Int
@@ -50,13 +50,13 @@ trait Point3DLike {
 
    /**
     * Queries the overlap of this shape with a given
-    * `Point3D p`. The point is considered to have
+    * `IntPoint3D p`. The point is considered to have
     * a side length of 1!
     *
     * @return  `true` if this shape contains or partly overlaps
     *          the given point
     */
-//   final def contains( p: Point3DLike ) : Boolean = p.x == this.x && p.y == this.y && p.z == this.z
+//   final def contains( p: IntPoint3DLike ) : Boolean = p.x == this.x && p.y == this.y && p.z == this.z
 
    /**
     * Returns the orientation of the given point wrt this point, according
@@ -74,11 +74,11 @@ trait Point3DLike {
     *  '3' for 'after', so that if the orient is before or
     *  after, the sign can be retrieved via `_ - 2`
     *
-    *  For example, if this is `Point3D(4, 4)` and the query
-    *  point is `Point3D(4, 5)`, the result is `12`. If the
-    *  query is `Point3D(0, 0)`, the result is `5`, etc.
+    *  For example, if this is `IntPoint3D(4, 4)` and the query
+    *  point is `IntPoint3D(4, 5)`, the result is `12`. If the
+    *  query is `IntPoint3D(0, 0)`, the result is `5`, etc.
     */
-//   final def orient( b: Point3DLike ) : Int = {
+//   final def orient( b: IntPoint3DLike ) : Int = {
 //      sys.error( "TODO" )
 ////      val ax = x
 ////      val ay = y
@@ -90,7 +90,7 @@ trait Point3DLike {
 //   }
 }
 
-final case class Point3D( x: Int, y: Int, z: Int ) extends Point3DLike {
-   def +( p: Point3D ) = Point3D( x + p.x, y + p.y, z + p.z )
-   def -( p: Point3D ) = Point3D( x - p.x, y - p.y, z + p.z )
+final case class IntPoint3D( x: Int, y: Int, z: Int ) extends IntPoint3DLike {
+   def +( p: IntPoint3D ) = IntPoint3D( x + p.x, y + p.y, z + p.z )
+   def -( p: IntPoint3D ) = IntPoint3D( x - p.x, y - p.y, z + p.z )
 }

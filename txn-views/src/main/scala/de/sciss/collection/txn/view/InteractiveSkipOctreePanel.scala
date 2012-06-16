@@ -53,7 +53,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
 //         system.step { implicit tx =>
 ////         if( xs.contains( "--3d" )) {
-////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, Point3DLike ](
+////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, IntPoint3DLike ](
 ////               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
 ////            new Model3D[ InMemory ]( tree )
 ////         } else {
@@ -164,14 +164,14 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
    }
 
-//   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.ThreeDim, Point3DLike ])
+//   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.ThreeDim, IntPoint3DLike ])
 //   extends Model[ S, Space.ThreeDim ] {
 //
 //      def queryShape( c: CubeLike ) = c
 //      def point( coords: IndexedSeq[ Int ]) = coords match {
-//         case IndexedSeq( x, y, z ) => Point3D( x, y, z )
+//         case IndexedSeq( x, y, z ) => IntPoint3D( x, y, z )
 //      }
-//      def coords( p: Point3DLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
+//      def coords( p: IntPoint3DLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
 //      def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
 //         case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
 //      }
@@ -179,8 +179,8 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //      val view = new SkipOctree3DView( tree )
 //      def repaint() { view.treeUpdated() }
 ////      val baseDistance = DistanceMeasure3D.euclideanSq
-//      def highlight: Set[ Point3DLike ] = view.highlight
-//      def highlight_=( points: Set[ Point3DLike ]) { view.highlight = points }
+//      def highlight: Set[ IntPoint3DLike ] = view.highlight
+//      def highlight_=( points: Set[ IntPoint3DLike ]) { view.highlight = points }
 //
 //      val distanceMeasures = IndexedSeq(
 //         "Euclidean" -> DistanceMeasure3D.euclideanSq,

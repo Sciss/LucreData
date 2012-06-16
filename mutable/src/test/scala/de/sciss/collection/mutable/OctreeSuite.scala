@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{DistanceMeasure3D, QueryShape, Point3D, DistanceMeasure, Space, Point3DLike, Cube}
+import geom.{DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntPoint3DLike, Cube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -34,7 +34,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       withTree( "deterministic", DeterministicSkipOctree.empty[ ThreeDim, ThreeDim#PointLike ]( ThreeDim, cube ))
    }
 
-   val pointFun3D = (mask: Int) => Point3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )
+   val pointFun3D = (mask: Int) => IntPoint3D( rnd.nextInt() & mask, rnd.nextInt() & mask, rnd.nextInt() & mask )
 
    def randFill[ D <: Space[ D ]]( t: SkipOctree[ D, D#PointLike ], m: MSet[ D#PointLike ], pointFun: Int => D#PointLike ) {
       given( "a randomly filled structure" )
