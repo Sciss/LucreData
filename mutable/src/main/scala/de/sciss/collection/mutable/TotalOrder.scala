@@ -230,7 +230,7 @@ sealed trait TotalOrder
        * tags. Throws an assertion error if the
        * validation fails.
        */
-      def validateToEnd {
+      def validateToEnd() {
          var prevTag = tag
          var entry   = next
          while( !entry.isEnd ) {
@@ -260,13 +260,13 @@ sealed trait TotalOrder
 //   */
 //   def compare( that: TotalOrder ) : Int
 
-   /**
-    * Appends an element to the end of the sequence, and returns
-    * that new sequence tail. Note that this operation takes O(n).
-    *
-    * @param   elem  the element to append
-    * @return  the total order entry corresponding to the newly appended element
-    */
+//   /**
+//    * Appends an element to the end of the sequence, and returns
+//    * that new sequence tail. Note that this operation takes O(n).
+//    *
+//    * @param   elem  the element to append
+//    * @return  the total order entry corresponding to the newly appended element
+//    */
 //   def append() : TotalOrder
 
 //   def max : TotalOrder

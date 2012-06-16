@@ -1,11 +1,11 @@
 package de.sciss.collection
 package mutable
 
-import geom.{Space, DistanceMeasure2D, IntPoint2D, IntSquare}
+import geom.{IntSpace, DistanceMeasure2D, IntPoint2D, IntSquare}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
-import Space.TwoDim
+import IntSpace.TwoDim
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -39,7 +39,7 @@ class QuadtreeSuite extends FeatureSpec with GivenWhenThen {
       withTree( "deterministic", DeterministicSkipQuadtree.empty[ TwoDim#Point ]( quad ))
    }
 
-   private type SkipQuadtree[ A ] = SkipOctree[ Space.TwoDim, A ]
+   private type SkipQuadtree[ A ] = SkipOctree[ TwoDim, A ]
 
    def randFill( t: SkipQuadtree[ TwoDim#Point ], m: MSet[ TwoDim#Point ]) {
       given( "a randomly filled structure" )

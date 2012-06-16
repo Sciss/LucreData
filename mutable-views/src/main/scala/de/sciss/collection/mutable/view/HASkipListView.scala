@@ -129,18 +129,18 @@ class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView[ A ] {
       def moveTo( x: Int, y: Int ) {
          r.x = x
          r.y = y
-         updateChildren
+         updateChildren()
       }
 
 //      def calcDimensions : Unit
-      def updateChildren : Unit
+      def updateChildren() : Unit
    }
 
    private case class Horiz( spacing: Int = 20, bs: IndexedSeq[ Box ]) extends Box {
       r.width  = bs.map( _.r.width ).sum + ((bs.size - 1) * spacing)
       r.height = bs.map( _.r.height ).max
 
-      def updateChildren {
+      def updateChildren() {
          var x = r.x
          bs.foreach { b =>
             b.moveTo( x, r.y + ((r.height - b.r.height) >> 1) )
@@ -153,7 +153,7 @@ class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView[ A ] {
       r.width  = bs.map( _.r.width ).max
       r.height = bs.map( _.r.height ).sum + ((bs.size - 1) * spacing)
 
-      def updateChildren {
+      def updateChildren() {
          var y = r.y
          bs.foreach { b =>
             b.moveTo( r.x + ((r.width - b.r.width) >> 1), y )
@@ -168,6 +168,6 @@ class HASkipListView[ A ]( l: HASkipList[ A ]) extends SkipListView[ A ] {
          r.height = if( n.down( 0 ).isBottom ) 23 else 46
 //      }
 
-      def updateChildren {}
+      def updateChildren() {}
    }
 }

@@ -50,7 +50,7 @@ object InteractiveSkipListView extends App with Runnable {
          dir.delete()
          dir.mkdir()
          println( dir.getAbsolutePath )
-         implicit val system = Durable( BerkeleyDB.open( dir ))
+         implicit val system: Durable = Durable( BerkeleyDB.open( dir ))
          val fut = new FutureObserver[ Durable ]
          implicit val ser = HASkipList.Set.serializer[ Durable, Int ]( fut )
          val access = system.root[ HASkipList.Set[ Durable, Int ]] { implicit tx =>
@@ -61,7 +61,7 @@ object InteractiveSkipListView extends App with Runnable {
          res
 
       } else {
-         implicit val system = InMemory()
+         implicit val system: InMemory = InMemory()
          val fut = new FutureObserver[ InMemory ]
          implicit val ser = HASkipList.Set.serializer[ InMemory, Int ]( fut )
          val access = system.root { implicit tx =>

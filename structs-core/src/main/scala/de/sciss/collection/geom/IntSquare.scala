@@ -27,8 +27,8 @@ package de.sciss.collection.geom
 
 // import de.sciss.lucrestm.{DataOutput, Writer}
 
-trait IntSquareLike extends HyperCube[ Space.TwoDim ] with QueryShape[ Long, Space.TwoDim ] {
-   import Space.TwoDim._
+trait IntSquareLike extends HyperCube[ IntSpace.TwoDim ] with QueryShape[ Long, IntSpace.TwoDim ] {
+   import IntSpace.TwoDim._
 
    /**
     * X coordinate of the square's center

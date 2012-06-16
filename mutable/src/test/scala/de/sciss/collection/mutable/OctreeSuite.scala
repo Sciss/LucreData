@@ -1,11 +1,11 @@
 package de.sciss.collection
 package mutable
 
-import geom.{DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntPoint3DLike, IntCube}
+import geom.{IntSpace, DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
-import Space.ThreeDim
+import IntSpace.ThreeDim
 
 /**
  * To run this test copy + paste the following into sbt:

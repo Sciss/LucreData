@@ -96,9 +96,8 @@ trait SkipOctree[ D <: Space[ D ], A ] extends MSet[ A ] {
     * than `IntPoint2DLike( -1572067139, -1572067139 )`.
     *
     * @param   point the point of which the nearest neighbor is to be found
-    * @param   a threshold which is an acceptable abortion criterion. I.e.,
-    *    if a point is found whose distance is smaller or equal to this
-    *    value, the search is immediately terminated and that entry is returned
+    * @param   metric the metric to use for measuring distance (e.g. euclidean). this may also incorporate thresholds
+    *                to immediately return a point sufficiently near
     *
     * @throws  NoSuchElementException  if the tree is empty
     */

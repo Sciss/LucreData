@@ -25,7 +25,7 @@
 
 package de.sciss.collection.txn
 
-import de.sciss.collection.geom.{DistanceMeasure3D, IntPoint3D, IntCube, Space}
+import de.sciss.collection.geom.{IntSpace, DistanceMeasure3D, IntPoint3D, IntCube}
 import de.sciss.lucre.{DataOutput, DataInput}
 import de.sciss.lucre.stm.{Disposable, TxnSerializer, Writer, Sys}
 
@@ -307,7 +307,7 @@ object Ancestor {
       protected def preList  : SkipList.Set[ S, M ]
       protected def postList : SkipList.Set[ S, M ]
 
-      private[Ancestor] def skip: SkipOctree[ S, Space.ThreeDim, M ]
+      private[Ancestor] def skip: SkipOctree[ S, IntSpace.ThreeDim, M ]
 
       // ---- implementation ----
 
@@ -471,10 +471,10 @@ object Ancestor {
       protected val postOrder : TotalOrder.Map[ S, M ] =
          TotalOrder.Map.empty[ S, M ]( me, _.post, rootTag = Int.MaxValue )( tx0, markSerializer )
 
-      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, M ] = {
+      private[Ancestor] val skip: SkipOctree[ S, IntSpace.ThreeDim, M ] = {
          val pointView = (p: M, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.empty[ S, Space.ThreeDim, M ]( cube )( tx0, pointView, Space.ThreeDim, markSerializer,
-                                                            SpaceSerializers.CubeSerializer )
+         SkipOctree.empty[ S, IntSpace.ThreeDim, M ]( cube )( tx0, pointView, IntSpace.ThreeDim, markSerializer,
+                                                              SpaceSerializers.CubeSerializer )
       }
 
       protected val root: M = {
@@ -537,9 +537,9 @@ object Ancestor {
          SkipList.Set.read[ S, M ]( in, access )
       }
 
-      private[Ancestor] val skip: SkipOctree[ S, Space.ThreeDim, M ] = {
+      private[Ancestor] val skip: SkipOctree[ S, IntSpace.ThreeDim, M ] = {
          val pointView = (p: M, tx: S#Tx) => p.toPoint( tx )
-         SkipOctree.read[ S, Space.ThreeDim, M ]( in, access )( tx0, pointView, Space.ThreeDim, markSerializer,
+         SkipOctree.read[ S, IntSpace.ThreeDim, M ]( in, access )( tx0, pointView, IntSpace.ThreeDim, markSerializer,
             SpaceSerializers.CubeSerializer )
       }
    }

@@ -29,9 +29,9 @@ package view
 
 import java.awt.{Color, Dimension}
 import de.sciss.collection.view.QuadView
-import geom.Space
+import geom.IntSpace
 
-class SkipQuadtreeView[ A ]( t: SkipOctree[ Space.TwoDim, A ]) extends QuadView {
+class SkipQuadtreeView[ A ]( t: SkipOctree[ IntSpace.TwoDim, A ]) extends QuadView {
    var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
    private var scaleVar = 1.0

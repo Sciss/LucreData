@@ -26,7 +26,7 @@
 package de.sciss.collection.geom
 
 object DistanceMeasure3D {
-   import Space.ThreeDim
+   import IntSpace.ThreeDim
    import ThreeDim._
 
    /**

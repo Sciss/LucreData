@@ -5,7 +5,7 @@ import javax.swing.{JFrame, WindowConstants}
 import de.sciss.lucre.stm.InMemory
 import de.sciss.collection.txn.view.InteractiveSkipOctreePanel.Model2D
 import de.sciss.collection.geom.{IntPoint2D, IntSquare}
-import de.sciss.collection.geom.Space.TwoDim
+import de.sciss.collection.geom.IntSpace.TwoDim
 import de.sciss.collection.txn.{DeterministicSkipOctree, SpaceSerializers}
 
 object PaperTest extends App with Runnable {
@@ -14,7 +14,7 @@ object PaperTest extends App with Runnable {
    val sz = 128
 
   def run() {
-    implicit val system = InMemory()
+    implicit val system: InMemory = InMemory()
     import SpaceSerializers.{Point2DSerializer, SquareSerializer}
     implicit val pointView = (p: TwoDim#Point, t: Any) => p
     implicit val reader = DeterministicSkipOctree.serializer[ InMemory, TwoDim, TwoDim#Point ]

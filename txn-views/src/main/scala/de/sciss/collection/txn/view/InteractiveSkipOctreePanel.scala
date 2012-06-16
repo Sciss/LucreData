@@ -32,8 +32,8 @@ import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JC
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import java.io.File
-import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure2D, DistanceMeasure, IntPoint2D, IntSquare}
-import Space.TwoDim
+import geom.{IntSpace, Space, QueryShape, DistanceMeasure2D, DistanceMeasure, IntPoint2D, IntSquare}
+import IntSpace.TwoDim
 import de.sciss.collection.view.{PDFSupport, QuadView}
 import de.sciss.lucre.stm.{Source, Cursor, InMemory, Durable, Sys}
 
@@ -53,8 +53,8 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
 //         system.step { implicit tx =>
 ////         if( xs.contains( "--3d" )) {
-////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, IntPoint3DLike ](
-////               Space.ThreeDim, IntCube( sz, sz, sz, sz ), skipGap = 1 )
+////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.IntThreeDim, IntPoint3DLike ](
+////               Space.IntThreeDim, IntCube( sz, sz, sz, sz ), skipGap = 1 )
 ////            new Model3D[ InMemory ]( tree )
 ////         } else {
 //            import txn.geom.Space.{Point2DSerializer, SquareSerializer}
@@ -72,7 +72,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          dir.mkdir()
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
-         implicit val system = Durable( BerkeleyDB.open( f ))
+         implicit val system: Durable = Durable( BerkeleyDB.open( f ))
          import SpaceSerializers.{Point2DSerializer, SquareSerializer}
          implicit val pointView = (p: IntPoint2D, t: Any) => p
          implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, IntPoint2D ]
@@ -85,7 +85,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          })
 
       } else {
-         implicit val system = InMemory()
+         implicit val system: InMemory = InMemory()
          import SpaceSerializers.{Point2DSerializer, SquareSerializer}
          implicit val pointView = (p: IntPoint2D, t: Any) => p
          implicit val reader = txn.DeterministicSkipOctree.serializer[ InMemory, TwoDim, IntPoint2D ]
@@ -114,7 +114,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
                                         access: Source[ S#Tx, txn.DeterministicSkipOctree[ S, TwoDim, IntPoint2D ]],
                                         cons: () => Unit, val nTimes: Int = 10 )
    extends Model[ S, TwoDim, IntPoint2D ] {
-//      val tree = DeterministicSkipOctree.empty[ S, Space.TwoDim, TwoDim#Point ]( Space.TwoDim, IntSquare( sz, sz, sz ), skipGap = 1 )
+//      val tree = DeterministicSkipOctree.empty[ S, Space.IntTwoDim, IntTwoDim#Point ]( Space.IntTwoDim, IntSquare( sz, sz, sz ), skipGap = 1 )
 
       def tree( implicit tx: S#Tx ) : txn.SkipOctree[ S, TwoDim, IntPoint2D ] = access.get
 
@@ -164,8 +164,8 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
    }
 
-//   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.ThreeDim, IntPoint3DLike ])
-//   extends Model[ S, Space.ThreeDim ] {
+//   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.IntThreeDim, IntPoint3DLike ])
+//   extends Model[ S, Space.IntThreeDim ] {
 //
 //      def queryShape( c: IntCubeLike ) = c
 //      def point( coords: IndexedSeq[ Int ]) = coords match {

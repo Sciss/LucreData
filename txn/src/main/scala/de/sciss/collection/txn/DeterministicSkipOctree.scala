@@ -44,7 +44,7 @@ import de.sciss.lucre.stm._
 *
 * The current implementation, backed by `impl.SkipOctreeImpl`, uses the types of
 * the `geom` package, assuming that coordinates are integers, with the maximum
-* root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.TwoDim`,
+* root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.IntTwoDim`,
 * this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
 */
 object DeterministicSkipOctree {
@@ -724,8 +724,9 @@ extends SkipOctree[ S, D, A ] {
          new Array[ M ]( sz )
       }
 
-      @tailrec def findNNTail( n0: LeftBranch, pri: PriorityQueue[ VisitedNode[ M ]], _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M )
-                             ( implicit tx: S#Tx ) : NNIter[ M ] = {
+      @tailrec private def findNNTail( n0: LeftBranch, pri: PriorityQueue[ VisitedNode[ M ]],
+                                       _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M )
+                                     ( implicit tx: S#Tx ) : NNIter[ M ] = {
          var numAccepted   = 0
          var acceptedQidx  = 0
 
@@ -857,7 +858,7 @@ extends SkipOctree[ S, D, A ] {
       // "At each square q ∈ Qi we either go to a child square in Qi
       // that covers the same area of R ∪ A as p does, if such a child
       // square exists, or jump to the next level q ∈ Qi−1."
-      @tailrec def findEquiStabbingTail( node: BranchLike, area: Area )( implicit tx: S#Tx ) : LeftBranch = {
+      @tailrec private def findEquiStabbingTail( node: BranchLike, area: Area )( implicit tx: S#Tx ) : LeftBranch = {
          var pi = node
          var i = 0; while( i < sz ) {
             pi.child( i ) match {

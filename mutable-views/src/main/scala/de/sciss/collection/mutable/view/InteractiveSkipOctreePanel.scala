@@ -31,7 +31,7 @@ import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.collection.view.{PDFSupport, QuadView}
-import geom.{QueryShape, DistanceMeasure, DistanceMeasure3D, IntCube, IntPoint3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
+import geom.{IntSpace, QueryShape, DistanceMeasure, DistanceMeasure3D, IntCube, IntPoint3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
 
 object InteractiveSkipOctreePanel extends App with Runnable {
    val seed = 0L
@@ -56,8 +56,8 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
    private val sz = 256
 
-   private final class Model2D( mode: Mode ) extends Model[ Space.TwoDim, IntPoint2D ] {
-      import Space.TwoDim
+   private final class Model2D( mode: Mode ) extends Model[ IntSpace.TwoDim, IntPoint2D ] {
+      import IntSpace.TwoDim
       import TwoDim._
 
       val tree = mode match {
@@ -111,8 +111,8 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
    }
 
-   private final class Model3D( mode: Mode ) extends Model[ Space.ThreeDim, IntPoint3D ] {
-      import Space.ThreeDim
+   private final class Model3D( mode: Mode ) extends Model[ IntSpace.ThreeDim, IntPoint3D ] {
+      import IntSpace.ThreeDim
       import ThreeDim._
 
       val tree = mode match {

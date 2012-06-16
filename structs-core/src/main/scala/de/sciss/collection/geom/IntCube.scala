@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-import Space.ThreeDim
+import IntSpace.ThreeDim
 
 /**
  * A three dimensional cube.

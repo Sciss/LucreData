@@ -25,7 +25,7 @@
 
 package de.sciss.collection.geom
 
-trait IntPoint2DLike /* extends PointLike[ Space.TwoDim ] */ {
+trait IntPoint2DLike /* extends PointLike[ Space.IntTwoDim ] */ {
    def x: Int
    def y: Int
 

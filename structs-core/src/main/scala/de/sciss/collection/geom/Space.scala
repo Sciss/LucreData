@@ -25,42 +25,6 @@
 
 package de.sciss.collection.geom
 
-object Space {
-   sealed trait TwoDim extends Space[ TwoDim ] {
-      type PointLike       = IntPoint2DLike
-      type Point           = IntPoint2D
-      type HyperCubeLike   = IntSquareLike
-      type HyperCube       = IntSquare
-   }
-   implicit object TwoDim extends TwoDim {
-      val maxPoint         = IntPoint2D( Int.MaxValue, Int.MaxValue )
-      val dim              = 2
-   }
-
-   sealed trait ThreeDim extends Space[ ThreeDim ] {
-      type PointLike       = IntPoint3DLike
-      type Point           = IntPoint3D
-      type HyperCubeLike   = IntCubeLike
-      type HyperCube       = IntCube
-   }
-   implicit object ThreeDim extends ThreeDim {
-      val maxPoint         = IntPoint3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )
-      val dim              = 3
-      val bigZero          = BigInt( 0 )
-   }
-
-//   /**
-//    * Space for arbitrary number of dimensions.
-//    *
-//    * @param   dim   the number of dimensions, which must be in the interval [2, 32]
-//    */
-//   final case class NDim( dim: Int ) extends Space[ NDim ] {
-//      require( dim >= 2 && dim <= 32, "Illegal number of dimensions (" + dim + "). Must be between 2 and 32" )
-//
-//
-//   }
-}
-
 /**
  * A `Space` abstracts over the number of dimensions
  * that are used for point and hypercube operations.

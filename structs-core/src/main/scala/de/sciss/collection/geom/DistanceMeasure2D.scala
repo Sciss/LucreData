@@ -26,7 +26,7 @@
 package de.sciss.collection.geom
 
 object DistanceMeasure2D {
-   import Space.TwoDim
+   import IntSpace.TwoDim
    import TwoDim._
 
    /**
@@ -230,7 +230,7 @@ object DistanceMeasure2D {
          new Quadrant( this, idx )
       }
 
-//      final def orthant( idx: Int ) : DistanceMeasure[ Long, TwoDim ] = (idx: @switch) match {
+//      final def orthant( idx: Int ) : DistanceMeasure[ Long, IntTwoDim ] = (idx: @switch) match {
 //         case 0 => sys.error( "TODO" )
 //         case 1 => sys.error( "TODO" )
 //         case 2 => new SouthWest( this )

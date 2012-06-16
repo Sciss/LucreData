@@ -1,4 +1,5 @@
 package de.sciss.collection
+package mutable
 
 object TestUtil {
    def formatSeconds( seconds: Double ) : String = {

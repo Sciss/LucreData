@@ -135,7 +135,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       // "At each square q ∈ Qi we either go to a child square in Qi
       // that covers the same area of R ∪ A as p does, if such a child
       // square exists, or jump to the next level q ∈ Qi−1."
-      @tailrec def findEquiStabbingTail( node: QNode, area: Area ) : QNode = {
+      @tailrec private def findEquiStabbingTail( node: QNode, area: Area ) : QNode = {
          var pi = node
          var i = 0; while( i < numOrthants ) {
             pi.child( i ) match {
@@ -252,7 +252,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       private var numAcceptedChildren = 0
       private var rmax                = metric.maxValue // Long.MaxValue
 
-      def recheckRMax {
+      def recheckRMax() {
          var j = 0; while( j < numAcceptedChildren ) {
 //            if( space.bigGt( acceptedChildren( j ).minDist, rmax )) { ... }
             if( metric.isMeasureGreater( acceptedChildren( j ).minDist, rmax )) {  // immediately kick it out
@@ -264,7 +264,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
          j += 1 }
       }
 
-      @tailrec def findNNTail( n0: QNode ) {
+      @tailrec private def findNNTail( n0: QNode ) {
          numAcceptedChildren = 0
          var accept1Idx = 0
          val oldRMax1 = rmax
@@ -303,7 +303,7 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
             }
          i += 1 }
 
-         if( rmax != oldRMax1 ) recheckRMax
+         if( rmax != oldRMax1 ) recheckRMax()
 
          // Unless exactly one child is accepted, round is over
          if( numAcceptedChildren != 1 ) return

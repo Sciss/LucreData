@@ -29,13 +29,13 @@ package view
 
 import edu.hendrix.ozark.burch.wireframe.{Polygon, Model, Point => WPoint, TransformUtility, Transform, Graphics3D, Vector => Vector3D}
 import de.sciss.collection.mutable.SkipOctree
-import de.sciss.collection.geom.Space
+import geom.IntSpace
 import annotation.switch
 import javax.swing.event.{AncestorEvent, AncestorListener}
 import javax.swing.{Timer, JComponent, BorderFactory}
 import java.awt.event.{ActionEvent, ActionListener, KeyAdapter, KeyEvent, FocusEvent, FocusListener, MouseAdapter, MouseEvent}
 import java.awt.{BasicStroke, RenderingHints, Graphics2D, Dimension, Graphics, Color}
-import Space.ThreeDim
+import IntSpace.ThreeDim
 
 class SkipOctree3DView[ Point <: ThreeDim#PointLike ]( t: SkipOctree[ ThreeDim, Point ]) extends JComponent {
    import ThreeDim.PointLike
@@ -227,8 +227,8 @@ class SkipOctree3DView[ Point <: ThreeDim#PointLike ]( t: SkipOctree[ ThreeDim, 
       }
 
       def poly( points: (Int, Int, Int)* ) {
-         val pts = points.map { case (x, y, z) =>
-            WPoint.create( (x - extent) * scale, (y - extent) * scale, (z - extent) * scale )
+         val pts = points.map { case (px, py, pz) =>
+            WPoint.create( (px - extent) * scale, (py - extent) * scale, (pz - extent) * scale )
          }
          val p = new Polygon( pts.toArray )
          m :+= p // (p, colr)

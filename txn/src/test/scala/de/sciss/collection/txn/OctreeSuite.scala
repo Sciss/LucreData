@@ -1,11 +1,11 @@
 package de.sciss.collection
 package txn
 
-import geom.{DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
+import geom.{IntSpace, DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
-import Space.ThreeDim
+import IntSpace.ThreeDim
 import java.io.File
 import de.sciss.lucre.stm.impl.BerkeleyDB
 import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
@@ -234,7 +234,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       val ps0 = Seq.fill( n2 )( pointFun( 0xFFFFFFFF ))
       // tricky: this guarantees that there are no 63 bit overflows,
       // while still allowing points outside the root hyperCube to enter the test
-      val ps = ps0.filter( pointFilter )
+      val ps: Seq[ D#Point ] = ps0.filter( pointFilter )
       val nnT: Map[ D#Point, D#Point ] = cursor.step { implicit tx =>
          ps.map( p => p -> t.nearestNeighbor( p, euclideanDist ))( breakOut )
       }

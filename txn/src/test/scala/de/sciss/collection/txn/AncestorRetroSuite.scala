@@ -2,7 +2,7 @@ package de.sciss.collection
 package txn
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import geom.{IntPoint3D, DistanceMeasure3D, IntCube, Space}
+import geom.{IntSpace, IntPoint3D, DistanceMeasure3D, IntCube}
 import concurrent.stm.Ref
 import java.io.File
 import de.sciss.lucre.{DataInput, DataOutput}
@@ -50,7 +50,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          Durable( BerkeleyDB.open( dir )) : Durable   /* please IDEA */
       }, { case (bdb, success) =>
          if( success ) {
-            val sz = bdb.step( bdb.numUserRecords( _ ))
+//            val sz = bdb.step( bdb.numUserRecords( _ ))
 //            if( sz != 0 ) bdb.step( implicit tx => bdb.debugListUserRecords() ).foreach( println )
 //            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
          }
@@ -115,7 +115,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val t = {
                import SpaceSerializers.CubeSerializer
                implicit val smf = Sys.manifest[ S ]( system )
-               SkipOctree.empty[ S, Space.ThreeDim, FullVertex[ S ]]( cube )
+               SkipOctree.empty[ S, IntSpace.ThreeDim, FullVertex[ S ]]( cube )
             }
             val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
             val preOrder      = TotalOrder.Map.empty[ S, FullVertexPre[ S ]]( orderObserver, _.order, 0 )
@@ -148,7 +148,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 //   final class FullTree[ S <: Sys[ S ]] private (
-//      val t: SkipOctree[ S, Space.ThreeDim, FullVertex[ S ]],
+//      val t: SkipOctree[ S, Space.IntThreeDim, FullVertex[ S ]],
 //      val root: FullRootVertex[ S ],
 //      val preOrder: TotalOrder.Map[ S, FullVertexPre[ S ]],
 //      val postOrder: TotalOrder.Map[ S, FullVertex[ S ]],
@@ -157,7 +157,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
    sealed trait FullTree[ S <: Sys[ S ]] {
       def system: S
-      def t: SkipOctree[ S, Space.ThreeDim, FullVertex[ S ]]
+      def t: SkipOctree[ S, IntSpace.ThreeDim, FullVertex[ S ]]
       def root: FullVertex[ S ]
       def preOrder: TotalOrder.Map[ S, FullVertexPre[ S ]]
       def postOrder: TotalOrder.Map[ S, FullVertex[ S ]]
@@ -299,7 +299,7 @@ if( verbose ) {
 //   }
 
    final class RelabelObserver[ S <: Sys[ S ], V <: VertexLike[ S, V ]]( name: String,
-                                                                      t: SkipOctree[ S, Space.ThreeDim, V ])
+                                                                      t: SkipOctree[ S, IntSpace.ThreeDim, V ])
    extends TotalOrder.Map.RelabelObserver[ S#Tx, VertexSource[ S, V ]] {
       def beforeRelabeling( /* v0s: VertexSource[ V ], */ iter: Iterator[ S#Tx, VertexSource[ S, V ]])( implicit tx: S#Tx ) {
          if( verbose ) println( "RELABEL " + name + " - begin" )
@@ -421,7 +421,7 @@ if( verbose ) {
          }
          lazy val t = {
             implicit val keySer = _vertexSer
-            SkipOctree.empty[ S, Space.ThreeDim, MarkVertex[ S ]]( ft.t.hyperCube )
+            SkipOctree.empty[ S, IntSpace.ThreeDim, MarkVertex[ S ]]( ft.t.hyperCube )
          }
          t += root
          implicit val orderSer: TxnSerializer[ S#Tx, S#Acc, TotalOrder.Map.Entry[ S, MarkVertex[ S ]]] =
@@ -453,7 +453,7 @@ if( verbose ) {
       }
    }
    final class MarkTree[ S <: Sys[ S ]] private( val ft: FullTree[ S ],
-                                                 val t: SkipOctree[ S, Space.ThreeDim, MarkVertex[ S ]],
+                                                 val t: SkipOctree[ S, IntSpace.ThreeDim, MarkVertex[ S ]],
                                  val root: MarkRootVertex[ S ], val preList: SkipList.Set[ S, MarkVertex[ S ]],
                                  val postList: SkipList.Set[ S, MarkVertex[ S ]]) {
       type V = MarkVertex[ S ]

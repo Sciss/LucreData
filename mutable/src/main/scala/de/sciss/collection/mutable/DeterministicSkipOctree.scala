@@ -39,7 +39,7 @@ import geom.Space
  *
  * The current implementation, backed by `impl.SkipOctreeImpl`, uses the types of
  * the `geom` package, assuming that coordinates are integers, with the maximum
- * root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.TwoDim`,
+ * root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.IntTwoDim`,
  * this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
  */
 object DeterministicSkipOctree {
@@ -555,7 +555,7 @@ object DeterministicSkipOctree {
                            leaf.parent = newParent
                            return
                         case _ =>
-                           assert( false, "Internal error - could not find parent of leaf in previous level : " + leaf )
+                           assert( assertion = false, message = "Internal error - could not find parent of leaf in previous level : " + leaf )
                      }
                   }
                }
@@ -851,14 +851,14 @@ object DeterministicSkipOctree {
       }
 
       private object MaxLeaf extends Leaf {
-         def point                        = space.maxPoint
-         val order                        = totalOrder.max
+         def point   = space.maxPoint
+         val order   = totalOrder.max
 
-         def value : A                       = unsupportedOp
-         def value_=( v: A ) : Unit          = unsupportedOp
-         def parent : Node                   = unsupportedOp
-         def parent_=( n: Node ) : Unit      = unsupportedOp
-         def dispose() : Unit                = unsupportedOp
+         def value : A = unsupportedOp
+         def value_=( v: A ) { unsupportedOp }
+         def parent : Node = unsupportedOp
+         def parent_=( n: Node ) { unsupportedOp }
+         def dispose() { unsupportedOp }
 
          private def unsupportedOp : Nothing = sys.error( "Internal error -- Operation not supported" )
 

@@ -29,15 +29,15 @@ package view
 
 import java.awt.{Color, Dimension}
 import de.sciss.collection.view.QuadView
-import geom.{IntPoint2DLike, Space}
+import geom.{IntSpace, IntPoint2DLike}
 import de.sciss.lucre.stm.{Source, Cursor, Sys}
 
-class SkipQuadtreeView[ S <: Sys[ S ], A ]( access: Source[ S#Tx, DeterministicSkipOctree[ S, Space.TwoDim, A ]],
+class SkipQuadtreeView[ S <: Sys[ S ], A ]( access: Source[ S#Tx, DeterministicSkipOctree[ S, IntSpace.TwoDim, A ]],
                                             cursor: Cursor[ S ], pointView: A => IntPoint2DLike )
 extends QuadView {
-//   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.TwoDim, A ]
+//   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.IntTwoDim, A ]
 
-   def t( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, Space.TwoDim, A ] = access.get
+   def t( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, IntSpace.TwoDim, A ] = access.get
 
    var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
@@ -74,8 +74,8 @@ extends QuadView {
       }
    }
 
-   private def draw( tr: DeterministicSkipOctree[ S, Space.TwoDim, A ],
-                     h: QuadView.PaintHelper, quad: DeterministicSkipOctree[ S, Space.TwoDim, A ]#Child ) {
+   private def draw( tr: DeterministicSkipOctree[ S, IntSpace.TwoDim, A ],
+                     h: QuadView.PaintHelper, quad: DeterministicSkipOctree[ S, IntSpace.TwoDim, A ]#Child ) {
       quad match {
          case l: tr.Leaf =>
             h.drawPoint( pointView( l.value ), highlight.contains( l.value ))

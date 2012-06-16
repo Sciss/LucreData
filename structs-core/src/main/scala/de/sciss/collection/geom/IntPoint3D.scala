@@ -26,7 +26,7 @@
 package de.sciss.collection.geom
 
 trait IntPoint3DLike {
-   import Space.ThreeDim._
+   import IntSpace.ThreeDim._
 
    def x: Int
    def y: Int

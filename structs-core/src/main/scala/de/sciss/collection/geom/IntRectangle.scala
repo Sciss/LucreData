@@ -28,8 +28,8 @@ package de.sciss.collection.geom
 /**
  * A 2D rectangular query shape.
  */
-trait IntRectangleLike extends QueryShape[ Long, Space.TwoDim ] {
-   import Space.TwoDim._
+trait IntRectangleLike extends QueryShape[ Long, IntSpace.TwoDim ] {
+   import IntSpace.TwoDim._
 
    def left: Int
    def top: Int

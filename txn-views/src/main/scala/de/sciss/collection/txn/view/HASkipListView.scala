@@ -68,7 +68,7 @@ extends SkipListView[ A ] {
       cursor.step { implicit tx =>
          l.top match {
             case Some( n ) =>
-               val (bb, nb) = buildBoxMap( n, true )
+               val (bb, nb) = buildBoxMap( n, isRight = true )
                bb.moveTo( 0, 0 )
                drawNode( g2, nb )
             case _ =>

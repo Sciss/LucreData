@@ -3,7 +3,7 @@ package mutable
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import annotation.tailrec
-import geom.{IntPoint3D, DistanceMeasure3D, IntCube, IntPoint3DLike, Space}
+import geom.{IntSpace, IntPoint3D, DistanceMeasure3D, IntCube, IntPoint3DLike}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -41,9 +41,9 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 //      final val root       = newVertex( _init, preOrder.root, postOrder.root, nextVersion() )
       final val cube       = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
       final val t          = if( USE_DET ) {
-         DeterministicSkipOctree.empty[ Space.ThreeDim, V ]( Space.ThreeDim, cube )
+         DeterministicSkipOctree.empty[ IntSpace.ThreeDim, V ]( IntSpace.ThreeDim, cube )
       } else {
-         RandomizedSkipOctree.empty[ Space.ThreeDim, V ]( Space.ThreeDim, cube, coin = RandomizedSkipOctree.Coin( 67890L ))
+         RandomizedSkipOctree.empty[ IntSpace.ThreeDim, V ]( IntSpace.ThreeDim, cube, coin = RandomizedSkipOctree.Coin( 67890L ))
       }
 
       add( root )

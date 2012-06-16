@@ -173,7 +173,7 @@ object RandomizedSkipOctree {
       private final class Node( val hyperCube: D#HyperCube, var parent: Node, val prev: Node,
                                 val children: Array[ Child ] = new Array[ Child ]( numOrthants ))
       extends NonEmpty with QNode {
-         var next: Node = null;
+         var next: Node = null
 
          // fix null hyper-cubes and link
          {
