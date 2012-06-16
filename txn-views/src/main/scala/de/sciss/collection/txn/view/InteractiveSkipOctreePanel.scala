@@ -57,7 +57,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 ////               Space.IntThreeDim, IntCube( sz, sz, sz, sz ), skipGap = 1 )
 ////            new Model3D[ InMemory ]( tree )
 ////         } else {
-//            import txn.geom.Space.{Point2DSerializer, SquareSerializer}
+//            import txn.geom.Space.{IntPoint2DSerializer$, IntSquareSerializer$}
 //
 //         }
 //      }
@@ -73,7 +73,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
          val f       = new File( dir, "data" )
          println( f.getAbsolutePath )
          implicit val system: Durable = Durable( BerkeleyDB.open( f ))
-         import SpaceSerializers.{Point2DSerializer, SquareSerializer}
+         import SpaceSerializers.{IntPoint2DSerializer, IntSquareSerializer}
          implicit val pointView = (p: IntPoint2D, t: Any) => p
          implicit val reader = txn.DeterministicSkipOctree.serializer[ Durable, TwoDim, IntPoint2D ]
          val access = system.root { implicit tx =>
@@ -86,7 +86,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
       } else {
          implicit val system: InMemory = InMemory()
-         import SpaceSerializers.{Point2DSerializer, SquareSerializer}
+         import SpaceSerializers.{IntPoint2DSerializer, IntSquareSerializer}
          implicit val pointView = (p: IntPoint2D, t: Any) => p
          implicit val reader = txn.DeterministicSkipOctree.serializer[ InMemory, TwoDim, IntPoint2D ]
          val access = system.root { implicit tx =>

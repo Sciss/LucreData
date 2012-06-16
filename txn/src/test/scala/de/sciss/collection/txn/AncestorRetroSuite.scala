@@ -113,7 +113,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val system  = tx.system
             val cube    = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
             val t = {
-               import SpaceSerializers.CubeSerializer
+               import SpaceSerializers.IntCubeSerializer
                implicit val smf = Sys.manifest[ S ]( system )
                SkipOctree.empty[ S, IntSpace.ThreeDim, FullVertex[ S ]]( cube )
             }
@@ -395,7 +395,7 @@ if( verbose ) {
 
    object MarkTree {
       def apply[ S <: Sys[ S ]]( ft: FullTree[ S ])( implicit tx: S#Tx, system: S ) : MarkTree[ S ] = {
-         import SpaceSerializers.CubeSerializer
+         import SpaceSerializers.IntCubeSerializer
          implicit val pointView = (p: MarkVertex[ S ], tx: S#Tx) => p.toPoint( tx )
          lazy val orderObserver = new RelabelObserver[ S, MarkVertex[ S ]]( "mark", t )
          lazy val _vertexSer: TxnSerializer[ S#Tx, S#Acc, MarkVertex[ S ]] = new TxnSerializer[ S#Tx, S#Acc, MarkVertex[ S ]] {

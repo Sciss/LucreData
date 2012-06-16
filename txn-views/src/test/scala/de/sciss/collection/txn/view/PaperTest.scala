@@ -15,7 +15,7 @@ object PaperTest extends App with Runnable {
 
   def run() {
     implicit val system: InMemory = InMemory()
-    import SpaceSerializers.{Point2DSerializer, SquareSerializer}
+    import SpaceSerializers.{IntPoint2DSerializer, IntSquareSerializer}
     implicit val pointView = (p: TwoDim#Point, t: Any) => p
     implicit val reader = DeterministicSkipOctree.serializer[ InMemory, TwoDim, TwoDim#Point ]
     val access = system.root { implicit tx =>

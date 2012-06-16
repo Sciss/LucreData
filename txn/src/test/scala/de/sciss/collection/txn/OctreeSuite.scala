@@ -36,7 +36,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       withTree[ S ]( sysName, () => {
          implicit val sys = sysCreator()
          val t = sys.step { implicit tx =>
-            import SpaceSerializers.{Point3DSerializer, CubeSerializer}
+            import SpaceSerializers.{IntPoint3DSerializer, IntCubeSerializer}
             implicit val pointView = (p: IntPoint3D, _: Any) => p
             txn.DeterministicSkipOctree.empty[ S, ThreeDim, IntPoint3D ]( cube )
          }

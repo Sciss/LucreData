@@ -25,9 +25,7 @@
 
 package de.sciss.collection.geom
 
-// import de.sciss.lucrestm.{DataOutput, Writer}
-
-trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ Long, LongSpace.TwoDim ] {
+trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigInt, LongSpace.TwoDim ] {
    import LongSpace.TwoDim._
 
    /**
@@ -106,7 +104,7 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ Long
 
    // -- QueryShape --
 
-   final def overlapArea( q: HyperCube ) : Long = {
+   final def overlapArea( q: HyperCube ) : BigInt = {
       sys.error( "TODO" )
       val l = math.max( q.left, left ).toLong
       val r = math.min( q.right, right ).toLong
@@ -119,12 +117,12 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ Long
       w * h
    }
 
-   final def isAreaGreater( a: HyperCube, b: Long ) : Boolean = {
+   final def isAreaGreater( a: HyperCube, b: BigInt ) : Boolean = {
       sys.error( "TODO" )
       a.area > b
    }
 
-   final def isAreaNonEmpty( area: Long ) : Boolean = {
+   final def isAreaNonEmpty( area: BigInt ) : Boolean = {
       sys.error( "TODO" )
       area > 0L
    }
@@ -133,20 +131,20 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ Long
     * Calculates the minimum distance to a point in the euclidean metric.
     * This calls `minDistanceSq` and then takes the square root.
     */
-   final def minDistance( point: PointLike ) : Double = math.sqrt( minDistanceSq( point ))
+   final def minDistance( point: PointLike ) : Double = math.sqrt( minDistanceSq( point ).doubleValue() )
 
    /**
     * Calculates the maximum distance to a point in the euclidean metric.
     * This calls `maxDistanceSq` and then takes the square root.
     */
-   final def maxDistance( point: PointLike ) : Double = math.sqrt( maxDistanceSq( point ))
+   final def maxDistance( point: PointLike ) : Double = math.sqrt( maxDistanceSq( point ).doubleValue() )
 
    /**
     * The squared (euclidean) distance of the closest of the square's corners
     * or sides to the point, if the point is outside the square,
     * or zero, if the point is contained
     */
-   final def minDistanceSq( point: PointLike ) : Long = {
+   final def minDistanceSq( point: PointLike ) : BigInt = {
       sys.error( "TODO" )
       val ax   = point.x
       val ay   = point.y
@@ -180,7 +178,7 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ Long
     * This is the distance (squared) to the corner which is the furthest from
     * the `point`, no matter if it lies within the square or not.
     */
-   final def maxDistanceSq( point: PointLike ) : Long = {
+   final def maxDistanceSq( point: PointLike ) : BigInt = {
       sys.error( "TODO" )
       val ax   = point.x
       val ay   = point.y

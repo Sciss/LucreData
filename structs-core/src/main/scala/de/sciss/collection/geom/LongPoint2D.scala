@@ -32,10 +32,9 @@ trait LongPoint2DLike {
    final def left : Long   = x
    final def top : Long    = y
 
-   def distanceSq( that: LongPoint2DLike ) : Long = {
-      sys.error( "TODO" )
-      val dx = that.x.toLong - x.toLong
-      val dy = that.y.toLong - y.toLong
+   def distanceSq( that: LongPoint2DLike ) : BigInt = {
+      val dx = BigInt( that.x ) - BigInt( x )
+      val dy = BigInt( that.y ) - BigInt( y )
       dx * dx + dy * dy
    }
 

@@ -6,7 +6,7 @@ import de.sciss.lucre.stm.Serializer
 import geom.{IntCube, IntPoint3D, IntSquare, IntPoint2D}
 
 object SpaceSerializers {
-   implicit object Point2DSerializer extends Serializer[ geom.IntPoint2D ] {
+   implicit object IntPoint2DSerializer extends Serializer[ geom.IntPoint2D ] {
       def read( in: DataInput ) : IntPoint2D = {
          val x = in.readInt()
          val y = in.readInt()
@@ -19,7 +19,7 @@ object SpaceSerializers {
       }
    }
 
-   implicit object SquareSerializer extends Serializer[ geom.IntSquare ] {
+   implicit object IntSquareSerializer extends Serializer[ geom.IntSquare ] {
       def read( in: DataInput ) : IntSquare = {
          val cx      = in.readInt()
          val cy      = in.readInt()
@@ -34,7 +34,7 @@ object SpaceSerializers {
       }
    }
 
-   implicit object Point3DSerializer extends Serializer[ geom.IntPoint3D ] {
+   implicit object IntPoint3DSerializer extends Serializer[ geom.IntPoint3D ] {
        def read( in: DataInput ) : IntPoint3D = {
           val x = in.readInt()
           val y = in.readInt()
@@ -49,7 +49,7 @@ object SpaceSerializers {
        }
     }
 
-    implicit object CubeSerializer extends Serializer[ geom.IntCube ] {
+    implicit object IntCubeSerializer extends Serializer[ geom.IntCube ] {
        def read( in: DataInput ) : IntCube = {
           val cx      = in.readInt()
           val cy      = in.readInt()
