@@ -1,5 +1,5 @@
 /*
- *  Quad.scala
+ *  IntCube.scala
  *  (LucreData)
  *
  *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
@@ -59,7 +59,7 @@ import Space.ThreeDim
  * - 6 (binary 110) - left-bottom-back
  * - 7 (binary 111) - right-bottom-back
  */
-trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ] {
+trait IntCubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ] {
    import ThreeDim._
 
    /**
@@ -87,7 +87,7 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
       val dx   = if( (idx & 1) == 0 ) -e else e
       val dy   = if( (idx & 2) == 0 ) -e else e
       val dz   = if( (idx & 4) == 0 ) -e else e
-      Cube( cx + dx, cy + dy, cz + dz, e )
+      IntCube( cx + dx, cy + dy, cz + dz, e )
    }
 
    final def contains( point: PointLike ) : Boolean = {
@@ -365,22 +365,22 @@ trait CubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDim ]
       if( mx <= my ) {
          if( mx <= mz ) {
             val mxs = mx << 1
-            Cube( tlx + (x2 & mx), tly + (y0 & mxs) - mx, tlz + (z0 & mxs) - mx, -mx )
+            IntCube( tlx + (x2 & mx), tly + (y0 & mxs) - mx, tlz + (z0 & mxs) - mx, -mx )
          } else {
             val mzs = mz << 1
-            Cube( tlx + (x0 & mzs) - mz, tly + (y0 & mzs) - mz, tlz + (z2 & mz), -mz )
+            IntCube( tlx + (x0 & mzs) - mz, tly + (y0 & mzs) - mz, tlz + (z2 & mz), -mz )
          }
       } else {
          if( my <= mz ) {
             val mys = my << 1
-            Cube( tlx + (x0 & mys) - my, tly + (y2 & my), tlz + (z0 & mys) - my, -my )
+            IntCube( tlx + (x0 & mys) - my, tly + (y2 & my), tlz + (z0 & mys) - my, -my )
          } else {
             val mzs = mz << 1
-            Cube( tlx + (x0 & mzs) - mz, tly + (y0 & mzs) - mz, tlz + (z2 & mz), -mz )
+            IntCube( tlx + (x0 & mzs) - mz, tly + (y0 & mzs) - mz, tlz + (z2 & mz), -mz )
          }
       }
    }
 }
 
-final case class Cube( cx: Int, cy: Int, cz: Int, extent: Int )
-extends CubeLike
+final case class IntCube( cx: Int, cy: Int, cz: Int, extent: Int )
+extends IntCubeLike

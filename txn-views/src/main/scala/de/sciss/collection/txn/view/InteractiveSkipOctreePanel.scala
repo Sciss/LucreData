@@ -54,7 +54,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //         system.step { implicit tx =>
 ////         if( xs.contains( "--3d" )) {
 ////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.ThreeDim, IntPoint3DLike ](
-////               Space.ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
+////               Space.ThreeDim, IntCube( sz, sz, sz, sz ), skipGap = 1 )
 ////            new Model3D[ InMemory ]( tree )
 ////         } else {
 //            import txn.geom.Space.{Point2DSerializer, SquareSerializer}
@@ -167,13 +167,13 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.ThreeDim, IntPoint3DLike ])
 //   extends Model[ S, Space.ThreeDim ] {
 //
-//      def queryShape( c: CubeLike ) = c
+//      def queryShape( c: IntCubeLike ) = c
 //      def point( coords: IndexedSeq[ Int ]) = coords match {
 //         case IndexedSeq( x, y, z ) => IntPoint3D( x, y, z )
 //      }
 //      def coords( p: IntPoint3DLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
 //      def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
-//         case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
+//         case IndexedSeq( x, y, z ) => IntCube( x, y, z, ext )
 //      }
 //
 //      val view = new SkipOctree3DView( tree )
@@ -188,7 +188,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 //         "MinimumXY" -> DistanceMeasure3D.vehsybehcXY
 //      )
 //
-//      var rangeHyperCube = Option.empty[ CubeLike ]
+//      var rangeHyperCube = Option.empty[ IntCubeLike ]
 //
 //      def addPDFSupport( f: JFrame ) {
 //         PDFSupport.addMenu[ JComponent ]( f, view :: Nil, _ => () )

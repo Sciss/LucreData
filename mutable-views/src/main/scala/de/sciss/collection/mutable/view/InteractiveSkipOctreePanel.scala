@@ -31,7 +31,7 @@ import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
 import de.sciss.collection.view.{PDFSupport, QuadView}
-import geom.{QueryShape, DistanceMeasure, DistanceMeasure3D, Cube, IntPoint3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
+import geom.{QueryShape, DistanceMeasure, DistanceMeasure3D, IntCube, IntPoint3D, DistanceMeasure2D, IntSquare, IntPoint2D, Space}
 
 object InteractiveSkipOctreePanel extends App with Runnable {
    val seed = 0L
@@ -117,9 +117,9 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
       val tree = mode match {
          case Randomized =>
-            RandomizedSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, Cube( sz, sz, sz, sz ))
+            RandomizedSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, IntCube( sz, sz, sz, sz ))
          case Deterministic =>
-            DeterministicSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, Cube( sz, sz, sz, sz ), skipGap = 1 )
+            DeterministicSkipOctree.empty[ ThreeDim, Point ]( ThreeDim, IntCube( sz, sz, sz, sz ), skipGap = 1 )
       }
 
       def queryShape( c: HyperCube ) = c
@@ -128,7 +128,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       }
       def coords( p: PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y, p.z )
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
-         case IndexedSeq( x, y, z ) => Cube( x, y, z, ext )
+         case IndexedSeq( x, y, z ) => IntCube( x, y, z, ext )
       }
 
       val view = new SkipOctree3DView[ Point ]( tree )

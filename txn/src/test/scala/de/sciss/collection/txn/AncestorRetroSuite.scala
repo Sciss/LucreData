@@ -2,7 +2,7 @@ package de.sciss.collection
 package txn
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import geom.{IntPoint3D, DistanceMeasure3D, Cube, Space}
+import geom.{IntPoint3D, DistanceMeasure3D, IntCube, Space}
 import concurrent.stm.Ref
 import java.io.File
 import de.sciss.lucre.{DataInput, DataOutput}
@@ -111,7 +111,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          implicit val pointView = (p: FullVertex[ S ], tx: S#Tx) => p.toPoint( tx )
          new FullTree[ S ] {
             val system  = tx.system
-            val cube    = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
+            val cube    = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
             val t = {
                import SpaceSerializers.CubeSerializer
                implicit val smf = Sys.manifest[ S ]( system )

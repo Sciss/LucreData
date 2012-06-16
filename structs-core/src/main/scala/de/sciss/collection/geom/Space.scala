@@ -40,8 +40,8 @@ object Space {
    sealed trait ThreeDim extends Space[ ThreeDim ] {
       type PointLike       = IntPoint3DLike
       type Point           = IntPoint3D
-      type HyperCubeLike   = CubeLike
-      type HyperCube       = Cube
+      type HyperCubeLike   = IntCubeLike
+      type HyperCube       = IntCube
    }
    implicit object ThreeDim extends ThreeDim {
       val maxPoint         = IntPoint3D( Int.MaxValue, Int.MaxValue, Int.MaxValue )

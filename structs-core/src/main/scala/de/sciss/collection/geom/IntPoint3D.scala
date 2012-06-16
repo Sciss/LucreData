@@ -1,5 +1,5 @@
 /*
- *  Point3D.scala
+ *  IntPoint3D.scala
  *  (LucreData)
  *
  *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
@@ -45,7 +45,7 @@ trait IntPoint3DLike {
    }
 
    // ---- QueryShape ----
-//   final def overlapArea( q: Cube ) : Long = if( q.contains( this )) 1L else 0L
+//   final def overlapArea( q: IntCube ) : Long = if( q.contains( this )) 1L else 0L
 //   final def area : Long = 1L
 
    /**

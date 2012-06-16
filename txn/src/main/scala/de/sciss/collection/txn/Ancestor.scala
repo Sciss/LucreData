@@ -25,14 +25,14 @@
 
 package de.sciss.collection.txn
 
-import de.sciss.collection.geom.{DistanceMeasure3D, IntPoint3D, Cube, Space}
+import de.sciss.collection.geom.{DistanceMeasure3D, IntPoint3D, IntCube, Space}
 import de.sciss.lucre.{DataOutput, DataInput}
 import de.sciss.lucre.stm.{Disposable, TxnSerializer, Writer, Sys}
 
 object Ancestor {
    private val SER_VERSION = 0
 
-   private[Ancestor] val cube = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
+   private[Ancestor] val cube = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
 
    private type TreePreOrder[  S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
    private type TreePostOrder[ S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]

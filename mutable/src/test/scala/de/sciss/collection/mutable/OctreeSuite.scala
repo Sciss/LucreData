@@ -1,7 +1,7 @@
 package de.sciss.collection
 package mutable
 
-import geom.{DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntPoint3DLike, Cube}
+import geom.{DistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntPoint3DLike, IntCube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
 import collection.breakOut
 import collection.mutable.{Set => MSet}
@@ -26,7 +26,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    val rnd           = new util.Random( 2L ) // ( 12L )
    val coin          = RandomizedSkipOctree.Coin( 0L )
 
-   val cube          = Cube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
+   val cube          = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
    if( RANDOMIZED ) {
       withTree( "randomized", RandomizedSkipOctree.empty[ ThreeDim, ThreeDim#PointLike ]( ThreeDim, cube, coin ))
    }
@@ -151,7 +151,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    }
 
    val queryFun3D = (max: Int, off: Int, ext: Int) =>
-      Cube( rnd.nextInt( max ) - off, rnd.nextInt( max ) - off, rnd.nextInt( max ) - off, rnd.nextInt( ext ))
+      IntCube( rnd.nextInt( max ) - off, rnd.nextInt( max ) - off, rnd.nextInt( max ) - off, rnd.nextInt( ext ))
 
    val sortFun3D = (p: ThreeDim#PointLike) => (p.x, p.y, p.z)
 

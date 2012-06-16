@@ -1,5 +1,5 @@
 /*
- *  Point2D.scala
+ *  IntPoint2D.scala
  *  (LucreData)
  *
  *  Copyright (c) 2011-2012 Hanns Holger Rutz. All rights reserved.
