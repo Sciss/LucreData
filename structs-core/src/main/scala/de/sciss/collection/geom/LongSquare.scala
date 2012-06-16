@@ -252,7 +252,6 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
       gi( a.left, a.top, a.extent << 1, b )  // a.extent << 1 can exceed 63 bit -- but it seems to work :-/
 
    private def gi( aleft: Long, atop: Long, asize: Long, b: PointLike ) : HyperCube = {
-      sys.error( "TODO" )
       val tlx = cx - extent
       val tly = cy - extent
       val akx = aleft - tlx
@@ -272,7 +271,7 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
          x1 = bkx + 1
          x2 = akx
       }
-      val mx = 0; sys.error( "TODO" ) // = HyperCube.binSplit( x1, x2 )
+      val mx = LongSpace.binSplit( x1, x2 )
 
       var y0 = 0L
       var y1 = 0L
@@ -286,7 +285,7 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
          y1 = bky + 1
          y2 = aky
       }
-      val my = 0; sys.error( "TODO" ) // = HyperCube.binSplit( y1, y2 )
+      val my = LongSpace.binSplit( y1, y2 )
 
       // that means the x extent is greater (x grid more coarse).
       if( mx <= my ) {

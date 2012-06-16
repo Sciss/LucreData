@@ -25,6 +25,8 @@
 
 package de.sciss.collection.geom
 
+import annotation.tailrec
+
 object LongSpace {
    sealed trait TwoDim extends Space[ TwoDim ] {
       type PointLike       = LongPoint2DLike
@@ -35,5 +37,25 @@ object LongSpace {
    implicit object TwoDim extends TwoDim {
       val maxPoint         = LongPoint2D( Long.MaxValue, Long.MaxValue )
       val dim              = 2
+   }
+
+   /**
+    * A helper method which efficiently calculates the unique integer in an interval [a, b] which has
+    * the maximum number of trailing zeros in its binary representation (a and b are integers > 0).
+    * This is used by the `HyperCube` implementations to find the greatest interesting square for
+    * two given children.
+    *
+    * Thanks to Rex Kerr and Daniel Sobral
+    * ( http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits )
+    */
+   def binSplit( a: Long, b: Long ): Long = binSplitRec( a, b, 0xFFFFFFFF00000000L, 16 )
+
+   @tailrec private def binSplitRec( a: Long, b: Long, mask: Long, shift: Int ): Long = {
+      val gt = a > (b & mask)
+      if( shift == 0 ) {
+         if( gt ) mask >> 1 else mask
+      } else {
+         binSplitRec( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
+      }
    }
 }
