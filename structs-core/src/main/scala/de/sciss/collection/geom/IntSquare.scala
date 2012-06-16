@@ -272,7 +272,7 @@ trait IntSquareLike extends HyperCube[ IntSpace.TwoDim ] with QueryShape[ Long, 
          x1 = bkx + 1
          x2 = akx
       }
-      val mx = HyperCube.binSplit( x1, x2 )
+      val mx = IntSpace.binSplit( x1, x2 )
 
       var y0 = 0
       var y1 = 0
@@ -286,7 +286,7 @@ trait IntSquareLike extends HyperCube[ IntSpace.TwoDim ] with QueryShape[ Long, 
          y1 = bky + 1
          y2 = aky
       }
-      val my = HyperCube.binSplit( y1, y2 )
+      val my = IntSpace.binSplit( y1, y2 )
 
       // that means the x extent is greater (x grid more coarse).
       if( mx <= my ) {

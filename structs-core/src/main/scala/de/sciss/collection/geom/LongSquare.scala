@@ -27,6 +27,7 @@ package de.sciss.collection.geom
 
 trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigInt, LongSpace.TwoDim ] {
    import LongSpace.TwoDim._
+   import Space.bigZero
 
    /**
     * X coordinate of the square's center
@@ -105,27 +106,20 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
    // -- QueryShape --
 
    final def overlapArea( q: HyperCube ) : BigInt = {
-      sys.error( "TODO" )
       val l = BigInt( math.max( q.left, left ))
       val r = BigInt( math.min( q.right, right ))
       val w = r - l + 1
-      if( w <= 0L ) return 0L
-      val t = math.max( q.top, top ).toLong
-      val b = math.min( q.bottom, bottom ).toLong
-      val h = b - t + 1 // (b - t).toLong + 1
-      if( h <= 0L ) return 0L
+      if( w <= bigZero ) return bigZero
+      val t = BigInt( math.max( q.top, top ))
+      val b = BigInt( math.min( q.bottom, bottom ))
+      val h = b - t + 1
+      if( h <= bigZero ) return bigZero
       w * h
    }
 
-   final def isAreaGreater( a: HyperCube, b: BigInt ) : Boolean = {
-      sys.error( "TODO" )
-      a.area > b
-   }
+   final def isAreaGreater( a: HyperCube, b: BigInt ) : Boolean = a.area > b
 
-   final def isAreaNonEmpty( area: BigInt ) : Boolean = {
-      sys.error( "TODO" )
-      area > 0L
-   }
+   final def isAreaNonEmpty( area: BigInt ) : Boolean = area > bigZero
 
    /**
     * Calculates the minimum distance to a point in the euclidean metric.
@@ -145,30 +139,29 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
     * or zero, if the point is contained
     */
    final def minDistanceSq( point: PointLike ) : BigInt = {
-      sys.error( "TODO" )
       val ax   = point.x
       val ay   = point.y
       val em1  = extent - 1
 
       val dx   = if( ax < cx ) {
          val xmin = cx - extent
-         if( ax < xmin ) xmin - ax else 0
+         if( ax < xmin ) xmin - ax else 0L
       } else {
          val xmax = cx + em1
-         if( ax > xmax ) ax - xmax else 0
+         if( ax > xmax ) ax - xmax else 0L
       }
 
       val dy   = if( ay < cy ) {
          val ymin = cy - extent
-         if( ay < ymin ) ymin - ay else 0
+         if( ay < ymin ) ymin - ay else 0L
       } else {
          val ymax = cy + em1
-         if( ay > ymax ) ay - ymax else 0
+         if( ay > ymax ) ay - ymax else 0L
       }
 
-      if( dx == 0 && dy == 0 ) 0L else {
-         val dxl = dx.toLong
-         val dyl = dy.toLong
+      if( dx == 0L && dy == 0L ) bigZero else {
+         val dxl = BigInt( dx )
+         val dyl = BigInt( dy )
          dxl * dxl + dyl * dyl
       }
    }
@@ -179,23 +172,22 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
     * the `point`, no matter if it lies within the square or not.
     */
    final def maxDistanceSq( point: PointLike ) : BigInt = {
-      sys.error( "TODO" )
       val ax   = point.x
       val ay   = point.y
       val em1  = extent - 1
-      val axl  = ax.toLong
-      val ayl  = ay.toLong
+      val axl  = BigInt( ax )
+      val ayl  = BigInt( ay )
 
       val dx   = if( ax < cx ) {
-         (cx + em1).toLong - axl
+         BigInt( cx + em1 ) - axl
       } else {
-         axl - (cx - extent).toLong
+         axl - BigInt( cx - extent )
       }
 
       val dy   = if( ay < cy ) {
-         (cy + em1).toLong - ayl
+         BigInt( cy + em1 ) - ayl
       } else {
-         ayl - (cy - extent).toLong
+         ayl - BigInt( cy - extent )
       }
 
       dx * dx + dy * dy
