@@ -28,12 +28,16 @@ package de.sciss.collection.geom
 object IntDistanceMeasure3D {
    import IntSpace.ThreeDim
    import ThreeDim._
-   import Space.bigZero
+   import Space.{bigZero => Zero}
    import DistanceMeasure.Ops
 
    private type Sqr = BigInt
    private type ML = DistanceMeasure[ Long, ThreeDim ] with Ops[ Long, ThreeDim ]
    private type MS = DistanceMeasure[ Sqr,  ThreeDim ] with Ops[ Sqr,  ThreeDim ]
+   private val MaxDistance : Sqr = {
+      val n = BigInt( Long.MaxValue )
+      n * n
+   }
 
    /**
     * A measure that uses the euclidean squared distance
@@ -76,23 +80,23 @@ object IntDistanceMeasure3D {
    private final class LongClip( protected val underlying: LongImpl, protected val clipping: HyperCube )
    extends ClipLike[ Long ] with LongImpl
 
-   private final class SqrApproximate( underlying: SqrImpl, thresh: BigInt ) extends SqrImpl {
-      def minDistance( a: PointLike, b: HyperCube ) : BigInt = underlying.minDistance( a, b )
-      def maxDistance( a: PointLike, b: HyperCube ) : BigInt = underlying.maxDistance( a, b )
-      def distance( a: PointLike, b: PointLike ) : BigInt = {
-         val res = b.distanceSq( a )
-         if( res > thresh ) res else bigZero
+   private sealed trait ApproximateLike[ @specialized( Long ) M ] extends Impl[ M ] {
+      protected def underlying: DistanceMeasure[ M, ThreeDim ]
+      protected def thresh: M
+
+      def minDistance( a: PointLike, b: HyperCube ) : M = underlying.minDistance( a, b )
+      def maxDistance( a: PointLike, b: HyperCube ) : M = underlying.maxDistance( a, b )
+      def distance( a: PointLike, b: PointLike ) : M = {
+         val res = underlying.distance( a, b ) // b.distanceSq( a )
+         if( isMeasureGreater( res, thresh )) res else zeroValue
       }
    }
 
-//   private final class ApproximateLong( underlying: LongImpl, thresh: Long ) extends LongImpl {
-//      def minDistance( a: Point, b: HyperCube ) : Long = underlying.minDistance( a, b )
-//      def maxDistance( a: Point, b: HyperCube ) : Long = underlying.maxDistance( a, b )
-//      def distance( a: Point, b: Point ) : Long = {
-//         val res = b.distanceSq( a )
-//         if( res > thresh ) res else 0L
-//      }
-//   }
+   private final class SqrApproximate( protected val underlying: SqrImpl, protected val thresh: Sqr )
+   extends ApproximateLike[ Sqr ] with SqrImpl
+
+   private final class LongApproximate( protected val underlying: LongImpl, protected val thresh: Long )
+   extends ApproximateLike[ Long ] with LongImpl
 
    private sealed trait OrthantLike[ @specialized( Long ) M ]
    extends DistanceMeasure[ M, ThreeDim ] {
@@ -247,11 +251,16 @@ object IntDistanceMeasure3D {
       }
    }
 
-   private sealed trait SqrImpl extends DistanceMeasure[ BigInt, ThreeDim ] with Ops[ Sqr, ThreeDim ] {
+   private sealed trait Impl[ @specialized( Long ) M ] extends Ops[ M, ThreeDim ] {
+      protected def zeroValue : M
+   }
+
+   private sealed trait SqrImpl extends Impl[ Sqr ] {
       final val manifest : Manifest[ BigInt ] = Manifest.classType[ BigInt ]( classOf[ BigInt ])
 
-      final val maxValue : BigInt = BigInt( 0x7FFFFFFFFFFFFFFFL ) * BigInt( 0x7FFFFFFFFFFFFFFFL )
-      final def isMeasureZero( m: BigInt ) : Boolean = m == bigZero
+      final def maxValue : Sqr = MaxDistance
+      final def zeroValue : Sqr = Zero
+      final def isMeasureZero( m: BigInt ) : Boolean = m == Zero
       final def isMeasureGreater( a: BigInt, b: BigInt ) : Boolean = a > b
       final def compareMeasure( a: BigInt, b: BigInt ) : Int = if( a > b ) 1 else if( a < b ) -1 else 0
 
@@ -263,16 +272,17 @@ object IntDistanceMeasure3D {
       }
    }
 
-   private sealed trait LongImpl extends DistanceMeasure[ Long, ThreeDim ] with Ops[ Long, ThreeDim ] {
+   private sealed trait LongImpl extends Impl[ Long ] {
       final def manifest : Manifest[ Long ] = Manifest.Long
 
       final def maxValue : Long = Long.MaxValue
+      final def zeroValue : Long = 0L
       final def isMeasureZero( m: Long ) : Boolean = m == 0L
       final def isMeasureGreater( a: Long, b: Long ) : Boolean = a > b
       final def compareMeasure( a: Long, b: Long ) : Int = if( a > b ) 1 else if( a < b ) -1 else 0
 
       final def clip( quad: HyperCube ) : ML = new LongClip( this, quad )
-      final def approximate( thresh: Long ) : ML = sys.error( "TODO" ) // new ApproximateLong( this, thresh )
+      final def approximate( thresh: Long ) : ML = new LongApproximate( this, thresh )
       final def orthant( idx: Int ) : ML = {
          require( idx >= 0 && idx < 8, "Orthant index out of range (" + idx + ")" )
          new LongOrthant( this, idx )

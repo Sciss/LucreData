@@ -234,13 +234,5 @@ object IntDistanceMeasure2D {
          require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
          new Quadrant( this, idx )
       }
-
-//      final def orthant( idx: Int ) : DistanceMeasure[ Long, IntTwoDim ] = (idx: @switch) match {
-//         case 0 => sys.error( "TODO" )
-//         case 1 => sys.error( "TODO" )
-//         case 2 => new SouthWest( this )
-//         case 3 => sys.error( "TODO" )
-//         case _ => throw new IllegalArgumentException( "Invalid quadrant index " + idx )
-//      }
    }
 }
