@@ -25,6 +25,40 @@
 
 package de.sciss.collection.geom
 
+object DistanceMeasure {
+   trait Ops[ @specialized( Long ) M, D <: Space[ D ]] extends DistanceMeasure[ M, D ] {
+      /**
+       * Applies a filter to this measure by constraining distances
+       * to objects `b` which lie within the given `IntSquare`. That
+       * is, if for example `distance( a, b )` is called, first it
+       * is checked if `b` is within `hyperCube`. If so, the underlying
+       * measure is calculated, otherwise, `Long.MaxValue` is returned.
+       * This behaviour extends to the `minDistance` and `maxDistance`
+       * methods.
+       */
+      def clip( hyperCube: D#HyperCube ) : Ops[ M, D ]
+
+      /**
+       * Composes this distance so that a threshold is applied to
+       * point-point distances. If the point-point distance of the
+       * underlying measure returns a value less than or equal the given threshold,
+       * then instead the value `0L` is returned. This allows for
+       * quicker searches so that a nearest neighbour becomes an
+       * approximate nn within the given threshold (the first
+       * arbitrary point encountered with a distance smaller than
+       * the threshold will be returned).
+       *
+       * Note that the threshold is directly compared to the result
+       * of `distance`, thus if the underlying measure uses a skewed
+       * distance, this must be taken into account. For example, if
+       * `euclideanSq` is used, and points within a radius of 4 should
+       * be approximated, a threshold of `4 * 4 = 16` must be chosen!
+       */
+      def approximate( thresh: M ) : Ops[ M, D ]
+
+      def orthant( idx: Int ) : Ops[ M, D ]
+   }
+}
 /**
  * A `DistanceMeasure` is used in nearest neighbour search,
  * in order to allow different ways points and children are
@@ -79,35 +113,4 @@ trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
     * is contained in `b` or not.
     */
    def maxDistance( a: D#PointLike, b: D#HyperCube ) : M
-
-   /**
-    * Applies a filter to this measure by constraining distances
-    * to objects `b` which lie within the given `IntSquare`. That
-    * is, if for example `distance( a, b )` is called, first it
-    * is checked if `b` is within `hyperCube`. If so, the underlying
-    * measure is calculated, otherwise, `Long.MaxValue` is returned.
-    * This behaviour extends to the `minDistance` and `maxDistance`
-    * methods.
-    */
-   def clip( hyperCube: D#HyperCube ) : DistanceMeasure[ M, D ]
-
-   /**
-    * Composes this distance so that a threshold is applied to
-    * point-point distances. If the point-point distance of the
-    * underlying measure returns a value less than or equal the given threshold,
-    * then instead the value `0L` is returned. This allows for
-    * quicker searches so that a nearest neighbour becomes an
-    * approximate nn within the given threshold (the first
-    * arbitrary point encountered with a distance smaller than
-    * the threshold will be returned).
-    *
-    * Note that the threshold is directly compared to the result
-    * of `distance`, thus if the underlying measure uses a skewed
-    * distance, this must be taken into account. For example, if
-    * `euclideanSq` is used, and points within a radius of 4 should
-    * be approximated, a threshold of `4 * 4 = 16` must be chosen!
-    */
-   def approximate( thresh: M ) : DistanceMeasure[ M, D ]
-
-   def orthant( idx: Int ) : DistanceMeasure[ M, D ]
 }

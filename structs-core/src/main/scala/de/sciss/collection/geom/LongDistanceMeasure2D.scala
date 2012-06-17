@@ -117,6 +117,8 @@ object LongDistanceMeasure2D {
       protected def underlying: Impl[ M ]
       protected def idx: Int
 
+      override def toString = underlying.toString + ".quadrant(" + idx + ")"
+
       final def distance( a: PointLike, b: PointLike ) : M = {
          if( (if( right  ) b.x >= a.x else b.x <= a.x) &&
              (if( bottom ) b.y >= a.y else b.y <= a.y) ) {
@@ -153,6 +155,48 @@ object LongDistanceMeasure2D {
 
    private final class SqrQuadrant( protected val underlying: SqrImpl, protected val idx: Int )
    extends QuadrantLike[ Sqr ] with SqrImpl
+
+   // praktisch werden alle logischen statements, die zum ausschluss fuehren (maxValue)
+   // von Quadrant uebernommen und umgekehrt (a & b --> !a | !b)
+   private sealed trait ExceptQuadrantLike[ @specialized( Long ) M ] extends Impl[ M ] {
+      private val right    = idx == 0 || idx == 3
+      private val bottom   = idx >= 2
+
+      protected def underlying: Impl[ M ]
+      protected def idx: Int
+
+      override def toString = underlying.toString + ".exceptQuadrant(" + idx + ")"
+
+      final def distance( a: PointLike, b: PointLike ) : M = {
+         if( (if( right  ) b.x <= a.x else b.x >= a.x) ||
+             (if( bottom ) b.y <= a.y else b.y >= a.y) ) {
+
+            underlying.distance( a, b )
+         } else maxValue
+      }
+
+      final def minDistance( p: PointLike, q: HyperCube ) : M = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( (if( right  ) (q.cx - qe) <= p.x else (q.cx + qem1) >= p.x) ||
+             (if( bottom ) (q.cy - qe) <= p.y else (q.cy + qem1) >= p.y) ) {
+
+            underlying.minDistance( p, q )
+         } else maxValue
+      }
+
+      final def maxDistance( p: PointLike, q: HyperCube ) : M = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( (if( right  ) (q.cx + qem1) <= p.x else (q.cx - qe) >= p.x) ||
+             (if( bottom ) (q.cy + qem1) <= p.y else (q.cy - qe) >= p.y) ) {
+
+            underlying.maxDistance( p, q )
+         } else maxValue
+      }
+   }
 
    private sealed trait ChebyshevLike extends LongImpl {
       protected def apply( dx: Long, dy: Long ) : Long

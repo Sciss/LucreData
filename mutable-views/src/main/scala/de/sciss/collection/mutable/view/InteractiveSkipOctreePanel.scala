@@ -162,7 +162,7 @@ object InteractiveSkipOctreePanel extends App with Runnable {
       def coords( p: D#PointLike ) : IndexedSeq[ Int ]
       def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) : D#HyperCube
 //      def baseDistance: DistanceMeasure[ _, D ]
-      def distanceMeasures: IndexedSeq[ (String, DistanceMeasure[ _, D ])]
+      def distanceMeasures: IndexedSeq[ (String, DistanceMeasure.Ops[ _, D ])]
       def highlight: Set[ Point ]
       def highlight_=( points: Set[ Point ]) : Unit
       final def pointString( p: D#PointLike ) : String = coords( p ).mkString( "(", "," , ")" )
@@ -189,7 +189,7 @@ extends JPanel( new BorderLayout() ) {
 
    private val in = model.insets
 
-   private var distFilter : DistanceMeasure[ _, D ] => DistanceMeasure[ _, D ] = identity
+   private var distFilter : DistanceMeasure.Ops[ _, D ] => DistanceMeasure[ _, D ] = identity
    private var baseDistance = model.distanceMeasures( 0 )._2
    private var distMeasure : DistanceMeasure[ _, D ] = baseDistance
 

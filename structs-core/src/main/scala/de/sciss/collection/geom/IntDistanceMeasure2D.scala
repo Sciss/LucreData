@@ -28,25 +28,28 @@ package de.sciss.collection.geom
 object IntDistanceMeasure2D {
    import IntSpace.TwoDim
    import TwoDim._
+   import DistanceMeasure.Ops
+
+   private type M = DistanceMeasure[ Long, TwoDim ] with Ops[ Long, TwoDim ]
 
    /**
     * A measure that uses the euclidean squared distance
     * which is faster than the euclidean distance as the square root
     * does not need to be taken.
     */
-   val euclideanSq : DistanceMeasure[ Long, TwoDim ] = EuclideanSq
+   val euclideanSq : M = EuclideanSq
 
    /**
     * A chebychev distance measure, based on the maximum of the absolute
     * distances across all dimensions.
     */
-   val chebyshev : DistanceMeasure[ Long, TwoDim ] = Chebyshev
+   val chebyshev : M = Chebyshev
 
    /**
     * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
     * distances across all dimensions. This is, strictly speaking, only a semi metric.
     */
-   val vehsybehc : DistanceMeasure[ Long, TwoDim ] = Vehsybehc
+   val vehsybehc : M = Vehsybehc
 
    private object Chebyshev extends ChebyshevLike {
       override def toString = "IntDistanceMeasure2D.chebyshev"
@@ -97,6 +100,8 @@ object IntDistanceMeasure2D {
    extends Impl {
       private val right    = idx == 0 || idx == 3
       private val bottom   = idx >= 2
+
+      override def toString = underlying.toString + ".quadrant(" + idx + ")"
 
       def distance( a: PointLike, b: PointLike ) : Long = {
          if( (if( right  ) b.x >= a.x else b.x <= a.x) &&
@@ -215,7 +220,7 @@ object IntDistanceMeasure2D {
       }
    }
 
-   private sealed trait Impl extends DistanceMeasure[ Long, TwoDim ] {
+   private sealed trait Impl extends DistanceMeasure[ Long, TwoDim ] with Ops[ Long, TwoDim ] {
       final def manifest : Manifest[ Long ] = Manifest.Long
 
       final def maxValue : Long = Long.MaxValue
@@ -223,9 +228,9 @@ object IntDistanceMeasure2D {
       final def isMeasureGreater( a: Long, b: Long ) : Boolean = a > b
       final def compareMeasure( a: Long, b: Long ) : Int = if( a > b ) 1 else if( a < b ) -1 else 0
 
-      final def clip( quad: HyperCube ) : DistanceMeasure[ Long, TwoDim ] = new Clip( this, quad )
-      final def approximate( thresh: Long ) : DistanceMeasure[ Long, TwoDim ] = new Approximate( this, thresh )
-      final def orthant( idx: Int ) : DistanceMeasure[ Long, TwoDim ] = {
+      final def clip( quad: HyperCube ) : M = new Clip( this, quad )
+      final def approximate( thresh: Long ) : M = new Approximate( this, thresh )
+      final def orthant( idx: Int ) : M = {
          require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
          new Quadrant( this, idx )
       }
