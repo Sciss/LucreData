@@ -107,6 +107,8 @@ object IntDistanceMeasure3D {
       private val bottom   = (idx & 2) != 0
       private val back     = (idx & 4) != 0
 
+      override def toString = underlying.toString + ".quadrant(" + idx + ")"
+
       def distance( a: PointLike, b: PointLike ) : M = {
          if( (if( right  ) b.x >= a.x else b.x <= a.x) &&
              (if( bottom ) b.y >= a.y else b.y <= a.y) &&
@@ -145,6 +147,57 @@ object IntDistanceMeasure3D {
    extends OrthantLike[ BigInt ] with SqrImpl
 
    private final class LongOrthant( protected val underlying: DistanceMeasure[ Long, ThreeDim ], protected val idx: Int )
+   extends OrthantLike[ Long ] with LongImpl
+
+   private sealed trait ExceptOrthantLike[ @specialized( Long ) M ]
+   extends DistanceMeasure[ M, ThreeDim ] {
+      protected def underlying: DistanceMeasure[ M, ThreeDim ]
+      protected def idx: Int
+
+      private val right    = (idx & 1) != 0
+      private val bottom   = (idx & 2) != 0
+      private val back     = (idx & 4) != 0
+
+      override def toString = underlying.toString + ".exceptQuadrant(" + idx + ")"
+
+      def distance( a: PointLike, b: PointLike ) : M = {
+         if( (if( right  ) b.x <= a.x else b.x >= a.x) ||
+             (if( bottom ) b.y <= a.y else b.y >= a.y) ||
+             (if( back   ) b.z <= a.z else b.z >= a.z) ) {
+
+            underlying.distance( a, b )
+         } else maxValue
+      }
+
+      def minDistance( p: PointLike, q: HyperCube ) : M = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( (if( right  ) (q.cx - qe) <= p.x else (q.cx + qem1) >= p.x) ||
+             (if( bottom ) (q.cy - qe) <= p.y else (q.cy + qem1) >= p.y) ||
+             (if( back   ) (q.cz - qe) <= p.z else (q.cz + qem1) >= p.z) ) {
+
+            underlying.minDistance( p, q )
+         } else maxValue
+      }
+
+      def maxDistance( p: PointLike, q: HyperCube ) : M = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( (if( right  ) (q.cx + qem1) <= p.x else (q.cx - qe) >= p.x) ||
+             (if( bottom ) (q.cy + qem1) <= p.y else (q.cy - qe) >= p.y) ||
+             (if( back   ) (q.cz + qem1) <= p.z else (q.cz - qe) >= p.z) ) {
+
+            underlying.maxDistance( p, q )
+         } else maxValue
+      }
+   }
+
+   private final class SqrExceptOrthant( protected val underlying: DistanceMeasure[ BigInt, ThreeDim ], protected val idx: Int )
+   extends OrthantLike[ BigInt ] with SqrImpl
+
+   private final class LongExceptOrthant( protected val underlying: DistanceMeasure[ Long, ThreeDim ], protected val idx: Int )
    extends OrthantLike[ Long ] with LongImpl
 
    private object ChebyshevXY extends ChebyshevXYLike {
@@ -270,6 +323,10 @@ object IntDistanceMeasure3D {
          require( idx >= 0 && idx < 8, "Orthant index out of range (" + idx + ")" )
          new SqrOrthant( this, idx )
       }
+      final def exceptOrthant( idx: Int ) : MS = {
+         require( idx >= 0 && idx < 8, "Orthant index out of range (" + idx + ")" )
+         new SqrExceptOrthant( this, idx )
+      }
    }
 
    private sealed trait LongImpl extends Impl[ Long ] {
@@ -286,6 +343,10 @@ object IntDistanceMeasure3D {
       final def orthant( idx: Int ) : ML = {
          require( idx >= 0 && idx < 8, "Orthant index out of range (" + idx + ")" )
          new LongOrthant( this, idx )
+      }
+      final def exceptOrthant( idx: Int ) : ML = {
+         require( idx >= 0 && idx < 8, "Orthant index out of range (" + idx + ")" )
+         new LongExceptOrthant( this, idx )
       }
    }
 }

@@ -57,6 +57,8 @@ object DistanceMeasure {
       def approximate( thresh: M ) : Ops[ M, D ]
 
       def orthant( idx: Int ) : Ops[ M, D ]
+
+      def exceptOrthant( idx: Int ) : Ops[ M, D ]
    }
 }
 /**

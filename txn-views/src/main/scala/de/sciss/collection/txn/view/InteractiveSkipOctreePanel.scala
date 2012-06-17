@@ -368,11 +368,15 @@ extends JPanel( new BorderLayout() ) {
       recalcDistMeasure()
    }
 
-   combo( ("All Orthants" +: Seq.tabulate( numOrthants )( i => (i + 1).toString )): _* ) { i =>
-      if( i > 0 ) {
-         distFilter = _.orthant( i - 1 )
+   combo( ("All Orthants" +: Seq.tabulate( numOrthants << 1 )( i => if( i < numOrthants ) (i + 1).toString else "Except " + (i + 1 - numOrthants) )): _* ) { i =>
+      val j = i - 1
+      val k = j - numOrthants
+      distFilter = if( k >= 0 ) {
+         _.exceptOrthant( k )
+      } else if( j >= 0 ) {
+         _.orthant( j )
       } else {
-         distFilter = identity
+         identity
       }
       recalcDistMeasure()
    }

@@ -85,17 +85,6 @@ object IntDistanceMeasure2D {
       }
    }
 
-//   private final class SouthWest( underlying: Impl ) extends Impl {
-//      def distance( a: Point, b: Point ) =
-//         if( b.x <= a.x && b.y >= a.y ) underlying.distance( a, b ) else Long.MaxValue
-//
-//      def minDistance( p: Point, q: HyperCube ) =
-//         if( p.x >= q.left && p.y <= q.bottom ) underlying.minDistance( p, q ) else Long.MaxValue
-//
-//      def maxDistance( p: Point, q: HyperCube ) =
-//         if( q.right <= p.x && q.top >= p.y ) underlying.maxDistance( p, q ) else Long.MaxValue
-//   }
-
    private final class Quadrant( underlying: DistanceMeasure[ Long, TwoDim ], idx: Int )
    extends Impl {
       private val right    = idx == 0 || idx == 3
@@ -128,6 +117,44 @@ object IntDistanceMeasure2D {
 
          if( (if( right  ) (q.cx - qe) >= p.x else (q.cx + qem1) <= p.x) &&
              (if( bottom ) (q.cy - qe) >= p.y else (q.cy + qem1) <= p.y) ) {
+
+            underlying.maxDistance( p, q )
+         } else Long.MaxValue
+      }
+   }
+
+   private final class ExceptQuadrant( underlying: DistanceMeasure[ Long, TwoDim ], idx: Int )
+   extends Impl {
+      private val right    = idx == 0 || idx == 3
+      private val bottom   = idx >= 2
+
+      override def toString = underlying.toString + ".exceptQuadrant(" + idx + ")"
+
+      def distance( a: PointLike, b: PointLike ) : Long = {
+         if( (if( right  ) b.x <= a.x else b.x >= a.x) ||
+             (if( bottom ) b.y <= a.y else b.y >= a.y) ) {
+
+            underlying.distance( a, b )
+         } else Long.MaxValue
+      }
+
+      def minDistance( p: PointLike, q: HyperCube ) : Long = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( (if( right  ) (q.cx - qe) <= p.x else (q.cx + qem1) >= p.x) ||
+             (if( bottom ) (q.cy - qe) <= p.y else (q.cy + qem1) >= p.y) ) {
+
+            underlying.minDistance( p, q )
+         } else Long.MaxValue
+      }
+
+      def maxDistance( p: PointLike, q: HyperCube ) : Long = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( (if( right  ) (q.cx + qem1) <= p.x else (q.cx - qe) >= p.x) ||
+             (if( bottom ) (q.cy + qem1) <= p.y else (q.cy - qe) >= p.y) ) {
 
             underlying.maxDistance( p, q )
          } else Long.MaxValue
@@ -233,6 +260,10 @@ object IntDistanceMeasure2D {
       final def orthant( idx: Int ) : M = {
          require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
          new Quadrant( this, idx )
+      }
+      final def exceptOrthant( idx: Int ) : M = {
+         require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
+         new ExceptQuadrant( this, idx )
       }
    }
 }
