@@ -77,7 +77,7 @@ object IntDistanceMeasure2D {
       def minDistance( a: PointLike, b: HyperCube ) = underlying.minDistance( a, b )
       def maxDistance( a: PointLike, b: HyperCube ) = underlying.maxDistance( a, b )
       def distance( a: PointLike, b: PointLike ) = {
-         val res = b.distanceSq( a )
+         val res = underlying.distance( a, b ) // b.distanceSq( a )
          if( res > thresh ) res else 0L
       }
    }
