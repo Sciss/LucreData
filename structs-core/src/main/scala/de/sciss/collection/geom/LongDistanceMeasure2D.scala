@@ -29,10 +29,11 @@ object LongDistanceMeasure2D {
    import LongSpace.TwoDim
    import TwoDim._
    import Space.{bigZero => Zero}
+   import DistanceMeasure.Ops
 
    private type Sqr        = BigInt
-   private type ML         = DistanceMeasure[ Long, TwoDim ]
-   private type MS         = DistanceMeasure[ Sqr, TwoDim ]
+   private type ML         = Ops[ Long, TwoDim ]
+   private type MS         = Ops[ Sqr, TwoDim ]
    private val MaxDistance : Sqr = {
       val n = BigInt( Long.MaxValue )
       n * n
@@ -198,6 +199,12 @@ object LongDistanceMeasure2D {
       }
    }
 
+   private final class LongExceptQuadrant( protected val underlying: LongImpl, protected val idx: Int )
+   extends ExceptQuadrantLike[ Long ] with LongImpl
+
+   private final class SqrExceptQuadrant( protected val underlying: SqrImpl, protected val idx: Int )
+   extends ExceptQuadrantLike[ Sqr ] with SqrImpl
+
    private sealed trait ChebyshevLike extends LongImpl {
       protected def apply( dx: Long, dy: Long ) : Long
 
@@ -284,7 +291,7 @@ object LongDistanceMeasure2D {
       }
    }
 
-   private sealed trait Impl[ @specialized( Long ) M ] extends DistanceMeasure[ M, TwoDim ] {
+   private sealed trait Impl[ @specialized( Long ) M ] extends Ops[ M, TwoDim ] {
       def zeroValue: M
    }
 
@@ -303,6 +310,10 @@ object LongDistanceMeasure2D {
          require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
          new LongQuadrant( this, idx )
       }
+      final def exceptOrthant( idx: Int ) : ML = {
+         require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
+         new LongExceptQuadrant( this, idx )
+      }
   }
 
    private sealed trait SqrImpl extends Impl[ Sqr ] {
@@ -319,6 +330,10 @@ object LongDistanceMeasure2D {
       final def orthant( idx: Int ) : MS = {
          require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
          new SqrQuadrant( this, idx )
+      }
+      final def exceptOrthant( idx: Int ) : MS = {
+         require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
+         new SqrExceptQuadrant( this, idx )
       }
    }
 }
