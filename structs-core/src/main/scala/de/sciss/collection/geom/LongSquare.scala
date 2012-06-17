@@ -106,15 +106,15 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
    // -- QueryShape --
 
    final def overlapArea( q: HyperCube ) : BigInt = {
-      val l = BigInt( math.max( q.left, left ))
-      val r = BigInt( math.min( q.right, right ))
+      val l = math.max( q.left, left )
+      val r = math.min( q.right, right )
       val w = r - l + 1
-      if( w <= bigZero ) return bigZero
-      val t = BigInt( math.max( q.top, top ))
-      val b = BigInt( math.min( q.bottom, bottom ))
+      if( w <= 0L ) return bigZero
+      val t = math.max( q.top, top )
+      val b = math.min( q.bottom, bottom )
       val h = b - t + 1
-      if( h <= bigZero ) return bigZero
-      w * h
+      if( h <= 0L ) return bigZero
+      BigInt( w ) * BigInt( h )
    }
 
    final def isAreaGreater( a: HyperCube, b: BigInt ) : Boolean = a.area > b
@@ -175,20 +175,20 @@ trait LongSquareLike extends HyperCube[ LongSpace.TwoDim ] with QueryShape[ BigI
       val ax   = point.x
       val ay   = point.y
       val em1  = extent - 1
-      val axl  = BigInt( ax )
-      val ayl  = BigInt( ay )
+//      val axl  = BigInt( ax )
+//      val ayl  = BigInt( ay )
 
-      val dx   = if( ax < cx ) {
-         BigInt( cx + em1 ) - axl
+      val dx   = BigInt( if( ax < cx ) {
+         (cx + em1) - ax
       } else {
-         axl - BigInt( cx - extent )
-      }
+         ax - (cx - extent)
+      })
 
-      val dy   = if( ay < cy ) {
-         BigInt( cy + em1 ) - ayl
+      val dy   = BigInt( if( ay < cy ) {
+         (cy + em1) - ay
       } else {
-         ayl - BigInt( cy - extent )
-      }
+         ay - (cy - extent)
+      })
 
       dx * dx + dy * dy
    }

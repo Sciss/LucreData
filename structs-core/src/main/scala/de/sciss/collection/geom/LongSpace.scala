@@ -27,6 +27,12 @@ package de.sciss.collection.geom
 
 import annotation.tailrec
 
+/**
+ * Provides spaces in which coordinates are expressed using `Long` values.
+ * Note that the current implementation due to performance considerations
+ * requires that the coordinates are clipped to 62-bit range. That is,
+ * they should be >= -0x2000000000000000L and < 0x2000000000000000L
+ */
 object LongSpace {
    sealed trait TwoDim extends Space[ TwoDim ] {
       type PointLike       = LongPoint2DLike

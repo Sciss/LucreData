@@ -47,15 +47,15 @@ trait LongRectangleLike extends QueryShape[ BigInt, LongSpace.TwoDim ] {
    }
 
    final def overlapArea( q: HyperCube ) : BigInt = {
-      val l = BigInt( math.max( q.left, left ))
-      val r = BigInt( math.min( q.right, right ))
+      val l = math.max( q.left, left )
+      val r = math.min( q.right, right )
       val w = r - l + 1
-      if( w <= bigZero ) return bigZero
-      val t = BigInt( math.max( q.top, top ))
-      val b = BigInt( math.min( q.bottom, bottom ))
+      if( w <= 0L ) return bigZero
+      val t = math.max( q.top, top )
+      val b = math.min( q.bottom, bottom )
       val h = b - t + 1
-      if( h <= bigZero ) return bigZero
-      w * h
+      if( h <= 0L ) return bigZero
+      BigInt( w ) * BigInt( h )
    }
 
    final def isAreaGreater( a: HyperCube, b: BigInt ) : Boolean = a.area > b
