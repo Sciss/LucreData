@@ -1,0 +1,18 @@
+
+{
+ "organization":"de.sciss",
+ "name":"lucredata",
+ "version":"0.33",
+ "description":"Transactional data structures (skip list, skip octree, total order) for Scala",
+ "site":"https://github.com/Sciss/LucreData",
+ "tags":["data-structures","transactional","spatial","stm"],
+ "docs":"",
+ "licenses": [{
+   "name": "GPL v2+",
+   "url": "http://www.gnu.org/licenses/gpl-2.0.txt"
+  }],
+ "resolvers": ["https://oss.sonatype.org/content/repositories/releases"],
+ "dependencies": [],
+ "scalas": ["2.9.2"],
+ "sbt": false
+}

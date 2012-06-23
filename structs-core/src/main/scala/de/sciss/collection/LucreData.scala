@@ -27,9 +27,9 @@ package de.sciss.collection
 
 object LucreData {
    val name          = "LucreData"
-   val version       = 0.25
+   val version       = 0.33
    val copyright     = "(C)opyright 2011-2012 Hanns Holger Rutz"
-   val isSnapshot    = true
+   val isSnapshot    = false
 
    def versionString = {
       val s = (version + 0.001).toString.substring( 0, 4 )
