@@ -101,7 +101,7 @@ object HASkipList {
 
 //      def entrySerializer : TxnSerializer[ S#Tx, S#Acc, A ] = keySerializer
 
-      override def toString() = "SkipList.Set" + id
+      override def toString = "SkipList.Set" + id
 
       def add( key: A )( implicit tx: S#Tx ) : Boolean = addEntry( key, key ).isEmpty
       def remove( key: A )( implicit tx: S#Tx ) : Boolean = removeEntry( key ).isDefined
@@ -138,7 +138,7 @@ object HASkipList {
 
       protected val downNode = _downNode( this )
 
-      override def toString() = "SkipList.Map" + id
+      override def toString = "SkipList.Map" + id
 
       def add( entry: (A, B) )( implicit tx: S#Tx ) : Option[ B ] = addEntry( entry._1, entry ).map( _._2 )
       def remove( key: A )( implicit tx: S#Tx ) : Option[ B ] = removeEntry( key ).map( _._2 )
@@ -872,10 +872,10 @@ object HASkipList {
             if( c ne null ) pushDown( c, 0, r = true )
          }
 
-         def hasNext : Boolean = l ne null // ordering.nequiv( nextKey, maxKey )
+         def hasNext( implicit tx: S#Tx ) : Boolean = l ne null // ordering.nequiv( nextKey, maxKey )
 
          def next()( implicit tx: S#Tx ) : C = {
-            if( !hasNext ) throw new java.util.NoSuchElementException( "next on empty iterator" )
+            if( !hasNext ) throw endReached()
             val res  = nextValue
             idx     += 1
             if( idx == (if( isRight ) l.size - 1 else l.size) /* || ordering.equiv( l.key( idx ), maxKey ) */) {

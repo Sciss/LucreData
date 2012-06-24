@@ -847,12 +847,14 @@ extends SkipOctree[ S, D, A ] {
       val stabbing      = MQueue.empty[ (BranchLike, Area) ]  // Tuple2 is specialized for Long, too!
       val in            = MQueue.empty[ NonEmptyChild ]
       var current : A   = _      // overwritten by initial run of `findNextValue`
-      var hasNext       = true   // eventually set to `false` by `findNextValue`
+      var hasNextVar    = true   // eventually set to `false` by `findNextValue`
 
       stabbing += head -> qs.overlapArea( head.hyperCube )
 //      findNextValue()
 
       override def toString = octree.toString + ".rangeQuery(" + qs + ")"
+
+      def hasNext( implicit tx: S#Tx ) : Boolean = hasNextVar
 
       // search downwards:
       // "At each square q ∈ Qi we either go to a child square in Qi
@@ -907,7 +909,7 @@ extends SkipOctree[ S, D, A ] {
       }
 
       def next()( implicit tx: S#Tx ) : A = {
-         if( !hasNext ) throw new NoSuchElementException( "next on empty iterator" )
+         if( !hasNextVar ) endReached()
          val res = current
          findNextValue()
          res
@@ -916,7 +918,7 @@ extends SkipOctree[ S, D, A ] {
       def findNextValue()( implicit tx: S#Tx ) { while( true ) {
          if( in.isEmpty ) {
             if( stabbing.isEmpty ) {
-               hasNext = false
+               hasNextVar = false
                return
             }
             val tup  = stabbing.dequeue()
