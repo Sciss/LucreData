@@ -95,6 +95,9 @@ trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
 
    /**
     * Calculates the distance between two points.
+    *
+    * @param   a  the input query point
+    * @param   b  a point in the octree
     */
    def distance( a: D#PointLike, b: D#PointLike ) : M
 

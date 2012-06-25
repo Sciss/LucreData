@@ -142,8 +142,10 @@ object InteractiveSkipOctreePanel extends App with Runnable {
 
       val distanceMeasures = IndexedSeq(
          "Euclidean" -> IntDistanceMeasure2D.euclideanSq,
-         "Maximum" -> IntDistanceMeasure2D.chebyshev,
-         "Minimum" -> IntDistanceMeasure2D.vehsybehc
+         "Maximum"   -> IntDistanceMeasure2D.chebyshev,
+         "Next Span" -> IntDistanceMeasure2D.nextSpanEvent( IntSquare( sz, sz, sz )),
+         "Prev Span" -> IntDistanceMeasure2D.prevSpanEvent( IntSquare( sz, sz, sz )),
+         "Minimum"   -> IntDistanceMeasure2D.vehsybehc
       )
 
       var rangeHyperCube = Option.empty[ IntSquare ]

@@ -47,13 +47,136 @@ object IntDistanceMeasure2D {
 
    /**
     * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
-    * distances across all dimensions. This is, strictly speaking, only a semi metric.
+    * distances across all dimensions. This is, strictly speaking, only a semi metric,
+    * and probably totally **useless**.
     */
    val vehsybehc : M = Vehsybehc
+
+   /**
+    * A 'next event' search when the quadtree is used to store spans (intervals).
+    * It assumes that a span or interval is represented by a point whose x coordinate
+    * corresponds to the span's start and whose y coordinate corresponds to the span's stop.
+    * Furthermore, it allows for spans to be unbounded: A span which does not have a defined
+    * start, should use `quad.left` as the x coordinate, and a span which does not have a defined
+    * stop, should use `quad.right` as the y coordinate. A span denoting the special value 'void'
+    * (no extent) can be encoded by giving it `quad.right` as x coordinate.
+    *
+    * The measure searches for the next 'event' beginning from the query point which is supposed
+    * to have `x == y == query-time point`. It finds the closest span start _or_ span stop which
+    * is greater than or equal to the query-time point, i.e. the nearest neighbor satisfying
+    * `qx >= x || qy >= y` (given the special treatment of unbounded coordinates).
+    *
+    * @param quad the tree's root square which is used to deduce the special values for representing unbounded spans
+    *
+    * @return  the measure instance
+    */
+   def nextSpanEvent( quad: IntSquare ) : M = new NextSpanEvent( quad )
+
+   /**
+    * A 'previous event' search when the quadtree is used to store spans (intervals).
+    * It assumes that a span or interval is represented by a point whose x coordinate
+    * corresponds to the span's start and whose y coordinate corresponds to the span's stop.
+    * Furthermore, it allows for spans to be unbounded: A span which does not have a defined
+    * start, should use `quad.left` as the x coordinate, and a span which does not have a defined
+    * stop, should use `quad.right` as the y coordinate. A span denoting the special value 'void'
+    * (no extent) can be encoded by giving it `quad.right` as x coordinate.
+    *
+    * The measure searches for the previous 'event' beginning from the query point which is supposed
+    * to have `x == y == query-time point`. It finds the closest span start _or_ span stop which
+    * is smaller than or equal to the query-time point, i.e. the nearest neighbor satisfying
+    * `qx <= x || qy <= y` (given the special treatment of unbounded coordinates).
+    *
+    * @param quad the tree's root square which is used to deduce the special values for representing unbounded spans
+    *
+    * @return  the measure instance
+    */
+   def prevSpanEvent( quad: IntSquare ) : M = new PrevSpanEvent( quad )
 
    private object Chebyshev extends ChebyshevLike {
       override def toString = "IntDistanceMeasure2D.chebyshev"
       protected def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
+   }
+
+   private final class NextSpanEvent( quad: IntSquare ) extends ChebyshevLike {
+      private val maxX = quad.right
+      private val maxY = quad.bottom
+
+      override def toString = "IntDistanceMeasure2D.NextSpanEvent(" + quad + ")"
+
+      protected def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
+
+      override def distance( a: PointLike, b: PointLike ) = {
+         val bx = b.x
+         val by = b.y
+         val ax = a.x
+         val ay = a.y
+         if( bx < ax || bx >= maxX ) {          // either start too small or unbounded
+            if( by < ay || by >= maxY ) {       // ... and also stop too small or unbounded
+               Long.MaxValue
+            } else {
+               by.toLong - ay.toLong
+            }
+         } else if( by < ay || by >= maxY ) {   // stop too small or unbounded
+            bx.toLong - ax.toLong
+         } else {
+            val dx = bx.toLong - ax.toLong
+            val dy = by.toLong - ay.toLong
+            math.min( dx, dy )
+         }
+      }
+
+      override def minDistance( p: PointLike, q: HyperCube ) : Long = {
+         if( (q.right >= p.x) || (q.bottom >= p.y) ) {
+            super.minDistance( p, q )
+         } else Long.MaxValue
+      }
+
+      override def maxDistance( p: PointLike, q: HyperCube ) : Long = {
+         if( (q.left >= p.x) || (q.top >= p.y) ) {
+            super.maxDistance( p, q )
+         } else Long.MaxValue
+      }
+   }
+
+   private final class PrevSpanEvent( quad: IntSquare ) extends ChebyshevLike {
+      private val minX = quad.left
+      private val minY = quad.top   // note: we allow this to be used for unbounded span stops, as a special representation of Span.Void
+
+      override def toString = "IntDistanceMeasure2D.PrevSpanEvent(" + quad + ")"
+
+      protected def apply( dx: Long, dy: Long ) : Long = math.min( dx, dy )
+
+      override def distance( a: PointLike, b: PointLike ) = {
+         val bx = b.x
+         val by = b.y
+         val ax = a.x
+         val ay = a.y
+         if( bx > ax || bx <= minX ) {          // either start too large or unbounded
+            if( by > ay || by <= minY ) {       // ... and also stop too large or unbounded
+               Long.MaxValue
+            } else {
+               ay.toLong - by.toLong
+            }
+         } else if( by > ay || by <= minY ) {   // stop too large or unbounded
+            ax.toLong - bx.toLong
+         } else {
+            val dx = ax.toLong - bx.toLong
+            val dy = ay.toLong - by.toLong
+            math.min( dx, dy )
+         }
+      }
+
+      override def minDistance( p: PointLike, q: HyperCube ) : Long = {
+         if( (q.left <= p.x) || (q.top <= p.y) ) {
+            super.minDistance( p, q )
+         } else Long.MaxValue
+      }
+
+      override def maxDistance( p: PointLike, q: HyperCube ) : Long = {
+         if( (q.right <= p.x) || (q.bottom <= p.y) ) {
+            super.maxDistance( p, q )
+         } else Long.MaxValue
+      }
    }
 
    private object Vehsybehc extends ChebyshevLike {
@@ -164,12 +287,12 @@ object IntDistanceMeasure2D {
    private sealed trait ChebyshevLike extends Impl {
       protected def apply( dx: Long, dy: Long ) : Long
 
-      final def distance( a: PointLike, b: PointLike ) = {
+      def distance( a: PointLike, b: PointLike ) = {
          val dx = math.abs( a.x.toLong - b.x.toLong )
          val dy = math.abs( a.y.toLong - b.y.toLong )
          apply( dx, dy )
       }
-      final def minDistance( a: PointLike, q: HyperCube ) : Long = {
+      def minDistance( a: PointLike, q: HyperCube ) : Long = {
          val px   = a.x
          val py   = a.y
          val l    = q.left
@@ -224,7 +347,7 @@ object IntDistanceMeasure2D {
          apply( dx, dy )
       }
 
-      final def maxDistance( a: PointLike, q: HyperCube ) : Long = {
+      def maxDistance( a: PointLike, q: HyperCube ) : Long = {
          val px = a.x
          val py = a.y
          if( px < q.cx ) {
