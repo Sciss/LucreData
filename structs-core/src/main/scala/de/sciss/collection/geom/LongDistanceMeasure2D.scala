@@ -93,7 +93,7 @@ object LongDistanceMeasure2D {
     *
     * @return  the measure instance
     */
-   def nextSpanEvent( quad: IntSquare ) : ML = new NextSpanEvent( quad )
+   def nextSpanEvent( quad: LongSquare ) : ML = new NextSpanEvent( quad )
 
    /**
     * A 'previous event' search when the quadtree is used to store spans (intervals).
@@ -113,9 +113,9 @@ object LongDistanceMeasure2D {
     *
     * @return  the measure instance
     */
-   def prevSpanEvent( quad: IntSquare ) : ML = new PrevSpanEvent( quad )
+   def prevSpanEvent( quad: LongSquare ) : ML = new PrevSpanEvent( quad )
 
-   private final class NextSpanEvent( quad: IntSquare ) extends ChebyshevLike {
+   private final class NextSpanEvent( quad: LongSquare ) extends ChebyshevLike {
       private val maxX = quad.right
       private val maxY = quad.bottom
 
@@ -156,7 +156,7 @@ object LongDistanceMeasure2D {
       }
    }
 
-   private final class PrevSpanEvent( quad: IntSquare ) extends ChebyshevLike {
+   private final class PrevSpanEvent( quad: LongSquare ) extends ChebyshevLike {
       private val minX = quad.left
       private val minY = quad.top   // note: we allow this to be used for unbounded span stops, as a special representation of Span.Void
 
