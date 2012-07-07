@@ -167,6 +167,38 @@ object HASkipList {
          i
       }
 
+      def get( key: A )( implicit tx: S#Tx ) : Option[ B ] = {
+//         if( ordering.gteq( v, maxKey )) return false
+
+         @tailrec def stepRight( n: Node[ S, A, (A, B) ]) : Option[ B ] = {
+            val idx = indexInNodeR( key, n )
+            if( n.isLeaf ) {
+               if( idx < 0 ) {
+                  val idxP = -(idx + 1)
+                  Some( n.asLeaf.entry( idxP )._2 )
+               } else None
+            } else {
+               val c = n.asBranch.down( idx )
+               if( idx < n.size - 1 ) stepLeft( c ) else stepRight( c )
+            }
+         }
+
+         @tailrec def stepLeft( n: Node[ S, A, (A, B) ]) : Option[ B ] = {
+            val idx = indexInNodeL( key, n )
+            if( n.isLeaf ) {
+               if( idx < 0 ) {
+                  val idxP = -(idx + 1)
+                  Some( n.asLeaf.entry( idxP )._2 )
+               } else None
+            } else {
+               stepLeft( n.asBranch.down( idx ))
+            }
+         }
+
+         val c = topN
+         if( c eq null ) None else stepRight( c )
+      }
+
       private final class KeyIteratorImpl extends IteratorImpl[ A ] {
          protected def getValue( l: Leaf[ S, A, (A, B) ], idx: Int ) : A = l.key( idx )
 
@@ -266,7 +298,7 @@ object HASkipList {
       }
 
       final def top( implicit tx: S#Tx ) : Option[ Node[ S, A, E ]] = Option( topN )
-      @inline private def topN( implicit tx: S#Tx ) : Node[ S, A, E ] = /* Head.*/ downNode.get
+      @inline final protected def topN( implicit tx: S#Tx ) : Node[ S, A, E ] = /* Head.*/ downNode.get
 
       final def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( isRight = true ).mkString( "\n" )
 
@@ -453,7 +485,7 @@ object HASkipList {
        * @return  the index to go down (a node whose key is greater than `key`),
         *         or `-(index+1)` if `key` was found at `index`
        */
-      private def indexInNodeR( key: A, n: Node[ S, A, E ])( implicit tx: S#Tx ) : Int = {
+      final protected def indexInNodeR( key: A, n: Node[ S, A, E ])( implicit tx: S#Tx ) : Int = {
          var idx  = 0
          val sz   = n.size - 1
          do {
@@ -464,7 +496,7 @@ object HASkipList {
          sz
       }
 
-      private def indexInNodeL( key: A, n: Node[ S, A, E ])( implicit tx: S#Tx ) : Int = {
+      final protected def indexInNodeL( key: A, n: Node[ S, A, E ])( implicit tx: S#Tx ) : Int = {
          @tailrec def step( idx : Int ) : Int = {
             val cmp = ordering.compare( key, n.key( idx ))
             if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )

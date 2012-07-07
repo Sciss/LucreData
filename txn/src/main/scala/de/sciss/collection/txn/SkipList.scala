@@ -139,6 +139,14 @@ object SkipList {
        * @return  the removed value which had been stored at the key, or `None` if the key was not in the map
        */
       def remove( key: A )( implicit tx: S#Tx ) : Option[ B ]
+
+      /**
+       * Queries the value for a given key.
+       *
+       * @param key  the key to look for
+       * @return     the value if it was found at the key, otherwise `None`
+       */
+      def get( key: A )( implicit tx: S#Tx ) : Option[ B ]
    }
 }
 sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends Mutable[ S ] {
