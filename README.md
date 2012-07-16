@@ -6,7 +6,7 @@
 
 LucreData provides implementations for various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries. These are mutable structures implemented transactionally on top of the LucreSTM library.
 
-* Alstrup, S. and Husfeldt, T. and Rauhe, T., "Marked ancestor problems," in Proceedings of the 39th Annual Symposium on Foundations of Computer Science, p. 534, 1998.
+* Rutz, H. H., "A Reactive, Confluently Persistent Framework for the Design of Computer Music," in Proceedings of the 9th Sound an Music Computing Conference (SMC), Copenhagen 2012.
 
 * Eppstein, D. and Goodrich, M.T. and Sun, J.Z., "The Skip Quadtree: A Simple Dynamic Data Structure for Multidimensional Data," in Proceedings of the twenty-first annual symposium on Computational geometry, pp. 296--305, 2005.
 
