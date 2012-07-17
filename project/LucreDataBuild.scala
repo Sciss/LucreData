@@ -6,27 +6,8 @@ object LucreDataBuild extends Build {
       id        = "lucredata",
       base      = file( "." ),
       settings  = standardSettings,
-//      aggregate = Seq( /* structsCore, viewsCore, */ structs, views /*,  tests */ /*, full */ )
       aggregate = Seq( structsCore, txn, mutable, viewsCore, txnViews, mutableViews )
    )
-
-//   lazy val structs = Project(
-//      id        = "lucredata-structs",
-//      base      = file( "structs" ), // file( "." ),
-//      settings  = standardSettings,
-////      dependencies = Seq( structsCore, mutable, txn )
-////      aggregate = Seq( structsCore, mutable, txn )
-//      aggregate = Seq( structsCore, txn, mutable )
-//   )
-//
-//   lazy val views = Project(
-//      id        = "lucredata-views",
-//      base      = file( "views" ), // file( "." ),
-//      settings  = standardSettings,
-////      dependencies = Seq( mutableViews, txnViews )
-////      aggregate = Seq( structsCore, viewsCore, mutableViews, txnViews )
-//      aggregate = Seq( structsCore, txn, mutable, viewsCore, txnViews, mutableViews )
-//   )
 
    lazy val structsCore = Project(
       id        = "lucredata-structs-core",
@@ -51,7 +32,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( structsCore ),
       settings     = standardSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.33",
+            "de.sciss" %% "lucrestm" % "0.34-SNAPSHOT",
             "org.scalatest" %% "scalatest" % "1.7.2" % "test"
          ),
          scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
@@ -83,24 +64,7 @@ object LucreDataBuild extends Build {
       settings     = standardSettings
    )
    
-//   lazy val tests = Project(
-//      id           = "lucredata-tests",
-//      base         = file( "tests" ),
-//      dependencies = Seq( structs ),
-//      settings     = standardSettings ++ Seq( ... )
-//   )
-
-//   lazy val full = {
-//      Project(
-//         id           = "lucredata-full",
-//         base         = file( "full" ),
-//         dependencies = Seq( structs, views )
-//      )
-//   }
-
    lazy val standardSettings = Defaults.defaultSettings ++ Seq(
-//      sbtVersion      := "0.12.0-M2",  // scaladoc broken in 0.11.2 when publishing
-
       organization    := "de.sciss",
       description     := "Transactional data structures (skip list, skip octree, total order) for Scala",
       homepage        := Some( url( "https://github.com/Sciss/LucreData" )),
