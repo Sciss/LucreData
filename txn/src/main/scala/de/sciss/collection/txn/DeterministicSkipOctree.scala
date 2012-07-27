@@ -156,7 +156,7 @@ extends SkipOctree[ S, D, A ] {
 
    override def toString = "Octree-" + space.dim + "d" + id
 
-   implicit protected object LeafOrdering extends Ordering[ S#Tx, LeafImpl ] {
+   /* implicit */ protected object LeafOrdering extends Ordering[ S#Tx, LeafImpl ] {
       /**
        * Leafs are ordered by the tree's in-order traversal,
        * where the quadrants I+II and III+IV can be thought
@@ -202,7 +202,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: BranchLike, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object TopBranchSerializer extends TxnSerializer[ S#Tx, S#Acc, TopBranch ] {
+   /* implicit */ protected object TopBranchSerializer extends TxnSerializer[ S#Tx, S#Acc, TopBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : TopBranch = {
          val cookie  = in.readUnsignedByte()
          val id      = tx.readID( in, access )
@@ -216,7 +216,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: TopBranch, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object LeftChildOptionSerializer extends TxnSerializer[ S#Tx, S#Acc, LeftChildOption ] {
+   /* implicit */ protected object LeftChildOptionSerializer extends TxnSerializer[ S#Tx, S#Acc, LeftChildOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftChildOption = {
          val cookie  = in.readUnsignedByte()
@@ -273,7 +273,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: LeftTopBranch, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object RightOptionReader extends TxnSerializer[ S#Tx, S#Acc, NextOption ] {
+   /* implicit */ protected object RightOptionReader extends TxnSerializer[ S#Tx, S#Acc, NextOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : NextOption = {
          val cookie  = in.readUnsignedByte()
@@ -289,7 +289,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: NextOption, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object LeafSerializer extends TxnSerializer[ S#Tx, S#Acc, LeafImpl ] {
+   /* implicit */ protected object LeafSerializer extends TxnSerializer[ S#Tx, S#Acc, LeafImpl ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeafImpl = {
          val cookie  = in.readUnsignedByte()
          require( cookie == 1, "Unexpected cookie " + cookie )
@@ -333,7 +333,7 @@ extends SkipOctree[ S, D, A ] {
                var i = 0; while( i < sz ) {
                   ch( i )  = tx.newVar[ RightChildOption ]( cid, EmptyValue )
                i += 1 }
-               val nextRef = tx.newVar[ NextOption ]( cid, EmptyValue )
+               val nextRef = tx.newVar[ NextOption ]( cid, EmptyValue )( RightOptionReader )
                val prev    = lastTreeImpl
                val res     = new RightTopBranch( cid, prev, ch, nextRef )
                prev.next   = res
@@ -719,10 +719,11 @@ extends SkipOctree[ S, D, A ] {
       // scala's specialization blows up
       protected val sz              = numOrthants
       private val acceptedChildren  = new Array[ LeftBranch ]( sz )
-      private val acceptedDists     = {
-         implicit val mf = metric.manifest
-         new Array[ M ]( sz )
-      }
+//      private val acceptedDists     = {
+//         implicit val mf = metric.manifest
+//         new Array[ M ]( sz )
+//      }
+      private val acceptedDists = metric.newArray( sz )
 
       @tailrec private def findNNTail( n0: LeftBranch, pri: PriorityQueue[ VisitedNode[ M ]],
                                        _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M )
@@ -1327,7 +1328,7 @@ extends SkipOctree[ S, D, A ] {
             ch( i )     = tx.newVar[ RightChildOption ]( cid, EmptyValue )
          i += 1 }
          val parentRef  = tx.newVar[ RightBranch ]( cid, this )
-         val rightRef   = tx.newVar[ NextOption ]( cid, EmptyValue )
+         val rightRef   = tx.newVar[ NextOption ]( cid, EmptyValue )( RightOptionReader )
          val n          = new RightChildBranch( cid, parentRef, prev, iq, ch, rightRef )
          prev.next      = n
          updateChild( qidx, n )
@@ -1488,10 +1489,10 @@ extends SkipOctree[ S, D, A ] {
          val ch         = tx.newVarArray[ LeftChildOption ]( sz )
          val cid        = tx.newID()
          var i = 0; while( i < sz ) {
-            ch( i )     = tx.newVar[ LeftChildOption ]( cid, EmptyValue )
+            ch( i )     = tx.newVar[ LeftChildOption ]( cid, EmptyValue )( LeftChildOptionSerializer )
          i += 1 }
          val parentRef  = tx.newVar[ LeftBranch ]( cid, this )
-         val rightRef   = tx.newVar[ NextOption ]( cid, EmptyValue )
+         val rightRef   = tx.newVar[ NextOption ]( cid, EmptyValue )( RightOptionReader )
          val n          = new LeftChildBranch( cid, parentRef, iq, newChildOrder( qidx ), ch, rightRef )
          updateChild( qidx, n )
          n
@@ -1510,9 +1511,9 @@ extends SkipOctree[ S, D, A ] {
       val sz         = numOrthants
       val ch         = tx.newVarArray[ LeftChildOption ]( sz )
       var i = 0; while( i < sz ) {
-         ch( i )     = tx.readVar[ LeftChildOption ]( id, in )
+         ch( i )     = tx.readVar[ LeftChildOption ]( id, in )( LeftChildOptionSerializer )
       i += 1 }
-      val nextRef    = tx.readVar[ NextOption ]( id, in )
+      val nextRef    = tx.readVar[ NextOption ]( id, in )( RightOptionReader )
       new LeftTopBranch( id, startOrder, ch, nextRef )
    }
    protected final class LeftTopBranch( val id: S#ID, val startOrder: Order,
@@ -1555,9 +1556,9 @@ extends SkipOctree[ S, D, A ] {
       val sz         = numOrthants
       val ch         = tx.newVarArray[ LeftChildOption ]( sz )
       var i = 0; while( i < sz ) {
-         ch( i )     = tx.readVar[ LeftChildOption ]( id, in )
+         ch( i )     = tx.readVar[ LeftChildOption ]( id, in )( LeftChildOptionSerializer )
       i += 1 }
-      val nextRef    = tx.readVar[ NextOption ]( id, in )
+      val nextRef    = tx.readVar[ NextOption ]( id, in )( RightOptionReader )
       new LeftChildBranch( id, parentRef, hyperCube, startOrder, ch, nextRef )
    }
    private final class LeftChildBranch( val id: S#ID, parentRef: S#Var[ LeftBranch ], val hyperCube: D#HyperCube,
@@ -1638,7 +1639,7 @@ extends SkipOctree[ S, D, A ] {
       var i = 0; while( i < sz ) {
          ch( i ) = tx.readVar[ RightChildOption ]( id, in )
       i += 1 }
-      val nextRef = tx.readVar[ NextOption ]( id, in )
+      val nextRef = tx.readVar[ NextOption ]( id, in )( RightOptionReader )
       new RightTopBranch( id, prev, ch, nextRef )
    }
    protected final class RightTopBranch( val id: S#ID, val prev: TopBranch,
@@ -1717,7 +1718,7 @@ extends SkipOctree[ S, D, A ] {
       var i = 0; while( i < sz ) {
          ch( i )     = tx.readVar[ RightChildOption ]( id, in )
       i += 1 }
-      val nextRef    = tx.readVar[ NextOption ]( id, in )
+      val nextRef    = tx.readVar[ NextOption ]( id, in )( RightOptionReader )
       new RightChildBranch( id, parentRef, prev, hyperCube, ch, nextRef )
    }
    private final class RightChildBranch( val id: S#ID, parentRef: S#Var[ RightBranch ],

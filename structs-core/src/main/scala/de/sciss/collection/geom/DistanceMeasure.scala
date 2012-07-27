@@ -75,7 +75,8 @@ object DistanceMeasure {
  * the ordering between the possible results.
  */
 trait DistanceMeasure[ @specialized( Long ) M, D <: Space[ D ]] {
-   def manifest: Manifest[ M ]
+//   def manifest: Manifest[ M ]
+   def newArray( size: Int ) : Array[ M ]
 
    /**
     * A value which will never be exceeded by the measure

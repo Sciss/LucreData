@@ -114,7 +114,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val cube    = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
             val t = {
                import SpaceSerializers.IntCubeSerializer
-               implicit val smf = Sys.manifest[ S ]( system )
+//               implicit val smf = Sys.manifest[ S ]( system )
                SkipOctree.empty[ S, IntSpace.ThreeDim, FullVertex[ S ]]( cube )
             }
             val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )

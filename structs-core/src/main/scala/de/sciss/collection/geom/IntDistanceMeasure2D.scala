@@ -371,7 +371,8 @@ object IntDistanceMeasure2D {
    }
 
    private sealed trait Impl extends DistanceMeasure[ Long, TwoDim ] with Ops[ Long, TwoDim ] {
-      final def manifest : Manifest[ Long ] = Manifest.Long
+//      final def manifest : Manifest[ Long ] = Manifest.Long
+      final def newArray( size : Int ) = new Array[ Long ]( size )
 
       final def maxValue : Long = Long.MaxValue
       final def isMeasureZero( m: Long ) : Boolean = m == 0L

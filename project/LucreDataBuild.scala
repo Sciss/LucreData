@@ -2,40 +2,32 @@ import sbt._
 import Keys._
 
 object LucreDataBuild extends Build {
-   lazy val lucredata = Project(
+   lazy val lucredata: Project = Project(
       id        = "lucredata",
       base      = file( "." ),
-      settings  = standardSettings,
       aggregate = Seq( structsCore, txn, mutable, viewsCore, txnViews, mutableViews )
    )
 
    lazy val structsCore = Project(
       id        = "lucredata-structs-core",
-      base      = file( "structs-core" ),
-      settings  = standardSettings
+      base      = file( "structs-core" )
    )
 
    lazy val mutable = Project(
       id           = "lucredata-mutable",
       base         = file( "mutable" ),
-      dependencies = Seq( structsCore ),
-      settings     = standardSettings ++ Seq(
-         libraryDependencies ++= Seq(
-            "org.scalatest" %% "scalatest" % "1.7.2" % "test"
-         )
-      )
+      dependencies = Seq( structsCore )
    )
    
    lazy val txn = Project(
       id           = "lucredata-txn",
       base         = file( "txn" ),
       dependencies = Seq( structsCore ),
-      settings     = standardSettings ++ Seq(
+      settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.34-SNAPSHOT",
-            "org.scalatest" %% "scalatest" % "1.7.2" % "test"
-         ),
-         scalacOptions ++= Seq( "-no-specialization" )   // SUCKERS!!!!!!
+            "de.sciss" %% "lucrestm" % "0.34-SNAPSHOT"
+//            "org.scalatest" %% "scalatest" % "1.7.2" % "test"
+         )
       )
    )
 
@@ -43,7 +35,7 @@ object LucreDataBuild extends Build {
       id           = "lucredata-views-core",
       base         = file( "views-core" ),
       dependencies = Seq( structsCore ),
-      settings = standardSettings ++ Seq(
+      settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
             "com.itextpdf" % "itextpdf" % "5.1.1"
          )
@@ -53,67 +45,12 @@ object LucreDataBuild extends Build {
    lazy val mutableViews = Project(
       id           = "lucredata-mutable-views",
       base         = file( "mutable-views" ),
-      dependencies = Seq( viewsCore, mutable ),
-      settings     = standardSettings
+      dependencies = Seq( viewsCore, mutable )
    )
 
    lazy val txnViews = Project(
       id           = "lucredata-txn-views",
       base         = file( "txn-views" ),
-      dependencies = Seq( viewsCore, txn ),
-      settings     = standardSettings
+      dependencies = Seq( viewsCore, txn )
    )
-   
-   lazy val standardSettings = Defaults.defaultSettings ++ Seq(
-      organization    := "de.sciss",
-      description     := "Transactional data structures (skip list, skip octree, total order) for Scala",
-      homepage        := Some( url( "https://github.com/Sciss/LucreData" )),
-      licenses        := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" )),
-      version         := "0.34-SNAPSHOT",
-      scalaVersion    := "2.9.2",
-      resolvers       ++= Seq(
-         "itextpdf.com" at "http://maven.itextpdf.com",
-         "Oracle Repository" at "http://download.oracle.com/maven"
-      ),
-      retrieveManaged := true,
-
-//      publishArtifact in (Compile, packageDoc) := false, // scaladoc is broken with sbt 0.11.2 !
-
-      publishMavenStyle := true,
-      publishArtifact in Test := false,
-      pomIncludeRepository := { _ => false },
-      publishSetting,
-//      credentialsSetting,
-      pomExtra     := pomSettings,
-
-//      traceLevel   := 20,
-      testOptions in Test += Tests.Argument( "-oDF" ),   // ScalaTest: durations and full stack traces
-      parallelExecution /* in Test */ := false,
-
-      scalacOptions ++= Seq( "-deprecation", "-unchecked" /*, "-no-specialization" */)
-   )
-   
-   lazy val publishSetting = publishTo <<= version { (v: String) =>
-      Some( if( v.endsWith( "-SNAPSHOT" ))
-         "Sonatype Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
-      else
-         "Sonatype Releases"  at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
-      )
-   }
-
-//   lazy val credentialsSetting = credentials += Credentials( Path.userHome / ".ivy2" / ".credentials" )
-
-   lazy val pomSettings =
-<scm>
-  <url>git@github.com:Sciss/LucreData.git</url>
-  <connection>scm:git:git@github.com:Sciss/LucreData.git</connection>
-</scm>
-<developers>
-   <developer>
-      <id>sciss</id>
-      <name>Hanns Holger Rutz</name>
-      <url>http://www.sciss.de</url>
-   </developer>
-</developers>
-
 }

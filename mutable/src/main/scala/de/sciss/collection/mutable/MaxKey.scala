@@ -28,7 +28,7 @@ package mutable
 
 object MaxKey {
 //   implicit def key[ @specialized( Int, Long ) A ]( a: A ) = MaxKey( a )
-   implicit val intKey  = MaxKey( Int.MaxValue )
-   implicit val longKey = MaxKey( Long.MaxValue )
+   implicit val intKey  : MaxKey[ Int ]  = MaxKey( Int.MaxValue )
+   implicit val longKey : MaxKey[ Long ] = MaxKey( Long.MaxValue )
 }
 final case class MaxKey[ @specialized( Int, Long ) +A ]( value : A )
