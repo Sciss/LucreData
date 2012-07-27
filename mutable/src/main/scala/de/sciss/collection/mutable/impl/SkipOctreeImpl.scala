@@ -29,6 +29,7 @@ package impl
 import annotation.tailrec
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import de.sciss.collection.geom.{Space, QueryShape, DistanceMeasure}
+import collection.immutable.{IndexedSeq => IIdxSeq}
 
 //object SkipOctreeImpl {
 //   var RANGE_LEFT    = 0
@@ -248,24 +249,13 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       private var bestLeaf: QLeaf     = null
       private var bestDist            = metric.maxValue // Long.MaxValue   // all distances here are squared!
       private val pri                 = PriorityQueue.empty[ VisitedNode ]
-      private val acceptedChildren    = new Array[ VisitedNode ]( numOrthants )
-      private var numAcceptedChildren = 0
+//      private val acceptedChildren    = new Array[ VisitedNode ]( numOrthants )
+//      private var numAcceptedChildren = 0
       private var rmax                = metric.maxValue // Long.MaxValue
 
-      def recheckRMax() {
-         var j = 0; while( j < numAcceptedChildren ) {
-//            if( space.bigGt( acceptedChildren( j ).minDist, rmax )) { ... }
-            if( metric.isMeasureGreater( acceptedChildren( j ).minDist, rmax )) {  // immediately kick it out
-               numAcceptedChildren -= 1
-               var k = j; while( k < numAcceptedChildren ) {
-                  acceptedChildren( k ) = acceptedChildren( k + 1 )
-               k += 1 }
-            }
-         j += 1 }
-      }
-
-      @tailrec private def findNNTail( n0: QNode ) {
-         numAcceptedChildren = 0
+      @tailrec private def findNNTail( n0: QNode ) : IIdxSeq[ VisitedNode ] = {
+         var acceptedChildren = IIdxSeq.empty[ VisitedNode ]
+//         numAcceptedChildren = 0
          var accept1Idx = 0
          val oldRMax1 = rmax
          var i = 0; while( i < numOrthants ) {
@@ -294,22 +284,27 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
 //println( "      : node " + cq + " " + identify( c ) + " - " + cMaxDist )
                         rmax = cMaxDist
                      }
-                     acceptedChildren( numAcceptedChildren ) = new VisitedNode( c, cMinDist /*, cMaxDist */)
+//                     acceptedChildren( numAcceptedChildren ) = new VisitedNode( c, cMinDist /*, cMaxDist */)
+                     acceptedChildren :+= new VisitedNode( c, cMinDist /*, cMaxDist */)
                      accept1Idx = i
-                     numAcceptedChildren += 1
+//                     numAcceptedChildren += 1
                   }
 
                case _ =>
             }
          i += 1 }
 
-         if( rmax != oldRMax1 ) recheckRMax()
+         if( rmax != oldRMax1 ) {
+            acceptedChildren = acceptedChildren.filterNot { a =>
+               metric.isMeasureGreater( a.minDist, rmax )
+            }
+         }
 
          // Unless exactly one child is accepted, round is over
-         if( numAcceptedChildren != 1 ) return
+         if( acceptedChildren.size != 1 ) return acceptedChildren
 
          // Otherwise find corresponding node in highest level, and descend
-         var dn   = acceptedChildren( 0 ).n
+         var dn   = acceptedChildren.head.n // acceptedChildren( 0 ).n
          val qdn  = dn.hyperCube
          var succ = n0.next
          while( succ != null ) {
@@ -330,13 +325,14 @@ trait SkipOctreeImpl[ D <: Space[ D ], A ] extends SkipOctree[ D, A ] {
       def find : QLeaf = {
          var n0 = headTree
          while( true ) {
-            findNNTail( n0 )
+            val acceptedChildren = findNNTail( n0 )
 //            if( space.bigLeqZero( bestDist )) return bestLeaf
 //            if( bestDist == metric.minValue ) return bestLeaf
             if( metric.isMeasureZero( bestDist )) return bestLeaf
-            var i = 0; while( i < numAcceptedChildren ) {
-               pri += acceptedChildren( i )
-            i += 1 }
+//            var i = 0; while( i < numAcceptedChildren ) {
+//               pri += acceptedChildren( i )
+//            i += 1 }
+            acceptedChildren.foreach( pri += _ )
             var vis: VisitedNode = null
             do {
                if( pri.isEmpty ) {
