@@ -20,12 +20,16 @@ LucreData provides implementations for various data structures in the Scala prog
 
 Builds with xsbt (sbt 0.11) against Scala 2.9.2. Depends on [LucreSTM](http://github.com/Sciss/LucreSTM). Sub projects:
 
-* `structs-core` &ndash; Some basic stuff used by the data structure implementations. Also the geometry types.
-* `mutable` &ndash; Mutable data structures
-* `txn` &ndash; Transactional data structures (based on [LucreSTM](https://github.com/Sciss/LucreSTM)).
-* `views-core` &ndash; Some basic stuff used by the specific views
-* `mutable-views` &ndash; Some Swing based views to show the mutable data structures
-* `txn-views` &ndash; Some Swing based views to show the transactional data structures
+* `core` &ndash; Transactional data structures (based on [LucreSTM](https://github.com/Sciss/LucreSTM)).
+* `views` &ndash; Some Swing based views to show the transactional data structures
+
+## linking to LucreData
+
+Either of the following dependencies is necessary:
+
+    "de.sciss" %% "lucredata" % "0.34-SNAPSHOT"
+    "de.sciss" %% "lucredata-core" % "0.34-SNAPSHOT"
+    "de.sciss" %% "lucredata-views" % "0.34-SNAPSHOT"
 
 ### creating an IntelliJ IDEA project
 
@@ -35,7 +39,4 @@ To develop the sources of LucreData, if you haven't globally installed the sbt-i
     
     addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
 
-Then to create the IDEA project, run the following two commands from the xsbt shell:
-
-    > set ideaProjectName := "LucreData"
-    > gen-idea
+Then to create the IDEA project, run `sbt gen-idea`.
