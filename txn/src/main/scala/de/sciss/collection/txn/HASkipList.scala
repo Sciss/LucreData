@@ -29,8 +29,8 @@ package txn
 import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
-import de.sciss.lucre.{DataOutput, DataInput}
-import de.sciss.lucre.stm.{Sink, Sys, TxnSerializer}
+import de.sciss.lucre.{stm, DataOutput, DataInput}
+import stm.{Sink, Sys, TxnSerializer}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -155,13 +155,13 @@ object HASkipList {
          new MapLeaf( en )
       }
 
-      def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
+      def keysIterator( implicit tx: S#Tx ) : stm.Iterator[ S#Tx, A ] = {
          val i = new KeyIteratorImpl
          i.init()
          i
       }
 
-      def valuesIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, B ] = {
+      def valuesIterator( implicit tx: S#Tx ) : stm.Iterator[ S#Tx, B ] = {
          val i = new ValueIteratorImpl
          i.init()
          i
@@ -841,7 +841,7 @@ object HASkipList {
          }
       }
 
-      final def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, E ] = {
+      final def iterator( implicit tx: S#Tx ) : stm.Iterator[ S#Tx, E ] = {
          val i = new EntryIteratorImpl
          i.init()
          i
@@ -873,7 +873,7 @@ object HASkipList {
 
       // since Iterator is not specialized anyway, we don't care
       // that KeyIteratorImpl won't be, either
-      protected sealed abstract class IteratorImpl[ C ] extends Iterator[ S#Tx, C ] {
+      protected sealed abstract class IteratorImpl[ C ] extends stm.Iterator[ S#Tx, C ] {
          private var l: Leaf[ S, A, E ]= null
          private var nextValue : C     = _
          private var isRight           = true

@@ -28,6 +28,8 @@ libraryDependencies in ThisBuild <+= scalaVersion { sv =>
    "org.scalatest" %% "scalatest" % v % "test"
 }
 
+retrieveManaged in ThisBuild := true
+
 scalacOptions in ThisBuild ++= Seq( "-deprecation", "-unchecked", "-no-specialization" )
 
 testOptions in Test += Tests.Argument( "-oDF" )

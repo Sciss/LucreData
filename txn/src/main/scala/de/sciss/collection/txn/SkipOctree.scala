@@ -28,8 +28,8 @@ package txn
 
 import de.sciss.collection.geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import de.sciss.lucre.DataInput
-import de.sciss.lucre.stm.{Disposable, Writer, TxnSerializer, Mutable, Sys}
+import de.sciss.lucre.{stm, DataInput}
+import stm.{Disposable, Writer, TxnSerializer, Sys}
 
 object SkipOctree {
    implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {
@@ -128,7 +128,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Writer with Dispos
     */
    def update( elem: A )( implicit tx: S#Tx ) : Option[ A ]
 
-   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
+   def rangeQuery[ @specialized( Long ) Area ]( qs: QueryShape[ Area, D ])( implicit tx: S#Tx ) : stm.Iterator[ S#Tx, A ]
 
    def contains( elem: A )( implicit tx: S#Tx ) : Boolean
 
@@ -190,7 +190,7 @@ trait SkipOctree[ S <: Sys[ S ], D <: Space[ D ], A ] extends Writer with Dispos
     * Great care has to be taken as the iterator might be corrupted if the tree
     * is successively changed before the iterator is exhausted.
     */
-   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
+   def iterator( implicit tx: S#Tx ) : stm.Iterator[ S#Tx, A ]
 
    def +=( elem: A )( implicit tx: S#Tx ) : this.type
    def -=( elem: A )( implicit tx: S#Tx ) : this.type

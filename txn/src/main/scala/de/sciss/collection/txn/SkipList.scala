@@ -26,8 +26,8 @@
 package de.sciss.collection
 package txn
 
-import de.sciss.lucre.stm.{TxnSerializer, Mutable, Sys}
-import de.sciss.lucre.{DataOutput, DataInput}
+import de.sciss.lucre.{stm, DataOutput, DataInput}
+import stm.{TxnSerializer, Mutable, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 
 object SkipList {
@@ -121,8 +121,8 @@ object SkipList {
    trait Map[ S <: Sys[ S ], @specialized( Int, Long ) A, B ] extends SkipList[ S, A, (A, B) ] {
 //      def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (A, B, Int)
 
-      def keysIterator(   implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
-      def valuesIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, B ]
+      def keysIterator(   implicit tx: S#Tx ) : stm.Iterator[ S#Tx, A ]
+      def valuesIterator( implicit tx: S#Tx ) : stm.Iterator[ S#Tx, B ]
 
       /**
        * Inserts a new entry into the map.
@@ -209,7 +209,7 @@ sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends M
    def nonEmpty( implicit tx: S#Tx ) : Boolean
 
 //   def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ]
-   def iterator( implicit tx: S#Tx ) : Iterator[ S#Tx, E ]
+   def iterator( implicit tx: S#Tx ) : stm.Iterator[ S#Tx, E ]
 
    def debugPrint( implicit tx: S#Tx ) : String
 

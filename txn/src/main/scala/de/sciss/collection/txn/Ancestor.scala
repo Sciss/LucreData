@@ -26,8 +26,8 @@
 package de.sciss.collection.txn
 
 import de.sciss.collection.geom.{IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
-import de.sciss.lucre.{DataOutput, DataInput}
-import de.sciss.lucre.stm.{Disposable, TxnSerializer, Writer, Sys}
+import de.sciss.lucre.{stm, DataOutput, DataInput}
+import stm.{Disposable, TxnSerializer, Writer, Sys}
 
 object Ancestor {
    private val SER_VERSION = 0
@@ -441,7 +441,7 @@ object Ancestor {
       }
 
       // ---- RelabelObserver ----
-      final def beforeRelabeling( iter: Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
+      final def beforeRelabeling( iter: stm.Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
 //println( "RELABEL - ::: BEGIN :::" )
          iter.foreach { mv =>
 //println( "RELABEL - " + mv )
@@ -450,7 +450,7 @@ object Ancestor {
 //println( "RELABEL - ::: END :::" )
       }
 
-      final def afterRelabeling( iter: Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
+      final def afterRelabeling( iter: stm.Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
 //println( "RELABEL + ::: BEGIN :::" )
          iter.foreach { mv =>
 //println( "RELABEL + " + mv )
