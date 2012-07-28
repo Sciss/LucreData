@@ -1,5 +1,5 @@
-package de.sciss.collection
-package txn
+package de.sciss.lucre
+package data
 
 import geom.{IntSpace, IntDistanceMeasure3D, QueryShape, IntPoint3D, DistanceMeasure, Space, IntCube}
 import org.scalatest.{FeatureSpec, GivenWhenThen}
@@ -7,8 +7,8 @@ import collection.breakOut
 import collection.mutable.{Set => MSet}
 import IntSpace.ThreeDim
 import java.io.File
-import de.sciss.lucre.stm.impl.BerkeleyDB
-import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
+import stm.impl.BerkeleyDB
+import stm.{Cursor, Durable, InMemory, Sys}
 
 /**
  *
@@ -38,7 +38,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
          val t = sys.step { implicit tx =>
             import SpaceSerializers.{IntPoint3DSerializer, IntCubeSerializer}
             implicit val pointView = (p: IntPoint3D, _: Any) => p
-            txn.DeterministicSkipOctree.empty[ S, ThreeDim, IntPoint3D ]( cube )
+            DeterministicSkipOctree.empty[ S, ThreeDim, IntPoint3D ]( cube )
          }
          (sys, t, succ => sysCleanUp( sys, succ ))
       })

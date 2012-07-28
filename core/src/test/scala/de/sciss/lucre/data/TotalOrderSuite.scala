@@ -1,11 +1,10 @@
-package de.sciss.collection
-package txn
+package de.sciss.lucre
+package data
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import de.sciss.lucre.stm.impl.BerkeleyDB
+import stm.impl.BerkeleyDB
 import java.io.File
-import txn.TotalOrder.Map.RelabelObserver
-import de.sciss.lucre.{stm, DataOutput, DataInput}
+import TotalOrder.Map.RelabelObserver
 import stm.{Writer, TxnSerializer, Cursor, Durable, InMemory, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq}
 
@@ -157,11 +156,11 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                val order = system.step { implicit tx =>
                   val ser = new MapHolder.Serializer( new RelabelObserver[ S#Tx, MapHolder[ S ]] {
-                     def beforeRelabeling( dirty: stm.Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
+                     def beforeRelabeling( dirty: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
                         dirty.toIndexedSeq   // just to make sure the iterator succeeds
                      }
 
-                     def afterRelabeling( clean: stm.Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
+                     def afterRelabeling( clean: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
                         clean.toIndexedSeq   // just to make sure the iterator succeeds
                      }
                   }, tx )

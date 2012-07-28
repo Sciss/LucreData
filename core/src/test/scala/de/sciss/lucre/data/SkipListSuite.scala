@@ -1,13 +1,13 @@
-package de.sciss.collection
-package txn
+package de.sciss.lucre
+package data
 
-import scala.collection.immutable.IntMap
-import scala.collection.mutable.{Set => MSet}
+import collection.immutable.IntMap
+import collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import concurrent.stm.{InTxn, TxnExecutor, Ref}
-import de.sciss.lucre.stm.impl.BerkeleyDB
+import stm.impl.BerkeleyDB
 import java.io.File
-import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
+import stm.{Cursor, Durable, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:

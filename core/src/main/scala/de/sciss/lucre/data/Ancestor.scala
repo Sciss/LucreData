@@ -441,7 +441,7 @@ object Ancestor {
       }
 
       // ---- RelabelObserver ----
-      final def beforeRelabeling( iter: stm.Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
+      final def beforeRelabeling( iter: Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
 //println( "RELABEL - ::: BEGIN :::" )
          iter.foreach { mv =>
 //println( "RELABEL - " + mv )
@@ -450,7 +450,7 @@ object Ancestor {
 //println( "RELABEL - ::: END :::" )
       }
 
-      final def afterRelabeling( iter: stm.Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
+      final def afterRelabeling( iter: Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
 //println( "RELABEL + ::: BEGIN :::" )
          iter.foreach { mv =>
 //println( "RELABEL + " + mv )

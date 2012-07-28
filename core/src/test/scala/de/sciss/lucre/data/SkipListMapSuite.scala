@@ -1,8 +1,9 @@
-package de.sciss.collection.txn
+package de.sciss.lucre
+package data
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import de.sciss.lucre.stm.InMemory
+import stm.InMemory
 
 /**
  * To run this test copy + paste the following into sbt:

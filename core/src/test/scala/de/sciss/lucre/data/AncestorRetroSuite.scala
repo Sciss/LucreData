@@ -1,14 +1,13 @@
-package de.sciss.collection
-package txn
+package de.sciss.lucre
+package data
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import geom.{IntSpace, IntPoint3D, IntDistanceMeasure3D, IntCube}
 import concurrent.stm.Ref
 import java.io.File
-import de.sciss.lucre.{DataInput, DataOutput}
-import de.sciss.lucre.stm.impl.BerkeleyDB
+import stm.impl.BerkeleyDB
+import stm.{InMemory, Durable, Cursor, Sys, Writer, TxnReader, TxnSerializer}
 import annotation.tailrec
-import de.sciss.lucre.stm._
 
 /**
 * To run this test copy + paste the following into sbt:

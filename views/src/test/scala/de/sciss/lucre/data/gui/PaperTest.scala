@@ -1,12 +1,12 @@
-package de.sciss.collection.txn.view
+package de.sciss.lucre
+package data
+package gui
 
 import java.awt.{BorderLayout, EventQueue}
 import javax.swing.{JFrame, WindowConstants}
-import de.sciss.lucre.stm.InMemory
-import de.sciss.collection.txn.view.InteractiveSkipOctreePanel.Model2D
-import de.sciss.collection.geom.{IntPoint2D, IntSquare}
-import de.sciss.collection.geom.IntSpace.TwoDim
-import de.sciss.collection.txn.{DeterministicSkipOctree, SpaceSerializers}
+import stm.InMemory
+import geom.{IntPoint2D, IntSquare}
+import geom.IntSpace.TwoDim
 
 object PaperTest extends App with Runnable {
   EventQueue.invokeLater( this )
@@ -22,7 +22,7 @@ object PaperTest extends App with Runnable {
        DeterministicSkipOctree.empty[ InMemory, TwoDim, TwoDim#Point ](
           IntSquare( sz, sz, sz ), skipGap = 1 )
     }
-    val model = new Model2D[ InMemory ]( system, access, { () => println( "(Consistency not checked)" )})
+    val model = new InteractiveSkipOctreePanel.Model2D[ InMemory ]( system, access, { () => println( "(Consistency not checked)" )})
 
      val f    = new JFrame( "Skip Octree" )
     //      f.setResizable( false )

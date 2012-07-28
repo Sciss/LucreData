@@ -1,12 +1,12 @@
-package de.sciss.collection
-package txn
+package de.sciss.lucre
+package data
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import java.io.File
-import de.sciss.lucre.stm.impl.BerkeleyDB
+import stm.impl.BerkeleyDB
 import annotation.tailrec
 import collection.immutable.IntMap
-import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
+import stm.{Cursor, Durable, InMemory, Sys}
 
 /**
  * To run this test copy + paste the following into sbt:
