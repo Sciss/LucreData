@@ -30,7 +30,7 @@ import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.{switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
-import stm.{Sys, TxnSerializer, Writer}
+import stm.{Identifiable, Sys, Mutable, TxnSerializer}
 
 /**
 * A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
@@ -969,18 +969,16 @@ extends SkipOctree[ S, D, A ] {
    }
 
 //   protected sealed trait Down extends Child
-   final protected type ChildOption = Child with Writer /* MutableOption[ S ] */
+   final protected type ChildOption = Child with Writable /* MutableOption[ S ] */
 
    /**
     * A node is an object that can be
     * stored in a orthant of a branch.
     */
-   protected sealed trait NonEmpty /* extends Down with Child */ {
+   protected sealed trait NonEmpty extends Identifiable[ S#ID ]/* extends Down with Child */ {
       protected def shortString : String
 
       override def toString  = shortString + id
-
-      def id: S#ID
 
       override def equals( that: Any ) : Boolean = {
          (if( that.isInstanceOf[ NonEmpty ]) {
@@ -1045,22 +1043,22 @@ extends SkipOctree[ S, D, A ] {
 
    protected sealed trait Left
    protected sealed trait LeftChild extends Left with Child
-   protected type LeftChildOption = LeftChild with Writer /* with MutableOption[ S ] */
+   protected type LeftChildOption = LeftChild with Writable /* with MutableOption[ S ] */
 
    /**
     * A common trait used in pattern matching, comprised of `Leaf` and `LeftChildBranch`.
     */
-   protected sealed trait LeftNonEmptyChild extends LeftNonEmpty with NonEmptyChild with LeftChild with Writer /* Mutable[ S ] */ {
+   protected sealed trait LeftNonEmptyChild extends LeftNonEmpty with NonEmptyChild with LeftChild with Writable /* Mutable[ S ] */ {
       def updateParentLeft( p: LeftBranch )( implicit tx: S#Tx ) : Unit
    }
 
    protected sealed trait RightChild extends Child
-   protected type RightChildOption = RightChild with Writer /* with MutableOption[ S ] */
+   protected type RightChildOption = RightChild with Writable /* with MutableOption[ S ] */
 
    /**
     * A common trait used in pattern matching, comprised of `Leaf` and `RightChildBranch`.
     */
-   protected sealed trait RightNonEmptyChild extends RightChild with NonEmptyChild with Writer /* Mutable[ S ] */ {
+   protected sealed trait RightNonEmptyChild extends RightChild with NonEmptyChild with Writable /* Mutable[ S ] */ {
       def updateParentRight( p: RightBranch )( implicit tx: S#Tx ) : Unit
    }
 
@@ -1142,7 +1140,7 @@ extends SkipOctree[ S, D, A ] {
     * as well as a pointer `next` to the corresponding node in the
     * next highest tree. A `Branch` also provides various search methods.
     */
-   protected sealed trait BranchLike extends NonEmpty with Writer /* Mutable[ S ] */ with Branch {
+   protected sealed trait BranchLike extends NonEmpty with Writable /* Mutable[ S ] */ with Branch {
       /**
        * Returns the child for a given
        * orthant index
@@ -1220,7 +1218,7 @@ extends SkipOctree[ S, D, A ] {
    // fix for deserialization equality problem thanks to
    // Eugene Yokota
    // (http://stackoverflow.com/questions/9893522/fixing-case-object-identity-pattern-matching-under-serialization/9894036#9894036)
-   case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with Writer /* EmptyMutable */ {
+   case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with Writable /* EmptyMutable */ {
       override def toString = "<empty>"
       def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
       override def hashCode : Int = 0
@@ -1234,14 +1232,14 @@ extends SkipOctree[ S, D, A ] {
    protected sealed trait ChildBranch extends BranchLike with NonEmptyChild
 
    protected sealed trait Next // { def toOption: Option[ RightBranch ]}
-   final protected type NextOption = Next with Writer /* MutableOption[ S ] */
+   final protected type NextOption = Next with Writable /* MutableOption[ S ] */
 
    /**
     * A right tree node implementation provides more specialized child nodes
     * of type `RightChild`. It furthermore defines the node in Qi-1 via the
     * `prev` method.
     */
-   protected sealed trait RightBranch extends Next with BranchLike with Writer /* Mutable[ S ] */ {
+   protected sealed trait RightBranch extends Next with BranchLike /* with Writable */ /* Mutable[ S ] */ {
       protected def children: Array[ S#Var[ RightChildOption ]]
 
       final def prevOption: Option[ Branch ] = Some( prev: Branch )
@@ -1356,7 +1354,7 @@ extends SkipOctree[ S, D, A ] {
     * `findImmediateLeaf` which is typically called after arriving here
     * from a `findP0` call.
     */
-   protected sealed trait LeftBranch extends /* LeftBranchOption with */ BranchLike with LeftNonEmpty with Writer /* Mutable[ S ] */ {
+   protected sealed trait LeftBranch extends /* LeftBranchOption with */ BranchLike with LeftNonEmpty /* with Writable */ /* Mutable[ S ] */ {
       /**
        * For a `LeftBranch`, all its children are more specific
        * -- they are instances of `LeftChild` and thus support
@@ -1498,7 +1496,7 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   protected sealed trait TopBranch extends BranchLike with Writer /* Mutable[ S ] */ {
+   protected sealed trait TopBranch extends BranchLike /* with Writable */ /* Mutable[ S ] */ {
       final def hyperCube: D#HyperCube = octree.hyperCube
    }
 
@@ -1518,7 +1516,7 @@ extends SkipOctree[ S, D, A ] {
    protected final class LeftTopBranch( val id: S#ID, val startOrder: Order,
                                       protected val children: Array[ S#Var[ LeftChildOption ]],
                                       protected val nextRef: S#Var[ NextOption ])
-   extends LeftBranch with TopBranch with Writer /* Mutable[ S ] */ {
+   extends LeftBranch with TopBranch with Mutable[ S#ID, S#Tx ] {
       // that's alright, we don't need to do anything special here
       protected def leafRemoved()( implicit tx: S#Tx ) {}
 

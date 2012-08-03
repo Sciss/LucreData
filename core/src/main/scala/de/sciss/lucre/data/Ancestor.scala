@@ -27,7 +27,7 @@ package de.sciss.lucre
 package data
 
 import geom.{IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
-import stm.{Disposable, TxnSerializer, Writer, Sys}
+import stm.{Disposable, TxnSerializer, Sys}
 
 object Ancestor {
    private val SER_VERSION = 0
@@ -41,7 +41,7 @@ object Ancestor {
       private[Ancestor] implicit def toPoint[ S <: Sys[ S ], Version ]( v: Vertex[ S, Version ], tx: S#Tx ) : IntPoint3D =
          IntPoint3D( v.preHead.tag( tx ), v.post.tag( tx ), v.versionInt )
    }
-   sealed trait Vertex[ S <: Sys[ S ], Version ] extends Writer with Disposable[ S#Tx ] {
+   sealed trait Vertex[ S <: Sys[ S ], Version ] extends Writable with Disposable[ S#Tx ] {
 
       // ---- abstract ----
 
@@ -212,7 +212,7 @@ object Ancestor {
       val root                = VertexSerializer.read( in, access )( tx0 )
    }
 
-   sealed trait Tree[ S <:Sys[ S ], Version ] extends Writer with Disposable[ S#Tx ] {
+   sealed trait Tree[ S <:Sys[ S ], Version ] extends Writable with Disposable[ S#Tx ] {
       protected type K = Vertex[ S, Version ]
 
       private[Ancestor] def versionSerializer: TxnSerializer[ S#Tx, S#Acc, Version ]
@@ -233,7 +233,7 @@ object Ancestor {
 
    private val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
 
-   private sealed trait Mark[ S <: Sys[ S ], Version, @specialized A ] extends Writer {
+   private sealed trait Mark[ S <: Sys[ S ], Version, @specialized A ] extends Writable {
 
       // ---- abstract ----
 
@@ -544,7 +544,7 @@ object Ancestor {
       }
    }
 
-   sealed trait Map[ S <: Sys[ S ], Version, @specialized A ] extends Writer with Disposable[ S#Tx ] {
+   sealed trait Map[ S <: Sys[ S ], Version, @specialized A ] extends Writable with Disposable[ S#Tx ] {
       type K = Vertex[ S, Version ]
 
       def full: Tree[ S, Version ]

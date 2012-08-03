@@ -1,13 +1,13 @@
 package de.sciss.lucre
 package data
 
-import stm.Serializer
+import stm.ImmutableSerializer
 import geom.{LongSquare, LongPoint2D, IntCube, IntPoint3D, IntSquare, IntPoint2D}
 
 object SpaceSerializers {
    // ---- int space ----
 
-   implicit object IntPoint2DSerializer extends Serializer[ geom.IntPoint2D ] {
+   implicit object IntPoint2DSerializer extends ImmutableSerializer[ geom.IntPoint2D ] {
       def read( in: DataInput ) : IntPoint2D = {
          val x = in.readInt()
          val y = in.readInt()
@@ -20,7 +20,7 @@ object SpaceSerializers {
       }
    }
 
-   implicit object IntSquareSerializer extends Serializer[ geom.IntSquare ] {
+   implicit object IntSquareSerializer extends ImmutableSerializer[ geom.IntSquare ] {
       def read( in: DataInput ) : IntSquare = {
          val cx      = in.readInt()
          val cy      = in.readInt()
@@ -35,7 +35,7 @@ object SpaceSerializers {
       }
    }
 
-   implicit object IntPoint3DSerializer extends Serializer[ geom.IntPoint3D ] {
+   implicit object IntPoint3DSerializer extends ImmutableSerializer[ geom.IntPoint3D ] {
       def read( in: DataInput ) : IntPoint3D = {
          val x = in.readInt()
          val y = in.readInt()
@@ -50,7 +50,7 @@ object SpaceSerializers {
       }
    }
 
-   implicit object IntCubeSerializer extends Serializer[ geom.IntCube ] {
+   implicit object IntCubeSerializer extends ImmutableSerializer[ geom.IntCube ] {
       def read( in: DataInput ) : IntCube = {
          val cx      = in.readInt()
          val cy      = in.readInt()
@@ -69,7 +69,7 @@ object SpaceSerializers {
 
    // ---- long space ----
 
-   implicit object LongPoint2DSerializer extends Serializer[ geom.LongPoint2D ] {
+   implicit object LongPoint2DSerializer extends ImmutableSerializer[ geom.LongPoint2D ] {
       def read( in: DataInput ) : LongPoint2D = {
          val x = in.readLong()
          val y = in.readLong()
@@ -82,7 +82,7 @@ object SpaceSerializers {
       }
    }
 
-   implicit object LongSquareSerializer extends Serializer[ geom.LongSquare ] {
+   implicit object LongSquareSerializer extends ImmutableSerializer[ geom.LongSquare ] {
       def read( in: DataInput ) : LongSquare = {
          val cx      = in.readLong()
          val cy      = in.readLong()

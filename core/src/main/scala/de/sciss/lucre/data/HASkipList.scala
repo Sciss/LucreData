@@ -29,7 +29,7 @@ package data
 import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
-import stm.{Sink, Sys, TxnSerializer}
+import stm.{Mutable, Sink, Sys, TxnSerializer}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -228,7 +228,7 @@ object HASkipList {
    }
 
    private sealed trait Impl[ S <: Sys[ S ], @specialized( Int, Long ) A, E ]
-   extends HeadOrBranch[ S, A, E ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A, E ]] {
+   extends HeadOrBranch[ S, A, E ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A, E ]] with Mutable.Impl[ S ] {
       impl =>
 
       protected def downNode: S#Var[ Node[ S, A, E ]]

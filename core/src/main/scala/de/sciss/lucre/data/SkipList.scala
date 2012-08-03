@@ -148,7 +148,7 @@ object SkipList {
       def get( key: A )( implicit tx: S#Tx ) : Option[ B ]
    }
 }
-sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends Mutable[ S ] {
+sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends Mutable[ S#ID, S#Tx ] {
    /**
     * Searches for the Branch of a given key.
     *

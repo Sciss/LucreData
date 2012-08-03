@@ -6,7 +6,7 @@ import geom.{IntSpace, IntPoint3D, IntDistanceMeasure3D, IntCube}
 import concurrent.stm.Ref
 import java.io.File
 import stm.impl.BerkeleyDB
-import stm.{InMemory, Durable, Cursor, Sys, Writer, TxnReader, TxnSerializer}
+import stm.{InMemory, Durable, Cursor, Sys, TxnReader, TxnSerializer}
 import annotation.tailrec
 
 /**
@@ -72,7 +72,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
          def write( v: FullVertexPre[ S ], out: DataOutput ) { v.write( out )}
       }
    }
-   sealed trait FullVertexPre[ S <: Sys[ S ]] extends Writer with VertexSource[ S, FullVertex[ S ]] {
+   sealed trait FullVertexPre[ S <: Sys[ S ]] extends Writable with VertexSource[ S, FullVertex[ S ]] {
       def order: FullPreOrder[ S ]
       def id: Int
       final def write( out: DataOutput ) {
@@ -254,7 +254,7 @@ if( verbose ) {
       def debugString( implicit tx: S#Tx ) : String
    }
 
-   sealed trait VertexLike[ S <: Sys[ S ], Repr ] extends Writer with VertexSource[ S, Repr ] {
+   sealed trait VertexLike[ S <: Sys[ S ], Repr ] extends Writable with VertexSource[ S, Repr ] {
       def version : Int
       def toPoint( implicit tx: S#Tx ) : IntPoint3D
    }

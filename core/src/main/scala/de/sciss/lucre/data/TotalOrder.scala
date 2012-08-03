@@ -27,7 +27,7 @@ package de.sciss.lucre
 package data
 
 import annotation.{switch, tailrec}
-import stm.{Writer, Mutable, TxnSerializer, Sys}
+import stm.{Mutable, TxnSerializer, Sys}
 
 
 /**
@@ -98,7 +98,7 @@ object TotalOrder {
       final class Entry[ S <: Sys[ S ]] private[TotalOrder]( val id: S#ID, set: Set[ S ], tagVal: S#Var[ Int ],
                                                              prevRef: S#Var[ EntryOption[ S ] /* with MutableOption[ S ] */],
                                                              nextRef: S#Var[ EntryOption[ S ] /* with MutableOption[ S ] */])
-      extends EntryOption[ S ] with Mutable[ S ] with Ordered[ S#Tx, Entry[ S ]] {
+      extends EntryOption[ S ] with Mutable.Impl[ S ] with Ordered[ S#Tx, Entry[ S ]] {
 
          override def toString = "Set.Entry" + id
 
@@ -169,7 +169,8 @@ object TotalOrder {
       override def toString = "Set.serializer"
    }
 
-   private final class SetRead[ S <: Sys[ S ]]( in: DataInput, access: S#Acc, tx0: S#Tx ) extends Set[ S ] {
+   private final class SetRead[ S <: Sys[ S ]]( in: DataInput, access: S#Acc, tx0: S#Tx )
+   extends Set[ S ] with Mutable.Impl[ S ] {
       val id      = tx0.readID( in, access )
 
       {
@@ -183,7 +184,7 @@ object TotalOrder {
    }
 
    private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, rootTag: Int, protected val sizeVal: S#Var[ Int ], tx0: S#Tx )
-   extends Set[ S ] {
+   extends Set[ S ] with Mutable.Impl[ S ] {
       me =>
 
       val root: E = {
@@ -462,7 +463,7 @@ object TotalOrder {
       final class Entry[ S <: Sys[ S ], A ] private[TotalOrder](
          map: Map[ S, A ], val id: S#ID, tagVal: S#Var[ Int ], prevRef: S#Var[ KeyOption[ S, A ]],
          nextRef: S#Var[ KeyOption[ S, A ]])
-      extends Mutable[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
+      extends Mutable.Impl[ S ] with Ordered[ S#Tx, Entry[ S, A ]] {
          private type E    = Entry[ S, A ]
          private type KOpt = KeyOption[ S, A ]
 
@@ -526,7 +527,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       }
    }
 
-   private[TotalOrder] sealed trait KeyOption[ S <: Sys[ S ], A ] extends Writer {
+   private[TotalOrder] sealed trait KeyOption[ S <: Sys[ S ], A ] extends Writable {
       private type KOpt = KeyOption[ S, A ]
 
 //         def tag( implicit tx: S#Tx ) : Int
@@ -589,7 +590,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       protected val observer: Map.RelabelObserver[ S#Tx, A ],
       val entryView: A => Map.Entry[ S, A ], in: DataInput, access: S#Acc, tx0: S#Tx )(
       implicit private[TotalOrder] val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends Map[ S, A ] {
+   extends Map[ S, A ] with Mutable.Impl[ S ] {
 
       val id         = tx0.readID( in, access )
 
@@ -607,7 +608,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       val id: S#ID, protected val sizeVal: S#Var[ Int ], protected val observer: Map.RelabelObserver[ S#Tx, A ],
       val entryView: A => Map.Entry[ S, A ], rootTag: Int, tx0: S#Tx )(
       implicit private[TotalOrder] val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends Map[ S, A ] {
+   extends Map[ S, A ] with Mutable.Impl[ S ] {
       val root: E = {
          val rootID  = tx0.newID()
          val tagVal  = tx0.newIntVar( rootID, rootTag )
@@ -929,7 +930,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       }
    }
 }
-sealed trait TotalOrder[ S <: Sys[ S ]] extends Mutable[ S ] {
+sealed trait TotalOrder[ S <: Sys[ S ]] extends Mutable[ S#ID, S#Tx ] {
    type E
 
    /**
