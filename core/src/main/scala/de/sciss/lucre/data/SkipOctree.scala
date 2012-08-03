@@ -28,7 +28,7 @@ package data
 
 import geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import stm.{Mutable, TxnSerializer, Sys}
+import stm.{Mutable, Serializer, Sys}
 
 object SkipOctree {
    implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {
@@ -37,13 +37,13 @@ object SkipOctree {
 
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube )
                                                  ( implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
-                                                   keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : SkipOctree[ S, D, A ] =
+                                                   keySerializer: Serializer[ S#Tx, S#Acc, A ],
+                                                   hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ]) : SkipOctree[ S, D, A ] =
       DeterministicSkipOctree.empty[ S, D, A ]( hyperCube )
 
    def read[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, access: S#Acc )(
-         implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-         hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : SkipOctree[ S, D, A ] =
+         implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: Serializer[ S#Tx, S#Acc, A ],
+         hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ]) : SkipOctree[ S, D, A ] =
       DeterministicSkipOctree.read[ S, D, A ]( in, access )
 }
 /**

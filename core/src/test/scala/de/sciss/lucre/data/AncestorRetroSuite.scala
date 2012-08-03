@@ -6,7 +6,7 @@ import geom.{IntSpace, IntPoint3D, IntDistanceMeasure3D, IntCube}
 import concurrent.stm.Ref
 import java.io.File
 import stm.impl.BerkeleyDB
-import stm.{InMemory, Durable, Cursor, Sys, TxnReader, TxnSerializer}
+import stm.{InMemory, Durable, Cursor, Sys, Reader, Serializer}
 import annotation.tailrec
 
 /**
@@ -58,11 +58,11 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
    }
 
    object FullVertexPre {
-      implicit def serializer[ S <: Sys[ S ]]( implicit vertexReader: TxnReader[ S#Tx, S#Acc, FullVertex[ S ]]) : TxnSerializer[ S#Tx, S#Acc, FullVertexPre[ S ]] =
+      implicit def serializer[ S <: Sys[ S ]]( implicit vertexReader: Reader[ S#Tx, S#Acc, FullVertex[ S ]]) : Serializer[ S#Tx, S#Acc, FullVertexPre[ S ]] =
          new SerImpl[ S ]( vertexReader )
 
-      private final class SerImpl[ S <: Sys[ S ]]( vertexReader: TxnReader[ S#Tx, S#Acc, FullVertex[ S ]])
-      extends TxnSerializer[ S#Tx, S#Acc, FullVertexPre[ S ]] {
+      private final class SerImpl[ S <: Sys[ S ]]( vertexReader: Reader[ S#Tx, S#Acc, FullVertex[ S ]])
+      extends Serializer[ S#Tx, S#Acc, FullVertexPre[ S ]] {
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : FullVertexPre[ S ] = {
             val id = in.readUnsignedByte()
             val v  = vertexReader.read( in, access )
@@ -119,7 +119,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
             val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
             val preOrder      = TotalOrder.Map.empty[ S, FullVertexPre[ S ]]( orderObserver, _.order, 0 )
             val postOrder     = TotalOrder.Map.empty[ S, FullVertex[ S ]]( orderObserver, _.post, Int.MaxValue /* - 1 */)
-            implicit lazy val vertexSer : TxnSerializer[ S#Tx, S#Acc, FullVertex[ S ]] = new TxnSerializer[ S#Tx, S#Acc, FullVertex[ S ]] {
+            implicit lazy val vertexSer : Serializer[ S#Tx, S#Acc, FullVertex[ S ]] = new Serializer[ S#Tx, S#Acc, FullVertex[ S ]] {
                def write( v: FullVertex[ S ], out: DataOutput ) { v.write( out )}
 
                def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : FullVertex[ S ] = {
@@ -160,7 +160,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       def root: FullVertex[ S ]
       def preOrder: TotalOrder.Map[ S, FullVertexPre[ S ]]
       def postOrder: TotalOrder.Map[ S, FullVertex[ S ]]
-      def vertexSer: TxnSerializer[ S#Tx, S#Acc, FullVertex[ S ]]
+      def vertexSer: Serializer[ S#Tx, S#Acc, FullVertex[ S ]]
 
       private type V = FullVertex[ S ]
 
@@ -387,7 +387,7 @@ if( verbose ) {
    }
 
    sealed trait MarkRootVertex[ S <: Sys[ S ]] extends MarkVertex[ S ] {
-      implicit def vertexSer : TxnSerializer[ S#Tx, S#Acc, MarkVertex[ S ]]
+      implicit def vertexSer : Serializer[ S#Tx, S#Acc, MarkVertex[ S ]]
       def preOrder: TotalOrder.Map[ S, MarkVertex[ S ]]
       def postOrder: TotalOrder.Map[ S, MarkVertex[ S ]]
    }
@@ -397,7 +397,7 @@ if( verbose ) {
          import SpaceSerializers.IntCubeSerializer
          implicit val pointView = (p: MarkVertex[ S ], tx: S#Tx) => p.toPoint( tx )
          lazy val orderObserver = new RelabelObserver[ S, MarkVertex[ S ]]( "mark", t )
-         lazy val _vertexSer: TxnSerializer[ S#Tx, S#Acc, MarkVertex[ S ]] = new TxnSerializer[ S#Tx, S#Acc, MarkVertex[ S ]] {
+         lazy val _vertexSer: Serializer[ S#Tx, S#Acc, MarkVertex[ S ]] = new Serializer[ S#Tx, S#Acc, MarkVertex[ S ]] {
             def write( v: MarkVertex[ S ], out: DataOutput ) { v.write( out )}
 
             def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : MarkVertex[ S ] = {
@@ -423,7 +423,7 @@ if( verbose ) {
             SkipOctree.empty[ S, IntSpace.ThreeDim, MarkVertex[ S ]]( ft.t.hyperCube )
          }
          t += root
-         implicit val orderSer: TxnSerializer[ S#Tx, S#Acc, TotalOrder.Map.Entry[ S, MarkVertex[ S ]]] =
+         implicit val orderSer: Serializer[ S#Tx, S#Acc, TotalOrder.Map.Entry[ S, MarkVertex[ S ]]] =
             root.preOrder.EntrySerializer
 //            Serializer.fromMutableReader( root.preOrder.EntrySerializer, system )
 

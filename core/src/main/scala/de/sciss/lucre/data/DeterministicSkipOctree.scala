@@ -30,7 +30,7 @@ import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.{switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
-import stm.{Identifiable, Sys, Mutable, TxnSerializer}
+import stm.{Identifiable, Sys, Mutable, Serializer}
 
 /**
 * A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
@@ -51,27 +51,27 @@ object DeterministicSkipOctree {
 
    def empty[ S <: Sys[ S ], D <: Space[ D ], A ]( hyperCube: D#HyperCube, skipGap: Int = 2 )
                                                  ( implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
-                                                   keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                                   hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : DeterministicSkipOctree[ S, D, A ] = {
+                                                   keySerializer: Serializer[ S#Tx, S#Acc, A ],
+                                                   hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ]) : DeterministicSkipOctree[ S, D, A ] = {
 
       new ImplNew[ S, D, A ]( skipGap, tx.newID(), hyperCube, view, tx )
    }
 
    def read[ S <: Sys[ S ], D <: Space[ D ], A ]( in: DataInput, access: S#Acc )(
-      implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-      hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : DeterministicSkipOctree[ S, D, A ] =
+      implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: Serializer[ S#Tx, S#Acc, A ],
+      hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ]) : DeterministicSkipOctree[ S, D, A ] =
       new ImplRead[ S, D, A ]( view, in, access, tx )
 
    implicit def serializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
-      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-      hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]) : TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] =
+      keySerializer: Serializer[ S#Tx, S#Acc, A ],
+      hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ]) : Serializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] =
       new OctreeSerializer[ S, D, A ]
 
    private final class OctreeSerializer[ S <: Sys[ S ], D <: Space[ D ], A ](
       implicit view: (A, S#Tx) => D#PointLike, space: D,
-      keySerializer: TxnSerializer[ S#Tx, S#Acc, A ], hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
-   extends TxnSerializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] {
+      keySerializer: Serializer[ S#Tx, S#Acc, A ], hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ])
+   extends Serializer[ S#Tx, S#Acc, DeterministicSkipOctree[ S, D, A ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, D, A ] = {
          new ImplRead[ S, D, A ]( view, in, access, tx )
       }
@@ -83,8 +83,8 @@ object DeterministicSkipOctree {
 
    private final class ImplRead[ S <: Sys[ S ], D <: Space[ D ], A ](
       val pointView: (A, S#Tx) => D#PointLike,  in: DataInput,
-      access: S#Acc, tx0: S#Tx )( implicit val space: D,  val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-                                  val hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
+      access: S#Acc, tx0: S#Tx )( implicit val space: D,  val keySerializer: Serializer[ S#Tx, S#Acc, A ],
+                                  val hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ])
    extends DeterministicSkipOctree[ S, D, A ] {
 
       {
@@ -110,8 +110,8 @@ object DeterministicSkipOctree {
 
    private final class ImplNew[ S <: Sys[ S ], D <: Space[ D ], A ](
       skipGap: Int, val id: S#ID, val hyperCube: D#HyperCube, val pointView: (A, S#Tx) => D#PointLike, tx0: S#Tx )
-    ( implicit val space: D, val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ],
-      val hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ])
+    ( implicit val space: D, val keySerializer: Serializer[ S#Tx, S#Acc, A ],
+      val hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ])
 
    extends DeterministicSkipOctree[ S, D, A ] {
       val totalOrder = TotalOrder.Set.empty[ S ]( tx0 ) // ()
@@ -145,8 +145,8 @@ extends SkipOctree[ S, D, A ] {
    private type Order = TotalOrder.Set.Entry[ S ]
 
    implicit def space: D
-   implicit def keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]
-   implicit def hyperSerializer: TxnSerializer[ S#Tx, S#Acc, D#HyperCube ]
+   implicit def keySerializer: Serializer[ S#Tx, S#Acc, A ]
+   implicit def hyperSerializer: Serializer[ S#Tx, S#Acc, D#HyperCube ]
 
    protected def totalOrder: TotalOrder.Set[ S ]
    protected def skipList: HASkipList.Set[ S, LeafImpl ]
@@ -171,7 +171,7 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
-   implicit protected object RightBranchSerializer extends TxnSerializer[ S#Tx, S#Acc, RightBranch ] {
+   implicit protected object RightBranchSerializer extends Serializer[ S#Tx, S#Acc, RightBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : RightBranch = {
          val cookie  = in.readUnsignedByte()
          val id      = tx.readID( in, access )
@@ -185,7 +185,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: RightBranch, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object BranchSerializer extends TxnSerializer[ S#Tx, S#Acc, BranchLike ] {
+   implicit protected object BranchSerializer extends Serializer[ S#Tx, S#Acc, BranchLike ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : BranchLike = {
          val cookie  = in.readUnsignedByte()
          val id      = tx.readID( in, access )
@@ -201,7 +201,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: BranchLike, out: DataOutput ) { v.write( out )}
    }
 
-   /* implicit */ protected object TopBranchSerializer extends TxnSerializer[ S#Tx, S#Acc, TopBranch ] {
+   /* implicit */ protected object TopBranchSerializer extends Serializer[ S#Tx, S#Acc, TopBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : TopBranch = {
          val cookie  = in.readUnsignedByte()
          val id      = tx.readID( in, access )
@@ -215,7 +215,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: TopBranch, out: DataOutput ) { v.write( out )}
    }
 
-   /* implicit */ protected object LeftChildOptionSerializer extends TxnSerializer[ S#Tx, S#Acc, LeftChildOption ] {
+   /* implicit */ protected object LeftChildOptionSerializer extends Serializer[ S#Tx, S#Acc, LeftChildOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftChildOption = {
          val cookie  = in.readUnsignedByte()
@@ -231,7 +231,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: LeftChildOption, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object LeftBranchSerializer extends TxnSerializer[ S#Tx, S#Acc, LeftBranch ] {
+   implicit protected object LeftBranchSerializer extends Serializer[ S#Tx, S#Acc, LeftBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftBranch = {
          val cookie  = in.readUnsignedByte()
          val id      = tx.readID( in, access )
@@ -245,7 +245,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: LeftBranch, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object RightChildOptionSerializer extends TxnSerializer[ S#Tx, S#Acc, RightChildOption ] {
+   implicit protected object RightChildOptionSerializer extends Serializer[ S#Tx, S#Acc, RightChildOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : RightChildOption = {
          val cookie  = in.readUnsignedByte()
@@ -261,7 +261,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: RightChildOption, out: DataOutput ) { v.write( out )}
    }
 
-   implicit protected object LeftTopBranchSerializer extends TxnSerializer[ S#Tx, S#Acc, LeftTopBranch ] {
+   implicit protected object LeftTopBranchSerializer extends Serializer[ S#Tx, S#Acc, LeftTopBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftTopBranch = {
          val cookie  = in.readUnsignedByte()
          require( cookie == 2, "Unexpected cookie " + cookie )
@@ -272,7 +272,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: LeftTopBranch, out: DataOutput ) { v.write( out )}
    }
 
-   /* implicit */ protected object RightOptionReader extends TxnSerializer[ S#Tx, S#Acc, NextOption ] {
+   /* implicit */ protected object RightOptionReader extends Serializer[ S#Tx, S#Acc, NextOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : NextOption = {
          val cookie  = in.readUnsignedByte()
@@ -288,7 +288,7 @@ extends SkipOctree[ S, D, A ] {
       def write( v: NextOption, out: DataOutput ) { v.write( out )}
    }
 
-   /* implicit */ protected object LeafSerializer extends TxnSerializer[ S#Tx, S#Acc, LeafImpl ] {
+   /* implicit */ protected object LeafSerializer extends Serializer[ S#Tx, S#Acc, LeafImpl ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeafImpl = {
          val cookie  = in.readUnsignedByte()
          require( cookie == 1, "Unexpected cookie " + cookie )

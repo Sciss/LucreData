@@ -5,7 +5,7 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
 import stm.impl.BerkeleyDB
 import java.io.File
 import TotalOrder.Map.RelabelObserver
-import stm.{TxnSerializer, Cursor, Durable, InMemory, Sys}
+import stm.{Serializer, Cursor, Durable, InMemory, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq}
 
 /**
@@ -240,7 +240,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
    object MapHolder {
       final class Serializer[ S <: Sys[ S ]]( observer: RelabelObserver[ S#Tx, MapHolder[ S ]], tx0: S#Tx )
-      extends TxnSerializer[ S#Tx, S#Acc, MapHolder[ S ]] {
+      extends stm.Serializer[ S#Tx, S#Acc, MapHolder[ S ]] {
          val map = TotalOrder.Map.empty[ S, MapHolder[ S ]]( observer, _.entry )( tx0, this )
 
          def write( v: MapHolder[ S ], out: DataOutput ) { v.write( out )}

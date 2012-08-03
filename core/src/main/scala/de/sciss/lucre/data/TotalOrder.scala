@@ -27,7 +27,7 @@ package de.sciss.lucre
 package data
 
 import annotation.{switch, tailrec}
-import stm.{Mutable, TxnSerializer, Sys}
+import stm.{Mutable, Serializer, Sys}
 
 
 /**
@@ -62,7 +62,7 @@ object TotalOrder {
       def read[ S <: Sys[ S ]]( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Set[ S ] =
          new SetRead( in, access, tx )
 
-      implicit def serializer[ S <: Sys[ S ]] : TxnSerializer[ S#Tx, S#Acc, Set[ S ]] =
+      implicit def serializer[ S <: Sys[ S ]] : Serializer[ S#Tx, S#Acc, Set[ S ]] =
          new SetSerializer[ S ] // ( relabelObserver )
 
       sealed trait EntryOption[ S <: Sys[ S ]] {
@@ -159,7 +159,7 @@ object TotalOrder {
       }
    }
 
-   private final class SetSerializer[ S <: Sys[ S ]] extends TxnSerializer[ S#Tx, S#Acc, Set[ S ]] {
+   private final class SetSerializer[ S <: Sys[ S ]] extends Serializer[ S#Tx, S#Acc, Set[ S ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Set[ S ] = {
          new SetRead[ S ]( in, access, tx )
       }
@@ -211,7 +211,7 @@ object TotalOrder {
 
       final def readEntry( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = EntrySerializer.read( in, access )
 
-      protected implicit object EntrySerializer extends TxnSerializer[ S#Tx, S#Acc, E ] {
+      protected implicit object EntrySerializer extends Serializer[ S#Tx, S#Acc, E ] {
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = {
             val id      = tx.readID( in, access )
             val tagVal  = tx.readIntVar( id, in )
@@ -223,7 +223,7 @@ object TotalOrder {
          def write( v: E, out: DataOutput ) { v.write( out )}
       }
 
-      protected implicit object EntryOptionSerializer extends TxnSerializer[ S#Tx, S#Acc, EOpt ] {
+      protected implicit object EntryOptionSerializer extends Serializer[ S#Tx, S#Acc, EOpt ] {
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : EOpt = {
             (in.readUnsignedByte(): @switch) match {
                case 0 => me.empty
@@ -401,19 +401,19 @@ object TotalOrder {
 
    object Map {
       def empty[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ],
-                                     rootTag: Int = 0 )( implicit tx: S#Tx, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : Map[ S, A ] = {
+                                     rootTag: Int = 0 )( implicit tx: S#Tx, keySerializer: Serializer[ S#Tx, S#Acc, A ]) : Map[ S, A ] = {
          val id = tx.newID()
          new MapNew[ S, A ]( id, tx.newIntVar( id, 1 ), relabelObserver, entryView, rootTag, tx )
       }
 
       def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc, relabelObserver: Map.RelabelObserver[ S#Tx, A ],
                                     entryView: A => Map.Entry[ S, A ])
-                                  ( implicit tx: S#Tx, keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : Map[ S, A ] =
+                                  ( implicit tx: S#Tx, keySerializer: Serializer[ S#Tx, S#Acc, A ]) : Map[ S, A ] =
          new MapRead[ S, A ]( relabelObserver, entryView, in, access, tx )
 
 
       implicit def serializer[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ])
-         ( implicit keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : TxnSerializer[ S#Tx, S#Acc, Map[ S, A ]] =
+         ( implicit keySerializer: Serializer[ S#Tx, S#Acc, A ]) : Serializer[ S#Tx, S#Acc, Map[ S, A ]] =
          new MapSerializer[ S, A ]( relabelObserver, entryView )
 
       /**
@@ -576,8 +576,8 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
 
    private final class MapSerializer[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ],
                                                           entryView: A => Map.Entry[ S, A ])
-                                                        ( implicit keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends TxnSerializer[ S#Tx, S#Acc, Map[ S, A ]] {
+                                                        ( implicit keySerializer: Serializer[ S#Tx, S#Acc, A ])
+   extends Serializer[ S#Tx, S#Acc, Map[ S, A ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Map[ S, A ] =
          new MapRead[ S, A ]( relabelObserver, entryView, in, access, tx )
 
@@ -589,7 +589,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    private final class MapRead[ S <: Sys[ S ], A ](
       protected val observer: Map.RelabelObserver[ S#Tx, A ],
       val entryView: A => Map.Entry[ S, A ], in: DataInput, access: S#Acc, tx0: S#Tx )(
-      implicit private[TotalOrder] val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+      implicit private[TotalOrder] val keySerializer: Serializer[ S#Tx, S#Acc, A ])
    extends Map[ S, A ] with Mutable.Impl[ S ] {
 
       val id         = tx0.readID( in, access )
@@ -607,7 +607,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    private final class MapNew[ S <: Sys[ S ], A ](
       val id: S#ID, protected val sizeVal: S#Var[ Int ], protected val observer: Map.RelabelObserver[ S#Tx, A ],
       val entryView: A => Map.Entry[ S, A ], rootTag: Int, tx0: S#Tx )(
-      implicit private[TotalOrder] val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+      implicit private[TotalOrder] val keySerializer: Serializer[ S#Tx, S#Acc, A ])
    extends Map[ S, A ] with Mutable.Impl[ S ] {
       val root: E = {
          val rootID  = tx0.newID()
@@ -619,7 +619,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    }
 
    private final class MapEntrySerializer[ S <: Sys[ S ], A ]( map: Map[ S, A ])
-   extends TxnSerializer[ S#Tx, S#Acc, Map.Entry[ S, A ]] {
+   extends Serializer[ S#Tx, S#Acc, Map.Entry[ S, A ]] {
 
       private type E    = Map.Entry[ S, A ]
       private type KOpt = KeyOption[ S, A ]
@@ -637,7 +637,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
    }
 
    private final class KeyOptionSerializer[ S <: Sys[ S ], A ]( map: Map[ S, A ])
-   extends TxnSerializer[ S#Tx, S#Acc, KeyOption[ S, A ]] {
+   extends Serializer[ S#Tx, S#Acc, KeyOption[ S, A ]] {
       private type KOpt = KeyOption[ S, A ]
 
       def write( v: KOpt, out: DataOutput ) { v.write( out )}
@@ -695,14 +695,14 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       final protected type KOpt     = KeyOption[ S, A ]
 
       final private[TotalOrder] val emptyKey: KOpt = new EmptyKey[ S, A ]
-      final implicit val EntrySerializer: TxnSerializer[ S#Tx, S#Acc, E ] = new MapEntrySerializer[ S, A ]( this )
+      final implicit val EntrySerializer: Serializer[ S#Tx, S#Acc, E ] = new MapEntrySerializer[ S, A ]( this )
 //      final private[TotalOrder] implicit val EntryOptionSerializer : MutableOptionReader[ S, KOpt ] = new MapEntryOptionReader[ S, A ]( this )
-      final private[TotalOrder] implicit val keyOptionSer : TxnSerializer[ S#Tx, S#Acc, KOpt ] = new KeyOptionSerializer[ S, A ]( this )
+      final private[TotalOrder] implicit val keyOptionSer : Serializer[ S#Tx, S#Acc, KOpt ] = new KeyOptionSerializer[ S, A ]( this )
 
       protected def sizeVal: S#Var[ Int ]
       protected def observer: Map.RelabelObserver[ S#Tx, A ]
 
-      private[TotalOrder] def keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]
+      private[TotalOrder] def keySerializer: Serializer[ S#Tx, S#Acc, A ]
       def entryView: A => E
 
       def root: E

@@ -26,7 +26,7 @@
 package de.sciss.lucre
 package data
 
-import stm.{TxnSerializer, Mutable, Sys}
+import stm.{Serializer, Mutable, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 
 object SkipList {
@@ -62,38 +62,38 @@ object SkipList {
 
    object Set {
       def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): SkipList.Set[ S, A ] =
+                                     keySerializer: Serializer[ S#Tx, S#Acc, A ]): SkipList.Set[ S, A ] =
          HASkipList.Set.empty[ S, A ]
 
       def empty[ S <: Sys[ S ], A ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ] = NoKeyObserver[ A ])
                                    ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : SkipList.Set[ S, A ] =
+                                     keySerializer: Serializer[ S#Tx, S#Acc, A ]) : SkipList.Set[ S, A ] =
          HASkipList.Set.empty[ S, A ]( keyObserver = keyObserver )
 
       def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
             keyObserver: SkipList.KeyObserver[ S#Tx, A ] = NoKeyObserver[ A ])( implicit tx: S#Tx,
-            ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : SkipList.Set[ S, A ] =
+            ordering: Ordering[ S#Tx, A ], keySerializer: Serializer[ S#Tx, S#Acc, A ]) : SkipList.Set[ S, A ] =
          HASkipList.Set.read[ S, A ]( in, access, keyObserver )
 
    }
 
    object Map {
       def empty[ S <: Sys[ S ], A, B ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                        keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-                                        valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]): SkipList.Map[ S, A, B ] =
+                                        keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+                                        valueSerializer: Serializer[ S#Tx, S#Acc, B ]): SkipList.Map[ S, A, B ] =
          HASkipList.Map.empty[ S, A, B ]
 
       def empty[ S <: Sys[ S ], A, B ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ] = NoKeyObserver[ A ])
                                       ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                        keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-                                        valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]) : SkipList.Map[ S, A, B ] =
+                                        keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+                                        valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : SkipList.Map[ S, A, B ] =
          HASkipList.Map.empty[ S, A, B ]( keyObserver = keyObserver )
 
       def read[ S <: Sys[ S ], A, B ]( in: DataInput, access: S#Acc,
                                        keyObserver: SkipList.KeyObserver[ S#Tx, A ] = NoKeyObserver[ A ])
                                      ( implicit tx: S#Tx, ordering: Ordering[ S#Tx, A ],
-                                       keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-                                       valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]) : SkipList.Map[ S, A, B ] =
+                                       keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+                                       valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : SkipList.Map[ S, A, B ] =
          HASkipList.Map.read[ S, A, B ]( in, access, keyObserver )
 
    }
@@ -213,7 +213,7 @@ sealed trait SkipList[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends M
    def debugPrint( implicit tx: S#Tx ) : String
 
    def write( out: DataOutput ) : Unit
-   def keySerializer : TxnSerializer[ S#Tx, S#Acc, A ]
+   def keySerializer : Serializer[ S#Tx, S#Acc, A ]
 
    /**
     * The number of levels in the skip list.

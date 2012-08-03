@@ -29,7 +29,7 @@ package data
 import collection.mutable.Builder
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
-import stm.{Mutable, Sink, Sys, TxnSerializer}
+import stm.{Mutable, Sink, Sys, Serializer}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -66,8 +66,8 @@ object HASkipList {
 
    private final class SetSer[ S <: Sys[ S ], A ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ])
                                                  ( implicit ordering: Ordering[ S#Tx, A ],
-                                                   keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
-   extends TxnSerializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] {
+                                                   keySerializer: Serializer[ S#Tx, S#Acc, A ])
+   extends Serializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList.Set[ S, A ] =
          HASkipList.Set.read[ S, A ]( in, access, keyObserver )
 
@@ -78,9 +78,9 @@ object HASkipList {
 
    private final class MapSer[ S <: Sys[ S ], A, B ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ])
                                                     ( implicit ordering: Ordering[ S#Tx, A ],
-                                                      keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-                                                      valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ])
-   extends TxnSerializer[ S#Tx, S#Acc, HASkipList.Map[ S, A, B ]] {
+                                                      keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+                                                      valueSerializer: Serializer[ S#Tx, S#Acc, B ])
+   extends Serializer[ S#Tx, S#Acc, HASkipList.Map[ S, A, B ]] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList.Map[ S, A, B ] =
          HASkipList.Map.read[ S, A, B ]( in, access, keyObserver )
 
@@ -93,12 +93,12 @@ object HASkipList {
       ( val id: S#ID, val minGap: Int, protected val keyObserver: SkipList.KeyObserver[ S#Tx, A ],
         _downNode: SetImpl[ S, A ] => S#Var[ Node[ S, A, A ]])
       ( implicit val ordering: Ordering[ S#Tx, A ],
-        val keySerializer: TxnSerializer[ S#Tx, S#Acc, A ])
+        val keySerializer: Serializer[ S#Tx, S#Acc, A ])
    extends Impl[ S, A, A ] with HASkipList.Set[ S, A ] {
 
       protected val downNode = _downNode( this )
 
-//      def entrySerializer : TxnSerializer[ S#Tx, S#Acc, A ] = keySerializer
+//      def entrySerializer : Serializer[ S#Tx, S#Acc, A ] = keySerializer
 
       override def toString = "SkipList.Set" + id
 
@@ -131,8 +131,8 @@ object HASkipList {
       ( val id: S#ID, val minGap: Int, protected val keyObserver: SkipList.KeyObserver[ S#Tx, A ],
         _downNode: MapImpl[ S, A, B ] => S#Var[ Map.Node[ S, A, B ]])
       ( implicit val ordering: Ordering[ S#Tx, A ],
-        val keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-        val valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ])
+        val keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+        val valueSerializer: Serializer[ S#Tx, S#Acc, B ])
    extends Impl[ S, A, (A, B) ] with HASkipList.Map[ S, A, B ] {
 
       protected val downNode = _downNode( this )
@@ -228,15 +228,15 @@ object HASkipList {
    }
 
    private sealed trait Impl[ S <: Sys[ S ], @specialized( Int, Long ) A, E ]
-   extends HeadOrBranch[ S, A, E ] with TxnSerializer[ S#Tx, S#Acc, Node[ S, A, E ]] with Mutable.Impl[ S ] {
+   extends HeadOrBranch[ S, A, E ] with Serializer[ S#Tx, S#Acc, Node[ S, A, E ]] with Mutable.Impl[ S ] {
       impl =>
 
       protected def downNode: S#Var[ Node[ S, A, E ]]
       protected def minGap: Int
       protected def ordering: Ordering[ S#Tx, A ]
       protected def keyObserver: SkipList.KeyObserver[ S#Tx, A ]
-      def keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]
-//      def entrySerializer: TxnSerializer[ S#Tx, S#Acc, E ]
+      def keySerializer: Serializer[ S#Tx, S#Acc, A ]
+//      def entrySerializer: Serializer[ S#Tx, S#Acc, E ]
       def id: S#ID
 
       def writeEntry( entry: E, out: DataOutput ) : Unit
@@ -846,7 +846,7 @@ object HASkipList {
          i
       }
 
-      // ---- TxnSerializer[ S#Tx, S#Acc, Node[ S, A ]] ----
+      // ---- Serializer[ S#Tx, S#Acc, Node[ S, A ]] ----
       def write( v: Node[ S, A, E ], out: DataOutput ) {
          if( v eq null ) {
             out.writeUnsignedByte( 0 ) // Bottom
@@ -1302,7 +1302,7 @@ object HASkipList {
        * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
        */
       def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] =
+                                     keySerializer: Serializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] =
          empty()
 
       /**
@@ -1322,7 +1322,7 @@ object HASkipList {
       def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
                                      keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
                                    ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                     keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
+                                     keySerializer: Serializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
 
          // 255 <= arrMaxSz = (minGap + 1) << 1
          // ; this is, so we can write a node's size as signed byte, and
@@ -1337,7 +1337,7 @@ object HASkipList {
 
       def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
          keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
-         ordering: Ordering[ S#Tx, A ], keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
+         ordering: Ordering[ S#Tx, A ], keySerializer: Serializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
 
          val id      = tx.readID( in, access )
          val version = in.readUnsignedByte()
@@ -1350,7 +1350,7 @@ object HASkipList {
 
       def serializer[ S <: Sys[ S ], A ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
                                         ( implicit ordering: Ordering[ S#Tx, A ],
-                                          keySerializer: TxnSerializer[ S#Tx, S#Acc, A ]): TxnSerializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] =
+                                          keySerializer: Serializer[ S#Tx, S#Acc, A ]): Serializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] =
          new SetSer[ S, A ]( keyObserver )
 
    }
@@ -1375,8 +1375,8 @@ object HASkipList {
        * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
        */
       def empty[ S <: Sys[ S ], A, B ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                        keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-                                        valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] =
+                                        keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+                                        valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] =
          empty()
 
       /**
@@ -1396,8 +1396,8 @@ object HASkipList {
       def empty[ S <: Sys[ S ], A, B ]( minGap: Int = 2,
                                         keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
                                       ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                        keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-                                        valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] = {
+                                        keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+                                        valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] = {
 
          // 255 <= arrMaxSz = (minGap + 1) << 1
          // ; this is, so we can write a node's size as signed byte, and
@@ -1413,8 +1413,8 @@ object HASkipList {
       def read[ S <: Sys[ S ], A, B ]( in: DataInput, access: S#Acc,
          keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
          ordering: Ordering[ S#Tx, A ],
-         keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-         valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] = {
+         keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+         valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] = {
 
          val id      = tx.readID( in, access )
          val version = in.readUnsignedByte()
@@ -1427,8 +1427,8 @@ object HASkipList {
 
       def serializer[ S <: Sys[ S ], A, B ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
                                            ( implicit ordering: Ordering[ S#Tx, A ],
-                                             keySerializer:   TxnSerializer[ S#Tx, S#Acc, A ],
-                                             valueSerializer: TxnSerializer[ S#Tx, S#Acc, B ]): TxnSerializer[ S#Tx, S#Acc, HASkipList.Map[ S, A, B ]] =
+                                             keySerializer:   Serializer[ S#Tx, S#Acc, A ],
+                                             valueSerializer: Serializer[ S#Tx, S#Acc, B ]): Serializer[ S#Tx, S#Acc, HASkipList.Map[ S, A, B ]] =
          new MapSer[ S, A, B ]( keyObserver )
 
    }
