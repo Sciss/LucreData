@@ -13,7 +13,7 @@ object LucreDataBuild extends Build {
       base      = file( "core" ),
       settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "0.34"
+            "de.sciss" %% "lucrestm" % "1.0.+"
 //            "org.scalatest" %% "scalatest" % "1.7.2" % "test"
          )
       )

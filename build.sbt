@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version in ThisBuild := "0.34"
+version in ThisBuild := "1.0.0"
 
 organization in ThisBuild := "de.sciss"
 
@@ -12,7 +12,7 @@ licenses in ThisBuild := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl
 
 scalaVersion in ThisBuild := "2.9.2"
 
-crossScalaVersions in ThisBuild := Seq( "2.10.0-M6", "2.9.2" )
+// crossScalaVersions in ThisBuild := Seq( "2.10.0-M6", "2.9.2" )
 
 resolvers in ThisBuild ++= Seq(
    "Sonatype OSS Releases" at "https://oss.sonatype.org/content/groups/public",
@@ -22,10 +22,10 @@ resolvers in ThisBuild ++= Seq(
 
 libraryDependencies in ThisBuild <+= scalaVersion { sv =>
    val v = sv match {
-      case "2.10.0-M6" => "1.9-2.10.0-M6-B2"
-      case _ => "1.8"
+      case "2.10.0-M7" => "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1"
+      case _ => "org.scalatest" %% "scalatest" % "1.8"
    }
-   "org.scalatest" %% "scalatest" % v % "test"
+   v % "test"
 }
 
 retrieveManaged in ThisBuild := true
@@ -35,6 +35,19 @@ scalacOptions in ThisBuild ++= Seq( "-deprecation", "-unchecked", "-no-specializ
 testOptions in Test += Tests.Argument( "-oDF" )
 
 parallelExecution in ThisBuild := false
+
+// ---- build info ----
+
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq( name, organization, version, scalaVersion, description,
+   BuildInfoKey.map( homepage ) { case (k, opt) => k -> opt.get },
+   BuildInfoKey.map( licenses ) { case (_, Seq( (lic, _) )) => "license" -> lic }
+)
+
+buildInfoPackage := "de.sciss.lucre.data"
 
 // ---- publishing ----
 
