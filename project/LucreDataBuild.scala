@@ -13,7 +13,7 @@ object LucreDataBuild extends Build {
       base      = file( "core" ),
       settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "1.2.0-SNAPSHOT"
+            "de.sciss" %% "lucrestm" % "1.2.+"
 //            "org.scalatest" %% "scalatest" % "1.7.2" % "test"
          )
       )
@@ -25,7 +25,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( core ),
       settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "com.itextpdf" % "itextpdf" % "5.1.1"
+            "com.itextpdf" % "itextpdf" % "5.3.2"
          )
       )
    )

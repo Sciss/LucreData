@@ -27,9 +27,9 @@ Builds with sbt 0.12 against Scala 2.9.2. Depends on [LucreSTM](http://github.co
 
 Either of the following dependencies is necessary:
 
-    "de.sciss" %% "lucredata" % "1.0.+"
-    "de.sciss" %% "lucredata-core" % "1.0.+"
-    "de.sciss" %% "lucredata-views" % "1.0.+"
+    "de.sciss" %% "lucredata" % "1.2.+"
+    "de.sciss" %% "lucredata-core" % "1.2.+"
+    "de.sciss" %% "lucredata-views" % "1.2.+"
 
 ### creating an IntelliJ IDEA project
 
@@ -37,6 +37,6 @@ To develop the sources of LucreData, if you haven't globally installed the sbt-i
 
     resolvers += "sbt-idea-repo" at "http://mpeltonen.github.com/maven/"
     
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.0.0")
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
 
 Then to create the IDEA project, run `sbt gen-idea`.

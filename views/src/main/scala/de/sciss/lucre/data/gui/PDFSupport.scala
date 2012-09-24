@@ -32,6 +32,7 @@ import javax.swing.{JOptionPane, JScrollPane, DefaultListCellRenderer, Icon, JLi
 import java.awt.{FileDialog, Graphics2D, Graphics, Component}
 import java.io.{FileOutputStream, File}
 import com.itextpdf.text.{Document => IDocument, Rectangle => IRectangle}
+import com.itextpdf.awt.PdfGraphics2D
 import com.itextpdf.text.pdf.PdfWriter
 import collection.breakOut
 
@@ -108,15 +109,16 @@ object PDFSupport {
       val viewSz     = if( usePrefSize ) view.getPreferredSize else view.getSize()
       val width      = viewSz.width + (margin << 1)
       val height     = viewSz.height + (margin << 1)
-      val pageSize	= new IRectangle( 0, 0, width, height )
-      val doc		   = new IDocument( pageSize, margin, margin, margin, margin )
+      val pageSize	 = new IRectangle( 0, 0, width, height )
+      val doc		     = new IDocument( pageSize, margin, margin, margin, margin )
       val stream	   = new FileOutputStream( file )
       val writer	   = PdfWriter.getInstance( doc, stream )
 
       doc.open()
       val cb		   = writer.getDirectContent
       val tp		   = cb.createTemplate( viewSz.width, viewSz.height )
-      val g2		   = tp.createGraphics( viewSz.width, viewSz.height /*, fontMapper */ )
+//     val g2		   = tp.createGraphics( viewSz.width, viewSz.height /*, fontMapper */ )
+      val g2		   = new PdfGraphics2D( tp, viewSz.width, viewSz.height /*, fontMapper */ )
 //val in = view.getInsets
 //g2.translate( -in.left, -in.top )
 //g2.translate( margin, margin )
