@@ -446,6 +446,24 @@ object Ancestor {
          }
       }
 
+      // XXX TODO: DRY
+      final def nearestOption( vertex: K )( implicit tx: S#Tx ) : Option[ (K, A) ] = {
+         val iso = query( vertex )
+         if( iso.preCmp == 0 ) {
+            assert( iso.postCmp == 0 )
+            Some( (vertex, iso.pre.value) )
+         } else {
+            val preTag  = iso.pre.pre.tag
+            val postTag = iso.post.post.tag
+            val x       = if( iso.preCmp  < 0 ) preTag  - 1 else preTag
+            val y       = if( iso.postCmp > 0 ) postTag + 1 else postTag
+            val nnOpt   = skip.nearestNeighborOption( IntPoint3D( x, y, vertex.versionInt ), metric )
+            nnOpt.map { nn =>
+               (nn.fullVertex, nn.value)
+            }
+         }
+      }
+
       // ---- RelabelObserver ----
       final def beforeRelabeling( iter: Iterator[ S#Tx, M ])( implicit tx: S#Tx ) {
 //println( "RELABEL - ::: BEGIN :::" )
@@ -591,6 +609,8 @@ object Ancestor {
        *          that vertex which is returned, and not an ancestor.
        */
       def nearest( vertex: K )( implicit tx: S#Tx ) : (K, A)
+
+      def nearestOption( vertex: K )( implicit tx: S#Tx ) : Option[ (K, A) ]
 
       def valueSerializer: Serializer[ S#Tx, S#Acc, A ]
    }
