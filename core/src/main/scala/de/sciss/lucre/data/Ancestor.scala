@@ -54,6 +54,12 @@ object Ancestor {
 
       // ---- implementation ----
 
+      final def isAncestorOf( that: Vertex[ S, Version ])( implicit tx: S#Tx ) : Boolean = {
+         versionInt    <= that.versionInt     &&
+         preHead.compare( that.preHead ) <= 0 &&
+         post.compare(    that.post )    >= 0
+      }
+
       final def versionInt: Int = tree.intView( version )
 
       final def write( out: DataOutput ) {

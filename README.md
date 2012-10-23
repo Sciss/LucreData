@@ -27,9 +27,9 @@ Builds with sbt 0.12 against Scala 2.9.2. Depends on [LucreSTM](http://github.co
 
 Either of the following dependencies is necessary:
 
-    "de.sciss" %% "lucredata" % "1.3.+"
-    "de.sciss" %% "lucredata-core" % "1.3.+"
-    "de.sciss" %% "lucredata-views" % "1.3.+"
+    "de.sciss" %% "lucredata" % "1.4.+"
+    "de.sciss" %% "lucredata-core" % "1.4.+"
+    "de.sciss" %% "lucredata-views" % "1.4.+"
 
 ### creating an IntelliJ IDEA project
 
