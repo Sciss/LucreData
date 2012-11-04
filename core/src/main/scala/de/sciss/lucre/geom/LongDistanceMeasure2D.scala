@@ -416,6 +416,8 @@ object LongDistanceMeasure2D {
 
    private sealed trait Impl[ @specialized( Long ) M ] extends Ops[ M, TwoDim ] {
       def zeroValue: M
+
+//      final def filter( p: PointLike ) : Boolean = new Filter( this, p )
    }
 
    private sealed trait LongImpl extends Impl[ Long ] {
@@ -438,7 +440,7 @@ object LongDistanceMeasure2D {
          require( idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")" )
          new LongExceptQuadrant( this, idx )
       }
-  }
+   }
 
    private sealed trait SqrImpl extends Impl[ Sqr ] {
 //      final def manifest : Manifest[ Sqr ] = Predef.manifest[ Sqr ]

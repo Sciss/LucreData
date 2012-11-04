@@ -305,11 +305,11 @@ object IntDistanceMeasure3D {
       }
    }
 
-   private sealed trait Impl[ @specialized( Long ) M ] extends Ops[ M, ThreeDim ] {
+   /* private */ sealed trait Impl[ @specialized( Long ) M ] extends Ops[ M, ThreeDim ] {
       protected def zeroValue : M
    }
 
-   private sealed trait SqrImpl extends Impl[ Sqr ] {
+   /* private sealed */ trait SqrImpl extends Impl[ Sqr ] {
 //      final val manifest : Manifest[ BigInt ] = Manifest.classType[ BigInt ]( classOf[ BigInt ])
       final def newArray( size: Int ) = new Array[ BigInt ]( size )
 
@@ -331,7 +331,7 @@ object IntDistanceMeasure3D {
       }
    }
 
-   private sealed trait LongImpl extends Impl[ Long ] {
+   /* private sealed */ trait LongImpl extends Impl[ Long ] {
 //      final def manifest : Manifest[ Long ] = Manifest.Long
       final def newArray( size: Int ) = new Array[ Long ]( size )
 

@@ -60,6 +60,8 @@ object DistanceMeasure {
       def orthant( idx: Int ) : Ops[ M, D ]
 
       def exceptOrthant( idx: Int ) : Ops[ M, D ]
+
+//      def filter( p: D#PointLike => Boolean ) : Ops[ M, D ]
    }
 }
 

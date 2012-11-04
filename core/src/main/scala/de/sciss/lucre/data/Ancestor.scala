@@ -26,8 +26,9 @@
 package de.sciss.lucre
 package data
 
-import geom.{IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
+import geom.{DistanceMeasure, IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
 import stm.{Disposable, Serializer, Sys}
+import geom.IntSpace.ThreeDim
 
 object Ancestor {
    private val SER_VERSION = 0
@@ -237,7 +238,40 @@ object Ancestor {
 
    private type MarkOrder[ S <: Sys[ S ], Version, A ] = TotalOrder.Map.Entry[ S, Mark[ S, Version, A ]]
 
-   private val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
+   private final val chebyMetric = IntDistanceMeasure3D.chebyshevXY
+   // left-bottom-front
+   // = left in pre-order list, right in post-order list, smaller in version
+   private final val metric = chebyMetric.orthant( 2 )
+
+   private final class FilterMetric( pred: Int => Boolean ) extends IntDistanceMeasure3D.LongImpl {
+      import IntSpace.ThreeDim.{PointLike, HyperCube}
+
+      override def toString = "Ancestor.FilterMetric@" + pred.hashCode.toHexString
+
+      def distance( a: PointLike, b: PointLike ) : Long = {
+         if( (b.x <= a.x) && (b.y >= a.y) && pred( b.z )) {
+            chebyMetric.distance( a, b )
+         } else maxValue
+      }
+
+      def minDistance( p: PointLike, q: HyperCube ) : Long = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( ((q.cx - qe) <= p.x) && ((q.cy + qem1) >= p.y) && pred( q.cz - qe )) {
+            chebyMetric.minDistance( p, q )
+         } else maxValue
+      }
+
+      def maxDistance( p: PointLike, q: HyperCube ) : Long = {
+         val qe   = q.extent
+         val qem1 = qe - 1
+
+         if( ((q.cx + qem1) <= p.x) && ((q.cy - qe) >= p.y) && pred( q.cz + qem1 )) {
+            chebyMetric.maxDistance( p, q )
+         } else maxValue
+      }
+   }
 
    private sealed trait Mark[ S <: Sys[ S ], Version, @specialized A ] extends Writable {
 
@@ -431,6 +465,7 @@ object Ancestor {
          } else None
       }
 
+      // XXX TODO: DRY
       final def nearest( vertex: K )( implicit tx: S#Tx ) : (K, A) = {
          val iso = query( vertex )
          if( iso.preCmp == 0 ) {
@@ -446,22 +481,30 @@ object Ancestor {
          }
       }
 
-      // XXX TODO: DRY
       final def nearestOption( vertex: K )( implicit tx: S#Tx ) : Option[ (K, A) ] = {
          val iso = query( vertex )
          if( iso.preCmp == 0 ) {
             assert( iso.postCmp == 0 )
             Some( (vertex, iso.pre.value) )
          } else {
-            val preTag  = iso.pre.pre.tag
-            val postTag = iso.post.post.tag
-            val x       = if( iso.preCmp  < 0 ) preTag  - 1 else preTag
-            val y       = if( iso.postCmp > 0 ) postTag + 1 else postTag
-            val nnOpt   = skip.nearestNeighborOption( IntPoint3D( x, y, vertex.versionInt ), metric )
-            nnOpt.map { nn =>
-               (nn.fullVertex, nn.value)
-            }
+            nearestWithMetric( vertex, iso, metric )
          }
+      }
+
+      final def nearestWithFilter( vertex: K )( p: Int => Boolean )( implicit tx: S#Tx ) : Option[ (K, A) ] = {
+         val iso = query( vertex )
+         nearestWithMetric( vertex, iso, new FilterMetric( p ))
+      }
+
+      private def nearestWithMetric( vertex: K, iso: IsoResult[ S, Version, A ],
+                                     metric: DistanceMeasure[ Long, ThreeDim ])
+                                   ( implicit tx: S#Tx ) : Option[ (K, A) ] = {
+         val preTag  = iso.pre.pre.tag
+         val postTag = iso.post.post.tag
+         val x       = if( iso.preCmp  < 0 ) preTag  - 1 else preTag
+         val y       = if( iso.postCmp > 0 ) postTag + 1 else postTag
+         val nnOpt   = skip.nearestNeighborOption( IntPoint3D( x, y, vertex.versionInt ), metric )
+         nnOpt.map { nn => (nn.fullVertex, nn.value) }
       }
 
       // ---- RelabelObserver ----
@@ -611,6 +654,23 @@ object Ancestor {
       def nearest( vertex: K )( implicit tx: S#Tx ) : (K, A)
 
       def nearestOption( vertex: K )( implicit tx: S#Tx ) : Option[ (K, A) ]
+
+      /**
+       * Searches for the nearest marked ancestor, where version control is handed over
+       * to a custom predicate function. I.e., while `nearestOption` will test for a
+       * version that is less than or equal to the query version, the behaviour may be
+       * customised here. The predicate function is called with the `versionInt` field
+       * of the vertices, e.g. using the tree's `intView`.
+       *
+       * Only those vertices are considered for which the predicate is `true`.
+       *
+       * '''Note:''' This currently only works correctly if the predicate tests for
+       * version anteriority!
+       *
+       * @param vertex  the query vertex
+       * @param p       the predicate function for the integer view of the vertex versions
+       */
+      def nearestWithFilter( vertex: K )( p: Int => Boolean )( implicit tx: S#Tx ) : Option[ (K, A) ]
 
       def valueSerializer: Serializer[ S#Tx, S#Acc, A ]
    }
