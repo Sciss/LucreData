@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version in ThisBuild := "1.4.0-SNAPSHOT"
+version in ThisBuild := "1.4.0"
 
 organization in ThisBuild := "de.sciss"
 
@@ -15,7 +15,6 @@ scalaVersion in ThisBuild := "2.9.2"
 // crossScalaVersions in ThisBuild := Seq( "2.10.0-M6", "2.9.2" )
 
 resolvers in ThisBuild ++= Seq(
-   "Sonatype OSS Releases" at "https://oss.sonatype.org/content/groups/public",
    "itextpdf.com" at "http://maven.itextpdf.com",
    "Oracle Repository" at "http://download.oracle.com/maven"
 )
