@@ -952,5 +952,5 @@ sealed trait TotalOrder[ S <: Sys[ S ]] extends Mutable[ S#ID, S#Tx ] {
     */
    def size( implicit tx: S#Tx ) : Int
 
-   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int  ]
+   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int ]
 }

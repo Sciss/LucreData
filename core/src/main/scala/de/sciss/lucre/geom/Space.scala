@@ -28,6 +28,7 @@ package geom
 
 object Space {
    val bigZero = BigInt( 0 )
+   val bigOne  = BigInt( 1 )
 }
 
 /**

@@ -2,7 +2,8 @@ package de.sciss.lucre
 package data
 
 import stm.ImmutableSerializer
-import geom.{LongSquare, LongPoint2D, IntCube, IntPoint3D, IntSquare, IntPoint2D}
+import geom.{IntHyperCubeN, IntPointN, IntSpace, LongSquare, LongPoint2D, IntCube, IntPoint3D, IntSquare, IntPoint2D}
+import collection.immutable.{IndexedSeq => IIdxSeq}
 
 object SpaceSerializers {
    // ---- int space ----
@@ -64,6 +65,38 @@ object SpaceSerializers {
          out.writeInt( q.cy )
          out.writeInt( q.cz )
          out.writeInt( q.extent )
+      }
+   }
+
+   import IntSpace.NDim
+
+   implicit object IntPointNSerializer extends ImmutableSerializer[ NDim#Point ] {
+      def write( v: NDim#Point, out: DataOutput ) {
+         val c = v.components
+         out.writeInt( c.size )
+         c.foreach( out.writeInt )
+      }
+
+      def read( in: DataInput ) : NDim#Point = {
+         val sz   = in.readInt()
+         val c    = IIdxSeq.fill( sz )( in.readInt() )
+         IntPointN( c )
+      }
+   }
+
+   implicit object IntHyperCubeNSerializer extends ImmutableSerializer[ NDim#HyperCube ] {
+      def write( v: NDim#HyperCube, out: DataOutput ) {
+         val c = v.components
+         out.writeInt( c.size )
+         c.foreach( out.writeInt )
+         out.writeInt( v.extent )
+      }
+
+      def read( in: DataInput ) : NDim#HyperCube = {
+         val sz   = in.readInt()
+         val c    = IIdxSeq.fill( sz )( in.readInt() )
+         val ext  = in.readInt()
+         IntHyperCubeN( c, ext )
       }
    }
 

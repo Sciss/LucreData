@@ -27,6 +27,7 @@ package de.sciss.lucre
 package geom
 
 import annotation.tailrec
+import collection.immutable.{IndexedSeq => IIdxSeq}
 
 object IntSpace {
    sealed trait TwoDim extends Space[ TwoDim ] {
@@ -51,6 +52,17 @@ object IntSpace {
       val dim              = 3
    }
 
+   final case class NDim( dim: Int ) extends Space[ NDim ] {
+      space =>
+
+      type PointLike       = IntPointNLike
+      type Point           = IntPointN
+      type HyperCubeLike   = IntHyperCubeNLike
+      type HyperCube       = IntHyperCubeN
+      val maxPoint         = IntPointN( IIdxSeq.fill( dim )( Int.MaxValue ))
+
+   }
+
    /**
     * A helper method which efficiently calculates the unique integer in an interval [a, b] which has
     * the maximum number of trailing zeros in its binary representation (a and b are integers > 0).
@@ -70,15 +82,4 @@ object IntSpace {
          binSplitRec( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
       }
    }
-
-//   /**
-//    * Space for arbitrary number of dimensions.
-//    *
-//    * @param   dim   the number of dimensions, which must be in the interval [2, 32]
-//    */
-//   final case class NDim( dim: Int ) extends Space[ NDim ] {
-//      require( dim >= 2 && dim <= 32, "Illegal number of dimensions (" + dim + "). Must be between 2 and 32" )
-//
-//
-//   }
 }
