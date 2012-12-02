@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version in ThisBuild := "1.4.1-SNAPSHOT"
+version in ThisBuild := "1.4.1"
 
 organization in ThisBuild := "de.sciss"
 
@@ -20,9 +20,11 @@ resolvers in ThisBuild ++= Seq(
 )
 
 libraryDependencies in ThisBuild <+= scalaVersion { sv =>
+   val org = "org.scalatest"
    val v = sv match {
-      case "2.10.0-M7" => "org.scalatest" % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1"
-      case _ => "org.scalatest" %% "scalatest" % "1.8"
+      case "2.10.0-M7"  => org % "scalatest_2.10.0-M7" % "1.9-2.10.0-M7-B1"
+      case "2.10.0-RC3" => org % "scalatest_2.10.0-RC3" % "1.8-B1"
+      case _ =>            org %% "scalatest" % "1.8"
    }
    v % "test"
 }
