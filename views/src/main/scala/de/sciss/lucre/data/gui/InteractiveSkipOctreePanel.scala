@@ -27,74 +27,28 @@ package de.sciss.lucre
 package data
 package gui
 
-import java.awt.{Insets, Color, FlowLayout, EventQueue, BorderLayout}
+import java.awt.{Insets, Color, FlowLayout, BorderLayout}
 import javax.swing.{JComponent, JLabel, SwingConstants, Box, WindowConstants, JComboBox, AbstractButton, JTextField, JButton, JFrame, JPanel}
 import java.awt.event.{MouseListener, MouseMotionListener, ActionListener, MouseEvent, MouseAdapter, ActionEvent}
-import stm.impl.BerkeleyDB
-import java.io.File
 import geom.{IntSpace, Space, QueryShape, IntDistanceMeasure2D, DistanceMeasure, IntPoint2D, IntSquare}
 import IntSpace.TwoDim
-import stm.{Source, Cursor, InMemory, Durable, Sys}
+import stm.{Source, Cursor, Sys}
 
-/**
- * Options:
- * - "--db" launch with database on desktop.
- * - "--dbtmp" launch with database in temporary folder.
- * - "--memory" launch with in-memory stm
- */
-object InteractiveSkipOctreePanel extends App with Runnable {
+object InteractiveSkipOctreePanel {
    val seed = 0L
 
-   EventQueue.invokeLater( this )
-   def run() {
-      val a = args.headOption.getOrElse( "" )
-
-//      def createModel[ S <: Sys[ S ] ]( implicit system: S, smf: Manifest[ S ]) : Model2D[ S ] = {
-//         system.step { implicit tx =>
-////         if( xs.contains( "--3d" )) {
-////            val tree = txn.DeterministicSkipOctree.empty[ InMemory, Space.IntThreeDim, IntPoint3DLike ](
-////               Space.IntThreeDim, IntCube( sz, sz, sz, sz ), skipGap = 1 )
-////            new Model3D[ InMemory ]( tree )
-////         } else {
-//            import txn.geom.Space.{IntPoint2DSerializer$, IntSquareSerializer$}
-//
-//         }
-//      }
-
-      val model = if( a.startsWith( "--db" )) {
-         val dir     = if( a == "--dbtmp" ) {
-            File.createTempFile( "octree", "_database" )
-         } else {
-            new File( sys.props( "user.home" ), "octree_database" )
-         }
-         dir.delete()
-         dir.mkdir()
-         val f       = new File( dir, "data" )
-         println( f.getAbsolutePath )
-         implicit val system: Durable = Durable( BerkeleyDB.open( f ))
-         import SpaceSerializers.{IntPoint2DSerializer, IntSquareSerializer}
-         implicit val pointView = (p: IntPoint2D, t: Any) => p
-         implicit val reader = DeterministicSkipOctree.serializer[ Durable, TwoDim, IntPoint2D ]
-         val access = system.root { implicit tx =>
-            DeterministicSkipOctree.empty[ Durable, TwoDim, IntPoint2D ](
-               IntSquare( sz, sz, sz ), skipGap = 1 )
-         }
-         new Model2D[ Durable ]( system, access, { () =>
-            system.step( implicit tx => system.debugListUserRecords() ).foreach( println _ )
-         })
-
-      } else {
-         implicit val system: InMemory = InMemory()
-         import SpaceSerializers.{IntPoint2DSerializer, IntSquareSerializer}
-         implicit val pointView = (p: IntPoint2D, t: Any) => p
-         implicit val reader = DeterministicSkipOctree.serializer[ InMemory, TwoDim, IntPoint2D ]
-         val access = system.root { implicit tx =>
-            DeterministicSkipOctree.empty[ InMemory, TwoDim, IntPoint2D ](
-               IntSquare( sz, sz, sz ), skipGap = 1 )
-         }
-         new Model2D[ InMemory ]( system, access, { () => println( "(Consistency not checked)" )})
+   def makeModel2D[ S <: Sys[ S ]]( system: S )( cons: => Unit )( implicit cursor: Cursor[ S ]) : Model2D[ S ] = {
+      import SpaceSerializers.{IntPoint2DSerializer, IntSquareSerializer}
+      implicit val pointView = (p: IntPoint2D, t: Any) => p
+      implicit val reader = DeterministicSkipOctree.serializer[ S, TwoDim, IntPoint2D ]
+      val access = system.root { implicit tx =>
+         DeterministicSkipOctree.empty[ S, TwoDim, IntPoint2D ](
+            IntSquare( sz, sz, sz ), skipGap = 1 )
       }
+      new Model2D[ S ]( cursor, access, () => cons )
+   }
 
+   def makeFrame[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ]( model: Model[ S, D, Point ]) {
       val f    = new JFrame( "Skip Octree" )
 //      f.setResizable( false )
       val cp   = f.getContentPane

@@ -21,7 +21,7 @@ trait IntPointNLike {
 final case class IntPointN( components: IIdxSeq[ Int ]) extends IntPointNLike {
 //   if( components.size != dim ) throw new IllegalArgumentException( "Expected " + dim + " components: " + components )
 
-   def +( that: NDim#Point ) = IntPointN( IIdxSeq.tabulate( dim )( idx => this( idx ) + that( idx )))
-   def -( that: NDim#Point ) = IntPointN( IIdxSeq.tabulate( dim )( idx => this( idx ) - that( idx )))
+   def +( that: NDim#Point ) = IntPointN( Vector.tabulate( dim )( idx => this( idx ) + that( idx )))
+   def -( that: NDim#Point ) = IntPointN( Vector.tabulate( dim )( idx => this( idx ) - that( idx )))
 }
 

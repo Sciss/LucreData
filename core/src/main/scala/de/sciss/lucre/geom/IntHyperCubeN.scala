@@ -16,7 +16,7 @@ sealed trait IntHyperCubeNLike extends HyperCube[ NDim ] with QueryShape[ BigInt
 
    final def orthant( idx: Int ) : NDim#HyperCube = {
       val e = extent >> 1
-      val d = IIdxSeq.tabulate( dim )( i => if( (idx & (1 << i)) == 0 ) -e else e )
+      val d = Vector.tabulate( dim )( i => if( (idx & (1 << i)) == 0 ) -e else e )
       IntHyperCubeN( d, e )
    }
 
@@ -203,7 +203,7 @@ sealed trait IntHyperCubeNLike extends HyperCube[ NDim ] with QueryShape[ BigInt
          }
       i += 1 }
 
-      val components = IIdxSeq.tabulate( dim ) { i =>
+      val components = Vector.tabulate( dim ) { i =>
          val cc   = center( i )
          val tlc  = cc - extent
          val ac   = a( i )

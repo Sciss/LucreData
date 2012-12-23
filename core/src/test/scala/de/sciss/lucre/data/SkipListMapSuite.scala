@@ -1,7 +1,7 @@
 package de.sciss.lucre
 package data
 
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{Vector => IIdxSeq}    // see SI-6150
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import stm.InMemory
 

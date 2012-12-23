@@ -3,7 +3,7 @@ package data
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import java.io.File
-import stm.impl.BerkeleyDB
+import stm.store.BerkeleyDB
 import annotation.tailrec
 import collection.immutable.IntMap
 import stm.{Cursor, Durable, InMemory, Sys}

@@ -7,7 +7,7 @@ import collection.breakOut
 import collection.mutable.{Set => MSet}
 import IntSpace.ThreeDim
 import java.io.File
-import stm.impl.BerkeleyDB
+import stm.store.BerkeleyDB
 import stm.{Cursor, Durable, InMemory, Sys}
 
 /**
@@ -304,7 +304,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
                      t.clear()
                      t.dispose()
                   } catch {
-                     case e =>
+                     case e: Throwable =>
                         e.printStackTrace()
                         throw e
                   }

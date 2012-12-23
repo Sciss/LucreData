@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version in ThisBuild := "1.4.2"
+version in ThisBuild := "1.6.0-SNAPSHOT"
 
 organization in ThisBuild := "de.sciss"
 
@@ -10,23 +10,18 @@ homepage in ThisBuild := Some( url( "https://github.com/Sciss/LucreData" ))
 
 licenses in ThisBuild := Seq( "GPL v2+" -> url( "http://www.gnu.org/licenses/gpl-2.0.txt" ))
 
-scalaVersion in ThisBuild := "2.9.2"
+scalaVersion in ThisBuild := "2.10.0"
 
-// crossScalaVersions in ThisBuild := Seq( "2.10.0-M6", "2.9.2" )
+crossScalaVersions in ThisBuild := Seq( "2.10.0", "2.9.2" )
 
 resolvers in ThisBuild ++= Seq(
    "itextpdf.com" at "http://maven.itextpdf.com",
    "Oracle Repository" at "http://download.oracle.com/maven"
 )
 
-libraryDependencies in ThisBuild <+= scalaVersion { sv =>
-   val v = sv match {
-      case "2.10.0-RC3" => "1.8-B1"
-      case "2.10.0-RC5" => "1.8-B1"
-      case _            => "1.8"
-   }
-   "org.scalatest" %% "scalatest" % v % "test"
-}
+libraryDependencies in ThisBuild ++= Seq(
+   ("org.scalatest" %% "scalatest" % "1.8" cross CrossVersion.full) % "test"
+)
 
 retrieveManaged in ThisBuild := true
 

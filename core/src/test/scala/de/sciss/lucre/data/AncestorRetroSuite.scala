@@ -5,9 +5,10 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
 import geom.{IntSpace, IntPoint3D, IntDistanceMeasure3D, IntCube}
 import concurrent.stm.Ref
 import java.io.File
-import stm.impl.BerkeleyDB
+import stm.store.BerkeleyDB
 import stm.{InMemory, Durable, Cursor, Sys, Reader, Serializer}
 import annotation.tailrec
+import collection.immutable.{IndexedSeq => IIdxSeq}   // see SI-6150
 
 /**
 * To run this test copy + paste the following into sbt:
@@ -471,7 +472,7 @@ if( verbose ) {
          val (t, treeSeq, parents) = system.step { implicit tx =>
             val tr         = FullTree[ S ]()
             val rnd        = new util.Random( seed )
-            var treeSeq    = IndexedSeq[ FullVertex[ S ]]( tr.root )
+            var treeSeq    = IIdxSeq[ FullVertex[ S ]]( tr.root )
             var parents    = Map.empty[ FullVertex[ S ], FullVertex[ S ]]
             var children   = Map.empty[ FullVertex[ S ], Set[ FullVertex[ S ]]]
 

@@ -28,50 +28,23 @@ package data
 package gui
 
 import java.awt.event.{ActionListener, ActionEvent}
-import java.awt.{Color, EventQueue, FlowLayout, BorderLayout, Dimension}
+import java.awt.{Color, FlowLayout, BorderLayout, Dimension}
 import javax.swing.{Box, JLabel, SwingConstants, WindowConstants, JFrame, JTextField, JButton, JPanel}
-import java.io.File
-import stm.impl.BerkeleyDB
-import stm.{Source, Cursor, InMemory, Durable, Sys}
+import stm.{Source, Cursor, Sys}
 
-/**
-* Simple GUI app to probe the txn.HASkipList interactively.
-*/
-object InteractiveSkipListView extends App with Runnable {
-   EventQueue.invokeLater( this )
-   def run() {
-      val a = args.headOption.getOrElse( "" )
-      val iv = if( a.startsWith( "--db" )) {
-         val dir     = if( a == "--dbtmp" ) {
-            File.createTempFile( "skiplist", "_database" )
-         } else {
-            new File( sys.props( "user.home" ), "skiplist_database" )
-         }
-         dir.delete()
-         dir.mkdir()
-         println( dir.getAbsolutePath )
-         implicit val system: Durable = Durable( BerkeleyDB.open( dir ))
-         val fut = new FutureObserver[ Durable ]
-         implicit val ser = HASkipList.Set.serializer[ Durable, Int ]( fut )
-         val access = system.root[ HASkipList.Set[ Durable, Int ]] { implicit tx =>
-            HASkipList.Set.empty[ Durable, Int ]( minGap = 1, keyObserver = fut )
-         }
-         val res = new InteractiveSkipListView[ Durable ]( access )
-         fut.init( res )
-         res
-
-      } else {
-         implicit val system: InMemory = InMemory()
-         val fut = new FutureObserver[ InMemory ]
-         implicit val ser = HASkipList.Set.serializer[ InMemory, Int ]( fut )
-         val access = system.root { implicit tx =>
-            HASkipList.Set.empty[ InMemory, Int ]( minGap = 1, keyObserver = fut )
-         }
-         val res = new InteractiveSkipListView[ InMemory ]( access )
-         fut.init( res )
-         res
+object InteractiveSkipListView {
+   def apply[ S <: Sys[ S ]]( system: S )( implicit cursor: Cursor[ S ]) : InteractiveSkipListView[ S ] = {
+      val fut = new FutureObserver[ S ]
+      implicit val ser = HASkipList.Set.serializer[ S, Int ]( fut )
+      val access = system.root { implicit tx =>
+         HASkipList.Set.empty[ S, Int ]( minGap = 1, keyObserver = fut )
       }
+      val res = new InteractiveSkipListView[ S ]( access )
+      fut.init( res )
+      res
+   }
 
+   def makeFrame[ S <: Sys[ S ]]( iv: InteractiveSkipListView[ S ]) : JFrame = {
       val f    = new JFrame( "SkipList" )
       val cp   = f.getContentPane
 //      val iv   = new InteractiveSkipListView( system )
@@ -83,6 +56,7 @@ object InteractiveSkipListView extends App with Runnable {
       f.setLocationRelativeTo( null )
       f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
       f.setVisible( true )
+      f
    }
 
    final class FutureObserver[ S <: Sys[ S ]] extends SkipList.KeyObserver[ S#Tx, Int ] {

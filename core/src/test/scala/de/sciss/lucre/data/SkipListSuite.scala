@@ -5,7 +5,7 @@ import collection.immutable.IntMap
 import collection.mutable.{Set => MSet}
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import concurrent.stm.{InTxn, TxnExecutor, Ref}
-import stm.impl.BerkeleyDB
+import stm.store.BerkeleyDB
 import java.io.File
 import stm.{Cursor, Durable, InMemory, Sys}
 

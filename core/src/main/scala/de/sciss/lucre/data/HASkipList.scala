@@ -108,7 +108,7 @@ object HASkipList {
       def +=( key: A )( implicit tx: S#Tx ) : this.type = { addEntry( key, key ); this }
 
       protected def newLeaf( key: A ) : Leaf[ S, A, A ] = {
-         val lkeys   = IIdxSeq[ A ]( key, null.asInstanceOf[ A ])
+         val lkeys   = Vector[ A ]( key, null.asInstanceOf[ A ])
          new SetLeaf[ S, A ]( lkeys )
       }
 
@@ -120,7 +120,7 @@ object HASkipList {
                             ( implicit tx: S#Tx ) : Leaf[ S, A, A ] = {
          val sz: Int = in.readUnsignedByte()
          val szi  = if( isRight ) sz - 1 else sz
-         val keys = IIdxSeq.tabulate[ A ]( sz ) { i =>
+         val keys = Vector.tabulate[ A ]( sz ) { i =>
             if( i < szi ) keySerializer.read( in, access ) else null.asInstanceOf[ A ]
          }
          new SetLeaf[ S, A ]( keys )
@@ -150,7 +150,7 @@ object HASkipList {
       }
 
       protected def newLeaf( entry: (A, B) ) : Leaf[ S, A, (A, B) ] = {
-         val en = IIdxSeq( entry, null.asInstanceOf[ (A, B) ])
+         val en = Vector( entry, null.asInstanceOf[ (A, B) ])
          new MapLeaf( en )
       }
 
@@ -214,7 +214,7 @@ object HASkipList {
                             ( implicit tx: S#Tx ) : Leaf[ S, A, (A, B) ] = {
          val sz: Int = in.readUnsignedByte()
          val szi  = if( isRight ) sz - 1 else sz
-         val en   = IIdxSeq.tabulate( sz ) { i =>
+         val en   = Vector.tabulate( sz ) { i =>
             if( i < szi ) {
                val key  = keySerializer.read( in, access )
                val value= valueSerializer.read( in, access )
@@ -301,7 +301,7 @@ object HASkipList {
 
       final def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( isRight = true ).mkString( "\n" )
 
-      final def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ E ] = fillBuilder( IIdxSeq.newBuilder )
+      final def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ E ] = fillBuilder( Vector.newBuilder )
       final def toList( implicit tx: S#Tx ) : List[ E ] = fillBuilder( List.newBuilder )
       final def toSeq(  implicit tx: S#Tx ) : Seq[  E ] = fillBuilder( Seq.newBuilder )
       final def toSet(  implicit tx: S#Tx ) : ISet[ E ] = fillBuilder( ISet.newBuilder )
@@ -938,8 +938,8 @@ object HASkipList {
 
       def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A, E ], right: Node[ S, A, E ])
                           ( implicit tx: S#Tx, head: Impl[ S, A, E ]) : Branch[ S, A, E ] = {
-         val bkeys = IIdxSeq[ A ]( splitKey, null.asInstanceOf[ A ])
-         val bdowns = IIdxSeq[ S#Var[ Node[ S, A, E ]]](
+         val bkeys = Vector[ A ]( splitKey, null.asInstanceOf[ A ])
+         val bdowns = Vector[ S#Var[ Node[ S, A, E ]]](
             tx.newVar( head.id, left ),
             tx.newVar( head.id, right )
          )
@@ -1036,23 +1036,23 @@ object HASkipList {
 //      final def size : Int = keys.length
 //   }
 
-   private final class SetLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A ]( private[HASkipList] val entries: IIdxSeq[ A ])
+   private final class SetLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A ]( private[HASkipList] val entries: Vector[ A ])
    extends Leaf[ S, A, A ] {
-      protected def copy( newEntries: IIdxSeq[ A ]) : Leaf[ S, A, A ] = new SetLeaf( newEntries )
+      protected def copy( newEntries: Vector[ A ]) : Leaf[ S, A, A ] = new SetLeaf( newEntries )
       def key( idx: Int ) : A = entries( idx )
    }
 
-   private final class MapLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A, B ]( private[HASkipList] val entries: IIdxSeq[ (A, B) ])
+   private final class MapLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A, B ]( private[HASkipList] val entries: Vector[ (A, B) ])
    extends Leaf[ S, A, (A, B) ] {
-      protected def copy( newEntries: IIdxSeq[ (A, B) ]) : Leaf[ S, A, (A, B) ] = new MapLeaf( newEntries )
+      protected def copy( newEntries: Vector[ (A, B) ]) : Leaf[ S, A, (A, B) ] = new MapLeaf( newEntries )
       def key( idx: Int ) : A = entries( idx )._1
    }
 
    sealed trait Leaf[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends Node[ S, A, E ] {
       override def toString = entries.mkString( "Leaf(", ",", ")" )
 
-      private[HASkipList] def entries: IIdxSeq[ E ]
-      protected def copy( newEntries: IIdxSeq[ E ]) : Leaf[ S, A, E ]
+      private[HASkipList] def entries: Vector[ E ]
+      protected def copy( newEntries: Vector[ E ]) : Leaf[ S, A, E ]
 
       final def entry( idx: Int ) : E = entries( idx )
       final def size : Int = entries.size
@@ -1090,12 +1090,12 @@ object HASkipList {
       }
 
       final private[HASkipList] def insert( idx: Int, entry: E )( implicit list: Impl[ S, A, E ]) : Leaf[ S, A, E ] = {
-         val newEntries = entries.patch( idx, IIdxSeq( entry ), 0 )
+         val newEntries = entries.patch( idx, Vector( entry ), 0 )
          copy( newEntries )
       }
 
       final private[HASkipList] def update( idx: Int, entry: E )( implicit list: Impl[ S, A, E ]) : Leaf[ S, A, E ] = {
-         val newEntries = entries.patch( idx, IIdxSeq( entry ), 1 )
+         val newEntries = entries.patch( idx, Vector( entry ), 1 )
          copy( newEntries )
       }
 
@@ -1105,7 +1105,7 @@ object HASkipList {
          val arrMinSz = list.arrMinSz
          val (len0, ren0) = entries.splitAt( arrMinSz )
          if( idx < arrMinSz ) {  // split and add `v` to left leaf
-            val len     = len0.patch( idx, IIdxSeq( entry ), 0 )
+            val len     = len0.patch( idx, Vector( entry ), 0 )
             val left    = copy( len )
             val right   = copy( ren0 )
 
@@ -1113,7 +1113,7 @@ object HASkipList {
 
          } else {               // split and add `v` to right leaf
             val numl    = idx - arrMinSz
-            val ren     = ren0.patch( numl, IIdxSeq( entry ), 0 )
+            val ren     = ren0.patch( numl, Vector( entry ), 0 )
             val left    = copy( len0 )
             val right   = copy( ren )
 
@@ -1122,7 +1122,7 @@ object HASkipList {
       }
 
       final private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A, E ]) : Leaf[ S, A, E ] = {
-         val newEntries = entries.patch( idx, IIdxSeq.empty, 1 )
+         val newEntries = entries.patch( idx, Vector.empty, 1 )
          copy( newEntries )
       }
 
@@ -1146,15 +1146,15 @@ object HASkipList {
          import list.keySerializer
          val sz: Int = in.readUnsignedByte()
          val szi     = if( isRight ) sz - 1 else sz
-         val keys    = IIdxSeq.tabulate( sz ) { i =>
+         val keys    = Vector.tabulate( sz ) { i =>
             if( i < szi ) keySerializer.read( in, access ) else null.asInstanceOf[ A ]
          }
-         val downs = IIdxSeq.fill( sz )( tx.readVar[ Node[ S, A, B ]]( list.id, in ))
+         val downs = Vector.fill( sz )( tx.readVar[ Node[ S, A, B ]]( list.id, in ))
          new Branch[ S, A, B ]( keys, downs )
       }
    }
    final class Branch[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ](
-      private[HASkipList] val keys: IIdxSeq[ A ], private[HASkipList] val downs: IIdxSeq[ S#Var[ Node[ S, A, B ]]])
+      private[HASkipList] val keys: Vector[ A ], private[HASkipList] val downs: Vector[ S#Var[ Node[ S, A, B ]]])
    extends /* BranchLike[ S, A ] with */ HeadOrBranch[ S, A, B ] with Node[ S, A, B ] {
 //      assert( keys.size == downs.size )
 
@@ -1242,8 +1242,8 @@ object HASkipList {
       }
 
       private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ] = {
-         val newKeys    = keys.patch(  idx, IIdxSeq.empty, 1 )
-         val newDowns   = downs.patch( idx, IIdxSeq.empty, 1 )
+         val newKeys    = keys.patch(  idx, Vector.empty, 1 )
+         val newDowns   = downs.patch( idx, Vector.empty, 1 )
          new Branch[ S, A, B ]( newKeys, newDowns )
       }
 
@@ -1258,8 +1258,8 @@ object HASkipList {
          // size increased by one. the new key is `splitKey`
          // which gets inserted at the index where we went
          // down, `idx`.
-         val bkeys   = keys.patch(  idx, IIdxSeq( splitKey ), 0 )
-         val bdowns  = downs.patch( idx, IIdxSeq( tx.newVar( list.id, left )), 0 )
+         val bkeys   = keys.patch(  idx, Vector( splitKey ), 0 )
+         val bdowns  = downs.patch( idx, Vector( tx.newVar( list.id, left )), 0 )
 
          // copy entries right to split index
          val rightOff      = idx + 1

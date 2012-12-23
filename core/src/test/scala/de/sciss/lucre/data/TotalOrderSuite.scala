@@ -2,11 +2,11 @@ package de.sciss.lucre
 package data
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
-import stm.impl.BerkeleyDB
+import stm.store.BerkeleyDB
 import java.io.File
 import TotalOrder.Map.RelabelObserver
-import stm.{Serializer, Cursor, Durable, InMemory, Sys}
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import stm.{Cursor, Durable, InMemory, Sys}
+import collection.immutable.{Vector => IIdxSeq} // see SI-6150
 
 /**
  * To run this test copy + paste the following into sbt:

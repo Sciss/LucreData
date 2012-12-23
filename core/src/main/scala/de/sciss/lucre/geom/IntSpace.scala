@@ -27,7 +27,6 @@ package de.sciss.lucre
 package geom
 
 import annotation.tailrec
-import collection.immutable.{IndexedSeq => IIdxSeq}
 
 object IntSpace {
    sealed trait TwoDim extends Space[ TwoDim ] {
@@ -59,7 +58,7 @@ object IntSpace {
       type Point           = IntPointN
       type HyperCubeLike   = IntHyperCubeNLike
       type HyperCube       = IntHyperCubeN
-      val maxPoint         = IntPointN( IIdxSeq.fill( dim )( Int.MaxValue ))
+      val maxPoint         = IntPointN( Vector.fill( dim )( Int.MaxValue ))
 
    }
 

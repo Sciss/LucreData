@@ -1,7 +1,7 @@
 import sbt._
 import Keys._
 
-object LucreDataBuild extends Build {
+object Build extends sbt.Build {
    lazy val lucredata: Project = Project(
       id        = "lucredata",
       base      = file( "." ),
@@ -13,7 +13,8 @@ object LucreDataBuild extends Build {
       base      = file( "core" ),
       settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm" % "1.4.+"
+            "de.sciss" %% "lucrestm-core" % "1.6.+",
+            "de.sciss" %% "lucrestm-bdb" % "1.6.+" % "test"
          )
       )
    )
@@ -24,6 +25,7 @@ object LucreDataBuild extends Build {
       dependencies = Seq( core ),
       settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
+            "de.sciss" %% "lucrestm-bdb" % "1.6.+" % "test",
             "com.itextpdf" % "itextpdf" % "5.3.2"
          )
       )

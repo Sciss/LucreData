@@ -168,7 +168,7 @@ trait Iterator[ -Tx /* <: Txn[ _ ] */, @specialized( Unit, Boolean, Int, Float, 
 //      }
    }
 
-   final def toIndexedSeq( implicit tx: Tx ) : IIdxSeq[ A ] = fromBuilder( IIdxSeq.newBuilder[ A ])
+   final def toIndexedSeq( implicit tx: Tx ) : IIdxSeq[ A ] = fromBuilder( Vector.newBuilder[ A ])
    final def toList( implicit tx: Tx ) : List[ A ] = fromBuilder( List.newBuilder[ A ])
    final def toSeq( implicit tx: Tx ) : Seq[ A ] = fromBuilder( Seq.newBuilder[ A ])
    final def toSet[ B >: A ]( implicit tx: Tx ) : Set[ B ] = fromBuilder( Set.newBuilder[ B ])

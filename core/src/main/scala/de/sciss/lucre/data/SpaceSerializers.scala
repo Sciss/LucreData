@@ -3,7 +3,6 @@ package data
 
 import stm.ImmutableSerializer
 import geom.{IntHyperCubeN, IntPointN, IntSpace, LongSquare, LongPoint2D, IntCube, IntPoint3D, IntSquare, IntPoint2D}
-import collection.immutable.{IndexedSeq => IIdxSeq}
 
 object SpaceSerializers {
    // ---- int space ----
@@ -79,7 +78,7 @@ object SpaceSerializers {
 
       def read( in: DataInput ) : NDim#Point = {
          val sz   = in.readInt()
-         val c    = IIdxSeq.fill( sz )( in.readInt() )
+         val c    = Vector.fill( sz )( in.readInt() )
          IntPointN( c )
       }
    }
@@ -94,7 +93,7 @@ object SpaceSerializers {
 
       def read( in: DataInput ) : NDim#HyperCube = {
          val sz   = in.readInt()
-         val c    = IIdxSeq.fill( sz )( in.readInt() )
+         val c    = Vector.fill( sz )( in.readInt() )
          val ext  = in.readInt()
          IntHyperCubeN( c, ext )
       }
