@@ -2,7 +2,7 @@
 
 ### statement
 
-(C)opyright 2011&ndash;2012 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
+(C)opyright 2011&ndash;2013 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
 
 LucreData provides implementations for various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries. These are mutable structures implemented transactionally on top of the LucreSTM library.
 
@@ -35,6 +35,6 @@ Either of the following dependencies is necessary:
 
 To develop the sources of LucreData, if you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
 
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.1.0")
+    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.2.0")
 
 Then to create the IDEA project, run `sbt gen-idea`.
