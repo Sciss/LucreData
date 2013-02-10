@@ -69,7 +69,7 @@ object InteractiveSkipOctreePanel {
    extends Model[ S, TwoDim, IntPoint2D ] {
 //      val tree = DeterministicSkipOctree.empty[ S, Space.IntTwoDim, IntTwoDim#Point ]( Space.IntTwoDim, IntSquare( sz, sz, sz ), skipGap = 1 )
 
-      def tree( implicit tx: S#Tx ) : SkipOctree[ S, TwoDim, IntPoint2D ] = access.get
+      def tree( implicit tx: S#Tx ) : SkipOctree[ S, TwoDim, IntPoint2D ] = access()
 
       def queryShape( sq: IntSquare ) = sq
       def point( coords: IndexedSeq[ Int ]) = coords match {

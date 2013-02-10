@@ -297,7 +297,7 @@ object HASkipList {
       }
 
       final def top( implicit tx: S#Tx ) : Option[ Node[ S, A, E ]] = Option( topN )
-      @inline final protected def topN( implicit tx: S#Tx ) : Node[ S, A, E ] = /* Head.*/ downNode.get
+      @inline final protected def topN( implicit tx: S#Tx ) : Node[ S, A, E ] = /* Head.*/ downNode()
 
       final def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( isRight = true ).mkString( "\n" )
 
@@ -509,7 +509,7 @@ object HASkipList {
 //            val lkeys   = IIdxSeq[ A ]( v, null.asInstanceOf[ A ])
 //            val l       = new Leaf[ S, A, B ]( lkeys )
             val l = newLeaf( entry )
-            /*Head.*/ downNode.set( l )
+            /*Head.*/ downNode() = l
             None
          } else if( c.isLeaf ) {
             addToLeaf(   key, entry, head, 0, head, 0, c.asLeaf,   isRight = true )
@@ -608,11 +608,11 @@ object HASkipList {
          if( found ) {
             val idxP    = -(idx + 1)
             val lNew    = l.removeColumn( idxP )
-            pDown.set( if( lNew.size > 1 ) lNew else null )
+            pDown() = if( lNew.size > 1 ) lNew else null
             Some( l.entry( idxP ))
          } else {
             if( lDirty ) {
-               pDown.set( if( l.size > 1 ) l else null )
+               pDown() = if( l.size > 1 ) l else null
             }
             None
          }
@@ -666,7 +666,7 @@ object HASkipList {
 //               bNew.setKey( idxP, leafUpKey )
                keyObserver.keyUp( upKey )
                val bDown1  = b.downRef( idxPM1 )
-               bDown1.set( cSib.removeColumn( cSibSz - 1 ))
+               bDown1() = cSib.removeColumn( cSibSz - 1 )
 //               cNew        = c.virtualize( ModBorrowFromLeft, cSib )
                cNew        = c.borrowLeft( cSib )
             }
@@ -678,7 +678,7 @@ object HASkipList {
 
          // branch changed
          val bDown =  if( bNew.size > 1 ) {
-            pDown.set( bNew ) // update down ref from which it came
+            pDown() = bNew // update down ref from which it came
             bNew.downRef( bDownIdx )
          } else {
             // unfortunately we do not have `p`
@@ -733,7 +733,7 @@ object HASkipList {
             val bNew  = b.updateKey( idxP, leafUpKey )
             keyObserver.keyUp( leafUpKey )
 
-            pDown.set( bNew ) // update down ref from which we came
+            pDown() = bNew // update down ref from which we came
             val bDown = bNew.downRef( idxP )
             return if( c.isLeaf ) {
                removeFromLeaf( key, bDown, c.asLeaf, isRight = false, false )
@@ -779,7 +779,7 @@ object HASkipList {
                   bNew        = b.updateKey( idxP, upKey )
                   keyObserver.keyUp( upKey )
                   val bDown1  = b.downRef( idxP1 )
-                  bDown1.set( cSib.removeColumn( 0 ))
+                  bDown1 () = cSib.removeColumn( 0 )
                   cNew        = c.borrowRight( cSib )
                }
 
@@ -811,7 +811,7 @@ object HASkipList {
                   bNew        = b.updateKey( idxPM1, upKey )
                   keyObserver.keyUp( upKey )
                   val bDown1  = b.downRef( idxPM1 )
-                  bDown1.set( cSib.removeColumn( cSibSz - 1 ))
+                  bDown1() = cSib.removeColumn( cSibSz - 1 )
                   cNew        = c.borrowLeft( cSib )
                }
             }
@@ -819,7 +819,7 @@ object HASkipList {
 
          val bDown = if( bDirty || (bNew ne b) ) { // branch changed
             if( bNew.size > 1 ) {
-               pDown.set( bNew ) // update down ref from which it came
+               pDown() = bNew // update down ref from which it came
                bNew.downRef( bDownIdx )
             } else {
                // unfortunately we do not have `p`
@@ -933,7 +933,7 @@ object HASkipList {
 
       def updateDown( i: Int, n: Node[ S, A, E ])( implicit tx: S#Tx ) {
 //          assert( i == 0, "Accessing head with index > 0" )
-         downNode.set( n )
+         downNode() = n
       }
 
       def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A, E ], right: Node[ S, A, E ])
@@ -1224,7 +1224,7 @@ object HASkipList {
 
       private[HASkipList] def downRef( i: Int ) : S#Var[ Node[ S, A, B ]] = downs( i )
 
-      def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A, B ] = downs( i ).get
+      def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A, B ] = downs(i)()
 
       private[HASkipList] def split( implicit tx: S#Tx, list: Impl[ S, A, B ]) : (Branch[ S, A, B ], Branch[ S, A, B ]) = {
          import list.{size => _, _}
@@ -1238,7 +1238,7 @@ object HASkipList {
       }
 
       private[HASkipList] def updateDown( i: Int, n: Node[ S, A, B ])( implicit tx: S#Tx ) {
-         downs( i ).set( n )
+         downs(i)() = n
       }
 
       private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ] = {
@@ -1263,7 +1263,7 @@ object HASkipList {
 
          // copy entries right to split index
          val rightOff      = idx + 1
-         bdowns( rightOff ).set( right )
+         bdowns(rightOff)() = right
 
          new Branch[ S, A, B ]( bkeys, bdowns )
       }

@@ -108,20 +108,20 @@ object TotalOrder {
             if( thisTag < thatTag ) -1 else if( thisTag > thatTag ) 1 else 0
          }
 
-         def tag( implicit tx: S#Tx ) : Int = tagVal.get
-         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) = tagVal.get
+         def tag( implicit tx: S#Tx ) : Int = tagVal()
+         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) = tagVal()
 
-         def prev( implicit tx: S#Tx ) : EOpt = prevRef.get
-         def next( implicit tx: S#Tx ) : EOpt = nextRef.get
-         private[Set] def prevOrNull( implicit tx: S#Tx ) : E = prevRef.get.orNull
-         private[Set] def nextOrNull( implicit tx: S#Tx ) : E = nextRef.get.orNull
+         def prev( implicit tx: S#Tx ) : EOpt = prevRef()
+         def next( implicit tx: S#Tx ) : EOpt = nextRef()
+         private[Set] def prevOrNull( implicit tx: S#Tx ) : E = prevRef().orNull
+         private[Set] def nextOrNull( implicit tx: S#Tx ) : E = nextRef().orNull
          def orNull : E = this
          def isDefined  = true
          def isEmpty    = false
 
-         private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) { prevRef.set( e )}
-         private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) { nextRef.set( e )}
-         private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) { tagVal.set( value )}
+         private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) { prevRef() = e }
+         private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) { nextRef() = e }
+         private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) { tagVal() = value }
 
          protected def writeData( out: DataOutput ) {
             tagVal.write( out )
@@ -296,7 +296,7 @@ object TotalOrder {
          sizeVal.transform( _ - 1 )
       }
 
-      final def size( implicit tx: S#Tx ) : Int = sizeVal.get
+      final def size( implicit tx: S#Tx ) : Int = sizeVal()
 
       final def head( implicit tx: S#Tx ) : E = {
          var e = root
@@ -467,7 +467,7 @@ object TotalOrder {
          private type E    = Entry[ S, A ]
          private type KOpt = KeyOption[ S, A ]
 
-         def tag( implicit tx: S#Tx ) : Int = tagVal.get
+         def tag( implicit tx: S#Tx ) : Int = tagVal()
 
 def validate( msg: => String )( implicit tx: S#Tx ) {
    val recTag  = tag
@@ -483,15 +483,15 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
 
          override def toString = "Map.Entry" + id
 
-         private[TotalOrder] def prev( implicit tx: S#Tx ) : KOpt = prevRef.get
-         private[TotalOrder] def next( implicit tx: S#Tx ) : KOpt = nextRef.get
+         private[TotalOrder] def prev( implicit tx: S#Tx ) : KOpt = prevRef()
+         private[TotalOrder] def next( implicit tx: S#Tx ) : KOpt = nextRef()
 //         private[TotalOrder] def prevOrNull( implicit tx: S#Tx ) : A = prevRef.get.orNull
 //         private[TotalOrder] def nextOrNull( implicit tx: S#Tx ) : A = nextRef.get.orNull
 //         def orNull : E = this
 
-         private[TotalOrder] def updatePrev( e: KOpt )( implicit tx: S#Tx ) { prevRef.set( e )}
-         private[TotalOrder] def updateNext( e: KOpt )( implicit tx: S#Tx ) { nextRef.set( e )}
-         private[TotalOrder] def updateTag( value: Int )( implicit tx: S#Tx ) { tagVal.set( value )}
+         private[TotalOrder] def updatePrev( e: KOpt )( implicit tx: S#Tx ) { prevRef() = e }
+         private[TotalOrder] def updateNext( e: KOpt )( implicit tx: S#Tx ) { nextRef() = e }
+         private[TotalOrder] def updateTag( value: Int )( implicit tx: S#Tx ) { tagVal() = value }
 
          // ---- Ordered ----
 
@@ -802,7 +802,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
          sizeVal.transform( _ - 1 )
       }
 
-      final def size( implicit tx: S#Tx ) : Int = sizeVal.get
+      final def size( implicit tx: S#Tx ) : Int = sizeVal()
 
       final def head( implicit tx: S#Tx ) : E = {
          @tailrec def step( e: E ) : E = {

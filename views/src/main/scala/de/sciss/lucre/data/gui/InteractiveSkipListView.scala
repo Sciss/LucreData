@@ -89,7 +89,7 @@ extends JPanel( new BorderLayout() ) with SkipList.KeyObserver[ S#Tx, Int ] {
 //   val l = _create( this )
    val slv: HASkipListView[ S, Int ] = new HASkipListView( l( _ ))
 
-   def l( implicit tx: S#Tx ) : HASkipList.Set[ S, Int ] = access.get
+   def l( implicit tx: S#Tx ) : HASkipList.Set[ S, Int ] = access()
 
    slv.setPreferredSize( new Dimension( 16 * 64 + 16, 3 * 64 + 16 ))
 

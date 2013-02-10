@@ -446,9 +446,9 @@ extends SkipOctree[ S, D, A ] {
       skipList.dispose()
    }
 
-   final def lastTreeImpl( implicit tx: S#Tx ) : TopBranch = lastTreeRef.get
+   final def lastTreeImpl( implicit tx: S#Tx ) : TopBranch = lastTreeRef()
    final def lastTreeImpl_=( node: TopBranch )( implicit tx: S#Tx ) {
-      lastTreeRef.set( node )
+      lastTreeRef() = node
    }
 
    final def size( implicit tx: S#Tx ) : Int = skipList.size
@@ -1085,8 +1085,8 @@ extends SkipOctree[ S, D, A ] {
    extends LeftNonEmptyChild with RightNonEmptyChild with LeafOrEmpty with Leaf {
       def updateParentLeft( p: LeftBranch )( implicit tx: S#Tx )   { parent_=( p )}
       def updateParentRight( p: RightBranch )( implicit tx: S#Tx ) { parent_=( p )}
-      def parent( implicit tx: S#Tx ): BranchLike = parentRef.get
-      def parent_=( p: BranchLike )( implicit tx: S#Tx ) { parentRef.set( p )}
+      def parent( implicit tx: S#Tx ): BranchLike = parentRef()
+      def parent_=( p: BranchLike )( implicit tx: S#Tx ) { parentRef() = p }
 
       def isLeaf  = true
       def isBranch  = false
@@ -1166,7 +1166,7 @@ extends SkipOctree[ S, D, A ] {
        * node in Qi+1, or `empty` if no such
        * node exists.
        */
-      final def next( implicit tx: S#Tx ) : NextOption = nextRef.get
+      final def next( implicit tx: S#Tx ) : NextOption = nextRef()
 
       final def nextOption( implicit tx: S#Tx ) : Option[ BranchLike ] = next match {
          case EmptyValue       => None
@@ -1178,7 +1178,7 @@ extends SkipOctree[ S, D, A ] {
        * node in Qi+1.
        */
       final def next_=( node: NextOption )( implicit tx: S#Tx ) {
-         nextRef.set( node )
+         nextRef() = node
       }
 
       protected def nextRef: S#Var[ NextOption ]
@@ -1222,6 +1222,7 @@ extends SkipOctree[ S, D, A ] {
       override def toString = "<empty>"
       def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
       override def hashCode : Int = 0
+     import language.existentials // grmpff....
       override def equals( that: Any ) : Boolean =
          that.isInstanceOf[ x.EmptyValue.type forSome { val x: DeterministicSkipOctree[ _, _, _ ]}]
    }
@@ -1245,9 +1246,9 @@ extends SkipOctree[ S, D, A ] {
       final def prevOption: Option[ Branch ] = Some( prev: Branch )
 
       def prev : BranchLike
-      final def child( idx: Int )( implicit tx: S#Tx ) : RightChildOption = children( idx ).get
+      final def child( idx: Int )( implicit tx: S#Tx ) : RightChildOption = children(idx)()
       final def updateChild( idx: Int, c: RightChildOption )( implicit tx: S#Tx ) {
-         children( idx ).set( c )
+         children(idx)() = c
       }
 
       /**
@@ -1383,9 +1384,9 @@ extends SkipOctree[ S, D, A ] {
          step( startOrder, 0 )
       }
 
-      final def child( idx: Int )( implicit tx: S#Tx ) : LeftChildOption = children( idx ).get
+      final def child( idx: Int )( implicit tx: S#Tx ) : LeftChildOption = children(idx)()
       final def updateChild( idx: Int, c: LeftChildOption )( implicit tx: S#Tx ) {
-         children( idx ).set( c )
+         children(idx)() = c
       }
 
       final def demoteLeaf( point: D#PointLike, leaf: LeafImpl )( implicit tx: S#Tx ) {
@@ -1566,9 +1567,9 @@ extends SkipOctree[ S, D, A ] {
       protected def nodeName = "LeftInner"
 
       def updateParentLeft( p: LeftBranch )( implicit tx: S#Tx ) { parent = p }
-      def parent( implicit tx: S#Tx ) : LeftBranch = parentRef.get
+      def parent( implicit tx: S#Tx ) : LeftBranch = parentRef()
       def parent_=( node: LeftBranch )( implicit tx: S#Tx ) {
-         parentRef.set( node )
+         parentRef() = node
       }
 
       def dispose()( implicit tx: S#Tx ) {
@@ -1764,9 +1765,9 @@ extends SkipOctree[ S, D, A ] {
 //         dispose()
 //      }
 
-      def parent( implicit tx: S#Tx ) : RightBranch = parentRef.get
+      def parent( implicit tx: S#Tx ) : RightBranch = parentRef()
       def parent_=( node: RightBranch )( implicit tx: S#Tx ) {
-         parentRef.set( node )
+         parentRef() = node
       }
 
       // make sure the node is not becoming uninteresting, in which case

@@ -13,8 +13,8 @@ object Build extends sbt.Build {
       base      = file( "core" ),
       settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm-core" % "1.6.+",
-            "de.sciss" %% "lucrestm-bdb" % "1.6.+" % "test"
+            "de.sciss" %% "lucrestm-core" % "1.7.+",
+            "de.sciss" %% "lucrestm-bdb" % "1.7.+" % "test"
          )
       )
    )
@@ -25,7 +25,7 @@ object Build extends sbt.Build {
       dependencies = Seq( core ),
       settings     = Project.defaultSettings ++ Seq(
          libraryDependencies ++= Seq(  
-            "de.sciss" %% "lucrestm-bdb" % "1.6.+" % "test",
+            "de.sciss" %% "lucrestm-bdb" % "1.7.+" % "test",
             "com.itextpdf" % "itextpdf" % "5.3.2"
          )
       )

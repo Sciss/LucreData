@@ -36,7 +36,7 @@ class SkipQuadtreeView[ S <: Sys[ S ], A ]( access: Source[ S#Tx, DeterministicS
 extends QuadView {
 //   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.IntTwoDim, A ]
 
-   def t( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, IntSpace.TwoDim, A ] = access.get
+   def t( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, IntSpace.TwoDim, A ] = access()
 
    var highlight  = Set.empty[ A ]
    var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
