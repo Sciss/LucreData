@@ -70,7 +70,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    def randFill[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
                                                   pointFun: Int => D#Point )( implicit cursor: Cursor[ S ]) {
-      given( "a randomly filled structure" )
+      Given( "a randomly filled structure" )
 
       for( i <- 0 until n ) {
          val k = pointFun( 0x7FFFFFFF )
@@ -81,8 +81,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyConsistency[ S <: Sys[ S ], D <: Space[ D ]]( t: DeterministicSkipOctree[ S, D, D#Point ])
                                                          ( implicit cursor: Cursor[ S ]) {
-      when( "the internals of the structure are checked" )
-      then( "they should be consistent with the underlying algorithm" )
+      When( "the internals of the structure are checked" )
+      Then( "they should be consistent with the underlying algorithm" )
 
       val q = t.hyperCube
       var h: t.Branch = cursor.step { implicit tx => t.lastTreeImpl }
@@ -138,18 +138,18 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
    def verifyElems[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
                                                      m: MSet[ D#Point ])( implicit cursor: Cursor[ S ]) {
-      when( "the structure t is compared to an independently maintained map m" )
+      When( "the structure t is compared to an independently maintained map m" )
       val onlyInM  = cursor.step { implicit tx => m.filterNot { e =>
          t.contains( e )
       }}
       val onlyInT  = cursor.step { implicit tx => t.iterator.toList.filterNot( e => m.contains( e ))}
       val szT      = cursor.step { implicit tx => t.size }
       val szM      = m.size
-      then( "all elements of m should be contained in t" )
+      Then( "all elements of m should be contained in t" )
       assert( onlyInM.isEmpty, onlyInM.take( 10 ).toString() )
-      then( "all elements of t should be contained in m" )
+      Then( "all elements of t should be contained in m" )
       assert( onlyInT.isEmpty, onlyInT.take( 10 ).toString() )
-      then( "both should report the same size" )
+      Then( "both should report the same size" )
       assert( szT == szM, "octree has size " + szT + " / map has size " + szM )
    }
 
@@ -157,7 +157,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
                                                            m: MSet[ D#Point ],
                                                            pointFun: Int => D#Point )
                                                          ( implicit cursor: Cursor[ S ]) {
-      when( "the structure t is queried for keys not in the independently maintained map m" )
+      When( "the structure t is queried for keys not in the independently maintained map m" )
       var testSet = Set.empty[ D#Point ]
       while( testSet.size < 100 ) {
          val x = pointFun( 0xFFFFFFFF )
@@ -166,30 +166,30 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       val inT = cursor.step { implicit tx => testSet.filter { p =>
          t.contains( p )
       }}
-      then( "none of them should be contained in t" )
+      Then( "none of them should be contained in t" )
       assert( inT.isEmpty, inT.take( 10 ).toString() )
    }
 
    def verifyAddRemoveAll[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
                                                             m: MSet[ D#Point ])
                                                           ( implicit cursor: Cursor[ S ]) {
-      when( "all elements of the independently maintained map are added again to t" )
+      When( "all elements of the independently maintained map are added again to t" )
       val szBefore = cursor.step { implicit tx => t.size }
 //println( "BEFORE " + t.system.step { implicit tx => t.toList })
       val newInT   = cursor.step { implicit tx => m.filter( e => t.update( e ).isEmpty )}
 //println( "AFTER " + t.system.step { implicit tx => t.toList })
       val szAfter  = cursor.step { implicit tx => t.size }
-      then( "all of the put operations should return 'Some'" )
+      Then( "all of the put operations should return 'Some'" )
       assert( newInT.isEmpty, newInT.take( 10 ).toString() )
-      then( "the size of t should not change" )
+      Then( "the size of t should not change" )
       assert( szBefore == szAfter, "t had size " + szBefore + " before, but now reports " + szAfter )
 
-      when( "all elements of the independently maintained map are removed from t" )
+      When( "all elements of the independently maintained map are removed from t" )
       val keptInT  = cursor.step { implicit tx => m.filter( e => t.removeAt( e ).isEmpty )}
       val szAfter2 = cursor.step { implicit tx => t.size }
-      then( "all of the remove operations should return 'Some'" )
+      Then( "all of the remove operations should return 'Some'" )
       assert( keptInT.isEmpty, keptInT.take( 10 ).toString() )
-      then( "the size of t should be zero" )
+      Then( "the size of t should be zero" )
       assert( szAfter2 == 0, szAfter2.toString )
    }
 
@@ -201,12 +201,12 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
    def verifyRangeSearch[ S <: Sys[ S ], A, D <: Space[ D ], Sort ]( t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ],
                           queryFun: (Int, Int, Int) => QueryShape[ A, D ],
                           sortFun: D#PointLike => Sort )( implicit ord: math.Ordering[ Sort ], cursor: Cursor[ S ]) {
-      when( "the octree is range searched" )
+      When( "the octree is range searched" )
       val qs = Seq.fill( n2 )( queryFun( 0x7FFFFFFF, 0x40000000, 0x40000000 ))
       val rangesT = cursor.step { implicit tx => qs.map( q => t.rangeQuery( q ).toSet )}
       val ks      = m // keySet
       val rangesM = qs.map( q => ks.filter( q.contains( _ )))
-      then( "the results should match brute force with the corresponding set" )
+      Then( "the results should match brute force with the corresponding set" )
       rangesT.zip(rangesM).foreach { case (s1, s2) =>
          assert( s1 == s2, s1.toList.sortBy( sortFun ).take( 10 ).toString + " -- " +
                            s2.toList.sortBy( sortFun ).take( 10 ))
@@ -230,7 +230,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       t: SkipOctree[ S, D, D#Point ], m: MSet[ D#Point ], pointFun: Int => D#Point,
       pointFilter: D#PointLike => Boolean, euclideanDist: DistanceMeasure[ M, D ])( implicit ord: math.Ordering[ M ], cursor: Cursor[ S ]) {
 
-      when( "the quadtree is searched for nearest neighbours" )
+      When( "the quadtree is searched for nearest neighbours" )
       val ps0 = Seq.fill( n2 )( pointFun( 0xFFFFFFFF ))
       // tricky: this guarantees that there are no 63 bit overflows,
       // while still allowing points outside the root hyperCube to enter the test
@@ -241,7 +241,7 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       val ks   = m // .keySet
 //      val nnM: Map[ D#Point, D#Point ] = ps.map( p => p -> ks.minBy( _.distanceSq( p ))( t.space.bigOrdering ))( breakOut )
       val nnM: Map[ D#Point , D#Point ] = ps.map( p => p -> ks.minBy( p2 => euclideanDist.distance( p2, p )))( breakOut )
-      then( "the results should match brute force with the corresponding set" )
+      Then( "the results should match brute force with the corresponding set" )
       assert( nnT == nnM, {
          (nnT.collect { case (q, v) if( nnM( q ) != v ) => (q, v, nnM( q ))}).take( 10 ).toString()
       })

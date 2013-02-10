@@ -10,7 +10,7 @@ homepage in ThisBuild <<= name { n => Some(url("https://github.com/Sciss/" + n))
 
 licenses in ThisBuild := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-scalaVersion in ThisBuild := "2.10.0"
+scalaVersion in ThisBuild := "2.10.+"
 
 // crossScalaVersions in ThisBuild := Seq("2.10.0", "2.9.2")
 
@@ -83,6 +83,3 @@ seq(lsSettings: _*)
 (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
 
 (LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
-
-// bug in ls -- doesn't find the licenses from global scope
-(licenses in LsKeys.lsync) := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))

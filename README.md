@@ -25,10 +25,16 @@ Builds with sbt 0.12 against Scala 2.10. Depends on [LucreSTM](http://github.com
 
 ## linking to LucreData
 
-Either of the following dependencies is necessary:
+The following draws in all sub modules:
 
-    "de.sciss" %% "lucredata-core"  % "1.7.+"
-    "de.sciss" %% "lucredata-views" % "1.7.+"
+    "de.sciss" %% "lucredata" % v
+
+For a particular sub module:
+
+    "de.sciss" %% "lucredata-core"  % v
+    "de.sciss" %% "lucredata-views" % v
+
+The current version `v` is `"1.7.+"`.
 
 ### creating an IntelliJ IDEA project
 

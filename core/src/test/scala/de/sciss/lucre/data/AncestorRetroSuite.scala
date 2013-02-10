@@ -237,8 +237,8 @@ if( verbose ) {
       }
 
 //      def validate() {
-////         when( "the size of the vertices is queried from the quadtree" )
-////         then( "it should be equal to the number of observed labelings and relabelings" )
+////         When( "the size of the vertices is queried from the quadtree" )
+////         Then( "it should be equal to the number of observed labelings and relabelings" )
 ////         val qsz = t.system.step { implicit tx => t.size }
 ////         assert( qsz == preObserver.map.size,
 ////            "pre-observer size (" + preObserver.map.size + ") is different from quad size (" + qsz + ")" )
@@ -468,7 +468,7 @@ if( verbose ) {
 
    def withSys[ S <: Sys[ S ] with Cursor[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
       def randomlyFilledTree( n: Int )( implicit system: S ) = new {
-         given( "a randomly filled tree, corresponding node orders and their quadtree" )
+         Given( "a randomly filled tree, corresponding node orders and their quadtree" )
          val (t, treeSeq, parents) = system.step { implicit tx =>
             val tr         = FullTree[ S ]()
             val rnd        = new util.Random( seed )
@@ -565,14 +565,14 @@ if( verbose ) {
                   // If a valid ancestor is defined by being left of the query in
                   // the pre-order, and right of the query in the post-order,
                   // and by having a version smaller than or equal to query version,
-                  // then, given that the pre-order is horizontally stored,
+                  // Then, Given that the pre-order is horizontally stored,
                   // and the post-order is vertically stored, and the version is stored in the z-axis,
                   // we can express this by constraining the search to the orthant
                   // index binary 010 = 2. From the candidates we need
                   // to find the one that is closest in the pre- or post-order. This
                   // is expressed by a XY chebychev distance measure.
-                  when( "each vertex is asked for its parent node through NN search in the quadtree" )
-                  then( "the results should be identical to an independently maintained map" )
+                  When( "each vertex is asked for its parent node through NN search in the quadtree" )
+                  Then( "the results should be identical to an independently maintained map" )
                   val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
 
          //         if( verbose ) printPrePost( t, treeSeq )
@@ -617,8 +617,8 @@ if( verbose ) {
                implicit val system  = sysCreator()
                var success = false
                try {
-                  given( "a randomly filled tree, corresponding node orders and their octree" )
-                  given( "a random marking of a subset of the vertices" )
+                  Given( "a randomly filled tree, corresponding node orders and their octree" )
+                  Given( "a random marking of a subset of the vertices" )
 
                   val gagaism = randomlyFilledTree( NUM2 )
                   import gagaism._
@@ -709,7 +709,7 @@ if( verbose ) {
                      }
                   }
 
-                  when( "full and marked tree are decomposed into pre and post order traversals" )
+                  When( "full and marked tree are decomposed into pre and post order traversals" )
 
                   val preVals    = system.step { implicit tx => treeSeq.sortBy( _.pre.tag ).map( _.version )}
                   val postVals   = system.step { implicit tx => treeSeq.sortBy( _.post.tag ).map( _.version )}
@@ -725,7 +725,7 @@ if( verbose ) {
                      println( mPostVals.mkString( "post mark: ", ", ", "" ))
                   }
 
-                  then( "the order of the marked vertices is isomorphic to their counterparts in the full lists" )
+                  Then( "the order of the marked vertices is isomorphic to their counterparts in the full lists" )
                   assert( preVals.intersect( mPreVals ) == mPreVals, preVals.take( 20 ).toString + " versus " + mPreVals.take( 20 ))
                   assert( postVals.intersect( mPostVals ) == mPostVals, postVals.take( 20 ).toString + " versus " + mPreVals.take( 20 ))
 
@@ -744,8 +744,8 @@ if( verbose ) {
                      println( sb.toString() )
                   }
 
-                  when( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
-                  then( "the results should be identical to those obtained from independent brute force" )
+                  When( "each vertex is asked for its nearest marked ancestor through mapping to the marked quadtree and NN search" )
+                  Then( "the results should be identical to those obtained from independent brute force" )
 
          //println( "\n-----TREE-----" ); treeSeq.foreach( println )
          //println( "\n-----MARK-----" ); markSet.foreach( println )
@@ -798,7 +798,7 @@ if( verbose ) {
                         //
                         // We can also shortcut. pre-comp == 0 implies post-comp == 0, since no two
                         // vertices can have the same positions in the orders.
-                        // Thus, when pre-comp == 0 is detected, we already found our ancestor!
+                        // Thus, When pre-comp == 0 is detected, we already found our ancestor!
 
          if( verbose ) println( ":: mark find pre " + (if( preIsoCmp <= 0 ) "before" else "after") + " " + preIso.toPoint )
          if( verbose ) println( ":: mark find post " + (if( postIsoCmp <= 0 ) "before" else "after") + " " + postIso.toPoint )

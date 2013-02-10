@@ -22,7 +22,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
    val RETRO_PARENT_PERCENTAGE= 0.2       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 //   val INCR_TEST_STEP         = 10
 
-   // when the map is tested in the incremental build-up, only perform test every x iterations,
+   // When the map is tested in the incremental build-up, only perform test every x iterations,
    // where x is calculated as INCR_TEST_FACTOR.pow(n)
    val INCR_TEST_FACTOR       = 1.2
 
@@ -69,7 +69,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
             implicit val system  = sysCreator()
             var success = false
             try {
-               given( "a randomly filled and marked tree, and a manually maintained duplicate" )
+               Given( "a randomly filled and marked tree, and a manually maintained duplicate" )
 
                val full    = system.step { implicit tx =>
                   Ancestor.newTree[ S, Int ]( 0 )
@@ -84,8 +84,8 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
                var mapFV   = IntMap[ Ancestor.Vertex[ S, Int ]]( 0 -> full.root )
 //               var values  = IndexedSeq.tabulate[ Int ]( NUM1 )( identity )
 
-               when( "during insertion for all existing vertices their marked ancestor is queried" )
-               then( "the results should be identical to manual brute force search" )
+               When( "during insertion for all existing vertices their marked ancestor is queried" )
+               Then( "the results should be identical to manual brute force search" )
 
                var NEXT_TEST  = 0
 

@@ -61,7 +61,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
          info( "should yield '<' in comparison" )
 
          scenarioWithTime( "Ordering is verified on a randomly filled " + sysName + " structure" ) {
-            given( "a randomly filled structure (" + sysName + ")" )
+            Given( "a randomly filled structure (" + sysName + ")" )
 
 //            type E = TotalOrder.Set.Entry[ S ]
             implicit val system = sysCreator()
@@ -101,17 +101,17 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                }
 //println( "AQUI" )
 
-               when( "the structure size is determined" )
+               When( "the structure size is determined" )
                val sz = system.step { implicit tx => to.size }
       //        val sz = {
       //           var i = 1; var x = to; while( !x.isHead ) { x = x.prev; i +=1 }
       //           x = to; while( !x.isLast ) { x = x.next; i += 1 }
       //           i
       //        }
-               then( "it should be equal to the number of elements inserted" )
+               Then( "it should be equal to the number of elements inserted" )
                assert( sz == n, sz.toString + " != " + n )
 
-               when( "the structure is mapped to its pairwise comparisons" )
+               When( "the structure is mapped to its pairwise comparisons" )
                val result = system.step { implicit tx =>
                   var res   = Set.empty[ Int ]
                   var prev  = to.head
@@ -125,16 +125,16 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                   res
                }
 
-               then( "the resulting set should only contain -1" )
+               Then( "the resulting set should only contain -1" )
                assert( result == Set( -1 ), result.toString + " -- " + system.step( implicit tx => to.tagList( to.head )))
 
-               when( "the structure is emptied" )
+               When( "the structure is emptied" )
                val sz2 = system.step { implicit tx =>
 //                  set.foreach( _.remove() )
                   set.foreach( _.removeAndDispose() )
                   to.size
                }
-               then( "the order should have size 1" )
+               Then( "the order should have size 1" )
                assert( sz2 == 1, "Size is " + sz2 + " and not 1" )
 
                system.step { implicit tx =>
@@ -152,7 +152,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
          scenarioWithTime( "Triggering overflows at the boundaries in a " + sysName + " structure" ) {
             implicit val system = sysCreator()
             try {
-               given( "an empty map structure" )
+               Given( "an empty map structure" )
 
                val order = system.step { implicit tx =>
                   val ser = new MapHolder.Serializer( new RelabelObserver[ S#Tx, MapHolder[ S ]] {
@@ -167,7 +167,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                   ser.map
                }
 
-               when( "the structure is filled by 1000x repeated appending" )
+               When( "the structure is filled by 1000x repeated appending" )
                val rootHolder = new MapHolder( 0, order.root )
                var e = rootHolder
                var holders = IIdxSeq( e )
@@ -180,7 +180,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                   }
                   holders :+= e
                }
-               then( "the resulting sequence should match (0 to 1000)" )
+               Then( "the resulting sequence should match (0 to 1000)" )
                val checkApp = system.step { implicit tx =>
                   holders.sliding( 2, 1 ).forall {
                      case Seq( prev, next ) => prev.num.compare( next.num) == prev.entry.compare( next.entry )
@@ -188,17 +188,17 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                }
                assert( checkApp )
 
-               when( "all elements are removed" )
+               When( "all elements are removed" )
                val szApp = system.step { implicit tx =>
                   holders.drop( 1 ).foreach { h =>
                      h.entry.removeAndDispose()
                   }
                   order.size
                }
-               then( "the structure should have size 1 (root)" )
+               Then( "the structure should have size 1 (root)" )
                assert( szApp === 1 )
 
-               when( "the structure is filled by 1000x repeated prepending" )
+               When( "the structure is filled by 1000x repeated prepending" )
                e = rootHolder
                holders = IIdxSeq( e )
                for( i <- 1 to 1000 ) {
@@ -210,7 +210,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                   }
                   holders :+= e
                }
-               then( "the resulting sequence should match (0 to 1000)" )
+               Then( "the resulting sequence should match (0 to 1000)" )
                val checkPrep = system.step { implicit tx =>
                   holders.sliding( 2, 1 ).forall {
                      case Seq( prev, next ) => next.num.compare( prev.num ) == prev.entry.compare( next.entry )
@@ -218,14 +218,14 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                }
                assert( checkPrep )
 
-               when( "all elements are removed" )
+               When( "all elements are removed" )
                val szPrep = system.step { implicit tx =>
                   holders.drop( 1 ).foreach { h =>
                      h.entry.removeAndDispose()
                   }
                   order.size
                }
-               then( "the structure should have size 1 (root)" )
+               Then( "the structure should have size 1 (root)" )
                assert( szPrep === 1 )
 
                // dispose
