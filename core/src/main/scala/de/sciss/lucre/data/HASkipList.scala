@@ -26,9 +26,10 @@
 package de.sciss.lucre
 package data
 
-import collection.mutable.Builder
+import collection.mutable
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
+import scala.{specialized => spec}
 import stm.{Mutable, Sink, Sys, Serializer}
 
 /**
@@ -61,641 +62,655 @@ import stm.{Mutable, Sink, Sys, Serializer}
  *       and fast pair (interval) search
  */
 object HASkipList {
-   private def opNotSupported : Nothing = sys.error( "Operation not supported" )
-   private val SER_VERSION = 0
+  private def opNotSupported: Nothing = sys.error("Operation not supported")
 
-   private final class SetSer[ S <: Sys[ S ], A ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ])
-                                                 ( implicit ordering: Ordering[ S#Tx, A ],
-                                                   keySerializer: Serializer[ S#Tx, S#Acc, A ])
-   extends Serializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] {
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList.Set[ S, A ] =
-         HASkipList.Set.read[ S, A ]( in, access, keyObserver )
+  private val SER_VERSION = 0
 
-      def write( list: HASkipList.Set[ S, A ], out: DataOutput ) { list.write( out )}
+  private final class SetSer[S <: Sys[S], A](keyObserver: SkipList.KeyObserver[S#Tx, A])
+                                            (implicit ordering: Ordering[S#Tx, A],
+                                             keySerializer: Serializer[S#Tx, S#Acc, A])
+    extends Serializer[S#Tx, S#Acc, HASkipList.Set[S, A]] {
 
-      override def toString = "HASkipList.Set.serializer"
-   }
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): HASkipList.Set[S, A] =
+      HASkipList.Set.read[S, A](in, access, keyObserver)
 
-   private final class MapSer[ S <: Sys[ S ], A, B ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ])
-                                                    ( implicit ordering: Ordering[ S#Tx, A ],
-                                                      keySerializer:   Serializer[ S#Tx, S#Acc, A ],
-                                                      valueSerializer: Serializer[ S#Tx, S#Acc, B ])
-   extends Serializer[ S#Tx, S#Acc, HASkipList.Map[ S, A, B ]] {
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : HASkipList.Map[ S, A, B ] =
-         HASkipList.Map.read[ S, A, B ]( in, access, keyObserver )
+    def write(list: HASkipList.Set[S, A], out: DataOutput) {
+      list.write(out)
+    }
 
-      def write( list: HASkipList.Map[ S, A, B ], out: DataOutput ) { list.write( out )}
+    override def toString = "HASkipList.Set.serializer"
+  }
 
-      override def toString = "HASkipList.Map.serializer"
-   }
+  private final class MapSer[S <: Sys[S], A, B](keyObserver: SkipList.KeyObserver[S#Tx, A])
+                                               (implicit ordering: Ordering[S#Tx, A],
+                                                keySerializer: Serializer[S#Tx, S#Acc, A],
+                                                valueSerializer: Serializer[S#Tx, S#Acc, B])
+    extends Serializer[S#Tx, S#Acc, HASkipList.Map[S, A, B]] {
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): HASkipList.Map[S, A, B] =
+      HASkipList.Map.read[S, A, B](in, access, keyObserver)
 
-   private final class SetImpl[ S <: Sys[ S ], @specialized( Int, Long ) A ]
-      ( val id: S#ID, val minGap: Int, protected val keyObserver: SkipList.KeyObserver[ S#Tx, A ],
-        _downNode: SetImpl[ S, A ] => S#Var[ Node[ S, A, A ]])
-      ( implicit val ordering: Ordering[ S#Tx, A ],
-        val keySerializer: Serializer[ S#Tx, S#Acc, A ])
-   extends Impl[ S, A, A ] with HASkipList.Set[ S, A ] {
+    def write(list: HASkipList.Map[S, A, B], out: DataOutput) {
+      list.write(out)
+    }
 
-      protected val downNode = _downNode( this )
+    override def toString = "HASkipList.Map.serializer"
+  }
 
-//      def entrySerializer : Serializer[ S#Tx, S#Acc, A ] = keySerializer
+  // XXX boom! specialized runtime AbstractMethodError
+  private final class SetImpl[S <: Sys[S], /* @spec(ialized) */ A](val id: S#ID, val minGap: Int,
+                                                             protected val keyObserver: SkipList.KeyObserver[S#Tx, A],
+                                                             _downNode: SetImpl[S, A] => S#Var[Node[S, A, A]])
+                                                            (implicit val ordering: Ordering[S#Tx, A],
+                                                             val keySerializer: Serializer[S#Tx, S#Acc, A])
+    extends Impl[S, A, A] with HASkipList.Set[S, A] {
 
-      override def toString = "SkipList.Set" + id
+    protected val downNode = _downNode(this)
 
-      def add( key: A )( implicit tx: S#Tx ) : Boolean = addEntry( key, key ).isEmpty
-      def remove( key: A )( implicit tx: S#Tx ) : Boolean = removeEntry( key ).isDefined
+    override def toString() = "SkipList.Set" + id
 
-      def +=( key: A )( implicit tx: S#Tx ) : this.type = { addEntry( key, key ); this }
+    def add   (key: A)(implicit tx: S#Tx): Boolean = addEntry(key, key).isEmpty
+    def remove(key: A)(implicit tx: S#Tx): Boolean = removeEntry(key).isDefined
 
-      protected def newLeaf( key: A ) : Leaf[ S, A, A ] = {
-         val lkeys   = Vector[ A ]( key, null.asInstanceOf[ A ])
-         new SetLeaf[ S, A ]( lkeys )
+    def +=(key: A)(implicit tx: S#Tx): this.type = {
+      addEntry(key, key)
+      this
+    }
+
+    protected def newLeaf(key: A): Leaf[S, A, A] = {
+      val lkeys = Vector[A](key, null.asInstanceOf[A])
+      new SetLeaf[S, A](lkeys)
+    }
+
+    def writeEntry(key: A, out: DataOutput) {
+      keySerializer.write(key, out)
+    }
+
+    protected def readLeaf(in: DataInput, access: S#Acc, isRight: Boolean)
+                          (implicit tx: S#Tx): Leaf[S, A, A] = {
+      val sz    = in.readUnsignedByte()
+      val szi   = if (isRight) sz - 1 else sz
+      val keys  = Vector.tabulate[A](sz) { i =>
+        if (i < szi) keySerializer.read(in, access) else null.asInstanceOf[A]
+      }
+      new SetLeaf[S, A](keys)
+    }
+  }
+
+  private final class MapImpl[S <: Sys[S], /* @spec(KeySpec) */ A, /* @spec(ValueSpec) */ B](val id: S#ID, val minGap: Int,
+                                                                protected val keyObserver: SkipList.KeyObserver[S#Tx, A],
+                                                                _downNode: MapImpl[S, A, B] => S#Var[Map.Node[S, A, B]])
+                                                               (implicit val ordering: Ordering[S#Tx, A],
+                                                                val keySerializer:   Serializer[S#Tx, S#Acc, A],
+                                                                val valueSerializer: Serializer[S#Tx, S#Acc, B])
+    extends Impl[S, A, (A, B)] with HASkipList.Map[S, A, B] {
+
+    protected val downNode = _downNode(this)
+
+    override def toString() = "SkipList.Map" + id
+
+    def add   (entry: (A, B))(implicit tx: S#Tx): Option[B] = addEntry(entry._1, entry).map(_._2)
+    def remove(key: A)       (implicit tx: S#Tx): Option[B] = removeEntry(key).map(_._2)
+
+    def +=(entry: (A, B))(implicit tx: S#Tx): this.type = {
+      addEntry(entry._1, entry)
+      this
+    }
+
+    def writeEntry(entry: (A, B), out: DataOutput) {
+      keySerializer.write  (entry._1, out)
+      valueSerializer.write(entry._2, out)
+    }
+
+    protected def newLeaf(entry: (A, B)): Leaf[S, A, (A, B)] = {
+      val en = Vector(entry, null.asInstanceOf[(A, B)])
+      new MapLeaf(en)
+    }
+
+    def keysIterator(implicit tx: S#Tx): Iterator[S#Tx, A] = {
+      val i = new KeyIteratorImpl
+      i.init()
+      i
+    }
+
+    def valuesIterator(implicit tx: S#Tx): Iterator[S#Tx, B] = {
+      val i = new ValueIteratorImpl
+      i.init()
+      i
+    }
+
+    def get(key: A)(implicit tx: S#Tx): Option[B] = {
+      @tailrec def stepRight(n: Node[S, A, (A, B)]): Option[B] = {
+        val idx = indexInNodeR(key, n)
+        if (n.isLeaf) {
+          if (idx < 0) {
+            val idxP = -(idx + 1)
+            Some(n.asLeaf.entry(idxP)._2)
+          } else None
+        } else {
+          val c = n.asBranch.down(idx)
+          if (idx < n.size - 1) stepLeft(c) else stepRight(c)
+        }
       }
 
-      def writeEntry( key: A, out: DataOutput ) {
-         keySerializer.write( key, out )
+      @tailrec def stepLeft(n: Node[S, A, (A, B)]): Option[B] = {
+        val idx = indexInNodeL(key, n)
+        if (n.isLeaf) {
+          if (idx < 0) {
+            val idxP = -(idx + 1)
+            Some(n.asLeaf.entry(idxP)._2)
+          } else None
+        } else {
+          stepLeft(n.asBranch.down(idx))
+        }
       }
 
-      protected def readLeaf( in: DataInput, access: S#Acc, isRight: Boolean )
-                            ( implicit tx: S#Tx ) : Leaf[ S, A, A ] = {
-         val sz: Int = in.readUnsignedByte()
-         val szi  = if( isRight ) sz - 1 else sz
-         val keys = Vector.tabulate[ A ]( sz ) { i =>
-            if( i < szi ) keySerializer.read( in, access ) else null.asInstanceOf[ A ]
-         }
-         new SetLeaf[ S, A ]( keys )
+      val c = topN
+      if (c eq null) None else stepRight(c)
+    }
+
+    private final class KeyIteratorImpl extends IteratorImpl[A] {
+      protected def getValue(l: Leaf[S, A, (A, B)], idx: Int): A = l.key(idx)
+
+      override def toString = "KeyIterator"
+    }
+
+    private final class ValueIteratorImpl extends IteratorImpl[B] {
+      protected def getValue(l: Leaf[S, A, (A, B)], idx: Int): B = l.entry(idx)._2
+
+      override def toString = "ValueIterator"
+    }
+
+    protected def readLeaf(in: DataInput, access: S#Acc, isRight: Boolean)
+                          (implicit tx: S#Tx): Leaf[S, A, (A, B)] = {
+      val sz  = in.readUnsignedByte()
+      val szi = if (isRight) sz - 1 else sz
+      val en  = Vector.tabulate(sz) { i =>
+        if (i < szi) {
+          val key = keySerializer.read(in, access)
+          val value = valueSerializer.read(in, access)
+          (key, value)
+        } else {
+          null.asInstanceOf[(A, B)]
+        }
       }
-   }
+      new MapLeaf(en)
+    }
+  }
 
-   private final class MapImpl[ S <: Sys[ S ], @specialized( Int, Long ) A, B ]
-      ( val id: S#ID, val minGap: Int, protected val keyObserver: SkipList.KeyObserver[ S#Tx, A ],
-        _downNode: MapImpl[ S, A, B ] => S#Var[ Map.Node[ S, A, B ]])
-      ( implicit val ordering: Ordering[ S#Tx, A ],
-        val keySerializer:   Serializer[ S#Tx, S#Acc, A ],
-        val valueSerializer: Serializer[ S#Tx, S#Acc, B ])
-   extends Impl[ S, A, (A, B) ] with HASkipList.Map[ S, A, B ] {
+  private sealed trait Impl[S <: Sys[S], /* @spec(KeySpec) */ A, E]
+    extends HeadOrBranch[S, A, E] with Serializer[S#Tx, S#Acc, Node[S, A, E]] with Mutable.Impl[S] {
+    impl =>
 
-      protected val downNode = _downNode( this )
+    protected def downNode: S#Var[Node[S, A, E]]
+    protected def minGap: Int
+    protected def ordering: Ordering[S#Tx, A]
+    protected def keyObserver: SkipList.KeyObserver[S#Tx, A]
 
-      override def toString = "SkipList.Map" + id
+    def keySerializer: Serializer[S#Tx, S#Acc, A]
 
-      def add( entry: (A, B) )( implicit tx: S#Tx ) : Option[ B ] = addEntry( entry._1, entry ).map( _._2 )
-      def remove( key: A )( implicit tx: S#Tx ) : Option[ B ] = removeEntry( key ).map( _._2 )
+    def id: S#ID
 
-      def +=( entry: (A, B) )( implicit tx: S#Tx ) : this.type = { addEntry( entry._1, entry ); this }
+    def writeEntry(entry: E, out: DataOutput): Unit
 
-      def writeEntry( entry: (A, B), out: DataOutput ) {
-         keySerializer.write(   entry._1, out )
-         valueSerializer.write( entry._2, out )
-      }
+    protected def newLeaf(entry: E): Leaf[S, A, E]
+    protected def readLeaf(in: DataInput, access: S#Acc, isRight: Boolean)(implicit tx: S#Tx): Leaf[S, A, E]
 
-      protected def newLeaf( entry: (A, B) ) : Leaf[ S, A, (A, B) ] = {
-         val en = Vector( entry, null.asInstanceOf[ (A, B) ])
-         new MapLeaf( en )
-      }
+    implicit private def head = this
 
-      def keysIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, A ] = {
-         val i = new KeyIteratorImpl
-         i.init()
-         i
-      }
+    final def   arrMinSz = minGap + 1
+    private def arrMaxSz = (minGap + 1) << 1 // aka arrMinSz << 1
 
-      def valuesIterator( implicit tx: S#Tx ) : Iterator[ S#Tx, B ] = {
-         val i = new ValueIteratorImpl
-         i.init()
-         i
-      }
+    private val hasObserver = keyObserver != SkipList.NoKeyObserver
 
-      def get( key: A )( implicit tx: S#Tx ) : Option[ B ] = {
-//         if( ordering.gteq( v, maxKey )) return false
+    final protected def writeData(out: DataOutput) {
+      out.writeUnsignedByte(SER_VERSION)
+      out.writeInt(minGap)
+      downNode.write(out)
+    }
 
-         @tailrec def stepRight( n: Node[ S, A, (A, B) ]) : Option[ B ] = {
-            val idx = indexInNodeR( key, n )
-            if( n.isLeaf ) {
-               if( idx < 0 ) {
-                  val idxP = -(idx + 1)
-                  Some( n.asLeaf.entry( idxP )._2 )
-               } else None
-            } else {
-               val c = n.asBranch.down( idx )
-               if( idx < n.size - 1 ) stepLeft( c ) else stepRight( c )
-            }
-         }
-
-         @tailrec def stepLeft( n: Node[ S, A, (A, B) ]) : Option[ B ] = {
-            val idx = indexInNodeL( key, n )
-            if( n.isLeaf ) {
-               if( idx < 0 ) {
-                  val idxP = -(idx + 1)
-                  Some( n.asLeaf.entry( idxP )._2 )
-               } else None
-            } else {
-               stepLeft( n.asBranch.down( idx ))
-            }
-         }
-
-         val c = topN
-         if( c eq null ) None else stepRight( c )
+    final def clear()(implicit tx: S#Tx) {
+      def step(n: Node[S, A, E]) {
+        if (n.isBranch) {
+          val b   = n.asBranch
+          val bsz = b.size
+          var i = 0; while (i < bsz) {
+            step(b.down(i))
+            b.downRef(i).dispose()
+            i += 1
+          }
+        }
       }
 
-      private final class KeyIteratorImpl extends IteratorImpl[ A ] {
-         protected def getValue( l: Leaf[ S, A, (A, B) ], idx: Int ) : A = l.key( idx )
+      val c = topN
+      if (c ne null) step(c)
+    }
 
-         override def toString = "KeyIterator"
+    final protected def disposeData()(implicit tx: S#Tx) {
+      downNode.dispose()
+    }
+
+    def size(implicit tx: S#Tx): Int = {
+      val c = topN
+      if (c eq null) 0 else c.leafSizeSum - 1
+    }
+
+    final def maxGap: Int = (minGap << 1) + 1 // aka arrMaxSz - 1
+
+    final def isEmpty (implicit tx: S#Tx) = topN eq null
+    final def nonEmpty(implicit tx: S#Tx) = !isEmpty
+
+    final def height(implicit tx: S#Tx): Int = {
+      var n = topN
+      if (n eq null) 0
+      else {
+        var h = 1
+        while (n.isBranch) {
+          n = n.asBranch.down(0)
+          h += 1
+        }
+        h
+      }
+    }
+
+    final def top(implicit tx: S#Tx): Option[Node[S, A, E]] = Option(topN)
+
+    @inline final protected def topN(implicit tx: S#Tx): Node[S, A, E] = downNode()
+
+    final def debugPrint(implicit tx: S#Tx): String = topN.printNode(isRight = true).mkString("\n")
+
+    final def toIndexedSeq(implicit tx: S#Tx): IIdxSeq[E] = fillBuilder(Vector.newBuilder)
+    final def toList      (implicit tx: S#Tx): List[E]    = fillBuilder(List.newBuilder)
+    final def toSeq       (implicit tx: S#Tx): Seq[E]     = fillBuilder(Seq.newBuilder)
+    final def toSet       (implicit tx: S#Tx): ISet[E]    = fillBuilder(ISet.newBuilder)
+
+    private def fillBuilder[Res](b: mutable.Builder[E, Res])(implicit tx: S#Tx): Res = {
+      val i = iterator
+      while (i.hasNext) {
+        b += i.next() // Txn
+      }
+      b.result()
+    }
+
+    /**
+     * Finds the leaf and index in the leaf corresponding to the entry that holds either the given
+     * search key or the greatest key in the set smaller than the search key.
+     *
+     * @param key  the search key
+     * @param tx   the current transaction
+     * @return     if `Some`, holds the leaf and index for the floor element (whose key is <= the search key),
+     *             if `None`, there is no key smaller than or equal to the search key in the list
+     */
+    final def floor(key: A)(implicit tx: S#Tx): Option[E] = {
+      // the algorithm is as follows: find the index of the search key in the current level.
+      // if the key was found, just go down straight to the leaf. if not:
+      //  - the index points to an element greater than the search key
+      //  - if the index is >0, let the key at index-1 be the backup-key, the node is the backup-node
+      //  - if a leaf is reached and the index is 0
+      //       - if no backup-node exists, return None
+      //       - if a backup-node exists, follow that node straight down along the backup-key to the leaf
+      // In the worst case, we descend the list twice, still giving O(log n) performance, while
+      // saving the effort to horizontally connect the leaves.
+
+      @tailrec def straight(n: Node[S, A, E], idx: Int): E = {
+        if (n.isLeaf) {
+          n.asLeaf.entry(idx)
+        } else {
+          val c = n.asBranch.down(idx)
+          straight(c, c.size - 1)
+        }
       }
 
-      private final class ValueIteratorImpl extends IteratorImpl[ B ] {
-         protected def getValue( l: Leaf[ S, A, (A, B) ], idx: Int ) : B = l.entry( idx )._2
+      @tailrec def step(n: Node[S, A, E], _bckNode: Node[S, A, E], _bckIdx: Int,
+                        isRight: Boolean): Option[E] = {
 
-         override def toString = "ValueIterator"
+        val idx = if (isRight) indexInNodeR(key, n) else indexInNodeL(key, n)
+
+        if (idx < 0) {
+          // found
+          Some(straight(n, -(idx + 1)))
+        } else {
+          // not found
+          var bckNode = _bckNode
+          var bckIdx  = _bckIdx
+          if (idx > 0) {
+            // new backup exists, because there is an entry smaller than the search key
+            bckNode = n
+            bckIdx  = idx - 1
+          }
+          if (n.isLeaf) {
+            if (bckNode eq null) None else Some(straight(bckNode, bckIdx))
+          } else {
+            step(n.asBranch.down(idx), bckNode, bckIdx, isRight && (idx == n.size - 1))
+          }
+        }
       }
 
-      protected def readLeaf( in: DataInput, access: S#Acc, isRight: Boolean )
-                            ( implicit tx: S#Tx ) : Leaf[ S, A, (A, B) ] = {
-         val sz: Int = in.readUnsignedByte()
-         val szi  = if( isRight ) sz - 1 else sz
-         val en   = Vector.tabulate( sz ) { i =>
-            if( i < szi ) {
-               val key  = keySerializer.read( in, access )
-               val value= valueSerializer.read( in, access )
-               (key, value)
-            } else {
-               null.asInstanceOf[ (A, B) ]
-            }
-         }
-         new MapLeaf( en )
+      val n0 = topN
+      if (n0 eq null) None else step(n0, null, 0, isRight = true)
+    }
+
+    /**
+     * Finds the leaf and index in the leaf corresponding to the entry that holds either the given
+     * search key or the smallest key in the set greater than the search key.
+     *
+     * @param key  the search key
+     * @param tx   the current transaction
+     * @return     if `Some`, holds the leaf and index for the ceiling element (whose key is >= the search key),
+     *             if `None`, there is no key greater than or equal to the search key in the list
+     */
+    final def ceil(key: A)(implicit tx: S#Tx): Option[E] = {
+      @tailrec def step(n: Node[S, A, E], isRight: Boolean): Option[E] = {
+        val idx = if (isRight) indexInNodeR(key, n) else indexInNodeL(key, n)
+        val idxP = if (idx < 0) -(idx + 1) else idx
+        val newRight = isRight && (idxP == n.size - 1)
+        if (n.isLeaf) {
+          if (newRight) None else Some(n.asLeaf.entry(idxP))
+        } else {
+          step(n.asBranch.down(idxP), newRight)
+        }
       }
-   }
+      val c = topN
+      if (c eq null) None else step(c, isRight = true)
+    }
 
-   private sealed trait Impl[ S <: Sys[ S ], @specialized( Int, Long ) A, E ]
-   extends HeadOrBranch[ S, A, E ] with Serializer[ S#Tx, S#Acc, Node[ S, A, E ]] with Mutable.Impl[ S ] {
-      impl =>
-
-      protected def downNode: S#Var[ Node[ S, A, E ]]
-      protected def minGap: Int
-      protected def ordering: Ordering[ S#Tx, A ]
-      protected def keyObserver: SkipList.KeyObserver[ S#Tx, A ]
-      def keySerializer: Serializer[ S#Tx, S#Acc, A ]
-//      def entrySerializer: Serializer[ S#Tx, S#Acc, E ]
-      def id: S#ID
-
-      def writeEntry( entry: E, out: DataOutput ) : Unit
-      protected def newLeaf( entry: E ) : Leaf[ S, A, E ]
-      protected def readLeaf( in: DataInput, access: S#Acc, isRight: Boolean )( implicit tx: S#Tx ) : Leaf[ S, A, E ]
-
-      implicit private def head = this
-
-      final def arrMinSz = minGap + 1
-      private def arrMaxSz = (minGap + 1) << 1   // aka arrMinSz << 1
-
-      final protected def writeData( out: DataOutput ) {
-         out.writeUnsignedByte( SER_VERSION )
-         out.writeInt( minGap )
-         downNode.write( out )
+    final def isomorphicQuery(ord: Ordered[S#Tx, A])(implicit tx: S#Tx): (E, Int) = {
+      def isoIndexR(n: Node[S, A, E]): Int = {
+        var idx = 0
+        val sz = n.size - 1
+        do {
+          val cmp = ord.compare(n.key(idx))
+          if (cmp == 0) return -(idx + 1) else if (cmp < 0) return idx
+          idx += 1
+        } while (idx < sz)
+        sz
       }
 
-      final def clear()( implicit tx: S#Tx ) {
-         def step( n: Node[ S, A, E ]) {
-            if( n.isBranch ) {
-               val b    = n.asBranch
-               var bsz  = b.size
-               var i = 0; while( i < bsz ) {
-                  step( b.down( i ))
-                  b.downRef( i ).dispose()
-               i += 1 }
-            }
-         }
-
-         val c = topN
-         if( c ne null ) step( c )
+      def isoIndexL(n: Node[S, A, E])(implicit tx: S#Tx): Int = {
+        @tailrec def step(idx: Int): Int = {
+          val cmp = ord.compare(n.key(idx))
+          if (cmp == 0) -(idx + 1) else if (cmp < 0) idx else step(idx + 1)
+        }
+        step(0)
       }
 
-      final protected def disposeData()( implicit tx: S#Tx ) {
-         downNode.dispose()
+      @tailrec def stepRight(n: Node[S, A, E]): (E, Int) = {
+        val idx = isoIndexR(n)
+        val found = idx < 0
+        val idxP = if (found) -(idx + 1) else idx
+        if (n.isLeaf) {
+          val l = n.asLeaf
+          if (found) {
+            (l.entry(idxP), 0)
+          } else if (idxP == l.size - 1) {
+            (l.entry(idxP - 1), 1)
+          } else {
+            (l.entry(idxP), -1)
+          }
+        } else {
+          val c = n.asBranch.down(idxP)
+          if (idxP < n.size - 1) stepLeft(c) else stepRight(c)
+        }
       }
 
-      /* override */ def size( implicit tx: S#Tx ) : Int = {
-         val c = topN
-         if( c eq null ) 0 else c.leafSizeSum - 1
+      @tailrec def stepLeft(n: Node[S, A, E]): (E, Int) = {
+        val idx = isoIndexL(n)
+        val found = idx < 0
+        val idxP = if (found) -(idx + 1) else idx
+        if (n.isLeaf) {
+          val l = n.asLeaf
+          (l.entry(idxP), if (found) 0 else -1)
+        } else {
+          stepLeft(n.asBranch.down(idxP))
+        }
       }
 
-      final def maxGap : Int = (minGap << 1) + 1 // aka arrMaxSz - 1
+      val c = topN
+      if (c eq null) {
+        throw new NoSuchElementException("isomorphicQuery on an empty list")
+      } else {
+        stepRight(c)
+      }
+    }
 
-      final def isEmpty( implicit tx: S#Tx )   = topN eq null
-      final def nonEmpty( implicit tx: S#Tx )  = !isEmpty
+    // ---- set support ----
 
-      final def height( implicit tx: S#Tx ) : Int = {
-         var n = topN
-         if( n eq null ) 0 else {
-            var h = 1
-            while( n.isBranch ) {
-               n = n.asBranch.down( 0 )
-               h += 1
-            }
-            h
-         }
+    final def contains(v: A)(implicit tx: S#Tx): Boolean = {
+      @tailrec def stepRight(n: Node[S, A, E]): Boolean = {
+        val idx = indexInNodeR(v, n)
+        if (idx < 0) true
+        else if (n.isLeaf) false
+        else {
+          val c = n.asBranch.down(idx)
+          if (idx < n.size - 1) stepLeft(c) else stepRight(c)
+        }
       }
 
-      final def top( implicit tx: S#Tx ) : Option[ Node[ S, A, E ]] = Option( topN )
-      @inline final protected def topN( implicit tx: S#Tx ) : Node[ S, A, E ] = /* Head.*/ downNode()
-
-      final def debugPrint( implicit tx: S#Tx ) : String = topN.printNode( isRight = true ).mkString( "\n" )
-
-      final def toIndexedSeq( implicit tx: S#Tx ) : IIdxSeq[ E ] = fillBuilder( Vector.newBuilder )
-      final def toList( implicit tx: S#Tx ) : List[ E ] = fillBuilder( List.newBuilder )
-      final def toSeq(  implicit tx: S#Tx ) : Seq[  E ] = fillBuilder( Seq.newBuilder )
-      final def toSet(  implicit tx: S#Tx ) : ISet[ E ] = fillBuilder( ISet.newBuilder )
-
-      private def fillBuilder[ Res ]( b: Builder[ E, Res ])( implicit tx: S#Tx ) : Res = {
-         val i = iterator
-         while( i.hasNext ) {
-            b += i.next() // Txn
-         }
-         b.result()
+      @tailrec def stepLeft(n: Node[S, A, E]): Boolean = {
+        val idx = indexInNodeL(v, n)
+        if (idx < 0) true else if (n.isLeaf) false else stepLeft(n.asBranch.down(idx))
       }
 
-      /**
-       * Finds the leaf and index in the leaf corresponding to the entry that holds either the given
-       * search key or the greatest key in the set smaller than the search key.
-       *
-       * @param key  the search key
-       * @param tx   the current transaction
-       * @return     if `Some`, holds the leaf and index for the floor element (whose key is <= the search key),
-       *             if `None`, there is no key smaller than or equal to the search key in the list
-       */
-      final def floor( key: A )( implicit tx: S#Tx ) : Option[ E ] = {
-         // the algorithm is as follows: find the index of the search key in the current level.
-         // if the key was found, just go down straight to the leaf. if not:
-         //  - the index points to an element greater than the search key
-         //  - if the index is >0, let the key at index-1 be the backup-key, the node is the backup-node
-         //  - if a leaf is reached and the index is 0
-         //       - if no backup-node exists, return None
-         //       - if a backup-node exists, follow that node straight down along the backup-key to the leaf
-         // In the worst case, we descend the list twice, still giving O(log n) performance, while
-         // saving the effort to horizontally connect the leaves.
+      val c = topN
+      if (c eq null) false else stepRight(c)
+    }
 
-         @tailrec def straight( n: Node[ S, A, E ], idx: Int ) : E = {
-            if( n.isLeaf ) {
-               n.asLeaf.entry( idx )
-            } else {
-               val c = n.asBranch.down( idx )
-               straight( c, c.size - 1 )
-            }
-         }
+    /**
+     * Finds the right-most key which
+     * is greater than or equal to the query key.
+     *
+     * @param   key  the key to search for
+     * @param   sn the branch or leaf from which to go down
+     *
+     * @return  the index to go down (a node whose key is greater than `key`),
+     *         or `-(index+1)` if `key` was found at `index`
+     */
+    final protected def indexInNodeR(key: A, n: Node[S, A, E])(implicit tx: S#Tx): Int = {
+      var idx = 0
+      val sz = n.size - 1
+      do {
+        val cmp = ordering.compare(key, n.key(idx))
+        if (cmp == 0) return -(idx + 1) else if (cmp < 0) return idx
+        idx += 1
+      } while (idx < sz)
+      sz
+    }
 
-         @tailrec def step( n: Node[ S, A, E ], _bckNode: Node[ S, A, E ], _bckIdx: Int,
-                            isRight: Boolean ) : Option[ E ] = {
+    final protected def indexInNodeL(key: A, n: Node[S, A, E])(implicit tx: S#Tx): Int = {
+      @tailrec def step(idx: Int): Int = {
+        val cmp = ordering.compare(key, n.key(idx))
+        if (cmp == 0) -(idx + 1) else if (cmp < 0) idx else step(idx + 1)
+      }
+      step(0)
+    }
 
-            val idx = if( isRight ) indexInNodeR( key, n ) else indexInNodeL( key, n )
+    final protected def addEntry(key: A, entry: E)(implicit tx: S#Tx): Option[E] = {
+      val c = topN
+      if (c eq null) {
+        val l = newLeaf(entry)
+        downNode() = l
+        None
+      } else if (c.isLeaf) {
+        addToLeaf(key, entry, head, 0, head, 0, c.asLeaf, isRight = true)
+      } else {
+        addToBranch(key, entry, head, 0, head, 0, c.asBranch, isRight = true)
+      }
+    }
 
-            if( idx < 0 ) {   // found
-               Some( straight( n, -(idx + 1) ))
-            } else { // not found
-               var bckNode = _bckNode
-               var bckIdx  = _bckIdx
-               if( idx > 0 ) {   // new backup exists, because there is an entry smaller than the search key
-                  bckNode  = n
-                  bckIdx   = idx - 1
-               }
-               if( n.isLeaf ) {
-                  if( bckNode eq null ) None else Some( straight( bckNode, bckIdx ))
-               } else {
-                  step( n.asBranch.down( idx ), bckNode, bckIdx, isRight && (idx == n.size - 1) )
-               }
-            }
-         }
+    private def addToLeaf(key: A, entry: E, pp: HeadOrBranch[S, A, E], ppidx: Int, p: HeadOrBranch[S, A, E],
+                          pidx: Int, l: Leaf[S, A, E], isRight: Boolean)
+                         (implicit tx: S#Tx): Option[E] = {
+      val idx = if (isRight) indexInNodeR(key, l) else indexInNodeL(key, l)
+      if (idx < 0) {
+        val idxP = -(idx + 1)
+        val oldEntry = l.entry(idxP)
+        if (entry != oldEntry) {
+          val lNew = l.update(idxP, entry)
+          p.updateDown(pidx, lNew)
+        }
+        Some(oldEntry)
 
-         val n0 = topN
-         if( n0 eq null ) None else step( n0, null, 0, isRight = true )
+      } else {
+        if (l.size == arrMaxSz) {
+          val splitKey = l.key(minGap)
+          val tup = l.splitAndInsert(idx, entry)
+          val left = tup._1
+          val right = tup._2
+          val pNew = p.insertAfterSplit(pidx, splitKey, left, right)
+          pp.updateDown(ppidx, pNew)
+          if (hasObserver) keyObserver.keyUp(splitKey)
+        } else {
+          val lNew = l.insert(idx, entry)
+          // and overwrite down entry in pn's parent
+          p.updateDown(pidx, lNew)
+        }
+        None
+      }
+    }
+
+    @tailrec private def addToBranch(key: A, entry: E, pp: HeadOrBranch[S, A, E], ppidx: Int,
+                                     p: HeadOrBranch[S, A, E], pidx: Int, b: Branch[S, A, E], isRight: Boolean)
+                                    (implicit tx: S#Tx): Option[E] = {
+      val idx         = if (isRight) indexInNodeR(key, b) else indexInNodeL(key, b)
+      val found       = idx < 0
+      val idxP        = if (found) -(idx + 1) else idx
+      var bNew        = b
+      var idxNew      = idxP
+      var pNew        = p
+      var pidxNew     = pidx
+      val bsz         = b.size
+      val isRightNew  = isRight && (idxP == bsz - 1)
+
+      if (!found && (bsz == arrMaxSz)) {
+        val splitKey  = b.key(minGap)
+        val tup       = b.split
+        val left      = tup._1
+        val right     = tup._2
+        val pbNew     = p.insertAfterSplit(pidx, splitKey, left, right)
+        pNew          = pbNew
+        pp.updateDown(ppidx, pbNew)
+        val mns       = arrMinSz
+        if (idx < mns) {
+          bNew        = left
+        } else {
+          bNew        = right
+          pidxNew    += 1
+          idxNew     -= mns
+        }
+        if (hasObserver) keyObserver.keyUp(splitKey)
+      }
+      val c = bNew.down(idxNew)
+      if (c.isLeaf) {
+        addToLeaf  (key, entry, pNew, pidxNew, bNew, idxNew, c.asLeaf,   isRightNew)
+      } else {
+        addToBranch(key, entry, pNew, pidxNew, bNew, idxNew, c.asBranch, isRightNew)
+      }
+    }
+
+    final def -=(key: A)(implicit tx: S#Tx): this.type = {
+      removeEntry(key); this
+    }
+
+    final protected def removeEntry(key: A)(implicit tx: S#Tx): Option[E] = {
+      val c = topN
+      if (c eq null) {
+        None
+      } else if (c.isLeaf) {
+        removeFromLeaf(key, downNode, c.asLeaf, isRight = true, false)
+      } else {
+        removeFromBranch(key, downNode, c.asBranch, isRight = true, false)
+      }
+    }
+
+    private def removeFromLeaf(key: A, pDown: Sink[S#Tx, Node[S, A, E]], l: Leaf[S, A, E],
+                               isRight: Boolean, lDirty: Boolean)(implicit tx: S#Tx): Option[E] = {
+      val idx   = if (isRight) indexInNodeR(key, l) else indexInNodeL(key, l)
+      val found = idx < 0
+      if (found) {
+        val idxP = -(idx + 1)
+        val lNew = l.removeColumn(idxP)
+        pDown()  = if (lNew.size > 1) lNew else null
+        Some(l.entry(idxP))
+      } else {
+        if (lDirty) {
+          pDown() = if (l.size > 1) l else null
+        }
+        None
+      }
+    }
+
+    @tailrec private def removeFromBranchAndBubble(key: A, pDown: Sink[S#Tx, Node[S, A, E]], b: Branch[S, A, E],
+                                                   leafUpKey: A)(implicit tx: S#Tx): Option[E] = {
+      val bsz       = b.size
+      val idxP      = bsz - 1 // that we know
+      val mns       = arrMinSz
+      val c         = b.down(idxP)
+      val cSz       = c.size
+
+      var bNew      = null: Branch[S, A, E]
+      var bDownIdx  = idxP
+      var cNew      = c
+
+      if (hasObserver) keyObserver.keyDown(key)
+
+      // a merge or borrow is necessary either when we descend
+      // to a minimally filled child (because that child might
+      // need to shrink in the next step)
+      if (cSz == mns) {
+        // merge with or borrow from the left
+        val idxPM1  = idxP - 1
+        val cSib    = b.down(idxPM1)
+        val cSibSz  = cSib.size
+
+        val downKey = b.key(idxPM1)
+        if (hasObserver) keyObserver.keyDown(downKey)
+
+        if (cSibSz == mns) {
+          // merge with the left
+          // The parent needs to remove the
+          // entry of the left sibling.
+          val bNew0   = b.removeColumn(idxPM1)
+          bNew        = bNew0.updateKey(idxPM1, leafUpKey) // XXX optimise by merging with previous operation
+          b.downRef(idxPM1).dispose()
+          bDownIdx    = idxPM1
+          cNew        = c.mergeLeft(cSib)
+        } else {
+          // borrow from the left
+          // the parent needs to update the key for the
+          // left sibling to match the before-last key in
+          // the left sibling.
+          val upKey   = cSib.key(cSibSz - 2)
+          val bNew0   = b.updateKey(idxPM1, upKey)
+          bNew        = bNew0.updateKey(idxP, leafUpKey) // XXX optimise by merging with previous operation
+          if (hasObserver) keyObserver.keyUp(upKey)
+          val bDown1  = b.downRef(idxPM1)
+          bDown1()    = cSib.removeColumn(cSibSz - 1)
+          cNew        = c.borrowLeft(cSib)
+        }
+      } else {
+        bNew = b.updateKey(idxP, leafUpKey)
       }
 
-      /**
-       * Finds the leaf and index in the leaf corresponding to the entry that holds either the given
-       * search key or the smallest key in the set greater than the search key.
-       *
-       * @param key  the search key
-       * @param tx   the current transaction
-       * @return     if `Some`, holds the leaf and index for the ceiling element (whose key is >= the search key),
-       *             if `None`, there is no key greater than or equal to the search key in the list
-       */
-      final def ceil( key: A )( implicit tx: S#Tx ) : Option[ E ] = {
-         @tailrec def step( n: Node[ S, A, E ], isRight: Boolean ): Option[ E ] = {
-            val idx        = if( isRight ) indexInNodeR( key, n ) else indexInNodeL( key, n )
-            val idxP       = if( idx < 0 ) -(idx + 1) else idx
-            val newRight   = isRight && (idxP == n.size - 1)
-            if( n.isLeaf ) {
-               if( newRight ) None else Some( n.asLeaf.entry( idxP ))
-            } else {
-               step( n.asBranch.down( idxP ), newRight )
-            }
-         }
-         val c = topN
-         if( c eq null ) None else step( c, isRight = true )
+      if (hasObserver) keyObserver.keyUp(leafUpKey)
+
+      // branch changed
+      val bDown = if (bNew.size > 1) {
+        pDown() = bNew // update down ref from which it came
+        bNew.downRef(bDownIdx)
+      } else {
+        // unfortunately we do not have `p`
+        //               assert( p == Head )
+        bNew.downRef(0).dispose()
+        pDown
       }
 
-      final def isomorphicQuery( ord: Ordered[ S#Tx, A ])( implicit tx: S#Tx ) : (E, Int) = {
-         def isoIndexR( n: Node[ S, A, E ]) : Int = {
-            var idx  = 0
-            val sz   = n.size - 1
-            do {
-               val cmp = ord.compare( n.key( idx ))
-               if( cmp == 0 ) return -(idx + 1) else if( cmp < 0 ) return idx
-               idx += 1
-            } while( idx < sz )
-            sz
-         }
-
-         def isoIndexL( n: Node[ S, A, E ])( implicit tx: S#Tx ) : Int = {
-            @tailrec def step( idx : Int ) : Int = {
-               val cmp = ord.compare( n.key( idx ))
-               if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
-            }
-            step( 0 )
-         }
-
-         @tailrec def stepRight( n: Node[ S, A, E ]) : (E, Int) = {
-            val idx     = isoIndexR( n )
-            val found   = idx < 0
-            val idxP    = if( found ) -(idx + 1) else idx
-            if( n.isLeaf ) {
-               val l = n.asLeaf
-               if( found ) {
-                  (l.entry( idxP ), 0)
-               } else if( idxP == l.size - 1 ) {
-                  (l.entry( idxP - 1 ), 1)
-               } else {
-                  (l.entry( idxP ), -1)
-               }
-            } else {
-               val c = n.asBranch.down( idxP )
-               if( idxP < n.size - 1 ) stepLeft( c ) else stepRight( c )
-            }
-         }
-
-         @tailrec def stepLeft( n: Node[ S, A, E ]) : (E, Int) = {
-            val idx = isoIndexL( n )
-            val found   = idx < 0
-            val idxP    = if( found ) -(idx + 1) else idx
-            if( n.isLeaf ) {
-               val l = n.asLeaf
-               (l.entry( idxP ), if( found ) 0 else -1)
-            } else {
-               stepLeft( n.asBranch.down( idxP ))
-            }
-         }
-
-         val c = topN
-         if( c eq null ) {
-            throw new NoSuchElementException( "isomorphicQuery on an empty list" )
-         } else {
-            stepRight( c )
-         }
+      if (cNew.isLeaf) {
+        removeFromLeaf           (key, bDown, cNew.asLeaf, isRight = false, cNew ne c)
+      } else {
+        removeFromBranchAndBubble(key, bDown, cNew.asBranch, leafUpKey)
       }
+    }
 
-      // ---- set support ----
-
-      final def contains( v: A )( implicit tx: S#Tx ) : Boolean = {
-//         if( ordering.gteq( v, maxKey )) return false
-
-         @tailrec def stepRight( n: Node[ S, A, E ]) : Boolean = {
-            val idx = indexInNodeR( v, n )
-            if( idx < 0 ) true else if( n.isLeaf ) false else {
-               val c = n.asBranch.down( idx )
-               if( idx < n.size - 1 ) stepLeft( c ) else stepRight( c )
-            }
-         }
-
-         @tailrec def stepLeft( n: Node[ S, A, E ]) : Boolean = {
-            val idx = indexInNodeL( v, n )
-            if( idx < 0 ) true else if( n.isLeaf ) false else stepLeft( n.asBranch.down( idx ))
-         }
-
-         val c = topN
-         if( c eq null ) false else stepRight( c )
-      }
-
-      /*
-       * Finds the right-most key which
-       * is greater than or equal to the query key.
-       *
-       * @param   key  the key to search for
-       * @param   sn the branch or leaf from which to go down
-       *
-       * @return  the index to go down (a node whose key is greater than `key`),
-        *         or `-(index+1)` if `key` was found at `index`
-       */
-      final protected def indexInNodeR( key: A, n: Node[ S, A, E ])( implicit tx: S#Tx ) : Int = {
-         var idx  = 0
-         val sz   = n.size - 1
-         do {
-            val cmp = ordering.compare( key, n.key( idx ))
-            if( cmp == 0 ) return -(idx + 1) else if( cmp < 0 ) return idx
-            idx += 1
-         } while( idx < sz )
-         sz
-      }
-
-      final protected def indexInNodeL( key: A, n: Node[ S, A, E ])( implicit tx: S#Tx ) : Int = {
-         @tailrec def step( idx : Int ) : Int = {
-            val cmp = ordering.compare( key, n.key( idx ))
-            if( cmp == 0 ) -(idx + 1) else if( cmp < 0 ) idx else step( idx + 1 )
-         }
-         step( 0 )
-      }
-
-      final protected def addEntry( key: A, entry: E )( implicit tx: S#Tx ) : Option[ E ] = {
-         val c = topN
-         if( c eq null ) {
-//            val lkeys   = IIdxSeq[ A ]( v, null.asInstanceOf[ A ])
-//            val l       = new Leaf[ S, A, B ]( lkeys )
-            val l = newLeaf( entry )
-            /*Head.*/ downNode() = l
-            None
-         } else if( c.isLeaf ) {
-            addToLeaf(   key, entry, head, 0, head, 0, c.asLeaf,   isRight = true )
-         } else {
-            addToBranch( key, entry, head, 0, head, 0, c.asBranch, isRight = true )
-         }
-      }
-
-      private def addToLeaf( key: A, entry: E, pp: HeadOrBranch[ S, A, E ], ppidx: Int, p: HeadOrBranch[ S, A, E ],
-                             pidx: Int, l: Leaf[ S, A, E ], isRight: Boolean )
-                           ( implicit tx: S#Tx ) : Option[ E ] = {
-         val idx = if( isRight ) indexInNodeR( key, l ) else indexInNodeL( key, l )
-         if( idx < 0 ) {
-            val idxP       = -(idx + 1)
-            val oldEntry   = l.entry( idxP )
-            if( entry != oldEntry ) {
-               val lNew    = l.update( idxP, entry )
-               p.updateDown( pidx, lNew )
-            }
-            Some( oldEntry )
-
-         } else {
-            if( l.size == arrMaxSz ) {
-               val splitKey   = l.key( minGap )
-               val tup        = l.splitAndInsert( idx, entry )
-               val left       = tup._1
-               val right      = tup._2
-               val pNew       = p.insertAfterSplit( pidx, splitKey, left, right )
-               pp.updateDown( ppidx, pNew )
-               keyObserver.keyUp( splitKey )
-            } else {
-               val lNew       = l.insert( idx, entry )
-               // and overwrite down entry in pn's parent
-               p.updateDown( pidx, lNew )
-            }
-            None
-         }
-      }
-
-      @tailrec private def addToBranch( key: A, entry: E, pp: HeadOrBranch[ S, A, E ], ppidx: Int,
-                                        p: HeadOrBranch[ S, A, E ], pidx: Int, b: Branch[ S, A, E ], isRight: Boolean )
-                                      ( implicit tx: S#Tx ) : Option[ E ] = {
-         val idx        = if( isRight ) indexInNodeR( key, b ) else indexInNodeL( key, b )
-         val found      = idx < 0
-         val idxP       = if( found ) -(idx + 1) else idx
-         var bNew       = b
-         var idxNew     = idxP
-         var pNew       = p
-         var pidxNew    = pidx
-         val bsz        = b.size
-         val isRightNew = isRight && (idxP == bsz - 1)
-
-         if( !found && (bsz == arrMaxSz) ) {
-            val splitKey   = b.key( minGap )
-            val tup        = b.split
-            val left       = tup._1
-            val right      = tup._2
-            val pbNew      = p.insertAfterSplit( pidx, splitKey, left, right )
-            pNew           = pbNew
-            pp.updateDown( ppidx, pbNew )
-            val mns        = arrMinSz
-            if( idx < mns ) {
-               bNew     = left
-            } else {
-               bNew     = right
-               pidxNew += 1
-               idxNew  -= mns
-            }
-            keyObserver.keyUp( splitKey )
-         }
-         val c = bNew.down( idxNew )
-         if( c.isLeaf ) {
-            addToLeaf(   key, entry, pNew, pidxNew, bNew, idxNew, c.asLeaf,   isRightNew )
-         } else {
-            addToBranch( key, entry, pNew, pidxNew, bNew, idxNew, c.asBranch, isRightNew )
-         }
-      }
-
-      final def -=( key: A )( implicit tx: S#Tx ) : this.type = { removeEntry( key ); this }
-
-      final protected def removeEntry( key: A )( implicit tx: S#Tx ) : Option[ E ] = {
-         val c = topN
-         if( c eq null ) {
-            None
-         } else if( c.isLeaf ) {
-            removeFromLeaf(   key, downNode, c.asLeaf,   isRight = true, false )
-         } else {
-            removeFromBranch( key, downNode, c.asBranch, isRight = true, false )
-         }
-      }
-
-      private def removeFromLeaf( key: A, pDown: Sink[ S#Tx, Node[ S, A, E ]], l: Leaf[ S, A, E ],
-                                 isRight: Boolean, lDirty: Boolean )( implicit tx: S#Tx ) : Option[ E ] = {
-         val idx     = if( isRight ) indexInNodeR( key, l ) else indexInNodeL( key, l )
-         val found   = idx < 0
-         if( found ) {
-            val idxP    = -(idx + 1)
-            val lNew    = l.removeColumn( idxP )
-            pDown() = if( lNew.size > 1 ) lNew else null
-            Some( l.entry( idxP ))
-         } else {
-            if( lDirty ) {
-               pDown() = if( l.size > 1 ) l else null
-            }
-            None
-         }
-      }
-
-      @tailrec private def removeFromBranchAndBubble( key: A, pDown: Sink[ S#Tx, Node[ S, A, E ]], b: Branch[ S, A, E ],
-                                                      leafUpKey: A )( implicit tx: S#Tx ) : Option[ E ] = {
-         val bsz        = b.size
-         val idxP       = bsz - 1   // that we know
-         val mns        = arrMinSz
-         val c          = b.down( idxP )
-         val cSz        = c.size
-
-         var bNew: Branch[ S, A, E ] = null
-         var bDownIdx   = idxP
-         var cNew       = c
-
-         keyObserver.keyDown( key )
-
-         // a merge or borrow is necessary either when we descend
-         // to a minimally filled child (because that child might
-         // need to shrink in the next step)
-         if( cSz == mns ) {
-//            val idxP1      = idxP + 1
-//            val bHasRight  = idxP1 < bsz
-
-            // merge with or borrow from the left
-            val idxPM1  = idxP - 1
-            val cSib    = b.down( idxPM1 )
-            val cSibSz  = cSib.size
-
-            val downKey    = b.key( idxPM1 )
-            keyObserver.keyDown( downKey )
-
-            if( cSibSz == mns ) {                           // merge with the left
-               // The parent needs to remove the
-               // entry of the left sibling.
-               val bNew0   = b.removeColumn( idxPM1 )
-               bNew        = bNew0.updateKey( idxPM1, leafUpKey ) // XXX optimise by merging with previous operation
-               b.downRef( idxPM1 ).dispose()
-               bDownIdx    = idxPM1
-//               cNew        = c.virtualize( ModMergeLeft, cSib )
-               cNew        = c.mergeLeft( cSib )
-            } else {                                        // borrow from the left
-               // the parent needs to update the key for the
-               // left sibling to match the before-last key in
-               // the left sibling.
-               val upKey   = cSib.key( cSibSz - 2 )
-               val bNew0       = b.updateKey( idxPM1, upKey )
-               bNew = bNew0.updateKey( idxP, leafUpKey )          // XXX optimise by merging with previous operation
-//               bNew.setKey( idxP, leafUpKey )
-               keyObserver.keyUp( upKey )
-               val bDown1  = b.downRef( idxPM1 )
-               bDown1() = cSib.removeColumn( cSibSz - 1 )
-//               cNew        = c.virtualize( ModBorrowFromLeft, cSib )
-               cNew        = c.borrowLeft( cSib )
-            }
-         } else {
-            bNew  = b.updateKey( idxP, leafUpKey )
-         }
-
-         keyObserver.keyUp( leafUpKey )
-
-         // branch changed
-         val bDown =  if( bNew.size > 1 ) {
-            pDown() = bNew // update down ref from which it came
-            bNew.downRef( bDownIdx )
-         } else {
-            // unfortunately we do not have `p`
-//               assert( p == Head )
-            bNew.downRef( 0 ).dispose()
-            pDown
-         }
-
-//         val bDown = bNew.downRef( bDownIdx )
-         if( cNew.isLeaf ) {
-            removeFromLeaf( key, bDown, cNew.asLeaf, isRight = false, cNew ne c )
-         } else {
-            removeFromBranchAndBubble( key, bDown, cNew.asBranch, leafUpKey )
-         }
-      }
-
-      @tailrec private def removeFromBranch( key: A, pDown: Sink[ S#Tx, Node[ S, A, E ]], b: Branch[ S, A, E ],
+    @tailrec private def removeFromBranch( key: A, pDown: Sink[ S#Tx, Node[ S, A, E ]], b: Branch[ S, A, E ],
                                              isRight: Boolean, bDirty: Boolean )( implicit tx: S#Tx ) : Option[ E ] = {
          val idx        = if( isRight ) indexInNodeR( key, b ) else indexInNodeL( key, b )
          val found      = idx < 0
@@ -729,9 +744,9 @@ object HASkipList {
                }
             }
             val leafUpKey = findUpKey( c )
-            keyObserver.keyDown( key )
+            if (hasObserver) keyObserver.keyDown( key )
             val bNew  = b.updateKey( idxP, leafUpKey )
-            keyObserver.keyUp( leafUpKey )
+            if (hasObserver) keyObserver.keyUp( leafUpKey )
 
             pDown() = bNew // update down ref from which we came
             val bDown = bNew.downRef( idxP )
@@ -759,7 +774,7 @@ object HASkipList {
                val mergedSz   = cSz + cSibSz
 
                val downKey    = b.key( idxP )
-               keyObserver.keyDown( downKey )
+               if (hasObserver) keyObserver.keyDown( downKey )
 
                if( mergedSz <= arrMaxSz ) {                    // merge with the right
                   // remove the entry at idxP from the branch,
@@ -777,7 +792,7 @@ object HASkipList {
                   // the right sibling
                   val upKey   = cSib.key( 0 )
                   bNew        = b.updateKey( idxP, upKey )
-                  keyObserver.keyUp( upKey )
+                  if (hasObserver) keyObserver.keyUp( upKey )
                   val bDown1  = b.downRef( idxP1 )
                   bDown1 () = cSib.removeColumn( 0 )
                   cNew        = c.borrowRight( cSib )
@@ -794,7 +809,7 @@ object HASkipList {
                val cSibSz  = cSib.size
 
                val downKey    = b.key( idxPM1 )
-               keyObserver.keyDown( downKey )
+               if (hasObserver) keyObserver.keyDown( downKey )
 
                if( cSibSz == mns ) {                           // merge with the left
                   // The parent needs to remove the
@@ -809,7 +824,7 @@ object HASkipList {
                   // the left sibling.
                   val upKey   = cSib.key( cSibSz - 2 )
                   bNew        = b.updateKey( idxPM1, upKey )
-                  keyObserver.keyUp( upKey )
+                  if (hasObserver) keyObserver.keyUp( upKey )
                   val bDown1  = b.downRef( idxPM1 )
                   bDown1() = cSib.removeColumn( cSibSz - 1 )
                   cNew        = c.borrowLeft( cSib )
@@ -870,236 +885,223 @@ object HASkipList {
          override def toString = "Iterator"
       }
 
-      // since Iterator is not specialized anyway, we don't care
-      // that KeyIteratorImpl won't be, either
-      protected sealed abstract class IteratorImpl[ C ] extends Iterator[ S#Tx, C ] {
-         private var l: Leaf[ S, A, E ]= null
-         private var nextValue : C     = _
-         private var isRight           = true
-         private var idx               = 0
-         private val stack             = collection.mutable.Stack.empty[ (Branch[ S, A, E ], Int, Boolean) ]
-//         pushDown( 0, Head )
+    protected sealed abstract class IteratorImpl[/* @spec(ialized) */ C] extends Iterator[S#Tx, C] {
+      private var l: Leaf[S, A, E]  = null
+      private var nextValue: C      = _
+      private var isRight           = true
+      private var idx               = 0
+      private val stack             = collection.mutable.Stack.empty[(Branch[S, A, E], Int, Boolean)]
 
-         override def toString = impl.toString + ".iterator"
+      override def toString = impl.toString + ".iterator"
 
-         protected def getValue( l: Leaf[ S, A, E ], idx: Int ) : C
+      protected def getValue(l: Leaf[S, A, E], idx: Int): C
 
-         @tailrec private def pushDown( n: Node[ S, A, E ], idx0: Int, r: Boolean )( implicit tx: S#Tx ) {
-            if( n.isLeaf ) {
-               val l2   = n.asLeaf
-               l        = l2
-               idx      = 0
-               isRight  = r
-               nextValue  = getValue( l2, 0 ) // l2.key( 0 )
+      @tailrec private def pushDown(n: Node[S, A, E], idx0: Int, r: Boolean)(implicit tx: S#Tx) {
+        if (n.isLeaf) {
+          val l2    = n.asLeaf
+          l         = l2
+          idx       = 0
+          isRight   = r
+          nextValue = getValue(l2, 0) // l2.key( 0 )
+        } else {
+          val b     = n.asBranch
+          stack.push((b, idx0 + 1, r))
+          pushDown(b.down(idx0), 0, r && (idx0 == b.size - 1))
+        }
+      }
+
+      def init()(implicit tx: S#Tx) {
+        val c = topN
+        if (c ne null) pushDown(c, 0, r = true)
+      }
+
+      def hasNext(implicit tx: S#Tx): Boolean = l ne null // ordering.nequiv( nextKey, maxKey )
+
+      def next()(implicit tx: S#Tx): C = {
+        if (!hasNext) throw endReached()
+        val res = nextValue
+        idx += 1
+        if (idx == (if (isRight) l.size - 1 else l.size) /* || ordering.equiv( l.key( idx ), maxKey ) */ ) {
+          @tailrec def popUp() {
+            if (stack.isEmpty) {
+              l = null
+              nextValue = null.asInstanceOf[C] // maxKey
             } else {
-               val b    = n.asBranch
-               stack.push( (b, idx0 + 1, r) )
-               pushDown( b.down( idx0 ), 0, r && (idx0 == b.size - 1) )
+              val (b, i, r) = stack.pop()
+              if (i < b.size) {
+                pushDown(b, i, r)
+              } else {
+                popUp()
+              }
             }
-         }
-
-         def init()( implicit tx: S#Tx ) {
-            val c = topN
-            if( c ne null ) pushDown( c, 0, r = true )
-         }
-
-         def hasNext( implicit tx: S#Tx ) : Boolean = l ne null // ordering.nequiv( nextKey, maxKey )
-
-         def next()( implicit tx: S#Tx ) : C = {
-            if( !hasNext ) throw endReached()
-            val res  = nextValue
-            idx     += 1
-            if( idx == (if( isRight ) l.size - 1 else l.size) /* || ordering.equiv( l.key( idx ), maxKey ) */) {
-               @tailrec def popUp() {
-                  if( stack.isEmpty ) {
-                     l        = null
-                     nextValue  = null.asInstanceOf[ C ] // maxKey
-                  } else {
-                     val (b, i, r) = stack.pop()
-                     if( i < b.size ) {
-                        pushDown( b, i, r )
-                     } else {
-                        popUp()
-                     }
-                  }
-               }
-               popUp()
-            } else {
-               nextValue = getValue( l, idx ) // l.key( idx )
-            }
-            res
-         }
+          }
+          popUp()
+        } else {
+          nextValue = getValue(l, idx) // l.key( idx )
+        }
+        res
       }
+    }
 
-      def updateDown( i: Int, n: Node[ S, A, E ])( implicit tx: S#Tx ) {
-//          assert( i == 0, "Accessing head with index > 0" )
-         downNode() = n
-      }
+    def updateDown(i: Int, n: Node[S, A, E])(implicit tx: S#Tx) {
+      downNode() = n
+    }
 
-      def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A, E ], right: Node[ S, A, E ])
-                          ( implicit tx: S#Tx, head: Impl[ S, A, E ]) : Branch[ S, A, E ] = {
-         val bkeys = Vector[ A ]( splitKey, null.asInstanceOf[ A ])
-         val bdowns = Vector[ S#Var[ Node[ S, A, E ]]](
-            tx.newVar( head.id, left ),
-            tx.newVar( head.id, right )
-         )
-         new Branch( bkeys, bdowns ) // new parent branch
-      }
-   }
+    def insertAfterSplit(pidx: Int, splitKey: A, left: Node[S, A, E], right: Node[S, A, E])
+                        (implicit tx: S#Tx, head: Impl[S, A, E]): Branch[S, A, E] = {
+      val bkeys  = Vector[A](splitKey, null.asInstanceOf[A])
+      val bdowns = Vector[S#Var[Node[S, A, E]]](
+        tx.newVar(head.id, left),
+        tx.newVar(head.id, right)
+      )
+      new Branch(bkeys, bdowns) // new parent branch
+    }
+  }
 
-   sealed trait HeadOrBranch[ S <: Sys[ S ], A, E ] /* extends Branch */ {
-      private[HASkipList] def updateDown( i: Int, n: Node[ S, A, E ])( implicit tx: S#Tx ) : Unit
+  sealed trait HeadOrBranch[S <: Sys[S], A, E] /* extends Branch */ {
+    private[HASkipList] def updateDown(i: Int, n: Node[S, A, E])(implicit tx: S#Tx): Unit
 
-      private[HASkipList] def insertAfterSplit( pidx: Int, splitKey: A, left: Node[ S, A, E ], right: Node[ S, A, E ])
-                                              ( implicit tx: S#Tx, list: Impl[ S, A, E ]) : Branch[ S, A, E ]
-   }
+    private[HASkipList] def insertAfterSplit(pidx: Int, splitKey: A, left: Node[S, A, E], right: Node[S, A, E])
+                                            (implicit tx: S#Tx, list: Impl[S, A, E]): Branch[S, A, E]
+  }
 
-   sealed trait Node[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) E ] {
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A, E ]) : Node[ S, A, E ]
-      def size : Int
-      def key( i: Int ) : A
+  // XXX boom! specialized
+  sealed trait Node[S <: Sys[S], /* @spec(ialized) */ A, /* @spec(ialized) */ E] {
+    private[HASkipList] def removeColumn(idx: Int)(implicit tx: S#Tx, list: Impl[S, A, E]): Node[S, A, E]
 
-      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A, E ]) : Unit
-      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int
-      private[HASkipList] def printNode( isRight: Boolean )( implicit tx: S#Tx ) : IndexedSeq[ String ]
+    def size: Int
+    def key(i: Int): A
 
-      /*
-       * In merge-with-right, the right sibling's
-       * identifier is re-used for the merged node.
-       * Thus after the merge, the originating sibling
-       * should be disposed (when using an ephemeral
-       * datastore). The parent needs to remove the
-       * entry of the originating sibling.
-       *
-       * (thus the disposal corresponds with the ref
-       * removed from the `downs` array)
-       */
-      private[HASkipList] def mergeRight( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ]
+    private[HASkipList] def write(out: DataOutput)(implicit list: Impl[S, A, E]): Unit
 
-      /*
-       * In borrow-from-right, both parents' downs need
-       * update, but identifiers are kept.
-       * the parent needs to update the key for the
-       * originating sibling to match the first key in
-       * the right sibling (or the new last key in the
-       * originating sibling).
-       */
-      private[HASkipList] def borrowRight( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ]
+    private[HASkipList] def leafSizeSum(implicit tx: S#Tx): Int
 
-      /*
-       * In merge-with-left, the originating sibling's
-       * identifier is re-used for the merged node.
-       * Thus after the merge, the left sibling
-       * should be disposed (when using an ephemeral
-       * datastore). The parent needs to remove the
-       * entry of the left sibling.
-       *
-       * (thus the disposal corresponds with the ref
-       * removed from the `downs` array)
-       */
-      private[HASkipList] def mergeLeft( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ]
+    private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): IIdxSeq[String]
 
-      /*
-       * In borrow-from-left, both parents' downs need
-       * update, but identifiers are kept.
-       * the parent needs to update the key for the
-       * left sibling to match the before-last key in
-       * the left sibling.
-       */
-      private[HASkipList] def borrowLeft( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ]
+    /*
+     * In merge-with-right, the right sibling's
+     * identifier is re-used for the merged node.
+     * Thus after the merge, the originating sibling
+     * should be disposed (when using an ephemeral
+     * datastore). The parent needs to remove the
+     * entry of the originating sibling.
+     *
+     * (thus the disposal corresponds with the ref
+     * removed from the `downs` array)
+     */
+    private[HASkipList] def mergeRight(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E]
 
-      def isLeaf   : Boolean
-      def isBranch : Boolean
-      def asLeaf   : Leaf[ S, A, E ]
-      def asBranch : Branch[ S, A, E ]
-   }
+    /*
+     * In borrow-from-right, both parents' downs need
+     * update, but identifiers are kept.
+     * the parent needs to update the key for the
+     * originating sibling to match the first key in
+     * the right sibling (or the new last key in the
+     * originating sibling).
+     */
+    private[HASkipList] def borrowRight(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E]
 
-//   sealed trait Leaf[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ] extends Node[ S, A, B ] {
-//      private[HASkipList] def keys: IIdxSeq[ A ]
-//      private[HASkipList] def values: IIdxSeq[ B ]
-//
-//      private[HASkipList] def mergeRight(  sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ]
-//      private[HASkipList] def borrowRight( sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ]
-//      private[HASkipList] def mergeLeft(   sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ]
-//      private[HASkipList] def borrowLeft(  sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ]
-//
-//      private[HASkipList] def updateValue( idx: Int, value: B )( implicit list: Impl[ S, A, B ]) : Leaf[ S, A, B ]
-//      private[HASkipList] def insert( idx: Int, key: A, value: B )( implicit list: Impl[ S, A, B ]) : Leaf[ S, A, B ]
-//
-//      private[HASkipList] def splitAndInsert( idx: Int, key: A, value: B )
-//                                            ( implicit list: Impl[ S, A, B ]) : (Leaf[ S, A, B ], Leaf[ S, A, B ])
-//
-//      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Leaf[ S, A, B ]
-//
-//      final def key( idx: Int ) : A = keys( idx )
-//      final def value( idx: Int ) : B = values( idx )
-//      final def size : Int = keys.length
-//   }
+    /*
+     * In merge-with-left, the originating sibling's
+     * identifier is re-used for the merged node.
+     * Thus after the merge, the left sibling
+     * should be disposed (when using an ephemeral
+     * datastore). The parent needs to remove the
+     * entry of the left sibling.
+     *
+     * (thus the disposal corresponds with the ref
+     * removed from the `downs` array)
+     */
+    private[HASkipList] def mergeLeft(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E]
 
-   private final class SetLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A ]( private[HASkipList] val entries: Vector[ A ])
-   extends Leaf[ S, A, A ] {
-      protected def copy( newEntries: Vector[ A ]) : Leaf[ S, A, A ] = new SetLeaf( newEntries )
-      def key( idx: Int ) : A = entries( idx )
-   }
+    /*
+     * In borrow-from-left, both parents' downs need
+     * update, but identifiers are kept.
+     * the parent needs to update the key for the
+     * left sibling to match the before-last key in
+     * the left sibling.
+     */
+    private[HASkipList] def borrowLeft(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E]
 
-   private final class MapLeaf[ S <: Sys[ S ], @specialized( Int, Long ) A, B ]( private[HASkipList] val entries: Vector[ (A, B) ])
-   extends Leaf[ S, A, (A, B) ] {
-      protected def copy( newEntries: Vector[ (A, B) ]) : Leaf[ S, A, (A, B) ] = new MapLeaf( newEntries )
-      def key( idx: Int ) : A = entries( idx )._1
-   }
+    def isLeaf:   Boolean
+    def isBranch: Boolean
 
-   sealed trait Leaf[ S <: Sys[ S ], @specialized( Int, Long ) A, E ] extends Node[ S, A, E ] {
-      override def toString = entries.mkString( "Leaf(", ",", ")" )
+    def asLeaf:   Leaf  [S, A, E]
+    def asBranch: Branch[S, A, E]
+  }
 
-      private[HASkipList] def entries: Vector[ E ]
-      protected def copy( newEntries: Vector[ E ]) : Leaf[ S, A, E ]
+  private final class SetLeaf[S <: Sys[S], /* @spec(KeySpec) */ A](private[HASkipList] val entries: Vector[A])
+    extends Leaf[S, A, A] {
 
-      final def entry( idx: Int ) : E = entries( idx )
-      final def size : Int = entries.size
-      final def isLeaf   : Boolean = true
-      final def isBranch : Boolean = false
-      final def asLeaf   : Leaf[ S, A, E ]   = this
-      final def asBranch : Branch[ S, A, E ] = opNotSupported
-      final private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = size
+    protected def copy(newEntries: Vector[A]): Leaf[S, A, A] = new SetLeaf(newEntries)
 
-      final private[HASkipList] def printNode( isRight: Boolean )( implicit tx: S#Tx ) : IndexedSeq[ String ] = {
-         val sz   = size
-         val szm  = sz - 1
-         val strs = Seq.tabulate( sz )( idx => if( !isRight || idx < szm ) entry( idx ).toString else "M" )
-         IndexedSeq( strs.mkString( "--" ))
-      }
+    def key(idx: Int): A = entries(idx)
+  }
 
-      final private[HASkipList] def mergeRight( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ] = {
-         val lSib = sib.asLeaf
-         copy( entries ++ lSib.entries )
-      }
+  private final class MapLeaf[S <: Sys[S], /* @spec(KeySpec) */ A, /* @spec(ValueSpec) */ B](private[HASkipList] val entries: Vector[(A, B)])
+    extends Leaf[S, A, (A, B)] {
 
-      final private[HASkipList] def borrowRight( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ] = {
-         val lSib = sib.asLeaf
-         copy( entries :+ lSib.entries.head )
-      }
+    protected def copy(newEntries: Vector[(A, B)]): Leaf[S, A, (A, B)] = new MapLeaf(newEntries)
 
-      final private[HASkipList] def mergeLeft( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ] = {
-         val lSib = sib.asLeaf
-         copy( lSib.entries ++ entries )
-      }
+    def key(idx: Int): A = entries(idx)._1
+  }
 
-      final private[HASkipList] def borrowLeft( sib: Node[ S, A, E ])( implicit tx: S#Tx ) : Node[ S, A, E ] = {
-         val lSib = sib.asLeaf
-         copy( lSib.entries.last +: entries )
-      }
+  sealed trait Leaf[S <: Sys[S], /* @spec(KeySpec) */ A, /* @spec(ValueSpec) */ E] extends Node[S, A, E] {
+    override def toString = entries.mkString("Leaf(", ",", ")")
 
-      final private[HASkipList] def insert( idx: Int, entry: E )( implicit list: Impl[ S, A, E ]) : Leaf[ S, A, E ] = {
-         val newEntries = entries.patch( idx, Vector( entry ), 0 )
-         copy( newEntries )
-      }
+    private[HASkipList] def entries: Vector[E]
+    final def entry(idx: Int): E = entries(idx)
 
-      final private[HASkipList] def update( idx: Int, entry: E )( implicit list: Impl[ S, A, E ]) : Leaf[ S, A, E ] = {
-         val newEntries = entries.patch( idx, Vector( entry ), 1 )
-         copy( newEntries )
-      }
+    protected def copy(newEntries: Vector[E]): Leaf[S, A, E]
 
-      final private[HASkipList] def splitAndInsert( idx: Int, entry: E )
+    final def size: Int = entries.size
+
+    final def isLeaf:   Boolean = true
+    final def isBranch: Boolean = false
+
+    final def asLeaf:   Leaf[S, A, E] = this
+    final def asBranch: Branch[S, A, E] = opNotSupported
+
+    final private[HASkipList] def leafSizeSum(implicit tx: S#Tx): Int = size
+
+    final private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): IIdxSeq[String] = {
+      val sz = size
+      val szm = sz - 1
+      val strs = Seq.tabulate(sz)(idx => if (!isRight || idx < szm) entry(idx).toString else "M")
+      Vector(strs.mkString("--"))
+    }
+
+    final private[HASkipList] def mergeRight(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E] = {
+      val lSib = sib.asLeaf
+      copy(entries ++ lSib.entries)
+    }
+
+    final private[HASkipList] def borrowRight(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E] = {
+      val lSib = sib.asLeaf
+      copy(entries :+ lSib.entries.head)
+    }
+
+    final private[HASkipList] def mergeLeft(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E] = {
+      val lSib = sib.asLeaf
+      copy(lSib.entries ++ entries)
+    }
+
+    final private[HASkipList] def borrowLeft(sib: Node[S, A, E])(implicit tx: S#Tx): Node[S, A, E] = {
+      val lSib = sib.asLeaf
+      copy(lSib.entries.last +: entries)
+    }
+
+    final private[HASkipList] def insert(idx: Int, entry: E)(implicit list: Impl[S, A, E]): Leaf[S, A, E] = {
+      val newEntries = entries.patch(idx, Vector(entry), 0)
+      copy(newEntries)
+    }
+
+    final private[HASkipList] def update(idx: Int, entry: E)(implicit list: Impl[S, A, E]): Leaf[S, A, E] = {
+      val newEntries = entries.patch(idx, Vector(entry), 1)
+      copy(newEntries)
+    }
+
+    final private[HASkipList] def splitAndInsert( idx: Int, entry: E )
                                                   ( implicit list: Impl[ S, A, E ]) : (Leaf[ S, A, E ], Leaf[ S, A, E ]) = {
 //         assert( size == arrMaxSz )
          val arrMinSz = list.arrMinSz
@@ -1139,303 +1141,301 @@ object HASkipList {
       }
    }
 
-   object Branch {
-      private[HASkipList] def read[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ](
-         in: DataInput, access: S#Acc, isRight: Boolean )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ] = {
-
-         import list.keySerializer
-         val sz: Int = in.readUnsignedByte()
-         val szi     = if( isRight ) sz - 1 else sz
-         val keys    = Vector.tabulate( sz ) { i =>
-            if( i < szi ) keySerializer.read( in, access ) else null.asInstanceOf[ A ]
-         }
-         val downs = Vector.fill( sz )( tx.readVar[ Node[ S, A, B ]]( list.id, in ))
-         new Branch[ S, A, B ]( keys, downs )
+  object Branch {
+    private[HASkipList] def read[S <: Sys[S], /* @spec(ialized) */ A, /* @spec(ialized) */ B](in: DataInput, access: S#Acc,
+                                                                                  isRight: Boolean)
+                                                                                 (implicit tx: S#Tx,
+                                                                                  list: Impl[S, A, B]): Branch[S, A, B] = {
+      import list.keySerializer
+      val sz    = in.readUnsignedByte()
+      val szi   = if (isRight) sz - 1 else sz
+      val keys  = Vector.tabulate(sz) { i =>
+        if (i < szi) keySerializer.read(in, access) else null.asInstanceOf[A]
       }
-   }
-   final class Branch[ S <: Sys[ S ], @specialized( Int, Long ) A, @specialized( Int, Long ) B ](
-      private[HASkipList] val keys: Vector[ A ], private[HASkipList] val downs: Vector[ S#Var[ Node[ S, A, B ]]])
-   extends /* BranchLike[ S, A ] with */ HeadOrBranch[ S, A, B ] with Node[ S, A, B ] {
-//      assert( keys.size == downs.size )
+      val downs = Vector.fill(sz)(tx.readVar[Node[S, A, B]](list.id, in))
+      new Branch[S, A, B](keys, downs)
+    }
+  }
 
-      override def toString = keys.mkString( "Branch(", ",", ")" )
+  final class Branch[S <: Sys[S], /* @spec(ialized) */ A, /* @spec(ialized) */ B](private[HASkipList] val keys: Vector[A],
+                                                                      private[HASkipList] val downs: Vector[S#Var[Node[S, A, B]]])
+    extends HeadOrBranch[S, A, B] with Node[S, A, B] {
 
-      def isLeaf   : Boolean = false
-      def isBranch : Boolean = true
-      def asLeaf   : Leaf[ S, A, B ]   = opNotSupported
-      def asBranch : Branch[ S, A, B ] = this
+    override def toString = keys.mkString("Branch(", ",", ")")
 
-      private[HASkipList] def mergeRight( sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ] = {
-         val bSib = sib.asBranch
-         new Branch( keys ++ bSib.keys, downs ++ bSib.downs )
+    def isLeaf:   Boolean = false
+    def isBranch: Boolean = true
+
+    def asLeaf:   Leaf  [S, A, B] = opNotSupported
+    def asBranch: Branch[S, A, B] = this
+
+    private[HASkipList] def mergeRight(sib: Node[S, A, B])(implicit tx: S#Tx): Node[S, A, B] = {
+      val bSib = sib.asBranch
+      new Branch(keys ++ bSib.keys, downs ++ bSib.downs)
+    }
+
+    private[HASkipList] def borrowRight(sib: Node[S, A, B])(implicit tx: S#Tx): Node[S, A, B] = {
+      val bSib = sib.asBranch
+      new Branch(keys :+ bSib.keys.head, downs :+ bSib.downs.head)
+    }
+
+    private[HASkipList] def mergeLeft(sib: Node[S, A, B])(implicit tx: S#Tx): Node[S, A, B] = {
+      val bSib = sib.asBranch
+      new Branch(bSib.keys ++ keys, bSib.downs ++ downs)
+    }
+
+    private[HASkipList] def borrowLeft(sib: Node[S, A, B])(implicit tx: S#Tx): Node[S, A, B] = {
+      val bSib = sib.asBranch
+      new Branch(bSib.keys.last +: keys, bSib.downs.last +: downs)
+    }
+
+    private[HASkipList] def leafSizeSum(implicit tx: S#Tx): Int = {
+      var res = 0
+      val sz = size
+      var i = 0; while (i < sz) {
+        res += down(i).leafSizeSum
+        i += 1
       }
+      res
+    }
 
-      private[HASkipList] def borrowRight( sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ] = {
-         val bSib = sib.asBranch
-         new Branch( keys :+ bSib.keys.head, downs :+ bSib.downs.head )
-      }
+     private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): IIdxSeq[String] = {
+       val sz = size
+       val szm = sz - 1
+       val columns = Vector.tabulate(sz) { idx =>
+         val rr = isRight && idx == szm
+         val child = down(idx).printNode(rr)
+         val childSz = child.head.length()
+         val ks = if (rr) "M" else key(idx).toString
+         val keySz = ks.length()
+         val colSz = math.max(keySz, childSz) + 2
+         val keyAdd = (if (idx == size - 1) " " else "-") * (colSz - keySz)
+         val bar = "|" + (" " * (colSz - 1))
+         val childAdd = " " * (colSz - childSz)
+         Vector(ks + keyAdd, bar) ++ child.map(_ + childAdd)
+       }
+       Vector.tabulate(columns.map(_.size).max) { row =>
+         columns.map(_.apply(row)).mkString("")
+       }
+     }
 
-      private[HASkipList] def mergeLeft( sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ] = {
-         val bSib = sib.asBranch
-         new Branch( bSib.keys ++ keys, bSib.downs ++ downs )
-      }
+     def key(idx: Int): A = keys(idx)
 
-      private[HASkipList] def borrowLeft( sib: Node[ S, A, B ])( implicit tx: S#Tx ) : Node[ S, A, B ] = {
-         val bSib = sib.asBranch
-         new Branch( bSib.keys.last +: keys, bSib.downs.last +: downs )
-      }
+     def size: Int = keys.length
 
-//      private[HASkipList] def insert( v: A, idx: Int )( implicit list: Impl[ S, A, B ]) : Leaf[ S, A, B ] = {
-//         val lkeys = keys.patch( idx, IIdxSeq( v ), 0 )
-//         new Leaf[ S, A ]( lkeys )
-//      }
+     private[HASkipList] def downRef(i: Int): S#Var[Node[S, A, B]] = downs(i)
 
-      private[HASkipList] def leafSizeSum( implicit tx: S#Tx ) : Int = {
-         var res  = 0
-         val sz   = size
-         var i = 0; while( i < sz ) {
-            res += down( i ).leafSizeSum
-         i += 1 }
-         res
-      }
+     def down(i: Int)(implicit tx: S#Tx): Node[S, A, B] = downs(i)()
 
-      private[HASkipList] def printNode( isRight: Boolean )( implicit tx: S#Tx ) : IndexedSeq[ String ] = {
-         val sz      = size
-         val szm     = sz - 1
-         val columns = IndexedSeq.tabulate( sz ) { idx =>
-            val rr      = isRight && idx == szm
-            val child   = down( idx ).printNode( rr )
-            val childSz = child.head.length()
-            val ks      = if( rr ) "M" else key( idx ).toString
-            val keySz   = ks.length()
-            val colSz   = math.max( keySz, childSz ) + 2
-            val keyAdd  = (if( idx == size - 1 ) " " else "-") * (colSz - keySz)
-            val bar     = "|" + (" " * (colSz - 1))
-            val childAdd= " " * (colSz - childSz)
-            IndexedSeq( ks + keyAdd, bar ) ++ child.map( _ + childAdd )
-         }
-         IndexedSeq.tabulate( columns.map( _.size ).max ) { row =>
-            columns.map( _.apply( row )).mkString( "" )
-         }
-      }
+     private[HASkipList] def split(implicit tx: S#Tx, list: Impl[S, A, B]): (Branch[S, A, B], Branch[S, A, B]) = {
+       import list.{size => _, _}
+       val lsz = arrMinSz
+       val (lkeys, rkeys) = keys.splitAt(lsz)
+       val (ldowns, rdowns) = downs.splitAt(lsz)
+       val left = new Branch[S, A, B](lkeys, ldowns)
+       val right = new Branch[S, A, B](rkeys, rdowns)
 
-      def key( idx: Int ) : A = keys( idx )
-      def size : Int = keys.length
+       (left, right)
+     }
 
-      private[HASkipList] def downRef( i: Int ) : S#Var[ Node[ S, A, B ]] = downs( i )
+     private[HASkipList] def updateDown(i: Int, n: Node[S, A, B])(implicit tx: S#Tx) {
+       downs(i)() = n
+     }
 
-      def down( i: Int )( implicit tx: S#Tx ) : Node[ S, A, B ] = downs(i)()
+     private[HASkipList] def removeColumn(idx: Int)(implicit tx: S#Tx, list: Impl[S, A, B]): Branch[S, A, B] = {
+       val newKeys = keys.patch(idx, Vector.empty, 1)
+       val newDowns = downs.patch(idx, Vector.empty, 1)
+       new Branch[S, A, B](newKeys, newDowns)
+     }
 
-      private[HASkipList] def split( implicit tx: S#Tx, list: Impl[ S, A, B ]) : (Branch[ S, A, B ], Branch[ S, A, B ]) = {
-         import list.{size => _, _}
-         val lsz     = arrMinSz
-         val (lkeys, rkeys)   = keys.splitAt( lsz )
-         val (ldowns, rdowns) = downs.splitAt( lsz )
-         val left    = new Branch[ S, A, B ]( lkeys, ldowns )
-         val right   = new Branch[ S, A, B ]( rkeys, rdowns )
+     private[HASkipList] def updateKey(idx: Int, key: A)(implicit tx: S#Tx, list: Impl[S, A, B]): Branch[S, A, B] = {
+       val newKeys = keys.updated(idx, key)
+       new Branch[S, A, B](newKeys, downs)
+     }
 
-         (left, right)
-      }
+     private[HASkipList] def insertAfterSplit(idx: Int, splitKey: A, left: Node[S, A, B], right: Node[S, A, B])
+                                             (implicit tx: S#Tx, list: Impl[S, A, B]): Branch[S, A, B] = {
+       // we must make a copy of this branch with the
+       // size increased by one. the new key is `splitKey`
+       // which gets inserted at the index where we went
+       // down, `idx`.
+       val bkeys  = keys.patch (idx, Vector(splitKey), 0)
+       val bdowns = downs.patch(idx, Vector(tx.newVar(list.id, left)), 0)
 
-      private[HASkipList] def updateDown( i: Int, n: Node[ S, A, B ])( implicit tx: S#Tx ) {
-         downs(i)() = n
-      }
+       // copy entries right to split index
+       val rightOff       = idx + 1
+       bdowns(rightOff)() = right
 
-      private[HASkipList] def removeColumn( idx: Int )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ] = {
-         val newKeys    = keys.patch(  idx, Vector.empty, 1 )
-         val newDowns   = downs.patch( idx, Vector.empty, 1 )
-         new Branch[ S, A, B ]( newKeys, newDowns )
-      }
+       new Branch[S, A, B](bkeys, bdowns)
+     }
 
-      private[HASkipList] def updateKey( idx: Int, key: A )( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ] = {
-         val newKeys    = keys.updated( idx, key )
-         new Branch[ S, A, B ]( newKeys, downs )
-      }
-
-      private[HASkipList] def insertAfterSplit( idx: Int, splitKey: A, left: Node[ S, A, B ], right: Node[ S, A, B ])
-                                              ( implicit tx: S#Tx, list: Impl[ S, A, B ]) : Branch[ S, A, B ] = {
-         // we must make a copy of this branch with the
-         // size increased by one. the new key is `splitKey`
-         // which gets inserted at the index where we went
-         // down, `idx`.
-         val bkeys   = keys.patch(  idx, Vector( splitKey ), 0 )
-         val bdowns  = downs.patch( idx, Vector( tx.newVar( list.id, left )), 0 )
-
-         // copy entries right to split index
-         val rightOff      = idx + 1
-         bdowns(rightOff)() = right
-
-         new Branch[ S, A, B ]( bkeys, bdowns )
-      }
-
-      private[HASkipList] def write( out: DataOutput )( implicit list: Impl[ S, A, B ]) {
-         import list.keySerializer
-         val sz      = size
-         val sz1     = sz - 1
-         val isRight = keys( sz1 ) == null
-         val szi     = if( isRight ) sz1 else sz
-         out.writeUnsignedByte( if( isRight ) 5 else 1 )
-// assert( sz > 0 )
-         out.writeUnsignedByte( sz )
-         var i = 0; while( i < szi ) {
-            keySerializer.write( keys( i ), out )
-         i += 1 }
-         i = 0; while( i < sz ) {
-            downs( i ).write( out )
-         i += 1 }
-      }
-   }
-
-   object Set {
-      type Node[   S <: Sys[ S ], A ] = HASkipList.Node[   S, A, A ]
-      type Branch[ S <: Sys[ S ], A ] = HASkipList.Branch[ S, A, A ]
-      type Leaf[   S <: Sys[ S ], A ] = HASkipList.Leaf[   S, A, A ]
-
-      /**
-       * Creates a new empty skip list with default minimum gap parameter of `2` and no key observer.
-       * Type parameter `S` specifies the STM system to use. Type parameter `A`
-       * specifies the type of the keys stored in the list.
-       *
-       * @param   tx          the transaction in which to initialize the structure
-       * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
-       *                      for specialized versions and transactional restrictions.
-       * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
-       */
-      def empty[ S <: Sys[ S ], A ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                     keySerializer: Serializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] =
-         empty()
-
-      /**
-       * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
-       * specifies the type of the keys stored in the list.
-       *
-       * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 126 inclusive.
-       * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
-       *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
-       *                      for synchronized decimations of related data structures, such as the deterministic
-       *                      skip quadtree.
-       * @param   tx          the transaction in which to initialize the structure
-       * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
-       *                      for specialized versions and transactional restrictions.
-       * @param   keySerializer  the serializer for the elements, in case a persistent STM is used.
-       */
-      def empty[ S <: Sys[ S ], A ]( minGap: Int = 2,
-                                     keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
-                                   ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                     keySerializer: Serializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
-
-         // 255 <= arrMaxSz = (minGap + 1) << 1
-         // ; this is, so we can write a node's size as signed byte, and
-         // no reasonable app would use a node size > 255
-         require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
-
-         val implID = tx.newID()
-         new SetImpl[ S, A ]( implID, minGap, keyObserver, list => {
-            tx.newVar[ Node[ S, A ]]( implID, null )( list )
-         })
-      }
-
-      def read[ S <: Sys[ S ], A ]( in: DataInput, access: S#Acc,
-         keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
-         ordering: Ordering[ S#Tx, A ], keySerializer: Serializer[ S#Tx, S#Acc, A ]) : HASkipList.Set[ S, A ] = {
-
-         val id      = tx.readID( in, access )
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
-
-         val minGap  = in.readInt()
-         new SetImpl[ S, A ]( id, minGap, keyObserver, list => tx.readVar[ Node[ S, A ]]( id, in )( list ))
-      }
-
-      def serializer[ S <: Sys[ S ], A ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
-                                        ( implicit ordering: Ordering[ S#Tx, A ],
-                                          keySerializer: Serializer[ S#Tx, S#Acc, A ]): Serializer[ S#Tx, S#Acc, HASkipList.Set[ S, A ]] =
-         new SetSer[ S, A ]( keyObserver )
-
+     private[HASkipList] def write(out: DataOutput)(implicit list: Impl[S, A, B]) {
+       import list.keySerializer
+       val sz       = size
+       val sz1      = sz - 1
+       val isRight  = keys(sz1) == null
+       val szi      = if (isRight) sz1 else sz
+       out.writeUnsignedByte(if (isRight) 5 else 1)
+       out.writeUnsignedByte(sz)
+       var i = 0; while (i < szi) {
+         keySerializer.write(keys(i), out)
+         i += 1
+       }
+       i = 0; while (i < sz) {
+         downs(i).write(out)
+         i += 1
+       }
+     }
    }
 
-   sealed trait Set[ S <: Sys[ S ], @specialized( Int, Long ) A ] extends SkipList.Set[ S, A ] {
-      def top( implicit tx: S#Tx ) : Option[ HASkipList.Set.Node[ S, A ]]
-   }
+  object Set {
+    type Node  [S <: Sys[S], A] = HASkipList.Node  [S, A, A]
+    type Branch[S <: Sys[S], A] = HASkipList.Branch[S, A, A]
+    type Leaf  [S <: Sys[S], A] = HASkipList.Leaf  [S, A, A]
 
-   object Map {
-      type Node[   S <: Sys[ S ], A, B ] = HASkipList.Node[   S, A, (A, B) ]
-      type Branch[ S <: Sys[ S ], A, B ] = HASkipList.Branch[ S, A, (A, B) ]
-      type Leaf[   S <: Sys[ S ], A, B ] = HASkipList.Leaf[   S, A, (A, B) ]
+    /**
+     * Creates a new empty skip list with default minimum gap parameter of `2` and no key observer.
+     * Type parameter `S` specifies the STM system to use. Type parameter `A`
+     * specifies the type of the keys stored in the list.
+     *
+     * @param   tx          the transaction in which to initialize the structure
+     * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+     *                      for specialized versions and transactional restrictions.
+     * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
+     */
+    def empty[S <: Sys[S], A](implicit tx: S#Tx, ord: Ordering[S#Tx, A],
+                              keySerializer: Serializer[S#Tx, S#Acc, A]): HASkipList.Set[S, A] =
+      empty()
 
-      /**
-       * Creates a new empty skip list with default minimum gap parameter of `2` and no key observer.
-       * Type parameter `S` specifies the STM system to use. Type parameter `A`
-       * specifies the type of the keys stored in the list.
-       *
-       * @param   tx          the transaction in which to initialize the structure
-       * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
-       *                      for specialized versions and transactional restrictions.
-       * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
-       */
-      def empty[ S <: Sys[ S ], A, B ]( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                        keySerializer:   Serializer[ S#Tx, S#Acc, A ],
-                                        valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] =
-         empty()
+    /**
+     * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
+     * specifies the type of the keys stored in the list.
+     *
+     * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 126 inclusive.
+     * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
+     *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
+     *                      for synchronized decimations of related data structures, such as the deterministic
+     *                      skip quadtree.
+     * @param   tx          the transaction in which to initialize the structure
+     * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+     *                      for specialized versions and transactional restrictions.
+     * @param   keySerializer  the serializer for the elements, in case a persistent STM is used.
+     */
+    def empty[S <: Sys[S], A](minGap: Int = 2,
+                              keyObserver: SkipList.KeyObserver[S#Tx, A] = SkipList.NoKeyObserver)
+                             (implicit tx: S#Tx, ord: Ordering[S#Tx, A],
+                              keySerializer: Serializer[S#Tx, S#Acc, A]): HASkipList.Set[S, A] = {
 
-      /**
-       * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
-       * specifies the type of the keys stored in the list.
-       *
-       * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 126 inclusive.
-       * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
-       *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
-       *                      for synchronized decimations of related data structures, such as the deterministic
-       *                      skip quadtree.
-       * @param   tx          the transaction in which to initialize the structure
-       * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
-       *                      for specialized versions and transactional restrictions.
-       * @param   keySerializer  the serializer for the elements, in case a persistent STM is used.
-       */
-      def empty[ S <: Sys[ S ], A, B ]( minGap: Int = 2,
-                                        keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
-                                      ( implicit tx: S#Tx, ord: Ordering[ S#Tx, A ],
-                                        keySerializer:   Serializer[ S#Tx, S#Acc, A ],
-                                        valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] = {
+      // 255 <= arrMaxSz = (minGap + 1) << 1
+      // ; this is, so we can write a node's size as signed byte, and
+      // no reasonable app would use a node size > 255
+      require(minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126")
 
-         // 255 <= arrMaxSz = (minGap + 1) << 1
-         // ; this is, so we can write a node's size as signed byte, and
-         // no reasonable app would use a node size > 255
-         require( minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126" )
+      val implID = tx.newID()
+      new SetImpl[S, A](implID, minGap, keyObserver, list => {
+        tx.newVar[Node[S, A]](implID, null)(list)
+      })
+    }
 
-         val implID = tx.newID()
-         new MapImpl[ S, A, B ]( implID, minGap, keyObserver, list => {
-            tx.newVar[ Node[ S, A, B ]]( implID, null )( list )
-         })
-      }
+    def read[S <: Sys[S], A](in: DataInput, access: S#Acc,
+                             keyObserver: SkipList.KeyObserver[S#Tx, A] = SkipList.NoKeyObserver)
+                            (implicit tx: S#Tx, ordering: Ordering[S#Tx, A],
+                             keySerializer: Serializer[S#Tx, S#Acc, A]): HASkipList.Set[S, A] = {
 
-      def read[ S <: Sys[ S ], A, B ]( in: DataInput, access: S#Acc,
-         keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])( implicit tx: S#Tx,
-         ordering: Ordering[ S#Tx, A ],
-         keySerializer:   Serializer[ S#Tx, S#Acc, A ],
-         valueSerializer: Serializer[ S#Tx, S#Acc, B ]) : HASkipList.Map[ S, A, B ] = {
+      val id      = tx.readID(in, access)
+      val version = in.readUnsignedByte()
+      require(version == SER_VERSION, "Incompatible serialized version (found " + version +
+        ", required " + SER_VERSION + ").")
 
-         val id      = tx.readID( in, access )
-         val version = in.readUnsignedByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
+      val minGap = in.readInt()
+      new SetImpl[S, A](id, minGap, keyObserver, list => tx.readVar[Node[S, A]](id, in)(list))
+    }
 
-         val minGap  = in.readInt()
-         new MapImpl[ S, A, B ]( id, minGap, keyObserver, list => tx.readVar[ Node[ S, A, B ]]( id, in )( list ))
-      }
+    def serializer[S <: Sys[S], A](keyObserver: SkipList.KeyObserver[S#Tx, A] = SkipList.NoKeyObserver)
+                                  (implicit ordering: Ordering[S#Tx, A],
+                                   keySerializer: Serializer[S#Tx, S#Acc, A]): Serializer[S#Tx, S#Acc, HASkipList.Set[S, A]] =
+      new SetSer[S, A](keyObserver)
 
-      def serializer[ S <: Sys[ S ], A, B ]( keyObserver: SkipList.KeyObserver[ S#Tx, A ] = SkipList.NoKeyObserver[ A ])
-                                           ( implicit ordering: Ordering[ S#Tx, A ],
-                                             keySerializer:   Serializer[ S#Tx, S#Acc, A ],
-                                             valueSerializer: Serializer[ S#Tx, S#Acc, B ]): Serializer[ S#Tx, S#Acc, HASkipList.Map[ S, A, B ]] =
-         new MapSer[ S, A, B ]( keyObserver )
+  }
 
-   }
+  sealed trait Set[S <: Sys[S], /* @spec(ialized) */ A] extends SkipList.Set[S, A] {
+    def top(implicit tx: S#Tx): Option[HASkipList.Set.Node[S, A]]
+  }
 
-   sealed trait Map[ S <: Sys[ S ], @specialized( Int, Long ) A, B ] extends SkipList.Map[ S, A, B ] {
-      def top( implicit tx: S#Tx ) : Option[ HASkipList.Node[ S, A, (A, B) ]]
-   }
+  object Map {
+    type Node  [S <: Sys[S], A, B] = HASkipList.Node  [S, A, (A, B)]
+    type Branch[S <: Sys[S], A, B] = HASkipList.Branch[S, A, (A, B)]
+    type Leaf  [S <: Sys[S], A, B] = HASkipList.Leaf  [S, A, (A, B)]
+
+    /**
+     * Creates a new empty skip list with default minimum gap parameter of `2` and no key observer.
+     * Type parameter `S` specifies the STM system to use. Type parameter `A`
+     * specifies the type of the keys stored in the list.
+     *
+     * @param   tx          the transaction in which to initialize the structure
+     * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+     *                      for specialized versions and transactional restrictions.
+     * @param   keySerializer      the serializer for the elements, in case a persistent STM is used.
+     */
+    def empty[S <: Sys[S], A, B](implicit tx: S#Tx, ord: Ordering[S#Tx, A],
+                                 keySerializer: Serializer[S#Tx, S#Acc, A],
+                                 valueSerializer: Serializer[S#Tx, S#Acc, B]): HASkipList.Map[S, A, B] =
+      empty()
+
+    /**
+     * Creates a new empty skip list. Type parameter `S` specifies the STM system to use. Type parameter `A`
+     * specifies the type of the keys stored in the list.
+     *
+     * @param   minGap      the minimum gap-size used for the skip list. This value must be between 1 and 126 inclusive.
+     * @param   keyObserver an object which observes key promotions and demotions. Use `NoKeyObserver` (default) if
+     *                      key motions do not need to be monitored. The monitoring allows the use of the skip list
+     *                      for synchronized decimations of related data structures, such as the deterministic
+     *                      skip quadtree.
+     * @param   tx          the transaction in which to initialize the structure
+     * @param   ord         the ordering of the keys. This is an instance of `txn.Ordering` to allow
+     *                      for specialized versions and transactional restrictions.
+     * @param   keySerializer  the serializer for the elements, in case a persistent STM is used.
+     */
+    def empty[S <: Sys[S], A, B](minGap: Int = 2,
+                                 keyObserver: SkipList.KeyObserver[S#Tx, A] = SkipList.NoKeyObserver)
+                                (implicit tx: S#Tx, ord: Ordering[S#Tx, A],
+                                 keySerializer: Serializer[S#Tx, S#Acc, A],
+                                 valueSerializer: Serializer[S#Tx, S#Acc, B]): HASkipList.Map[S, A, B] = {
+
+      // 255 <= arrMaxSz = (minGap + 1) << 1
+      // ; this is, so we can write a node's size as signed byte, and
+      // no reasonable app would use a node size > 255
+      require(minGap >= 1 && minGap <= 126, "Minimum gap (" + minGap + ") cannot be less than 1 or greater than 126")
+
+      val implID = tx.newID()
+      new MapImpl[S, A, B](implID, minGap, keyObserver, list => {
+        tx.newVar[Node[S, A, B]](implID, null)(list)
+      })
+    }
+
+    def read[S <: Sys[S], A, B](in: DataInput, access: S#Acc,
+                                keyObserver: SkipList.KeyObserver[S#Tx, A] = SkipList.NoKeyObserver)
+                               (implicit tx: S#Tx, ordering: Ordering[S#Tx, A],
+                                keySerializer: Serializer[S#Tx, S#Acc, A],
+                                valueSerializer: Serializer[S#Tx, S#Acc, B]): HASkipList.Map[S, A, B] = {
+
+      val id      = tx.readID(in, access)
+      val version = in.readUnsignedByte()
+      require(version == SER_VERSION, "Incompatible serialized version (found " + version +
+        ", required " + SER_VERSION + ").")
+
+      val minGap = in.readInt()
+      new MapImpl[S, A, B](id, minGap, keyObserver, list => tx.readVar[Node[S, A, B]](id, in)(list))
+    }
+
+    def serializer[S <: Sys[S], A, B](keyObserver: SkipList.KeyObserver[S#Tx, A] = SkipList.NoKeyObserver)
+                                     (implicit ordering: Ordering[S#Tx, A],
+                                      keySerializer: Serializer[S#Tx, S#Acc, A],
+                                      valueSerializer: Serializer[S#Tx, S#Acc, B]): Serializer[S#Tx, S#Acc, HASkipList.Map[S, A, B]] =
+      new MapSer[S, A, B](keyObserver)
+  }
+
+  sealed trait Map[S <: Sys[S], /* @spec(KeySpec) */ A, /* @spec(ValueSpec) */ B] extends SkipList.Map[S, A, B] {
+    def top(implicit tx: S#Tx): Option[HASkipList.Node[S, A, (A, B)]]
+  }
 }
-//sealed trait HASkipList[ S <: Sys[ S ], @specialized( Int ) A ] extends txn.SkipList[ S, A ] {
-//}

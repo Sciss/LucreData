@@ -27,192 +27,179 @@ package de.sciss.lucre
 package data
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import collection.mutable.Builder
+import collection.mutable
 import annotation.tailrec
+import scala.{specialized => spec}
+//import stm.{SpecGroup => ialized}
 
 object Iterator {
-   private final class Map[ -Tx /* <: Txn[ _ ] */,
-      @specialized( Unit, Boolean, Int, Float, Long, Double ) +A,
-      @specialized( Unit, Boolean, Int, Float, Long, Double ) B ]( peer: Iterator[ Tx, A ], fun: A => B )
-   extends Iterator[ Tx, B ] {
-      def hasNext( implicit tx: Tx ) = peer.hasNext
-      def next()( implicit tx: Tx ) : B = fun( peer.next() )
+   private final class Map[-Tx, @spec(ValueSpec) +A, @spec(ValueSpec) B](peer: Iterator[Tx, A], fun: A => B)
+   extends Iterator[Tx, B] {
+     def hasNext(implicit tx: Tx): Boolean  = peer.hasNext
+     def next() (implicit tx: Tx): B        = fun(peer.next())
 
-      override def toString = peer.toString + ".map(" + fun + ")"
+     override def toString = peer.toString + ".map(" + fun + ")"
    }
 
-   def empty : Iterator[ Any, Nothing ] = Empty
+  def empty: Iterator[Any, Nothing] = Empty
 
-   private object Empty extends Iterator[ Any, Nothing ] {
-      def hasNext( implicit tx: Any ) = false
-      def next()( implicit tx: Any ) : Nothing = endReached()
+  private object Empty extends Iterator[Any, Nothing] {
+    def hasNext(implicit tx: Any): Boolean = false
+    def next() (implicit tx: Any): Nothing = endReached()
 
-      override def toString = "empty iterator"
-   }
+    override def toString = "empty iterator"
+  }
 
-   def wrap[ A ]( plain: collection.Iterator[ A ]) : Iterator[ Any, A ] = new Wrap( plain )
+  def wrap[A](plain: collection.Iterator[A]): Iterator[Any, A] = new Wrap(plain)
 
-   private final class Wrap[ A ]( peer: collection.Iterator[ A ])
-   extends Iterator[ Any, A ] {
-      def hasNext( implicit tx: Any ) = peer.hasNext
-      def next()( implicit tx: Any ) : A = peer.next()
+  private final class Wrap[A](peer: collection.Iterator[A])
+    extends Iterator[Any, A] {
+    def hasNext(implicit tx: Any) = peer.hasNext
 
-      override def toString = peer.toString()
-   }
+    def next()(implicit tx: Any): A = peer.next()
 
-   private final class Filter[ -Tx /* <: Txn[ _ ] */, @specialized( Unit, Boolean, Int, Float, Long, Double ) A ]( peer: Iterator[ Tx, A ], p: A => Boolean )
-   extends Iterator[ Tx, A ] {
-      private var nextValue = Option.empty[ A ]
+    override def toString = peer.toString()
+  }
 
-      @tailrec def step()( implicit tx: Tx ) {
-         if( !peer.hasNext ) {
-            nextValue = None
-         } else {
-            val n = peer.next()
-            if( p( n )) {
-               nextValue = Some( n )
-            } else {
-               step()
-            }
-         }
+  private final class Filter[-Tx, @spec(ValueSpec) A](peer: Iterator[Tx, A], p: A => Boolean)
+    extends Iterator[Tx, A] {
+    private var nextValue = Option.empty[A]
+
+    @tailrec def step()(implicit tx: Tx) {
+      if (!peer.hasNext) {
+        nextValue = None
+      } else {
+        val n = peer.next()
+        if (p(n)) {
+          nextValue = Some(n)
+        } else {
+          step()
+        }
       }
+    }
 
-      def hasNext( implicit tx: Tx ) = nextValue.isDefined
-      def next()( implicit tx: Tx ) : A = {
-         val res = nextValue.getOrElse( endReached() )
-         step()
-         res
+    def hasNext(implicit tx: Tx) = nextValue.isDefined
+
+    def next()(implicit tx: Tx): A = {
+      val res = nextValue.getOrElse(endReached())
+      step()
+      res
+    }
+
+    override def toString = peer.toString + ".filter(" + p + ")"
+  }
+
+  private final class Collect[-Tx, @spec(ValueSpec) A, @spec(ValueSpec) B](peer: Iterator[Tx, A], pf: PartialFunction[A, B])
+    extends Iterator[Tx, B] {
+
+    private val pfl = pf.lift
+    private var nextValue = Option.empty[B]
+
+    @tailrec def step()(implicit tx: Tx) {
+      if (!peer.hasNext) {
+        nextValue = None
+      } else {
+        val n = pfl(peer.next())
+        if (n.isDefined) {
+          nextValue = n
+        } else {
+          step()
+        }
       }
+    }
 
-      override def toString = peer.toString + ".filter(" + p + ")"
-   }
+    def hasNext(implicit tx: Tx) = nextValue.isDefined
 
-   private final class Collect[ -Tx /* <: Txn[ _ ] */, @specialized( Unit, Boolean, Int, Float, Long, Double ) A, B ](
-      peer: Iterator[ Tx, A ], pf: PartialFunction[ A, B ])
-   extends Iterator[ Tx, B ] {
-      private val pfl = pf.lift
-      private var nextValue = Option.empty[ B ]
+    def next()(implicit tx: Tx): B = {
+      val res = nextValue.getOrElse(endReached())
+      step()
+      res
+    }
 
-      @tailrec def step()( implicit tx: Tx ) {
-         if( !peer.hasNext ) {
-            nextValue = None
-         } else {
-            val n = pfl( peer.next() )
-            if( n.isDefined ) {
-               nextValue = n
-            } else {
-               step()
-            }
-         }
+    override def toString = peer.toString + ".collect(" + pf + ")"
+  }
+
+  private final class FlatMap[-Tx, @spec(ValueSpec) A, @spec(ValueSpec) B](peer: Iterator[Tx, A], fun: A => Iterable[B])
+    extends Iterator[Tx, B] {
+
+    private var nextValue: collection.Iterator[B] = collection.Iterator.empty
+
+    @tailrec def step()(implicit tx: Tx) {
+      if (peer.hasNext) {
+        val it = fun(peer.next()).iterator
+        if (it.hasNext) {
+          nextValue = it
+        } else {
+          step()
+        }
       }
+    }
 
-      def hasNext( implicit tx: Tx ) = nextValue.isDefined
-      def next()( implicit tx: Tx ) : B = {
-         val res = nextValue.getOrElse( endReached() )
-         step()
-         res
-      }
+    def hasNext(implicit tx: Tx) = nextValue.hasNext
 
-      override def toString = peer.toString + ".collect(" + pf + ")"
-   }
+    def next()(implicit tx: Tx): B = {
+      val res = nextValue.next()
+      if (!nextValue.hasNext) step()
+      res
+    }
 
-   private final class FlatMap[ -Tx /* <: Txn[ _ ] */, @specialized( Unit, Boolean, Int, Float, Long, Double ) A, B ](
-      peer: Iterator[ Tx, A ], fun: A => Iterable[ B ])
-   extends Iterator[ Tx, B ] {
-      private var nextValue: collection.Iterator[ B ] = collection.Iterator.empty
-
-      @tailrec def step()( implicit tx: Tx ) {
-         if( peer.hasNext ) {
-            val it = fun( peer.next() ).iterator
-            if( it.hasNext ) {
-               nextValue = it
-            } else {
-               step()
-            }
-         }
-      }
-
-      def hasNext( implicit tx: Tx ) = nextValue.hasNext
-      def next()( implicit tx: Tx ) : B = {
-         val res = nextValue.next()
-         if( !nextValue.hasNext ) step()
-         res
-      }
-
-      override def toString = peer.toString + ".flatMap(" + fun + ")"
-   }
-//   private final class Take[ -Tx, @specialized( Unit, Boolean, Int, Float, Long, Double ) +A ]( peer: Iterator[ Tx, A ], n: Int )
-//   extends Iterator[ Tx, A ] {
-//      private var left = n
-//      def hasNext = peer.hasNext && (left > 0)
-//      def next()( implicit tx: Tx ) : A = fun( peer.next() )
-//   }
+    override def toString = peer.toString + ".flatMap(" + fun + ")"
+  }
 }
-trait Iterator[ -Tx /* <: Txn[ _ ] */, @specialized( Unit, Boolean, Int, Float, Long, Double ) +A ] {
-   peer =>
+trait Iterator[-Tx, @spec(ValueSpec) +A] {
+  peer =>
 
-   def hasNext( implicit tx: Tx ) : Boolean
-   def next()( implicit tx: Tx ) : A
+  def hasNext(implicit tx: Tx): Boolean
+  def next() (implicit tx: Tx): A
 
-   final def foreach( fun: A => Unit )( implicit tx: Tx ) {
-      while( hasNext ) fun( next() )
-//      while( hasNext ) {
-//         val elem = try {
-//            next()
-//         } catch {
-//            case e =>
-//               e.printStackTrace()
-//               throw e
-//         }
-//         fun( elem )
-//      }
-   }
+  final def foreach(fun: A => Unit)(implicit tx: Tx) {
+    while (hasNext) fun(next())
+  }
 
-   final def toIndexedSeq( implicit tx: Tx ) : IIdxSeq[ A ] = fromBuilder( Vector.newBuilder[ A ])
-   final def toList( implicit tx: Tx ) : List[ A ] = fromBuilder( List.newBuilder[ A ])
-   final def toSeq( implicit tx: Tx ) : Seq[ A ] = fromBuilder( Seq.newBuilder[ A ])
-   final def toSet[ B >: A ]( implicit tx: Tx ) : Set[ B ] = fromBuilder( Set.newBuilder[ B ])
+  final def toIndexedSeq  (implicit tx: Tx): IIdxSeq[A] = fromBuilder(Vector.newBuilder[A])
+  final def toList        (implicit tx: Tx): List[A]    = fromBuilder(List.newBuilder[A])
+  final def toSeq         (implicit tx: Tx): Seq[A]     = fromBuilder(Seq.newBuilder[A])
+  final def toSet[B >: A] (implicit tx: Tx): Set[B]     = fromBuilder(Set.newBuilder[B])
 
-   private def fromBuilder[ To ]( b: Builder[ A, To ])( implicit tx: Tx ) : To = {
-      while( hasNext ) b += next()
-      b.result()
-   }
+  private def fromBuilder[To](b: mutable.Builder[A, To])(implicit tx: Tx): To = {
+    while (hasNext) b += next()
+    b.result()
+  }
 
-   final def toMap[ T, U ]( implicit tx: Tx, ev: A <:< (T, U) ) : Map[ T, U ] = {
-      val b = Map.newBuilder[ T, U ]
-      while( hasNext ) b += next()
-      b.result()
-   }
+  final def toMap[T, U](implicit tx: Tx, ev: A <:< (T, U)): Map[T, U] = {
+    val b = Map.newBuilder[T, U]
+    while (hasNext) b += next()
+    b.result()
+  }
 
-   final def map[ B ]( fun: A => B )( implicit tx: Tx ) : Iterator[ Tx, B ] = new Iterator.Map( this, fun )
+  final def map[B](fun: A => B)(implicit tx: Tx): Iterator[Tx, B] = new Iterator.Map(this, fun)
 
-   final def flatMap[ B ]( fun: A => Iterable[ B ])( implicit tx: Tx ) : Iterator[ Tx, B ] = {
-      val res = new Iterator.FlatMap( this, fun )
-      res.step()
-      res
-   }
+  final def flatMap[B](fun: A => Iterable[B])(implicit tx: Tx): Iterator[Tx, B] = {
+    val res = new Iterator.FlatMap(this, fun)
+    res.step()
+    res
+  }
 
-   final def filter( p: A => Boolean )( implicit tx: Tx ) : Iterator[ Tx, A ] = {
-      val res = new Iterator.Filter( this, p )
-      res.step()
-      res
-   }
+  final def filter(p: A => Boolean)(implicit tx: Tx): Iterator[Tx, A] = {
+    val res = new Iterator.Filter(this, p)
+    res.step()
+    res
+  }
 
-   final def collect[ B ]( pf: PartialFunction[ A, B ])( implicit tx: Tx ) : Iterator[ Tx, B ] = {
-      val res = new Iterator.Collect( this, pf )
-      res.step()
-      res
-   }
+  final def collect[B](pf: PartialFunction[A, B])(implicit tx: Tx): Iterator[Tx, B] = {
+    val res = new Iterator.Collect(this, pf)
+    res.step()
+    res
+  }
 
-   final def filterNot( p: A => Boolean )( implicit tx: Tx ) : Iterator[ Tx, A ] = {
-      val res = new Iterator.Filter( this, p.andThen( !_ ))
-      res.step()
-      res
-   }
-//   final def take( n: Int ) : Iterator[ A ] = new Iterator.Take( this, n )
+  final def filterNot(p: A => Boolean)(implicit tx: Tx): Iterator[Tx, A] = {
+    val res = new Iterator.Filter(this, p.andThen(!_))
+    res.step()
+    res
+  }
 
-   final def isEmpty( implicit tx: Tx ) : Boolean = !hasNext
-   final def nonEmpty( implicit tx: Tx ) : Boolean = hasNext
+  final def isEmpty (implicit tx: Tx): Boolean = !hasNext
+  final def nonEmpty(implicit tx: Tx): Boolean = hasNext
 
-   protected final def endReached() : Nothing = throw new java.util.NoSuchElementException( "next on empty iterator" )
+  protected final def endReached(): Nothing = throw new java.util.NoSuchElementException("next on empty iterator")
 }
