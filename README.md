@@ -34,7 +34,7 @@ For a particular sub module:
     "de.sciss" %% "lucredata-core"  % v
     "de.sciss" %% "lucredata-views" % v
 
-The current version `v` is `"1.7.+"`.
+The current version `v` is `"1.8.+"`.
 
 ### creating an IntelliJ IDEA project
 

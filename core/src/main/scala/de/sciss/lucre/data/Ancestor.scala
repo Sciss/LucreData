@@ -27,9 +27,11 @@ package de.sciss.lucre
 package data
 
 import geom.{DistanceMeasure, IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
-import stm.{Disposable, Serializer, Sys}
+import stm.{Disposable, Sys}
 import geom.IntSpace.ThreeDim
 import scala.{specialized => spec}
+import io.{DataInput, DataOutput, Serializer, Writable}
+
 //import stm.{SpecGroup => ialized}
 
 object Ancestor {
@@ -139,7 +141,7 @@ object Ancestor {
       }
 
       final def write( out: DataOutput ) {
-         out.writeUnsignedByte( SER_VERSION )
+         out.writeByte( SER_VERSION )
          preOrder.write( out )
          postOrder.write( out )
          root.write( out )
@@ -206,37 +208,35 @@ object Ancestor {
       }
    }
 
-   private final class TreeRead[ S <: Sys[ S ], Version ]( in: DataInput, access: S#Acc, tx0: S#Tx  )(
-      implicit val versionSerializer: Serializer[ S#Tx, S#Acc, Version ], val intView: Version => Int )
-   extends TreeImpl[ S, Version ] {
+  private final class TreeRead[S <: Sys[S], Version](in: DataInput, access: S#Acc, tx0: S#Tx)(
+    implicit val versionSerializer: Serializer[S#Tx, S#Acc, Version], val intView: Version => Int)
+    extends TreeImpl[S, Version] {
 
-      {
-         val serVer = in.readUnsignedByte()
-         require( serVer == SER_VERSION, "Incompatible serialized version (found " + serVer +
-            ", required " + SER_VERSION + ")." )
-      }
+    {
+      val serVer = in.readByte()
+      require(serVer == SER_VERSION, "Incompatible serialized version (found " + serVer +
+        ", required " + SER_VERSION + ").")
+    }
 
-      protected val preOrder  = TotalOrder.Set.read[ S ]( in, access )( tx0 )
-      protected val postOrder = TotalOrder.Set.read[ S ]( in, access )( tx0 )
-      val root                = VertexSerializer.read( in, access )( tx0 )
-   }
+    protected val preOrder = TotalOrder.Set.read[S](in, access)(tx0)
+    protected val postOrder = TotalOrder.Set.read[S](in, access)(tx0)
+    val root = VertexSerializer.read(in, access)(tx0)
+  }
 
-   sealed trait Tree[ S <:Sys[ S ], Version ] extends Writable with Disposable[ S#Tx ] {
-      protected type K = Vertex[ S, Version ]
+  sealed trait Tree[S <: Sys[S], Version] extends Writable with Disposable[S#Tx] {
+    protected type K = Vertex[S, Version]
 
-      private[Ancestor] def versionSerializer: Serializer[ S#Tx, S#Acc, Version ]
-      private[Ancestor] def intView: Version => Int
+    private[Ancestor] def versionSerializer: Serializer[S#Tx, S#Acc, Version]
+    private[Ancestor] def intView: Version => Int
 
-      def vertexSerializer : Serializer[ S#Tx, S#Acc, K ]
+    def vertexSerializer: Serializer[S#Tx, S#Acc, K]
 
-      def root : K
+    def root: K
 
-      def insertChild( parent: K, newChild: Version )( implicit tx: S#Tx ) : K
-
-      def insertRetroChild( parent: K, newChild: Version )( implicit tx: S#Tx ) : K
-
-      def insertRetroParent( child: K, newParent: Version )( implicit tx: S#Tx ) : K
-   }
+    def insertChild      (parent: K, newChild : Version)(implicit tx: S#Tx): K
+    def insertRetroChild (parent: K, newChild : Version)(implicit tx: S#Tx): K
+    def insertRetroParent(child : K, newParent: Version)(implicit tx: S#Tx): K
+  }
 
    private type MarkOrder[ S <: Sys[ S ], Version, A ] = TotalOrder.Map.Entry[ S, Mark[ S, Version, A ]]
 
@@ -372,7 +372,7 @@ object Ancestor {
     }
 
     final def write(out: DataOutput) {
-      out.writeUnsignedByte(SER_VERSION)
+      out.writeByte(SER_VERSION)
       // note: we ask for the full tree through the serializer constructor,
       // thus we omit writing it out ourselves
       preOrder.write(out)
@@ -574,7 +574,7 @@ object Ancestor {
     me =>
 
     {
-      val serVer = in.readUnsignedByte()
+      val serVer = in.readByte()
       require(serVer == SER_VERSION, "Incompatible serialized version (found " + serVer +
         ", required " + SER_VERSION + ").")
     }

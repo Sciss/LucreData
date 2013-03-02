@@ -27,8 +27,9 @@ package de.sciss.lucre
 package data
 
 import scala.{specialized => spec}
-import stm.{Serializer, Mutable, Sys}
+import stm.{Mutable, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
+import io.{DataInput, DataOutput, Serializer}
 
 object SkipList {
   /**

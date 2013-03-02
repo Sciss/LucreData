@@ -28,7 +28,8 @@ package data
 
 import geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import stm.{Mutable, Serializer, Sys}
+import stm.{Mutable, Sys}
+import io.{DataInput, Serializer}
 
 object SkipOctree {
    implicit def nonTxnPointView[ D <: Space[ D ], A ]( implicit view: A => D#PointLike ) : (A, Any) => D#PointLike = {

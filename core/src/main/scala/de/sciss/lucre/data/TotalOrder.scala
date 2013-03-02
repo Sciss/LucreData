@@ -27,8 +27,8 @@ package de.sciss.lucre
 package data
 
 import annotation.{switch, tailrec}
-import stm.{Mutable, Serializer, Sys}
-
+import stm.{Mutable, Sys}
+import io.{Writable, Serializer, DataInput, DataOutput}
 
 /**
  * A transactional data structure to maintain an ordered sequence of elements such
@@ -47,38 +47,40 @@ import stm.{Mutable, Serializer, Sys}
  * the amortized time per insertion in an n-item list is O(log n)."
  */
 object TotalOrder {
-   private val SER_VERSION = 0
+  private val SER_VERSION = 0
 
-   // ---- Set ----
+  // ---- Set ----
 
-   object Set {
-      def empty[ S <: Sys[ S ]]( implicit tx: S#Tx ) : Set[ S ] = empty()
+  object Set {
+    def empty[S <: Sys[S]](implicit tx: S#Tx): Set[S] = empty()
 
-      def empty[ S <: Sys[ S ]]( rootTag: Int = 0 )( implicit tx: S#Tx ) : Set[ S ] = {
-         val id = tx.newID()
-         new SetNew( id, rootTag, tx.newIntVar( id, 1 ), tx )
-      }
+    def empty[S <: Sys[S]](rootTag: Int = 0)(implicit tx: S#Tx): Set[S] = {
+      val id = tx.newID()
+      new SetNew(id, rootTag, tx.newIntVar(id, 1), tx)
+    }
 
-      def read[ S <: Sys[ S ]]( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Set[ S ] =
-         new SetRead( in, access, tx )
+    def read[S <: Sys[S]](in: DataInput, access: S#Acc)(implicit tx: S#Tx): Set[S] =
+      new SetRead(in, access, tx)
 
-      implicit def serializer[ S <: Sys[ S ]] : Serializer[ S#Tx, S#Acc, Set[ S ]] =
-         new SetSerializer[ S ] // ( relabelObserver )
+    implicit def serializer[S <: Sys[S]]: Serializer[S#Tx, S#Acc, Set[S]] =
+      new SetSerializer[S]
 
-      sealed trait EntryOption[ S <: Sys[ S ]] {
-         protected type E     = Entry[ S ]
-         protected type EOpt  = EntryOption[ S ] /* with MutableOption[ S ] */
+    // ( relabelObserver )
 
-//         def tag( implicit tx: S#Tx ) : Int
-         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) : Int
+    sealed trait EntryOption[S <: Sys[S]] {
+      protected type E    = Entry[S]
+      protected type EOpt = EntryOption[S] /* with MutableOption[ S ] */
 
-         private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) : Unit
-         private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) : Unit
-         private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
-         def orNull : E
-         def isDefined: Boolean
-         def isEmpty: Boolean
-      }
+      //         def tag( implicit tx: S#Tx ) : Int
+      private[Set] def tagOr      (empty: Int)(implicit tx: S#Tx): Int
+      private[Set] def updatePrev (e: EOpt)   (implicit tx: S#Tx): Unit
+      private[Set] def updateNext (e: EOpt)   (implicit tx: S#Tx): Unit
+      private[Set] def updateTag  (value: Int)(implicit tx: S#Tx): Unit
+
+      def orNull: E
+      def isDefined: Boolean
+      def isEmpty: Boolean
+    }
 
       final class EmptyEntry[ S <: Sys[ S ]] private[TotalOrder]() extends EntryOption[ S ] /* with EmptyMutable */ {
          private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) {}
@@ -93,7 +95,6 @@ object TotalOrder {
 
          override def toString = "<empty>"
       }
-//      case object EmptyEntry extends EmptyEntryLike
 
       final class Entry[ S <: Sys[ S ]] private[TotalOrder]( val id: S#ID, set: Set[ S ], tagVal: S#Var[ Int ],
                                                              prevRef: S#Var[ EntryOption[ S ] /* with MutableOption[ S ] */],
@@ -119,12 +120,12 @@ object TotalOrder {
          def isDefined  = true
          def isEmpty    = false
 
-         private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) { prevRef() = e }
-         private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) { nextRef() = e }
-         private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) { tagVal() = value }
+         private[Set] def updatePrev(e: EOpt)   (implicit tx: S#Tx) { prevRef() = e }
+         private[Set] def updateNext(e: EOpt)   (implicit tx: S#Tx) { nextRef() = e }
+         private[Set] def updateTag (value: Int)(implicit tx: S#Tx) { tagVal()  = value }
 
          protected def writeData( out: DataOutput ) {
-            tagVal.write( out )
+            tagVal .write( out )
             prevRef.write( out )
             nextRef.write( out )
          }
@@ -133,7 +134,7 @@ object TotalOrder {
             // then free the refs
             prevRef.dispose()
             nextRef.dispose()
-            tagVal.dispose()
+            tagVal .dispose()
          }
 
          def remove()( implicit tx: S#Tx ) { set.remove( this )}
@@ -174,7 +175,7 @@ object TotalOrder {
       val id      = tx0.readID( in, access )
 
       {
-         val version = in.readUnsignedByte()
+         val version = in.readByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
       }
@@ -225,36 +226,36 @@ object TotalOrder {
 
       protected implicit object EntryOptionSerializer extends Serializer[ S#Tx, S#Acc, EOpt ] {
          def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : EOpt = {
-            (in.readUnsignedByte(): @switch) match {
+            (in.readByte(): @switch) match {
                case 0 => me.empty
                case 1 => EntrySerializer.read( in, access )
                case cookie => sys.error( "Unexpected cookie " + cookie )
             }
          }
 
-         def write( v: EOpt, out: DataOutput ) {
-            val e = v.orNull
-            if( e == null ) {
-               out.writeUnsignedByte( 0 )
-            } else {
-               out.writeUnsignedByte( 1 )
-               e.write( out )
-            }
-         }
+        def write(v: EOpt, out: DataOutput) {
+          val e = v.orNull
+          if (e == null) {
+            out.writeByte(0)
+          } else {
+            out.writeByte(1)
+            e.write(out)
+          }
+        }
       }
 
-      final protected def disposeData()( implicit tx: S#Tx ) {
-         root.dispose()
-         sizeVal.dispose()
-      }
+     final protected def disposeData()(implicit tx: S#Tx) {
+       root.dispose()
+       sizeVal.dispose()
+     }
 
-      final protected def writeData( out: DataOutput ) {
-         out.writeUnsignedByte( SER_VERSION )
-         sizeVal.write( out )
-         root.write( out )
-      }
+     final protected def writeData(out: DataOutput) {
+       out.writeByte(SER_VERSION)
+       sizeVal.write(out)
+       root.write(out)
+     }
 
-      final def insertAfter( prev: E )( implicit tx: S#Tx ) : E = {
+     final def insertAfter( prev: E )( implicit tx: S#Tx ) : E = {
          val next       = prev.next
          val nextTag    = next.tagOr( Int.MaxValue )
          val recID      = tx.newID()
@@ -527,33 +528,22 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       }
    }
 
-   private[TotalOrder] sealed trait KeyOption[ S <: Sys[ S ], A ] extends Writable {
-      private type KOpt = KeyOption[ S, A ]
+  private[TotalOrder] sealed trait KeyOption[S <: Sys[S], A] extends Writable {
+    def orNull: Map.Entry[S, A]
+    def isDefined: Boolean
+    def isEmpty: Boolean
+    def get: A
+  }
 
-//         def tag( implicit tx: S#Tx ) : Int
-//         def updatePrev( e: KOpt )( implicit tx: S#Tx ) : Unit
-//         def updateNext( e: KOpt )( implicit tx: S#Tx ) : Unit
-//         def updateTag( value: Int )( implicit tx: S#Tx ) : Unit
-      def orNull : Map.Entry[ S, A ]
-      def isDefined: Boolean
-      def isEmpty: Boolean
-      def get : A
-   }
-
-   private[TotalOrder] final class EmptyKey[ S <: Sys[ S ], A ]
+  private[TotalOrder] final class EmptyKey[ S <: Sys[ S ], A ]
    extends KeyOption[ S, A ] /* with EmptyMutable */ {
-      private type KOpt = KeyOption[ S, A ]
-
-//      def updatePrev( e: KOpt )( implicit tx: S#Tx ) {}
-//      def updateNext( e: KOpt )( implicit tx: S#Tx ) {}
-//      def updateTag( value: Int )( implicit tx: S#Tx ) { throw new NoSuchElementException( "EmptyKey.updateTag" )}
       def isDefined: Boolean = false
       def isEmpty: Boolean = true
       def get : A = throw new NoSuchElementException( "EmptyKey.get" )
       def tag( implicit tx: S#Tx ) = Int.MaxValue
       def orNull : Map.Entry[ S, A ] = null
 
-      def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
+      def write( out: DataOutput ) { out.writeByte( 0 )}
 
       override def toString = "<empty>"
    }
@@ -565,7 +555,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       def orNull : Map.Entry[ S, A ] = map.entryView( get )
 
       def write( out: DataOutput ) {
-         out.writeUnsignedByte( 1 )
+         out.writeByte( 1 )
          map.keySerializer.write( get, out )
       }
 
@@ -595,7 +585,7 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       val id         = tx0.readID( in, access )
 
       {
-         val version    = in.readUnsignedByte()
+         val version    = in.readByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
       }
@@ -636,21 +626,25 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       def write( v: E, out: DataOutput ) { v.write( out )}
    }
 
-   private final class KeyOptionSerializer[ S <: Sys[ S ], A ]( map: Map[ S, A ])
-   extends Serializer[ S#Tx, S#Acc, KeyOption[ S, A ]] {
-      private type KOpt = KeyOption[ S, A ]
+  private final class KeyOptionSerializer[S <: Sys[S], A](map: Map[S, A])
+    extends Serializer[S#Tx, S#Acc, KeyOption[S, A]] {
 
-      def write( v: KOpt, out: DataOutput ) { v.write( out )}
+    private type KOpt = KeyOption[S, A]
 
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : KOpt = {
-         if( in.readUnsignedByte() == 0 ) map.emptyKey else {
-            val key = map.keySerializer.read( in, access )
-            new DefinedKey( map, key )
-         }
+    def write(v: KOpt, out: DataOutput) {
+      v.write(out)
+    }
+
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): KOpt = {
+      if (in.readByte() == 0) map.emptyKey
+      else {
+        val key = map.keySerializer.read(in, access)
+        new DefinedKey(map, key)
       }
-   }
+    }
+  }
 
-   /*
+  /*
     * A special iterator used for the relabel observer.
     */
    private final class RelabelIterator[ S <: Sys[ S ], A ]( recOff: Int, num: Int, recE: Map.Entry[ S, A ],
@@ -686,54 +680,40 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       }
    }
 
-   sealed trait Map[ S <: Sys[ S ], A ] extends TotalOrder[ S ] {
-      map =>
+  sealed trait Map[S <: Sys[S], A] extends TotalOrder[S] {
+    map =>
 
-      override def toString         = "Map" + id
+    override def toString = "Map" + id
 
-      final type E                  = Map.Entry[ S, A ]
-      final protected type KOpt     = KeyOption[ S, A ]
+    final type E = Map.Entry[S, A]
+    final protected type KOpt = KeyOption[S, A]
 
-      final private[TotalOrder] val emptyKey: KOpt = new EmptyKey[ S, A ]
-      final implicit val EntrySerializer: Serializer[ S#Tx, S#Acc, E ] = new MapEntrySerializer[ S, A ]( this )
-//      final private[TotalOrder] implicit val EntryOptionSerializer : MutableOptionReader[ S, KOpt ] = new MapEntryOptionReader[ S, A ]( this )
-      final private[TotalOrder] implicit val keyOptionSer : Serializer[ S#Tx, S#Acc, KOpt ] = new KeyOptionSerializer[ S, A ]( this )
+    final private[TotalOrder] val emptyKey: KOpt = new EmptyKey[S, A]
+    final implicit val EntrySerializer: Serializer[S#Tx, S#Acc, E] = new MapEntrySerializer[S, A](this)
+    final private[TotalOrder] implicit val keyOptionSer: Serializer[S#Tx, S#Acc, KOpt] = new KeyOptionSerializer[S, A](this)
 
-      protected def sizeVal: S#Var[ Int ]
-      protected def observer: Map.RelabelObserver[ S#Tx, A ]
+    protected def sizeVal: S#Var[Int]
 
-      private[TotalOrder] def keySerializer: Serializer[ S#Tx, S#Acc, A ]
-      def entryView: A => E
+    protected def observer: Map.RelabelObserver[S#Tx, A]
 
-      def root: E
-//      final def max: EOpt = Empty  // grmpfff
+    private[TotalOrder] def keySerializer: Serializer[S#Tx, S#Acc, A]
 
-      final def readEntry( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = EntrySerializer.read( in, access )
+    def entryView: A => E
 
-      final protected def disposeData()( implicit tx: S#Tx ) {
-         root.dispose()
-         sizeVal.dispose()
-      }
+    def root: E
 
-      final protected def writeData( out: DataOutput ) {
-         out.writeUnsignedByte( SER_VERSION )
-         sizeVal.write( out )
-         root.write( out )
-      }
+    final def readEntry(in: DataInput, access: S#Acc)(implicit tx: S#Tx): E = EntrySerializer.read(in, access)
 
-//      private[TotalOrder] def insertAfter( prevE: E, key: A )( implicit tx: S#Tx ) : E = {
-//         val nextO      = prevE.next
-//         if( nextO.isDefined ) {
-//            entryView( nextO.get )
-//         } else null
-//         insertBetween( prevE, nextE, key )
-//      }
+    final protected def disposeData()(implicit tx: S#Tx) {
+      root.dispose()
+      sizeVal.dispose()
+    }
 
-//      private[TotalOrder] def insertBefore( nextE: E, key: A )( implicit tx: S#Tx ) : E = {
-//         val prevO      = nextE.prev
-//         val prevE      = if( prevO.isDefined ) entryView( prevO.get ) else null
-//         insertBetween( prevE, nextE, key )
-//      }
+    final protected def writeData(out: DataOutput) {
+      out.writeByte(SER_VERSION)
+      sizeVal.write(out)
+      root.write(out)
+    }
 
       def insert()( implicit tx: S#Tx ) : E = {
          val id            = tx.newID()
@@ -784,15 +764,6 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
          sizeVal.transform( _ + 1 )
          if( recTag == nextTag ) relabel( key, recE )
       }
-
-//      def validate( key: A )( implicit tx: S#Tx ) : Boolean = {
-//         val rec     = entryView( key )
-//         val recTag  = rec.tag
-//         val nextTag = rec.next.tag
-//         val dirty   = recTag == nextTag
-//         if( dirty ) relabel( key, rec )
-//         dirty
-//      }
 
       private[TotalOrder] def remove( e: E )( implicit tx: S#Tx ) {
          val p = e.prev
@@ -930,27 +901,27 @@ def validate( msg: => String )( implicit tx: S#Tx ) {
       }
    }
 }
-sealed trait TotalOrder[ S <: Sys[ S ]] extends Mutable[ S#ID, S#Tx ] {
-   type E
+sealed trait TotalOrder[S <: Sys[S]] extends Mutable[S#ID, S#Tx] {
+  type E
 
-   /**
-    * The initial element created from which you can start to append and prepend.
-    */
-   def root : E // Entry[ S ]
+  /**
+   * The initial element created from which you can start to append and prepend.
+   */
+  def root: E
 
-   /**
-    * Returns the head element of the structure. Note that this
-    * is O(n) worst case.
-    */
-   def head( implicit tx: S#Tx ) : E // Entry[ S ]
+  /**
+   * Returns the head element of the structure. Note that this
+   * is O(n) worst case.
+   */
+  def head(implicit tx: S#Tx): E
 
-   /**
-    * The number of elements in the order. This is `1` for a newly
-    * created order (consisting only of the root element).
-    * You will rarely need this information except for debugging
-    * purpose. The operation is O(1).
-    */
-   def size( implicit tx: S#Tx ) : Int
+  /**
+   * The number of elements in the order. This is `1` for a newly
+   * created order (consisting only of the root element).
+   * You will rarely need this information except for debugging
+   * purpose. The operation is O(1).
+   */
+  def size(implicit tx: S#Tx): Int
 
-   def tagList( from: E )( implicit tx: S#Tx ) : List[ Int ]
+  def tagList(from: E)(implicit tx: S#Tx): List[Int]
 }

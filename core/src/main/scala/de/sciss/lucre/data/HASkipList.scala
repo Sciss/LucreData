@@ -30,7 +30,8 @@ import collection.mutable
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
 import scala.{specialized => spec}
-import stm.{Mutable, Sink, Sys, Serializer}
+import stm.{Mutable, Sink, Sys}
+import io.{DataInput, DataOutput, Serializer}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list
@@ -127,7 +128,7 @@ object HASkipList {
 
     protected def readLeaf(in: DataInput, access: S#Acc, isRight: Boolean)
                           (implicit tx: S#Tx): Leaf[S, A, A] = {
-      val sz    = in.readUnsignedByte()
+      val sz    = in.readByte()
       val szi   = if (isRight) sz - 1 else sz
       val keys  = Vector.tabulate[A](sz) { i =>
         if (i < szi) keySerializer.read(in, access) else null.asInstanceOf[A]
@@ -222,11 +223,11 @@ object HASkipList {
 
     protected def readLeaf(in: DataInput, access: S#Acc, isRight: Boolean)
                           (implicit tx: S#Tx): Leaf[S, A, (A, B)] = {
-      val sz  = in.readUnsignedByte()
+      val sz  = in.readByte()
       val szi = if (isRight) sz - 1 else sz
       val en  = Vector.tabulate(sz) { i =>
         if (i < szi) {
-          val key = keySerializer.read(in, access)
+          val key   = keySerializer  .read(in, access)
           val value = valueSerializer.read(in, access)
           (key, value)
         } else {
@@ -263,7 +264,7 @@ object HASkipList {
     private val hasObserver = keyObserver != SkipList.NoKeyObserver
 
     final protected def writeData(out: DataOutput) {
-      out.writeUnsignedByte(SER_VERSION)
+      out.writeByte(SER_VERSION)
       out.writeInt(minGap)
       downNode.write(out)
     }
@@ -861,25 +862,26 @@ object HASkipList {
          i
       }
 
-      // ---- Serializer[ S#Tx, S#Acc, Node[ S, A ]] ----
-      def write( v: Node[ S, A, E ], out: DataOutput ) {
-         if( v eq null ) {
-            out.writeUnsignedByte( 0 ) // Bottom
-         } else {
-            v.write( out )
-         }
+    // ---- Serializer[ S#Tx, S#Acc, Node[ S, A ]] ----
+    def write(v: Node[S, A, E], out: DataOutput) {
+      if (v eq null) {
+        out.writeByte(0) // Bottom
+      } else {
+        v.write(out)
       }
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Node[ S, A, E ] = {
-         (in.readUnsignedByte(): @switch) match {
-            case 0 => null // .asInstanceOf[ Branch[ S, A ]]
-            case 1 => Branch.read( in, access, isRight = false )
-            case 2 => readLeaf(    in, access, isRight = false )
-            case 5 => Branch.read( in, access, isRight = true  )
-            case 6 => readLeaf(    in, access, isRight = true  )
-         }
-      }
+    }
 
-      private final class EntryIteratorImpl extends IteratorImpl[ E ] {
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): Node[S, A, E] = {
+      (in.readByte(): @switch) match {
+        case 0 => null // .asInstanceOf[ Branch[ S, A ]]
+        case 1 => Branch.read(in, access, isRight = false)
+        case 2 => readLeaf(in, access, isRight = false)
+        case 5 => Branch.read(in, access, isRight = true)
+        case 6 => readLeaf(in, access, isRight = true)
+      }
+    }
+
+    private final class EntryIteratorImpl extends IteratorImpl[ E ] {
          protected def getValue( l: Leaf[ S, A, E ], idx: Int ) : E = l.entry( idx )
 
          override def toString = "Iterator"
@@ -1133,8 +1135,8 @@ object HASkipList {
          val sz1     = sz - 1
          val isRight = entries( sz1 ) == null   // XXX XXX
          val szi     = if( isRight ) sz1 else sz
-         out.writeUnsignedByte( if( isRight ) 6 else 2 )
-         out.writeUnsignedByte( sz )
+         out.writeByte( if( isRight ) 6 else 2 )
+         out.writeByte( sz )
          var i = 0; while( i < szi ) {
             list.writeEntry( entries( i ), out )
          i += 1 }
@@ -1147,7 +1149,7 @@ object HASkipList {
                                                                                  (implicit tx: S#Tx,
                                                                                   list: Impl[S, A, B]): Branch[S, A, B] = {
       import list.keySerializer
-      val sz    = in.readUnsignedByte()
+      val sz    = in.readByte()
       val szi   = if (isRight) sz - 1 else sz
       val keys  = Vector.tabulate(sz) { i =>
         if (i < szi) keySerializer.read(in, access) else null.asInstanceOf[A]
@@ -1275,8 +1277,8 @@ object HASkipList {
        val sz1      = sz - 1
        val isRight  = keys(sz1) == null
        val szi      = if (isRight) sz1 else sz
-       out.writeUnsignedByte(if (isRight) 5 else 1)
-       out.writeUnsignedByte(sz)
+       out.writeByte(if (isRight) 5 else 1)
+       out.writeByte(sz)
        var i = 0; while (i < szi) {
          keySerializer.write(keys(i), out)
          i += 1
@@ -1343,7 +1345,7 @@ object HASkipList {
                              keySerializer: Serializer[S#Tx, S#Acc, A]): HASkipList.Set[S, A] = {
 
       val id      = tx.readID(in, access)
-      val version = in.readUnsignedByte()
+      val version = in.readByte()
       require(version == SER_VERSION, "Incompatible serialized version (found " + version +
         ", required " + SER_VERSION + ").")
 
@@ -1420,7 +1422,7 @@ object HASkipList {
                                 valueSerializer: Serializer[S#Tx, S#Acc, B]): HASkipList.Map[S, A, B] = {
 
       val id      = tx.readID(in, access)
-      val version = in.readUnsignedByte()
+      val version = in.readByte()
       require(version == SER_VERSION, "Incompatible serialized version (found " + version +
         ", required " + SER_VERSION + ").")
 

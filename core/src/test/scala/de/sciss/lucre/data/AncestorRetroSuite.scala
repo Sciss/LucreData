@@ -6,9 +6,10 @@ import geom.{IntSpace, IntPoint3D, IntDistanceMeasure3D, IntCube}
 import concurrent.stm.Ref
 import java.io.File
 import stm.store.BerkeleyDB
-import stm.{InMemory, Durable, Cursor, Sys, Reader, Serializer}
+import stm.{InMemory, Durable, Cursor, Sys}
 import annotation.tailrec
-import collection.immutable.{IndexedSeq => IIdxSeq}   // see SI-6150
+import collection.immutable.{Vector => IIdxSeq}
+import io.{Reader, Writable, DataInput, DataOutput, Serializer}
 
 /**
 * To run this test copy + paste the following into sbt:
@@ -58,53 +59,61 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   object FullVertexPre {
-      implicit def serializer[ S <: Sys[ S ]]( implicit vertexReader: Reader[ S#Tx, S#Acc, FullVertex[ S ]]) : Serializer[ S#Tx, S#Acc, FullVertexPre[ S ]] =
-         new SerImpl[ S ]( vertexReader )
+  object FullVertexPre {
+    implicit def serializer[S <: Sys[S]](implicit vertexReader: Reader[S#Tx, S#Acc, FullVertex[S]]): Serializer[S#Tx, S#Acc, FullVertexPre[S]] =
+      new SerImpl[S](vertexReader)
 
-      private final class SerImpl[ S <: Sys[ S ]]( vertexReader: Reader[ S#Tx, S#Acc, FullVertex[ S ]])
-      extends Serializer[ S#Tx, S#Acc, FullVertexPre[ S ]] {
-         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : FullVertexPre[ S ] = {
-            val id = in.readUnsignedByte()
-            val v  = vertexReader.read( in, access )
-            if( id == 0 ) v.preHeadKey else v.preTailKey
-         }
-
-         def write( v: FullVertexPre[ S ], out: DataOutput ) { v.write( out )}
+    private final class SerImpl[S <: Sys[S]](vertexReader: Reader[S#Tx, S#Acc, FullVertex[S]])
+      extends Serializer[S#Tx, S#Acc, FullVertexPre[S]] {
+      def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): FullVertexPre[S] = {
+        val id  = in.readByte()
+        val v   = vertexReader.read(in, access)
+        if (id == 0) v.preHeadKey else v.preTailKey
       }
-   }
-   sealed trait FullVertexPre[ S <: Sys[ S ]] extends Writable with VertexSource[ S, FullVertex[ S ]] {
-      def order: FullPreOrder[ S ]
-      def id: Int
-      final def write( out: DataOutput ) {
-         out.writeUnsignedByte( id )
-         source.write( out )
+
+      def write(v: FullVertexPre[S], out: DataOutput) {
+        v.write(out)
       }
-      override def equals( that: Any ) : Boolean = {
-         (that.isInstanceOf[ FullVertexPre[ _ ]] && {
-            val thatPre = that.asInstanceOf[ FullVertexPre[ _ ]]
-            (id == thatPre.id) && (source == thatPre.source)
-         })
-      }
-   }
+    }
+  }
 
-   final class FullVertexPreHead[ S <: Sys[ S ]]( val source: FullVertex[ S ])
-   extends FullVertexPre[ S ] {
-      def order = source.pre
-      def id = 0
+  sealed trait FullVertexPre[S <: Sys[S]] extends Writable with VertexSource[S, FullVertex[S]] {
+    def order: FullPreOrder[S]
+    def id: Int
 
-      override def toString = source.toString + "<pre>"
-      def debugString( implicit tx: S#Tx ) = toString + "@" + source.pre.tag
-   }
+    final def write(out: DataOutput) {
+      out.writeByte(id)
+      source.write(out)
+    }
 
-   final class FullVertexPreTail[ S <: Sys[ S ]]( val source: FullVertex[ S ])
-   extends FullVertexPre[ S ] {
-      def order = source.preTail
-      def id = 1
+    override def equals(that: Any): Boolean =
+      (that.isInstanceOf[FullVertexPre[_]] && {
+        val thatPre = that.asInstanceOf[FullVertexPre[_]]
+        (id == thatPre.id) && (source == thatPre.source)
+      })
+  }
 
-      override def toString = source.toString + "<pre-tail>"
-      def debugString( implicit tx: S#Tx ) = toString + "@" + source.preTail.tag
-   }
+  final class FullVertexPreHead[S <: Sys[S]](val source: FullVertex[S])
+    extends FullVertexPre[S] {
+
+    def order = source.pre
+    def id = 0
+
+    override def toString = source.toString + "<pre>"
+
+    def debugString(implicit tx: S#Tx) = toString + "@" + source.pre.tag
+  }
+
+  final class FullVertexPreTail[S <: Sys[S]](val source: FullVertex[S])
+    extends FullVertexPre[S] {
+
+    def order = source.preTail
+    def id = 1
+
+    override def toString = source.toString + "<pre-tail>"
+
+    def debugString(implicit tx: S#Tx) = toString + "@" + source.preTail.tag
+  }
 
    object FullTree {
       def apply[ S <: Sys[ S ]]()( implicit tx: S#Tx ) : FullTree[ S ] = {

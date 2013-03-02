@@ -30,7 +30,8 @@ import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.{switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
-import stm.{Identifiable, Sys, Mutable, Serializer}
+import stm.{Identifiable, Sys, Mutable}
+import io.{Writable, DataInput, DataOutput, Serializer}
 
 /**
 * A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
@@ -88,7 +89,7 @@ object DeterministicSkipOctree {
    extends DeterministicSkipOctree[ S, D, A ] {
 
       {
-         val version = in.readUnsignedByte()
+         val version = in.readByte()
          require( version == SER_VERSION, "Incompatible serialized version (found " + version +
             ", required " + SER_VERSION + ")." )
       }
@@ -173,7 +174,7 @@ extends SkipOctree[ S, D, A ] {
 
    implicit protected object RightBranchSerializer extends Serializer[ S#Tx, S#Acc, RightBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : RightBranch = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          val id      = tx.readID( in, access )
          (cookie: @switch) match {
             case 4 => readRightTopBranch( in, access, id )
@@ -187,7 +188,7 @@ extends SkipOctree[ S, D, A ] {
 
    implicit protected object BranchSerializer extends Serializer[ S#Tx, S#Acc, BranchLike ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : BranchLike = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          val id      = tx.readID( in, access )
          (cookie: @switch) match {
             case 2 => readLeftTopBranch( in, access, id )
@@ -203,7 +204,7 @@ extends SkipOctree[ S, D, A ] {
 
    /* implicit */ protected object TopBranchSerializer extends Serializer[ S#Tx, S#Acc, TopBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : TopBranch = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          val id      = tx.readID( in, access )
          (cookie: @switch) match {
             case 2 => readLeftTopBranch( in, access, id )
@@ -218,7 +219,7 @@ extends SkipOctree[ S, D, A ] {
    /* implicit */ protected object LeftChildOptionSerializer extends Serializer[ S#Tx, S#Acc, LeftChildOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftChildOption = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          if( cookie == 0 ) return EmptyValue
          val id      = tx.readID( in, access )
          (cookie: @switch) match {
@@ -233,7 +234,7 @@ extends SkipOctree[ S, D, A ] {
 
    implicit protected object LeftBranchSerializer extends Serializer[ S#Tx, S#Acc, LeftBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftBranch = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          val id      = tx.readID( in, access )
          (cookie: @switch) match {
             case 2 => readLeftTopBranch( in, access, id )
@@ -248,7 +249,7 @@ extends SkipOctree[ S, D, A ] {
    implicit protected object RightChildOptionSerializer extends Serializer[ S#Tx, S#Acc, RightChildOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : RightChildOption = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          if( cookie == 0 ) return EmptyValue
          val id      = tx.readID( in, access )
          (cookie: @switch) match {
@@ -263,7 +264,7 @@ extends SkipOctree[ S, D, A ] {
 
    implicit protected object LeftTopBranchSerializer extends Serializer[ S#Tx, S#Acc, LeftTopBranch ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeftTopBranch = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          require( cookie == 2, "Unexpected cookie " + cookie )
          val id      = tx.readID( in, access )
          readLeftTopBranch( in, access, id )
@@ -275,7 +276,7 @@ extends SkipOctree[ S, D, A ] {
    /* implicit */ protected object RightOptionReader extends Serializer[ S#Tx, S#Acc, NextOption ] {
 //      def empty = EmptyValue
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : NextOption = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          if( cookie == 0 ) return EmptyValue
          val id      = tx.readID( in, access )
          (cookie: @switch) match {
@@ -290,7 +291,7 @@ extends SkipOctree[ S, D, A ] {
 
    /* implicit */ protected object LeafSerializer extends Serializer[ S#Tx, S#Acc, LeafImpl ] {
       def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : LeafImpl = {
-         val cookie  = in.readUnsignedByte()
+         val cookie  = in.readByte()
          require( cookie == 1, "Unexpected cookie " + cookie )
          val id      = tx.readID( in, access )
          readLeaf( in, access, id )
@@ -353,41 +354,37 @@ extends SkipOctree[ S, D, A ] {
       }
    }
 
+  final def numOrthants: Int = 1 << space.dim // 4 for R2, 8 for R3, 16 for R4, etc.
 
-//      val (totalOrder, skipList)    = _scaffFun( this )
-//      val (head, lastTreeRef)   = _treeFun( this )
+  sealed trait Child
 
-   final def numOrthants: Int = 1 << space.dim  // 4 for R2, 8 for R3, 16 for R4, etc.
+  sealed trait Branch extends Child {
+    def hyperCube: D#HyperCube
+    def nextOption(implicit tx: S#Tx): Option[Branch]
+    def prevOption: Option[Branch]
+    def child(idx: Int)(implicit tx: S#Tx): Child
+  }
 
-   sealed trait Child
+  sealed trait Leaf extends Child {
+    def value: A
+  }
 
-   sealed trait Branch extends Child {
-      def hyperCube : D#HyperCube
-      def nextOption( implicit tx: S#Tx ) : Option[ Branch ]
-      def prevOption : Option[ Branch ]
-      def child( idx: Int )( implicit tx: S#Tx ) : Child
-   }
+  sealed trait Empty extends Child
 
-   sealed trait Leaf extends Child {
-      def value : A
-   }
+  final def headTree: Branch = head
+  final def lastTree(implicit tx: S#Tx): Branch = lastTreeImpl
 
-   sealed trait Empty extends Child
+  final def write(out: DataOutput) {
+    out.writeByte(SER_VERSION)
+    id.write(out)
+    hyperSerializer.write(hyperCube, out)
+    totalOrder.write(out)
+    skipList.write(out)
+    head.write(out)
+    lastTreeRef.write(out)
+  }
 
-   final def headTree : Branch = head
-   final def lastTree( implicit tx: S#Tx ) : Branch = lastTreeImpl
-
-   final def write( out: DataOutput ) {
-      out.writeUnsignedByte( SER_VERSION )
-      id.write( out )
-      hyperSerializer.write( hyperCube, out )
-      totalOrder.write( out )
-      skipList.write( out )
-      head.write( out )
-      lastTreeRef.write( out )
-   }
-
-   final def clear()( implicit tx: S#Tx ) {
+  final def clear()( implicit tx: S#Tx ) {
       val sz = numOrthants
       @tailrec def removeAllLeaves( b: BranchLike ) {
          @tailrec def stepB( down: BranchLike, i: Int ) : ChildOption = {
@@ -1100,7 +1097,7 @@ extends SkipOctree[ S, D, A ] {
       }
 
       def write( out: DataOutput ) {
-         out.writeUnsignedByte( 1 )
+         out.writeByte( 1 )
          id.write( out )
          keySerializer.write( value, out )
          order.write( out )
@@ -1219,15 +1216,21 @@ extends SkipOctree[ S, D, A ] {
    // Eugene Yokota
    // (http://stackoverflow.com/questions/9893522/fixing-case-object-identity-pattern-matching-under-serialization/9894036#9894036)
    case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with Writable /* EmptyMutable */ {
-      override def toString = "<empty>"
-      def write( out: DataOutput ) { out.writeUnsignedByte( 0 )}
-      override def hashCode : Int = 0
-     import language.existentials // grmpff....
-      override def equals( that: Any ) : Boolean =
-         that.isInstanceOf[ x.EmptyValue.type forSome { val x: DeterministicSkipOctree[ _, _, _ ]}]
+     override def toString = "<empty>"
+
+     def write(out: DataOutput) {
+       out.writeByte(0)
+     }
+
+     override def hashCode: Int = 0
+
+     // grmpff....
+     import language.existentials
+     override def equals(that: Any): Boolean =
+       that.isInstanceOf[x.EmptyValue.type forSome {val x: DeterministicSkipOctree[_, _, _]}]
    }
 
-   /**
+  /**
     * Utility trait which elements the rightward search `findPN`.
     */
    protected sealed trait ChildBranch extends BranchLike with NonEmptyChild
@@ -1531,7 +1534,7 @@ extends SkipOctree[ S, D, A ] {
       }
 
       def write( out: DataOutput ) {
-         out.writeUnsignedByte( 2 )
+         out.writeByte( 2 )
          id.write( out )
          // no need to write the hyperCube?
          startOrder.write( out )
@@ -1583,7 +1586,7 @@ extends SkipOctree[ S, D, A ] {
       }
 
       def write( out: DataOutput ) {
-         out.writeUnsignedByte( 3 )
+         out.writeByte( 3 )
          id.write( out )
          parentRef.write( out )
          hyperSerializer.write( hyperCube, out )
@@ -1672,7 +1675,7 @@ extends SkipOctree[ S, D, A ] {
       }
 
       def write( out: DataOutput ) {
-         out.writeUnsignedByte( 4 )
+         out.writeByte( 4 )
          id.write( out )
          // no need to write the hypercube!
          prev.write( out )
@@ -1749,7 +1752,7 @@ extends SkipOctree[ S, D, A ] {
       }
 
       def write( out: DataOutput ) {
-         out.writeUnsignedByte( 5 )
+         out.writeByte( 5 )
          id.write( out )
          parentRef.write( out )
          prev.write( out )

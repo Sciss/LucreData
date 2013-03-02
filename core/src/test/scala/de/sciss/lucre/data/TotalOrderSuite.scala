@@ -6,12 +6,13 @@ import stm.store.BerkeleyDB
 import java.io.File
 import TotalOrder.Map.RelabelObserver
 import stm.{Cursor, Durable, InMemory, Sys}
-import collection.immutable.{Vector => IIdxSeq} // see SI-6150
+import collection.immutable.{Vector => IIdxSeq}
+import io.{DataInput, DataOutput, Writable}
 
 /**
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.txn.TotalOrderSuite
+ * test-only de.sciss.lucre.data.TotalOrderSuite
  * }}
  */
 class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
@@ -240,7 +241,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
    object MapHolder {
       final class Serializer[ S <: Sys[ S ]]( observer: RelabelObserver[ S#Tx, MapHolder[ S ]], tx0: S#Tx )
-      extends stm.Serializer[ S#Tx, S#Acc, MapHolder[ S ]] {
+      extends io.Serializer[ S#Tx, S#Acc, MapHolder[ S ]] {
          val map = TotalOrder.Map.empty[ S, MapHolder[ S ]]( observer, _.entry )( tx0, this )
 
          def write( v: MapHolder[ S ], out: DataOutput ) { v.write( out )}
