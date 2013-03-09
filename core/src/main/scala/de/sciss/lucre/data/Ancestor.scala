@@ -192,7 +192,7 @@ object Ancestor {
 
       def version = rootVersion
       val pre     = order.root
-      val post    = pre.append()(tx0) // XXX TODO: enforce Int.MaxValue
+      val post    = pre.appendMax()(tx0)
     }
   }
 

@@ -82,323 +82,354 @@ object TotalOrder {
       def isEmpty: Boolean
     }
 
-      final class EmptyEntry[ S <: Sys[ S ]] private[TotalOrder]() extends EntryOption[ S ] /* with EmptyMutable */ {
-         private[Set] def updatePrev( e: EOpt )( implicit tx: S#Tx ) {}
-         private[Set] def updateNext( e: EOpt )( implicit tx: S#Tx ) {}
-         def orNull : E = null
-         private[Set] def updateTag( value: Int )( implicit tx: S#Tx ) {
-            sys.error( "Internal error - shouldn't be here" )
-         }
-         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) = empty
-         def isDefined = false
-         def isEmpty   = true
+    final class EmptyEntry[S <: Sys[S]] private[TotalOrder]() extends EntryOption[S] /* with EmptyMutable */ {
+      private[Set] def updatePrev(e: EOpt)(implicit tx: S#Tx) {}
+      private[Set] def updateNext(e: EOpt)(implicit tx: S#Tx) {}
 
-         override def toString = "<empty>"
+      def orNull: E = null
+
+      private[Set] def updateTag(value: Int)(implicit tx: S#Tx) {
+        sys.error("Internal error - shouldn't be here")
       }
 
-      final class Entry[ S <: Sys[ S ]] private[TotalOrder]( val id: S#ID, set: Set[ S ], tagVal: S#Var[ Int ],
-                                                             prevRef: S#Var[ EntryOption[ S ] /* with MutableOption[ S ] */],
-                                                             nextRef: S#Var[ EntryOption[ S ] /* with MutableOption[ S ] */])
-      extends EntryOption[ S ] with Mutable.Impl[ S ] with Ordered[ S#Tx, Entry[ S ]] {
+      private[Set] def tagOr(empty: Int)(implicit tx: S#Tx) = empty
 
-         override def toString = "Set.Entry" + id
+      def isDefined = false
+      def isEmpty   = true
 
-         def compare( that: Entry[ S ])( implicit tx: S#Tx ) : Int = {
-            val thisTag = tag
-            val thatTag = that.tag
-            if( thisTag < thatTag ) -1 else if( thisTag > thatTag ) 1 else 0
-         }
+      override def toString = "<empty>"
+    }
 
-         def tag( implicit tx: S#Tx ) : Int = tagVal()
-         private[Set] def tagOr( empty: Int )( implicit tx: S#Tx ) = tagVal()
+    final class Entry[S <: Sys[S]] private[TotalOrder](val id: S#ID, set: Set[S], tagVal: S#Var[Int],
+                                                       prevRef: S#Var[EntryOption[S] /* with MutableOption[ S ] */ ],
+                                                       nextRef: S#Var[EntryOption[S] /* with MutableOption[ S ] */ ])
+      extends EntryOption[S] with Mutable.Impl[S] with Ordered[S#Tx, Entry[S]] {
 
-         def prev( implicit tx: S#Tx ) : EOpt = prevRef()
-         def next( implicit tx: S#Tx ) : EOpt = nextRef()
-         private[Set] def prevOrNull( implicit tx: S#Tx ) : E = prevRef().orNull
-         private[Set] def nextOrNull( implicit tx: S#Tx ) : E = nextRef().orNull
-         def orNull : E = this
-         def isDefined  = true
-         def isEmpty    = false
+      override def toString = "Set.Entry" + id
 
-         private[Set] def updatePrev(e: EOpt)   (implicit tx: S#Tx) { prevRef() = e }
-         private[Set] def updateNext(e: EOpt)   (implicit tx: S#Tx) { nextRef() = e }
-         private[Set] def updateTag (value: Int)(implicit tx: S#Tx) { tagVal()  = value }
-
-         protected def writeData( out: DataOutput ) {
-            tagVal .write( out )
-            prevRef.write( out )
-            nextRef.write( out )
-         }
-
-         protected def disposeData()( implicit tx: S#Tx ) {
-            // then free the refs
-            prevRef.dispose()
-            nextRef.dispose()
-            tagVal .dispose()
-         }
-
-         def remove()( implicit tx: S#Tx ) { set.remove( this )}
-         def append()( implicit tx: S#Tx ) : E = set.insertAfter( this )
-         def prepend()( implicit tx: S#Tx ) : E = set.insertBefore( this )
-
-         def removeAndDispose()( implicit tx: S#Tx ) {
-            remove()
-            dispose()
-         }
-
-         def validate( msg: => String )( implicit tx: S#Tx ) {
-            val recTag  = tag
-            if( prev.isDefined ) {
-               val prevTag = prev.orNull.tag
-               assert( prevTag < recTag, "prev " + prevTag + " >= rec " + recTag + " - " + msg )
-            }
-            if( next.isDefined ) {
-               val nextTag = next.orNull.tag
-               assert( recTag < nextTag, "rec " + recTag+ " >= next " + nextTag + " - " + msg )
-            }
-         }
-      }
-   }
-
-   private final class SetSerializer[ S <: Sys[ S ]] extends Serializer[ S#Tx, S#Acc, Set[ S ]] {
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Set[ S ] = {
-         new SetRead[ S ]( in, access, tx )
+      def compare(that: Entry[S])(implicit tx: S#Tx): Int = {
+        val thisTag = tag
+        val thatTag = that.tag
+        if (thisTag < thatTag) -1 else if (thisTag > thatTag) 1 else 0
       }
 
-      def write( v: Set[ S ], out: DataOutput ) { v.write( out )}
+      def tag                           (implicit tx: S#Tx): Int  = tagVal()
+      private[Set] def tagOr(empty: Int)(implicit tx: S#Tx)       = tagVal()
 
-      override def toString = "Set.serializer"
-   }
+      def prev(implicit tx: S#Tx): EOpt = prevRef()
+      def next(implicit tx: S#Tx): EOpt = nextRef()
 
-   private final class SetRead[ S <: Sys[ S ]]( in: DataInput, access: S#Acc, tx0: S#Tx )
-   extends Set[ S ] with Mutable.Impl[ S ] {
-      val id      = tx0.readID( in, access )
+      private[Set] def prevOrNull(implicit tx: S#Tx): E = prevRef().orNull
+      private[Set] def nextOrNull(implicit tx: S#Tx): E = nextRef().orNull
 
-      {
-         val version = in.readByte()
-         require( version == SER_VERSION, "Incompatible serialized version (found " + version +
-            ", required " + SER_VERSION + ")." )
+      def orNull: E = this
+
+      def isDefined = true
+      def isEmpty   = false
+
+      private[Set] def updatePrev(e: EOpt)(implicit tx: S#Tx) {
+        prevRef() = e
       }
 
-      val sizeVal = tx0.readIntVar( id, in )
-      val root    = EntrySerializer.read( in, access )( tx0 )
-   }
-
-   private final class SetNew[ S <: Sys[ S ]]( val id: S#ID, rootTag: Int, protected val sizeVal: S#Var[ Int ], tx0: S#Tx )
-   extends Set[ S ] with Mutable.Impl[ S ] {
-      me =>
-
-      val root: E = {
-         val rootID  = tx0.newID()
-         val tagVal  = tx0.newIntVar( rootID, rootTag )
-         val prevRef = tx0.newVar[ EOpt ]( id, empty )( EntryOptionSerializer )
-         val nextRef = tx0.newVar[ EOpt ]( id, empty )( EntryOptionSerializer )
-         new E( rootID, me, tagVal, prevRef, nextRef )
-      }
-   }
-
-   sealed trait Set[ S <: Sys[ S ]] extends TotalOrder[ S ] /* with Reader[ Set[ S ]#E ] */ {
-      me =>
-
-      type E     = Set.Entry[ S ]
-      protected type EOpt  = Set.EntryOption[ S ] /* with MutableOption[ S ] */
-
-      protected def sizeVal: S#Var[ Int ]
-      protected val empty  = new Set.EmptyEntry[ S ]
-
-      def root: E
-
-      override def toString = "Set" + id
-
-      final def readEntry( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = EntrySerializer.read( in, access )
-
-      protected implicit object EntrySerializer extends Serializer[ S#Tx, S#Acc, E ] {
-         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : E = {
-            val id      = tx.readID( in, access )
-            val tagVal  = tx.readIntVar( id, in )
-            val prevRef = tx.readVar[ EOpt ]( id, in )( EntryOptionSerializer )
-            val nextRef = tx.readVar[ EOpt ]( id, in )( EntryOptionSerializer )
-            new E( id, me, tagVal, prevRef, nextRef )
-         }
-
-         def write( v: E, out: DataOutput ) { v.write( out )}
+      private[Set] def updateNext(e: EOpt)(implicit tx: S#Tx) {
+        nextRef() = e
       }
 
-      protected implicit object EntryOptionSerializer extends Serializer[ S#Tx, S#Acc, EOpt ] {
-         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : EOpt = {
-            (in.readByte(): @switch) match {
-               case 0 => me.empty
-               case 1 => EntrySerializer.read( in, access )
-               case cookie => sys.error( "Unexpected cookie " + cookie )
-            }
-         }
+      private[Set] def updateTag(value: Int)(implicit tx: S#Tx) {
+        tagVal() = value
+      }
 
-        def write(v: EOpt, out: DataOutput) {
-          val e = v.orNull
-          if (e == null) {
-            out.writeByte(0)
-          } else {
-            out.writeByte(1)
-            e.write(out)
-          }
+      protected def writeData(out: DataOutput) {
+        tagVal .write(out)
+        prevRef.write(out)
+        nextRef.write(out)
+      }
+
+      protected def disposeData()(implicit tx: S#Tx) {
+        // then free the refs
+        prevRef.dispose()
+        nextRef.dispose()
+        tagVal .dispose()
+      }
+
+      def remove()(implicit tx: S#Tx) {
+        set.remove(this)
+      }
+
+      def append   ()(implicit tx: S#Tx): E = set.insertAfter   (this)
+      def appendMax()(implicit tx: S#Tx): E = set.insertMaxAfter(this)
+      def prepend  ()(implicit tx: S#Tx): E = set.insertBefore  (this)
+
+      def removeAndDispose()(implicit tx: S#Tx) {
+        remove()
+        dispose()
+      }
+
+      def validate(msg: => String)(implicit tx: S#Tx) {
+        val recTag = tag
+        if (prev.isDefined) {
+          val prevTag = prev.orNull.tag
+          assert(prevTag < recTag, "prev " + prevTag + " >= rec " + recTag + " - " + msg)
+        }
+        if (next.isDefined) {
+          val nextTag = next.orNull.tag
+          assert(recTag < nextTag, "rec " + recTag + " >= next " + nextTag + " - " + msg)
+        }
+      }
+    }
+  }
+
+  private final class SetSerializer[S <: Sys[S]] extends Serializer[S#Tx, S#Acc, Set[S]] {
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): Set[S] = {
+      new SetRead[S](in, access, tx)
+    }
+
+    def write(v: Set[S], out: DataOutput) {
+      v.write(out)
+    }
+
+    override def toString = "Set.serializer"
+  }
+
+  private final class SetRead[S <: Sys[S]](in: DataInput, access: S#Acc, tx0: S#Tx)
+    extends Set[S] with Mutable.Impl[S] {
+
+    val id = tx0.readID(in, access)
+
+    {
+      val version = in.readByte()
+      require(version == SER_VERSION, "Incompatible serialized version (found " + version +
+        ", required " + SER_VERSION + ").")
+    }
+
+    val sizeVal = tx0.readIntVar(id, in)
+    val root    = EntrySerializer.read(in, access)(tx0)
+  }
+
+  private final class SetNew[S <: Sys[S]](val id: S#ID, rootTag: Int, protected val sizeVal: S#Var[Int], tx0: S#Tx)
+    extends Set[S] with Mutable.Impl[S] {
+    me =>
+
+    val root: E = {
+      val rootID = tx0.newID()
+      val tagVal = tx0.newIntVar(rootID, rootTag)
+      val prevRef = tx0.newVar[EOpt](id, empty)(EntryOptionSerializer)
+      val nextRef = tx0.newVar[EOpt](id, empty)(EntryOptionSerializer)
+      new E(rootID, me, tagVal, prevRef, nextRef)
+    }
+  }
+
+  sealed trait Set[S <: Sys[S]] extends TotalOrder[S] {
+    me =>
+
+    final type           E    = Set.Entry[S]
+    protected final type EOpt = Set.EntryOption[S] /* with MutableOption[ S ] */
+
+    protected def sizeVal: S#Var[Int]
+
+    protected final val empty = new Set.EmptyEntry[S]
+
+    // def root: E
+
+    override def toString = "Set" + id
+
+    final def readEntry(in: DataInput, access: S#Acc)(implicit tx: S#Tx): E = EntrySerializer.read(in, access)
+
+    protected implicit object EntrySerializer extends Serializer[S#Tx, S#Acc, E] {
+      def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): E = {
+        val id      = tx.readID(in, access)
+        val tagVal  = tx.readIntVar(id, in)
+        val prevRef = tx.readVar[EOpt](id, in)(EntryOptionSerializer)
+        val nextRef = tx.readVar[EOpt](id, in)(EntryOptionSerializer)
+        new E(id, me, tagVal, prevRef, nextRef)
+      }
+
+      def write(v: E, out: DataOutput) {
+        v.write(out)
+      }
+    }
+
+    protected implicit object EntryOptionSerializer extends Serializer[S#Tx, S#Acc, EOpt] {
+      def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): EOpt = {
+        (in.readByte(): @switch) match {
+          case 0 => me.empty
+          case 1 => EntrySerializer.read(in, access)
+          case cookie => sys.error("Unexpected cookie " + cookie)
         }
       }
 
-     final protected def disposeData()(implicit tx: S#Tx) {
-       root.dispose()
-       sizeVal.dispose()
-     }
-
-     final protected def writeData(out: DataOutput) {
-       out.writeByte(SER_VERSION)
-       sizeVal.write(out)
-       root.write(out)
-     }
-
-     final def insertAfter( prev: E )( implicit tx: S#Tx ) : E = {
-         val next       = prev.next
-         val nextTag    = next.tagOr( Int.MaxValue )
-         val recID      = tx.newID()
-         val recPrevRef = tx.newVar[ EOpt ]( recID, prev )
-         val recNextRef = tx.newVar[ EOpt ]( recID, next )
-         val prevTag    = prev.tag
-         val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal  = tx.newIntVar( recID, recTag )
-         val rec        = new E( recID, this, recTagVal, recPrevRef, recNextRef )
-         prev.updateNext( rec )
-         next.updatePrev( rec )
-         sizeVal.transform( _ + 1 )
-         if( recTag == nextTag ) relabel( rec )
-         rec
+      def write(v: EOpt, out: DataOutput) {
+        val e = v.orNull
+        if (e == null) {
+          out.writeByte(0)
+        } else {
+          out.writeByte(1)
+          e.write(out)
+        }
       }
+    }
 
-      final def insertBefore( next: E )( implicit tx: S#Tx ) : E = {
-         val prev       = next.prev
-         val prevTag    = prev.tagOr( 0 )
-         val recID      = tx.newID()
-         val recPrevRef = tx.newVar[ EOpt ]( recID, prev )
-         val recNextRef = tx.newVar[ EOpt ]( recID, next )
-         val nextTag    = next.tag
-         val recTag     = prevTag + ((nextTag - prevTag + 1) >>> 1)
-         val recTagVal  = tx.newIntVar( recID, recTag )
-         val rec        = new E( recID, this, recTagVal, recPrevRef, recNextRef )
-         next.updatePrev( rec )
-         prev.updateNext( rec )
-         sizeVal.transform( _ + 1 )
-         if( recTag == nextTag ) relabel( rec )
-         rec
+    final protected def disposeData()(implicit tx: S#Tx) {
+      root.dispose()
+      sizeVal.dispose()
+    }
+
+    final protected def writeData(out: DataOutput) {
+      out.writeByte(SER_VERSION)
+      sizeVal.write(out)
+      root.write(out)
+    }
+
+    final private[TotalOrder] def insertMaxAfter(prev: E)(implicit tx: S#Tx): E = {
+      val next        = prev.next
+      val nextTag     = next.tagOr(Int.MinValue)  // Int.MinValue - 1 == Int.MaxValue !
+      val prevTag     = prev.tag
+      val n1          = nextTag - 1
+      val recTag      = if(prevTag == n1) nextTag else n1
+      insert(prev = prev, next = next, nextTag = nextTag, recTag = recTag)
+    }
+
+    final private[TotalOrder] def insertAfter(prev: E)(implicit tx: S#Tx): E = {
+      val next        = prev.next
+      val nextTag     = next.tagOr(Int.MaxValue)
+      val prevTag     = prev.tag
+      val recTag      = prevTag + ((nextTag - prevTag + 1) >>> 1)
+      insert(prev = prev, next = next, nextTag = nextTag, recTag = recTag)
+    }
+
+    final private[TotalOrder] def insertBefore(next: E)(implicit tx: S#Tx): E = {
+      val prev        = next.prev
+      val prevTag     = prev.tagOr(0)
+      val nextTag     = next.tag
+      val recTag      = prevTag + ((nextTag - prevTag + 1) >>> 1)
+      insert(prev = prev, next = next, nextTag = nextTag, recTag = recTag)
+    }
+
+    private def insert(prev: EOpt, next: EOpt, nextTag: Int, recTag: Int)(implicit tx: S#Tx): E = {
+      val recID       = tx.newID()
+      val recPrevRef  = tx.newVar[EOpt](recID, prev)
+      val recNextRef  = tx.newVar[EOpt](recID, next)
+      val recTagVal   = tx.newIntVar(recID, recTag)
+      val rec         = new E(recID, this, recTagVal, prevRef = recPrevRef, nextRef = recNextRef)
+      prev.updateNext(rec)
+      next.updatePrev(rec)
+      sizeVal.transform(_ + 1)
+      if (recTag == nextTag) relabel(rec)
+      rec
+    }
+
+    final private[TotalOrder] def remove(entry: E)(implicit tx: S#Tx) {
+      val p = entry.prev
+      val n = entry.next
+      p.updateNext(n)
+      n.updatePrev(p)
+      sizeVal.transform(_ - 1)
+    }
+
+    final def size(implicit tx: S#Tx): Int = sizeVal()
+
+    final def head(implicit tx: S#Tx): E = {
+      var e = root
+      var p = e.prevOrNull
+      while (p ne null) {
+        e = p
+        p = p.prevOrNull
       }
+      e
+    }
 
-      private[TotalOrder] final def remove( entry: E )( implicit tx: S#Tx ) {
-         val p = entry.prev
-         val n = entry.next
-         p.updateNext( n )
-         n.updatePrev( p )
-         sizeVal.transform( _ - 1 )
+    final def tagList(from: E)(implicit tx: S#Tx): List[Int] = {
+      val b = List.newBuilder[Int]
+      var entry = from
+      while (entry ne null) {
+        b += entry.tag
+        entry = entry.nextOrNull
       }
+      b.result()
+    }
 
-      final def size( implicit tx: S#Tx ) : Int = sizeVal()
+    /**
+     * Relabels from a this entry to clean up collisions with
+     * its successors' tags.
+     *
+     * Original remark from Eppstein:
+     * "At each iteration of the rebalancing algorithm, we look at
+     * a contiguous subsequence of items, defined as the items for which
+     * self._tag &~ mask == base.  We keep track of the first and last
+     * items in the subsequence, and the number of items, until we find
+     * a subsequence with sufficiently low density, at which point
+     * we space the tags evenly throughout the available values.
+     *
+     * The multiplier controls the growth of the threshhold density;
+     * it is 2/T for the T parameter described by Bender et al.
+     * Large multipliers lead to fewer relabels, while small items allow
+     * us to handle more items with machine integer tags, so we vary the
+     * multiplier dynamically to allow it to be as large as possible
+     * without producing integer overflows."
+     */
+    private def relabel(_first: E)(implicit tx: S#Tx) {
+      var mask    = -1
+      var thresh  = 1.0
+      var num     = 1
+      // val mul     = 2/((2*len(self))**(1/30.))
+      val mul     = 2 / math.pow(size << 1, 1 / 30.0)
+      var first   = _first
+      var last    = _first
+      var base    = _first.tag
+      do {
+        var prev = first.prevOrNull
+        while ((prev ne null) && ((prev.tag & mask) == base)) {
+          first = prev
+          prev  = prev.prevOrNull
+          num  += 1
+        }
+        var next = last.nextOrNull
+        while ((next ne null) && ((next.tag & mask) == base)) {
+          last = next
+          next = next.nextOrNull
+          num += 1
+        }
+        //         val inc = (mask + 1) / num
+        val inc = -mask / num
 
-      final def head( implicit tx: S#Tx ) : E = {
-         var e = root
-         var p = e.prevOrNull
-         while( p ne null ) {
-            e = p
-            p = p.prevOrNull
-         }
-         e
-      }
+        // important: we found a corner case where _first is the last
+        // element in the list with a value of 0x7FFFFFFF. in this
+        // case, if the predecessor is smaller in value, the original
+        // algorithm would immediately terminate with num == 1, which
+        // will obviously leave the tag unchanged! thus we must add
+        // the additional condition that num is greater than 1!
+        if ((inc >= thresh) && (num > 1)) {
+          // found rebalanceable range
+          //               observer.beforeRelabeling( first, num )
+          //sys.error( "TODO" )
 
-      final def tagList( from: E )( implicit tx: S#Tx ) : List[ Int ] = {
-         val b       = List.newBuilder[ Int ]
-         var entry   = from
-         while( entry ne null ) {
-            b       += entry.tag
-            entry    = entry.nextOrNull
-         }
-         b.result()
-      }
+          //            while( !(item eq last) ) {
+          // Note: this was probably a bug in Eppstein's code
+          // -- it ran for one iteration less which made
+          // the test suite fail for very dense tags. it
+          // seems now it is correct with the inclusion
+          // of last in the tag updating.
+          next = first
+          var cnt = 0
+          while (cnt < num) {
+            next.updateTag(base)
+            next  = next.nextOrNull
+            base += inc
+            cnt  += 1
+          }
+          //sys.error( "TODO" )
+          //               observer.afterRelabeling( first, num )
+          return
+        }
+        mask <<= 1 // next coarse step
+        base &= mask
+        thresh *= mul
+      } while (mask != 0)
+      sys.error("label overflow")
+    }
+  }
 
-      /**
-       * Relabels from a this entry to clean up collisions with
-       * its successors' tags.
-       *
-       * Original remark from Eppstein:
-       * "At each iteration of the rebalancing algorithm, we look at
-       * a contiguous subsequence of items, defined as the items for which
-       * self._tag &~ mask == base.  We keep track of the first and last
-       * items in the subsequence, and the number of items, until we find
-       * a subsequence with sufficiently low density, at which point
-       * we space the tags evenly throughout the available values.
-       *
-       * The multiplier controls the growth of the threshhold density;
-       * it is 2/T for the T parameter described by Bender et al.
-       * Large multipliers lead to fewer relabels, while small items allow
-       * us to handle more items with machine integer tags, so we vary the
-       * multiplier dynamically to allow it to be as large as possible
-       * without producing integer overflows."
-       */
-      private def relabel( _first: E )( implicit tx: S#Tx ) {
-         var mask       = -1
-         var thresh     = 1.0
-         var num        = 1
-   //      val mul     = 2/((2*len(self))**(1/30.))
-         val mul        = 2 / math.pow( size << 1, 1/30.0 )
-         var first      = _first
-         var last       = _first
-         var base       = _first.tag
-         do {
-            var prev    = first.prevOrNull
-            while( (prev ne null) && ((prev.tag & mask) == base) ) {
-               first    = prev
-               prev     = prev.prevOrNull
-               num     += 1
-            }
-            var next    = last.nextOrNull
-            while( (next ne null) && ((next.tag & mask) == base) ) {
-               last     = next
-               next     = next.nextOrNull
-               num     += 1
-            }
-   //         val inc = (mask + 1) / num
-            val inc = -mask / num
-
-            // important: we found a corner case where _first is the last
-            // element in the list with a value of 0x7FFFFFFF. in this
-            // case, if the predecessor is smaller in value, the original
-            // algorithm would immediately terminate with num == 1, which
-            // will obviously leave the tag unchanged! thus we must add
-            // the additional condition that num is greater than 1!
-            if( (inc >= thresh) && (num > 1) ) {   // found rebalanceable range
-//               observer.beforeRelabeling( first, num )
-//sys.error( "TODO" )
-
-   //            while( !(item eq last) ) {
-               // Note: this was probably a bug in Eppstein's code
-               // -- it ran for one iteration less which made
-               // the test suite fail for very dense tags. it
-               // seems now it is correct with the inclusion
-               // of last in the tag updating.
-               next = first
-               var cnt = 0; while( cnt < num ) {
-                  next.updateTag( base )
-                  next        = next.nextOrNull
-                  base       += inc
-                  cnt        += 1
-               }
-//sys.error( "TODO" )
-//               observer.afterRelabeling( first, num )
-               return
-            }
-            mask   <<= 1      // next coarse step
-            base    &= mask
-            thresh  *= mul
-         } while( mask != 0 )
-         sys.error( "label overflow" )
-      }
-   }
-
-   // ---- Map ----
+  // ---- Map ----
 
    object Map {
       def empty[ S <: Sys[ S ], A ]( relabelObserver: Map.RelabelObserver[ S#Tx, A ], entryView: A => Map.Entry[ S, A ],
