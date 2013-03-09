@@ -1,6 +1,6 @@
-## LucreData
+# LucreData
 
-### statement
+## statement
 
 (C)opyright 2011&ndash;2013 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
 
@@ -16,7 +16,7 @@ LucreData provides implementations for various data structures in the Scala prog
 
 * Fiat, A. and Kaplan, H., "Making data structures confluently persistent," in Proceedings of the 12th annual ACM-SIAM symposium on Discrete algorithms, pp. 537–546, 2001.
 
-### requirements
+## requirements
 
 Builds with sbt 0.12 against Scala 2.10. Depends on [LucreSTM](http://github.com/Sciss/LucreSTM). Sub projects:
 
@@ -34,12 +34,4 @@ For a particular sub module:
     "de.sciss" %% "lucredata-core"  % v
     "de.sciss" %% "lucredata-views" % v
 
-The current version `v` is `"1.8.+"`.
-
-### creating an IntelliJ IDEA project
-
-To develop the sources of LucreData, if you haven't globally installed the sbt-idea plugin yet, create the following contents in `~/.sbt/plugins/build.sbt`:
-
-    addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.2.0")
-
-Then to create the IDEA project, run `sbt gen-idea`.
+The current version `v` is `"1.9.+"`.

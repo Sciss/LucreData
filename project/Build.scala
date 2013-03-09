@@ -2,6 +2,8 @@ import sbt._
 import Keys._
 
 object Build extends sbt.Build {
+  lazy val stmVersion = "1.8.+"
+
   lazy val root: Project = Project(
     id            = "lucredata",
     base          = file("."),
@@ -29,10 +31,10 @@ object Build extends sbt.Build {
     id        = "lucredata-core",
     base      = file("core"),
     settings  = Project.defaultSettings ++ Seq(
-      libraryDependencies <++= version { case Compatible(v) => Seq(
-        "de.sciss" %% "lucrestm-core" % v,
-        "de.sciss" %% "lucrestm-bdb"  % v % "test"
-      )}
+      libraryDependencies ++= Seq(
+        "de.sciss" %% "lucrestm-core" % stmVersion,
+        "de.sciss" %% "lucrestm-bdb"  % stmVersion % "test"
+      )
     )
   )
 
@@ -41,10 +43,10 @@ object Build extends sbt.Build {
     base          = file("views"),
     dependencies  = Seq(core),
     settings      = Project.defaultSettings ++ Seq(
-      libraryDependencies <++= version { case Compatible(v) => Seq(
-        "de.sciss" %% "lucrestm-bdb" % v % "test",
+      libraryDependencies ++= Seq(
+        "de.sciss" %% "lucrestm-bdb" % stmVersion % "test",
         "com.itextpdf" % "itextpdf" % "5.3.2"
-      )}
+      )
     )
   )
 }

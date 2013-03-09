@@ -420,8 +420,8 @@ object TotalOrder {
           //               observer.afterRelabeling( first, num )
           return
         }
-        mask <<= 1 // next coarse step
-        base &= mask
+        mask  <<= 1 // next coarse step
+        base   &= mask
         thresh *= mul
       } while (mask != 0)
       sys.error("label overflow")
