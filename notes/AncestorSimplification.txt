@@ -1,0 +1,30 @@
+:::::: sparing the pre-tail marker ::::::
+
+"To update the traversal list when a new version i is created, we insert two occurrences of i in the traversal list immediately after the preorder occurrence of the parent of i; the first occurrence is ipreand the second is ipost"
+
+f_pre b_pre d_pre c_pre c_post e_pre e_post d_post a_pre a_post b_post g_pre i_pre h_pre h_post i_post g_post f_post
+
+F B D C E A G I H
+
+C E D A B H I G F
+
+funzt
+
+::: die frage ist: geht nach wie vor insertRetroChild and insertRetroParent? :::
+
+0_pre 1_pre 2_pre 2_post 1_post 0_post
+
+insertRetroChild: pre nach parent.pre; post vor parent.post
+
+0_pre 3_pre 1_pre 2_pre 2_post 1_post 3_post 0_post  // sieht gut aus?
+
+0_pre 5_pre 5_post 4_pre 4_post 3_pre 1_pre 2_pre 2_post 1_post 3_post 0_post
+
+insertRetroParent: pre vor child.pre; post nach child.post
+
+0_pre 5_pre 5_post 6_pre 4_pre 4_post 6_post 3_pre 1_pre 2_pre 2_post 1_post 3_post 0_post  // looks good?
+
+0_pre 7_pre 7_post 5_pre 19_pre 19_post 5_post 6_pre 4_pre 17_pre 17_post 11_pre 11_post 4_post 6_post 3_pre 22_pre 10_pre 16_pre 18_pre 21_pre 21_post 18_post 16_post 10_post 22_post 23_pre 1_pre 14_pre 12_pre 13_pre 13_post 12_post 14_post 8_pre 2_pre 15_pre 20_pre 20_post 9_pre 9_post 15_post 2_post 8_post 1_post 23_post 3_post 0_post
+
+PRE:  0 7 5 19 6 4 17 11 3 22 10 16 18 21 23 1 14 12 13 8 2 15 20 9
+POST: 7 19 5 17 11 4 6 21 18 16 10 22 13 12 14 20 9 15 2 8 1 23 3 0

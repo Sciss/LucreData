@@ -11,7 +11,7 @@ import stm.{Cursor, Durable, InMemory, Sys}
 /**
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.txn.AncestorSuite2
+ * test-only de.sciss.lucre.data.AncestorSuite2
  * }}
  */
 class AncestorSuite2 extends FeatureSpec with GivenWhenThen {

@@ -35,178 +35,166 @@ import io.{DataInput, DataOutput, Serializer, Writable}
 //import stm.{SpecGroup => ialized}
 
 object Ancestor {
-   private val SER_VERSION = 0
+  private val SER_VERSION = 0
 
-   private[Ancestor] val cube = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
+  private[Ancestor] val cube = IntCube(0x40000000, 0x40000000, 0x40000000, 0x40000000)
 
-   private type TreePreOrder[  S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
-   private type TreePostOrder[ S <: Sys[ S ]] = TotalOrder.Set.Entry[ S ]
+  private type TreeOrder[S <: Sys[S]] = TotalOrder.Set.Entry[S]
 
-   object Vertex {
-      private[Ancestor] implicit def toPoint[ S <: Sys[ S ], Version ]( v: Vertex[ S, Version ], tx: S#Tx ) : IntPoint3D =
-         IntPoint3D( v.preHead.tag( tx ), v.post.tag( tx ), v.versionInt )
-   }
-   sealed trait Vertex[ S <: Sys[ S ], Version ] extends Writable with Disposable[ S#Tx ] {
+  object Vertex {
+    private[Ancestor] implicit def toPoint[S <: Sys[S], Version](v: Vertex[S, Version], tx: S#Tx): IntPoint3D =
+      IntPoint3D(v.pre.tag(tx), v.post.tag(tx), v.versionInt)
+  }
 
-      // ---- abstract ----
+  sealed trait Vertex[S <: Sys[S], Version] extends Writable with Disposable[S#Tx] {
 
-      def version: Version
-      private[Ancestor] def preHead: TreePreOrder[ S ]
-      private[Ancestor] def preTail: TreePreOrder[ S ]
-      private[Ancestor] def post:    TreePostOrder[ S ]
+    // ---- abstract ----
 
-      private[Ancestor] def tree: Tree[ S, Version ]
+    def version: Version
 
-      // ---- implementation ----
+    private[Ancestor] def pre:  TreeOrder[S]
+    private[Ancestor] def post: TreeOrder[S]
+    private[Ancestor] def tree: Tree[S, Version]
 
-      final def isAncestorOf( that: Vertex[ S, Version ])( implicit tx: S#Tx ) : Boolean = {
-         versionInt    <= that.versionInt     &&
-         preHead.compare( that.preHead ) <= 0 &&
-         post.compare(    that.post )    >= 0
+    // ---- implementation ----
+
+    final def isAncestorOf(that: Vertex[S, Version])(implicit tx: S#Tx): Boolean =
+      versionInt <= that.versionInt &&
+      pre .compare(that.pre ) <= 0 &&
+      post.compare(that.post) >= 0
+
+    final def versionInt: Int = tree.intView(version)
+
+    final def write(out: DataOutput) {
+      tree.versionSerializer.write(version, out)
+      pre .write(out)
+      post.write(out)
+    }
+
+    final def dispose()(implicit tx: S#Tx) {
+      pre .dispose()
+      post.dispose()
+    }
+
+    override def toString = s"Vertex($version)"
+  }
+
+  implicit def treeSerializer[S <: Sys[S], Version](
+    implicit versionSerializer: Serializer[S#Tx, S#Acc, Version],
+    intView: Version => Int): Serializer[S#Tx, S#Acc, Tree[S, Version]] = new TreeSer[S, Version]
+
+  def newTree[S <: Sys[S], Version](rootVersion: Version)(
+    implicit tx: S#Tx, versionSerializer: Serializer[S#Tx, S#Acc, Version],
+    intView: Version => Int): Tree[S, Version] = {
+
+    new TreeNew[S, Version](rootVersion, tx)
+  }
+
+  def readTree[S <: Sys[S], Version](in: DataInput, access: S#Acc)(
+    implicit tx: S#Tx, versionSerializer: Serializer[S#Tx, S#Acc, Version],
+    intView: Version => Int): Tree[S, Version] = {
+
+    new TreeRead[S, Version](in, access, tx)
+  }
+
+  private final class TreeSer[S <: Sys[S], Version](implicit versionSerializer: Serializer[S#Tx, S#Acc, Version],
+                                                    versionView: Version => Int)
+    extends Serializer[S#Tx, S#Acc, Tree[S, Version]] {
+
+    def write(t: Tree[S, Version], out: DataOutput) {
+      t.write(out)
+    }
+
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): Tree[S, Version] = 
+      new TreeRead[S, Version](in, access, tx)
+
+    override def toString = "Ancestor.treeSerializer"
+  }
+
+  private sealed trait TreeImpl[S <: Sys[S], Version] extends Tree[S, Version] {
+    me =>
+
+    // ---- abstract ----
+
+    protected def order: TotalOrder.Set[S]
+
+    // ---- implementation ----
+
+    override def toString = "Ancestor.Tree(root=" + root + ")"
+
+    implicit protected object VertexSerializer extends Serializer[S#Tx, S#Acc, K] {
+      def write(v: K, out: DataOutput) {
+        v.write(out)
       }
 
-      final def versionInt: Int = tree.intView( version )
+      def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): K = new K {
+        def tree = me
 
-      final def write( out: DataOutput ) {
-         tree.versionSerializer.write( version, out )
-         preHead.write( out )
-         preTail.write( out )
-         post.write( out )
+        val version = versionSerializer.read(in, access)
+        val pre     = order.readEntry(in, access)
+        val post    = order.readEntry(in, access)
       }
+    }
 
-      final def dispose()( implicit tx: S#Tx ) {
-         preHead.dispose()
-         preTail.dispose()
-         post.dispose()
+    final def write(out: DataOutput) {
+      out.writeByte(SER_VERSION)
+      order.write(out)
+      root.write(out)
+    }
+
+    final def dispose()(implicit tx: S#Tx) {
+      order.dispose()
+      root.dispose()
+    }
+
+    final def vertexSerializer: Serializer[S#Tx, S#Acc, K] = VertexSerializer
+
+    final def insertChild(parent: K, newChild: Version)(implicit tx: S#Tx): K = new K {
+      def tree = me
+
+      val version = newChild
+      val pre     = parent.pre.append()
+      val post    = pre.append()
+    }
+
+    final def insertRetroChild(parent: K, newChild: Version)(implicit tx: S#Tx): K = new K {
+      def tree = me
+
+      val version = newChild
+      val pre     = parent.pre.append()
+      val post    = parent.post.prepend()
+
+      override def toString = super.toString + "@r-ch"
+    }
+
+    final def insertRetroParent(child: K, newParent: Version)(implicit tx: S#Tx): K = {
+      require(child != root)
+      new K {
+        def tree = me
+
+        val version = newParent
+        val pre     = child.pre.prepend()
+        val post    = child.post.append()
+
+        override def toString = super.toString + "@r-par"
       }
+    }
+  }
 
-      override def toString = "Vertex(" + version + ")"
-   }
+  private final class TreeNew[S <: Sys[S], Version](rootVersion: Version, tx0: S#Tx)(
+    implicit val versionSerializer: Serializer[S#Tx, S#Acc, Version], val intView: Version => Int)
+    extends TreeImpl[S, Version] {
+    me =>
 
-   implicit def treeSerializer[ S <: Sys[ S ], Version ](
-      implicit versionSerializer: Serializer[ S#Tx, S#Acc, Version ],
-      intView: Version => Int) : Serializer[ S#Tx, S#Acc, Tree[ S, Version ]] = {
+    protected val order = TotalOrder.Set.empty[S](0)(tx0)
+    val root: K = new K {
+      def tree: Tree[S, Version] = me
 
-      new TreeSer[ S, Version ]
-   }
-
-   def newTree[ S <: Sys[ S ], Version ]( rootVersion: Version )(
-      implicit tx: S#Tx, versionSerializer: Serializer[ S#Tx, S#Acc, Version ],
-      intView: Version => Int ) : Tree[ S, Version ] = {
-
-      new TreeNew[ S, Version ]( rootVersion, tx )
-   }
-
-   def readTree[ S <: Sys[ S ], Version ]( in: DataInput, access: S#Acc )(
-      implicit tx: S#Tx, versionSerializer: Serializer[ S#Tx, S#Acc, Version ],
-      intView: Version => Int ) : Tree[ S, Version ] = {
-
-      new TreeRead[ S, Version ]( in, access, tx )
-   }
-
-   private final class TreeSer[ S <: Sys[ S ], Version ]( implicit versionSerializer: Serializer[ S#Tx, S#Acc, Version ],
-                                                          versionView: Version => Int )
-   extends Serializer[ S#Tx, S#Acc, Tree[ S, Version ]] {
-      def write( t: Tree[ S, Version ], out: DataOutput ) { t.write( out )}
-
-      def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : Tree[ S, Version ] =
-         new TreeRead[ S, Version ]( in, access, tx )
-
-      override def toString = "Ancestor.treeSerializer"
-   }
-
-   private sealed trait TreeImpl[ S <: Sys[ S ], Version ] extends Tree[ S, Version ] {
-      me =>
-
-      // ---- abstract ----
-
-      protected def preOrder  : TotalOrder.Set[ S ]
-      protected def postOrder : TotalOrder.Set[ S ]
-      // def root : K
-
-      // ---- implementation ----
-
-      override def toString = "Ancestor.Tree(root=" + root + ")"
-
-      implicit protected object VertexSerializer extends Serializer[ S#Tx, S#Acc, K ] {
-         def write( v: K, out: DataOutput ) { v.write( out )}
-
-         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : K = new K {
-            def tree    = me
-            val version = versionSerializer.read( in, access )
-            val preHead = preOrder.readEntry(   in, access )
-            val preTail = preOrder.readEntry(   in, access )
-            val post    = postOrder.readEntry(  in, access )
-         }
-      }
-
-      final def write( out: DataOutput ) {
-         out.writeByte( SER_VERSION )
-         preOrder.write( out )
-         postOrder.write( out )
-         root.write( out )
-      }
-
-      final def dispose()( implicit tx: S#Tx ) {
-         preOrder.dispose()
-         postOrder.dispose()
-         root.dispose()
-      }
-
-      final def vertexSerializer : Serializer[ S#Tx, S#Acc, K ] = VertexSerializer
-
-      final def insertChild( parent: K, newChild: Version )( implicit tx: S#Tx ) : K = {
-         val v = new K {
-            def tree    = me
-            val version = newChild
-            val preHead = parent.preTail.prepend() // preOrder.insert()
-            val preTail = preHead.append() // preOrder.insert()
-            val post    = parent.post.prepend() // postOrder.insert()
-         }
-         v
-      }
-
-      final def insertRetroChild( parent: K, newChild: Version )( implicit tx: S#Tx ) : K = {
-         val v = new K {
-            def tree    = me
-            val version = newChild
-            val preHead = parent.preHead.append()  // preOrder.insert()
-            val preTail = parent.preTail.prepend() // preOrder.insert()
-            val post    = parent.post.prepend()    // postOrder.insert()
-            override def toString = super.toString + "@r-ch"
-         }
-         v
-      }
-
-      final def insertRetroParent( child: K, newParent: Version )( implicit tx: S#Tx ) : K = {
-         require( child != root )
-         val v = new K {
-            def tree    = me
-            val version = newParent
-            val preHead = child.preHead.prepend()  // preOrder.insert()
-            val preTail = child.preTail.append()   // preOrder.insert()
-            val post    = child.post.append()      // postOrder.insert()
-            override def toString = super.toString + "@r-par"
-         }
-         v
-      }
-   }
-
-   private final class TreeNew[ S <: Sys[ S ], Version ]( rootVersion: Version, tx0: S#Tx )(
-      implicit val versionSerializer: Serializer[ S#Tx, S#Acc, Version ], val intView: Version => Int )
-   extends TreeImpl[ S, Version ] {
-      me =>
-
-      protected val preOrder      = TotalOrder.Set.empty[ S ]( 0 )( tx0 )
-      protected val postOrder     = TotalOrder.Set.empty[ S ]( Int.MaxValue )( tx0 )
-      val root: K = new K {
-         def tree: Tree[ S, Version ] = me
-         def version = rootVersion
-         val preHead = preOrder.root
-         val preTail = preHead.append()( tx0 ) // preOrder.insert()
-         val post    = postOrder.root
-      }
-   }
+      def version = rootVersion
+      val pre     = order.root
+      val post    = pre.append()(tx0) // XXX TODO: enforce Int.MaxValue
+    }
+  }
 
   private final class TreeRead[S <: Sys[S], Version](in: DataInput, access: S#Acc, tx0: S#Tx)(
     implicit val versionSerializer: Serializer[S#Tx, S#Acc, Version], val intView: Version => Int)
@@ -218,8 +206,7 @@ object Ancestor {
         ", required " + SER_VERSION + ").")
     }
 
-    protected val preOrder = TotalOrder.Set.read[S](in, access)(tx0)
-    protected val postOrder = TotalOrder.Set.read[S](in, access)(tx0)
+    protected val order = TotalOrder.Set.read[S](in, access)(tx0)
     val root = VertexSerializer.read(in, access)(tx0)
   }
 
@@ -238,42 +225,42 @@ object Ancestor {
     def insertRetroParent(child : K, newParent: Version)(implicit tx: S#Tx): K
   }
 
-   private type MarkOrder[ S <: Sys[ S ], Version, A ] = TotalOrder.Map.Entry[ S, Mark[ S, Version, A ]]
+  private type MarkOrder[S <: Sys[S], Version, A] = TotalOrder.Map.Entry[S, Mark[S, Version, A]]
 
-   private final val chebyMetric = IntDistanceMeasure3D.chebyshevXY
-   // left-bottom-front
-   // = left in pre-order list, right in post-order list, smaller in version
-   private final val metric = chebyMetric.orthant( 2 )
+  private final val chebyMetric = IntDistanceMeasure3D.chebyshevXY
+  // left-bottom-front
+  // = left in pre-order list, right in post-order list, smaller in version
+  private final val metric = chebyMetric.orthant(2)
 
-   private final class FilterMetric( pred: Int => Boolean ) extends IntDistanceMeasure3D.LongImpl {
-      import IntSpace.ThreeDim.{PointLike, HyperCube}
+  private final class FilterMetric(pred: Int => Boolean) extends IntDistanceMeasure3D.LongImpl {
+    import IntSpace.ThreeDim.{PointLike, HyperCube}
 
-      override def toString = "Ancestor.FilterMetric@" + pred.hashCode.toHexString
+    override def toString = "Ancestor.FilterMetric@" + pred.hashCode.toHexString
 
-      def distance( a: PointLike, b: PointLike ) : Long = {
-         if( (b.x <= a.x) && (b.y >= a.y) && pred( b.z )) {
-            chebyMetric.distance( a, b )
-         } else maxValue
-      }
+    def distance(a: PointLike, b: PointLike): Long = {
+      if ((b.x <= a.x) && (b.y >= a.y) && pred(b.z)) {
+        chebyMetric.distance(a, b)
+      } else maxValue
+    }
 
-      def minDistance( p: PointLike, q: HyperCube ) : Long = {
-         val qe   = q.extent
-         val qem1 = qe - 1
+    def minDistance(p: PointLike, q: HyperCube): Long = {
+      val qe = q.extent
+      val qem1 = qe - 1
 
-         if( ((q.cx - qe) <= p.x) && ((q.cy + qem1) >= p.y) && pred( q.cz - qe )) {
-            chebyMetric.minDistance( p, q )
-         } else maxValue
-      }
+      if (((q.cx - qe) <= p.x) && ((q.cy + qem1) >= p.y) && pred(q.cz - qe)) {
+        chebyMetric.minDistance(p, q)
+      } else maxValue
+    }
 
-      def maxDistance( p: PointLike, q: HyperCube ) : Long = {
-         val qe   = q.extent
-         val qem1 = qe - 1
+    def maxDistance(p: PointLike, q: HyperCube): Long = {
+      val qe = q.extent
+      val qem1 = qe - 1
 
-         if( ((q.cx + qem1) <= p.x) && ((q.cy - qe) >= p.y) && pred( q.cz + qem1 )) {
-            chebyMetric.maxDistance( p, q )
-         } else maxValue
-      }
-   }
+      if (((q.cx + qem1) <= p.x) && ((q.cy - qe) >= p.y) && pred(q.cz + qem1)) {
+        chebyMetric.maxDistance(p, q)
+      } else maxValue
+    }
+  }
 
   private sealed trait Mark[S <: Sys[S], Version, @spec(ValueSpec) A] extends Writable {
 
@@ -320,9 +307,10 @@ object Ancestor {
     new MapRead[S, Version, A](full, in, access, tx, valueSerializer)
   }
 
-  private final class IsoResult[S <: Sys[S], Version, @spec(ValueSpec) A](val pre: Mark[S, Version, A], val preCmp: Int,
-                                                                        val post: Mark[S, Version, A],
-                                                                        val postCmp: Int) {
+  private final class IsoResult[S <: Sys[S], Version, @spec(ValueSpec) A](val pre:  Mark[S, Version, A],
+                                                                          val preCmp: Int,
+                                                                          val post: Mark[S, Version, A],
+                                                                          val postCmp: Int) {
 
     override def toString = "Iso(pre " + (if (preCmp < 0) "< " else if (preCmp > 0) "> " else "== ") + pre + "," +
       "post " + (if (postCmp < 0) "< " else if (postCmp > 0) "> " else "== ") + post + ")"
@@ -404,10 +392,10 @@ object Ancestor {
     }
 
     private def query(vertex: K)(implicit tx: S#Tx): IsoResult[S, Version, A] = {
-      val cfPre = vertex.preHead
+      val cfPre = vertex.pre
       val (cmPreN, cmPreCmp) = preList.isomorphicQuery(new Ordered[S#Tx, M] {
         def compare(that: M)(implicit tx: S#Tx): Int = {
-          cfPre.compare(that.fullVertex.preHead)
+          cfPre.compare(that.fullVertex.pre)
         }
       })
       val cfPost = vertex.post
