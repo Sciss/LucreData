@@ -1,0 +1,32 @@
+
+var order = Vector("a_pre", "a_post")
+def insert(parent: Char, child: Char) {
+  val idx = order.indexOf("" + parent + "_pre")
+  order = order.patch(idx + 1, Vector("" + child + "_pre", "" + child + "_post"), 0)
+}
+insert('a', 'b')
+insert('b', 'c')
+insert('c', 'd')
+insert('c', 'e')
+insert('b', 'f')
+insert('f', 'g')
+insert('d', 'h')
+insert('h', 'i')
+insert('g', 'j')
+insert('e', 'k')
+insert('k', 'l')
+insert('e', 'm')
+insert('f', 'n')
+insert('n', 'o')
+insert('o', 'p')
+insert('p', 'q')
+insert('p', 'r')
+insert('n', 's')
+insert('s', 't')
+insert('t', 'u')
+insert('s', 'v')
+insert('m', 'w')
+insert('h', 'x')
+
+order.collect { case e if (e endsWith "_pre") => e.charAt(0) }
+order.collect { case e if (e endsWith "_post") => e.charAt(0) }
