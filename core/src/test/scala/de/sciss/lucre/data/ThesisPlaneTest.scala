@@ -26,8 +26,8 @@ object ThesisPlaneTest extends App {
 
     def insert(parent: Char, child: Char) {
       val ppre  = pre(parent)
-      val cpre  = ppre.append(0.125)
-      val cpost = cpre.append(0.875)
+      val cpre  = ppre.append() // 0.125
+      val cpost = cpre.append() // 0.875
       pre  += child -> cpre
       post += child -> cpost
     }

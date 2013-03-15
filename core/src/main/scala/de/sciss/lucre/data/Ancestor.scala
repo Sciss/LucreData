@@ -307,6 +307,20 @@ object Ancestor {
     new MapRead[S, Version, A](full, in, access, tx, valueSerializer)
   }
 
+  /*
+   * The result of isomorph search (mapping full tree vertex coordinates to marked tree coordinates).
+   *
+   * @param pre     the nearest mark in the pre-order traversal
+   * @param preCmp  the relation between the query (full) vertex and the found mark vertex.
+   *                `-1` indicates that the full vertex lies left of the found mark vertex in the pre-order list,
+   *                `0` indicates that both refer to the same version, and `1` indicates that the full vertex lies
+   *                right to the mark vertex in the pre-order list
+   * @param post    the nearest mark in the post-order traversal
+   * @param postCmp the relation between the query (full) vertex and the found mark vertex.
+   *                `-1` indicates that the full vertex lies left of the found mark vertex in the post-order list,
+   *                `0` indicates that both refer to the same version, and `1` indicates that the full vertex lies
+   *                right to the mark vertex in the post-order list
+   */
   private final class IsoResult[S <: Sys[S], Version, @spec(ValueSpec) A](val pre:  Mark[S, Version, A],
                                                                           val preCmp: Int,
                                                                           val post: Mark[S, Version, A],
