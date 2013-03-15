@@ -52,7 +52,7 @@ Vertex = (lb_pre: Label, lb_post: Label)
 
 Field[A]:
   Mark = (v_full: Vertex, v_mark: Vertex, value: A)
-  Rel  = (Mark, Cmp)
+  Rel  = (Label, Cmp)
   Iso  = (rel_pre: Rel, rel_post: Rel)
   Cmp  = -1 | 0 | +1
 
@@ -69,12 +69,12 @@ Field[A]:
     def insert(Mark)
 
   def query(v_full: Vertex): A =
-    iso = translate(v_full)
-    if iso.rel_pre.cmp == 0 then iso.rel_pre.mark.value
-    else
-      start_pre : Label = iso.rel_pre.mark .lb_pre  + iso.rel_pre .cmp
-      start_post: Label = iso.rel_post.mark.lb_post + iso.rel_post.cmp
-      spatial.nearest((start_pre, start_post), north-west)
+    translate(v_full) match
+      case m: Mark  => m.value
+      case iso: Iso =>
+        start_pre : Label = iso.rel_pre.mark .lb_pre  + iso.rel_pre .cmp
+        start_post: Label = iso.rel_post.mark.lb_post + iso.rel_post.cmp
+        spatial.nearest((start_pre, start_post), north-west)
 
   def update(v_full: Vertex, value: A) =
     val m = wrap(v_full, value)
@@ -93,8 +93,12 @@ Field[A]:
   def label(rel: Rel): Label
     if rel.cmp == -1 rel.mark.....lb_full.prepend() else lb_full.append()
 
-  def translate(v_full: Vertex): Iso =
-    rel_pre  = preList .nearest(m => compare(v_full.lb_pre  m.v_full.lb_pre ))
-    rel_post = postList.nearest(m => compare(v_full.lb_post m.v_full.lb_post))
-    (rel_pre, rel_post)
-    
+  def translate(v_full: Vertex): Mark | Iso =
+    (m_pre, cmp_pre) = preList .nearest(m => compare(v_full.lb_pre  m.v_full.lb_pre))
+    if cmp_pre == 0 then m_pre
+    else
+      (m_post, cmp_post) = postList.nearest(m => compare(v_full.lb_post m.v_full.lb_post))
+      rel_pre  = (m_pre .v_mark.lb_pre , cmp_pre )
+      rel_post = (m_post.v_mark.lb_post, cmp_post)
+      (rel_pre, rel_post)
+  

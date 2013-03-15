@@ -411,13 +411,15 @@ object Ancestor {
           cfPre.compare(that.fullVertex.pre)
         }
       })
+      if (cmPreCmp == 0) return new IsoResult(cmPreN, 0, cmPreN, 0)
+
       val cfPost = vertex.post
       val (cmPostN, cmPostCmp) = postList.isomorphicQuery(new Ordered[S#Tx, M] {
         def compare(that: M)(implicit tx: S#Tx): Int = {
           cfPost.compare(that.fullVertex.post)
         }
       })
-      new IsoResult[S, Version, A](cmPreN, cmPreCmp, cmPostN, cmPostCmp)
+      new IsoResult(cmPreN, cmPreCmp, cmPostN, cmPostCmp)
     }
 
     private def wrap(entry: (K, A))(implicit tx: S#Tx): M = {
@@ -445,7 +447,7 @@ object Ancestor {
     final def remove(vertex: K)(implicit tx: S#Tx): Boolean = {
       val iso = query(vertex)
       (iso.preCmp == 0) /* && (iso.postCmp == 0) */ && {
-        assert(iso.postCmp == 0)
+        // assert(iso.postCmp == 0)
         iso.pre.removeAndDispose() // iso.pre is a VM!
         true
       }
@@ -459,7 +461,7 @@ object Ancestor {
     final def get(vertex: K)(implicit tx: S#Tx): Option[A] = {
       val iso = query(vertex)
       if (iso.preCmp == 0) {
-        assert(iso.postCmp == 0)
+        // assert(iso.postCmp == 0)
         Some(iso.pre.value)
       } else None
     }
@@ -468,7 +470,7 @@ object Ancestor {
     final def nearest(vertex: K)(implicit tx: S#Tx): (K, A) = {
       val iso = query(vertex)
       if (iso.preCmp == 0) {
-        assert(iso.postCmp == 0)
+        // assert(iso.postCmp == 0)
         (vertex, iso.pre.value)
       } else {
         val preTag  = iso.pre.pre.tag
@@ -483,7 +485,7 @@ object Ancestor {
     final def nearestOption(vertex: K)(implicit tx: S#Tx): Option[(K, A)] = {
       val iso = query(vertex)
       if (iso.preCmp == 0) {
-        assert(iso.postCmp == 0)
+        // assert(iso.postCmp == 0)
         Some((vertex, iso.pre.value))
       } else {
         nearestWithMetric(vertex, iso, metric)
