@@ -340,9 +340,8 @@ object Ancestor {
 
     protected def preOrder:  TotalOrder.Map[S, M]
     protected def postOrder: TotalOrder.Map[S, M]
-
-    protected def preList:  SkipList.Set[S, M]
-    protected def postList: SkipList.Set[S, M]
+    protected def preList:   SkipList  .Set[S, M]
+    protected def postList:  SkipList  .Set[S, M]
 
     private[Ancestor] def skip: SkipOctree[S, IntSpace.ThreeDim, M]
 

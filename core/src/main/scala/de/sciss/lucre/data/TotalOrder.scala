@@ -770,6 +770,9 @@ object TotalOrder {
       root.write(out)
     }
 
+    /** Creates a new _unlinked_ entry in the order. The actual insertion (linking)
+      * must be done with a successive call to either `placeAfter` or `placeBefore`!
+      */
     def insert()(implicit tx: S#Tx): E = {
       val id          = tx.newID()
       val recTagVal   = tx.newIntVar(id, -1)

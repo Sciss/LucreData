@@ -62,12 +62,14 @@ Field[A]:
 
   Spatial:
     def nearest(q: Vertex, direction): A
+    def insert(Mark)
 
   Tree:
     def nearest(test: Mark => Cmp): (Mark, Cmp)
+    def insert(Mark)
 
   def query(v_full: Vertex): A =
-    iso = translate(v)
+    iso = translate(v_full)
     if iso.rel_pre.cmp == 0 then iso.rel_pre.mark.value
     else
       start_pre : Label = iso.rel_pre.mark .lb_pre  + iso.rel_pre .cmp
@@ -75,8 +77,21 @@ Field[A]:
       spatial.nearest((start_pre, start_post), north-west)
 
   def update(v_full: Vertex, value: A) =
+    val m = wrap(v_full, value)
+    preList  insert m
+    postList insert m
+    spatial  insert m
+  
+  def wrap(v_full: Vertex, value: A): Mark =
+    iso     = translate(v_full)
+    lb_pre  = label(iso.rel_pre )
+    lb_post = label(iso.rel_post)
+
 
   def compare(a: Label, b: Label): Cmp
+
+  def label(rel: Rel): Label
+    if rel.cmp == -1 rel.mark.....lb_full.prepend() else lb_full.append()
 
   def translate(v_full: Vertex): Iso =
     rel_pre  = preList .nearest(m => compare(v_full.lb_pre  m.v_full.lb_pre ))
