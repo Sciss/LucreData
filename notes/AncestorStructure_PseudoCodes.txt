@@ -48,20 +48,28 @@ a Mark has the following stored information
 
 in scala'ish pseudo code
 
+Label:
+  compare(that: Label): Cmp
+  def prepend(): Label
+  def append(): Label
+  def tag: Int
+
+Cmp  = -1 | 0 | +1
+
+Rel  = (Label, Cmp)
+
 Vertex = (lb_pre: Label, lb_post: Label)
 
 Field[A]:
   Mark = (v_full: Vertex, v_mark: Vertex, value: A)
-  Rel  = (Label, Cmp)
   Iso  = (rel_pre: Rel, rel_post: Rel)
-  Cmp  = -1 | 0 | +1
 
   val preList : Tree
   val postList: Tree
   val spatial : Spatial
 
   Spatial:
-    def nearest(q: Vertex, direction): A
+    def nearest(point: (Int, Int), direction): A
     def insert(Mark)
 
   Tree:
@@ -72,33 +80,31 @@ Field[A]:
     translate(v_full) match
       case m: Mark  => m.value
       case iso: Iso =>
-        start_pre : Label = iso.rel_pre.mark .lb_pre  + iso.rel_pre .cmp
-        start_post: Label = iso.rel_post.mark.lb_post + iso.rel_post.cmp
-        spatial.nearest((start_pre, start_post), north-west)
+        point_start = iso.rel_pre .label.tag + iso.rel_pre .cmp
+        point_stop  = iso.rel_post.label_tag + iso.rel_post.cmp
+        spatial.nearest((point_start, point_stop), north-west)
 
   def update(v_full: Vertex, value: A) =
-    val m = wrap(v_full, value)
-    preList  insert m
-    postList insert m
-    spatial  insert m
+    mark = wrap(v_full, value)
+    preList  insert mark
+    postList insert mark
+    spatial  insert mark
   
   def wrap(v_full: Vertex, value: A): Mark =
     iso     = translate(v_full)
     lb_pre  = label(iso.rel_pre )
     lb_post = label(iso.rel_post)
+    v_mark  = (lb_pre, lb_post)
+    (v_full, v_mark, value)
 
-
-  def compare(a: Label, b: Label): Cmp
-
-  def label(rel: Rel): Label
-    if rel.cmp == -1 rel.mark.....lb_full.prepend() else lb_full.append()
+  def label(rel: Rel): Label =
+    if rel.cmp == -1 rel.label.prepend() else rel.label.append()
 
   def translate(v_full: Vertex): Mark | Iso =
-    (m_pre, cmp_pre) = preList .nearest(m => compare(v_full.lb_pre  m.v_full.lb_pre))
+    (m_pre, cmp_pre) = preList .nearest(m => v_full.lb_pre compare m.v_full.lb_pre)
     if cmp_pre == 0 then m_pre
     else
-      (m_post, cmp_post) = postList.nearest(m => compare(v_full.lb_post m.v_full.lb_post))
+      (m_post, cmp_post) = postList.nearest(m => v_full.lb_post compare m.v_full.lb_post)
       rel_pre  = (m_pre .v_mark.lb_pre , cmp_pre )
       rel_post = (m_post.v_mark.lb_post, cmp_post)
       (rel_pre, rel_post)
-  

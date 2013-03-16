@@ -502,7 +502,7 @@ object Ancestor {
                                  (implicit tx: S#Tx): Option[(K, A)] = {
       val preTag  = iso.pre.pre.tag
       val postTag = iso.post.post.tag
-      val x       = if (iso.preCmp < 0) preTag - 1 else preTag
+      val x       = if (iso.preCmp  < 0) preTag  - 1 else preTag
       val y       = if (iso.postCmp > 0) postTag + 1 else postTag
       val nnOpt   = skip.nearestNeighborOption(IntPoint3D(x, y, vertex.versionInt), metric)
       nnOpt.map { nn => (nn.fullVertex, nn.value) }

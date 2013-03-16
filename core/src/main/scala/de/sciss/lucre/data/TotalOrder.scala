@@ -56,7 +56,7 @@ object TotalOrder {
 
     def empty[S <: Sys[S]](rootTag: Int = 0)(implicit tx: S#Tx): Set[S] = {
       val id = tx.newID()
-      new SetNew(id, rootTag, tx.newIntVar(id, 1), tx)
+      new SetNew[S](id, rootTag, tx.newIntVar(id, 1), tx)
     }
 
     def read[S <: Sys[S]](in: DataInput, access: S#Acc)(implicit tx: S#Tx): Set[S] =
@@ -866,7 +866,7 @@ object TotalOrder {
      * a subsequence with sufficiently low density, at which point
      * we space the tags evenly throughout the available values.
      *
-     * The multiplier controls the growth of the threshhold density;
+     * The multiplier controls the growth of the threshold density;
      * it is 2/T for the T parameter described by Bender et al.
      * Large multipliers lead to fewer relabels, while small items allow
      * us to handle more items with machine integer tags, so we vary the

@@ -17,19 +17,45 @@ object ThesisPlaneTest extends App {
   val m = InMemory()
   type S = InMemory
 
+  val mSet = Set('a', 'b', 'g', 'm', 'n')
+
   m.step { implicit tx =>
-    type E  = TotalOrder.Set.Entry[S]
-    val tot = TotalOrder.Set.empty[S](0)
+    type E    = TotalOrder.Set.Entry[S]
+    val tot   = TotalOrder.Set.empty[S](0)
 
     var pre   = Map[Char, E]('a' -> tot.root)
     var post  = Map[Char, E]('a' -> tot.root.appendMax)
 
+    val totM  = TotalOrder.Set.empty[S](0)
+    var preM  = Map[Char, E]('a' -> totM.root)
+    var postM = Map[Char, E]('a' -> totM.root.appendMax)
+
+    var isoPre  = Map[Int, E](pre ('a').tag -> preM ('a'))
+    var isoPost = Map[Int, E](post('a').tag -> postM('a'))
+
     def insert(parent: Char, child: Char) {
+//      println(s"Insert $child")
       val ppre  = pre(parent)
       val cpre  = ppre.append() // 0.125
       val cpost = cpre.append() // 0.875
       pre  += child -> cpre
       post += child -> cpost
+
+      if (mSet.contains(child)) {
+        def findPred(full: E): E = isoPre .get(full.tag).getOrElse(findPred(full.prev.orNull))
+        def findSucc(full: E): E = isoPost.get(full.tag).getOrElse(findSucc(full.next.orNull))
+
+        val cpreMP  = findPred(cpre )
+        val cpostMP = findSucc(cpost)
+
+        val cpreM   = cpreMP .append()
+        val cpostM  = cpostMP.prepend()
+        isoPre  += cpre.tag  -> cpreM
+        isoPost += cpost.tag -> cpostM
+
+        preM     += child -> cpreM
+        postM    += child -> cpostM
+      }
     }
 
     insert('a', 'b')
@@ -58,11 +84,7 @@ object ThesisPlaneTest extends App {
 
     def fix(m: Map[Char, E]) = m.map { case (key, e) => (key, e.tag) }
 
-    val preSnap   = fix(pre)
-    val postSnap  = fix(post)
-    val max       = math.max(preSnap.maxBy(_._2)._2, postSnap.maxBy(_._2)._2)
-
-    def scale(m: Map[Char, Int]) = {
+    def scale(m: Map[Char, Int], max: Int) = {
       val rel = m.mapValues(t => math.sqrt(t.toDouble / max)).toIndexedSeq.sortBy(_._2)
       val dist = rel
 //      rel.zipWithIndex.map { case ((key, t), idx) =>
@@ -75,9 +97,20 @@ object ThesisPlaneTest extends App {
       str.mkString(", ")
     }
 
-    println("PRE:")
-    println(scale(preSnap))
-    println("\nPOST:")
-    println(scale(postSnap))
+    val preSnap   = fix(pre)
+    val postSnap  = fix(post)
+    val max       = math.max(preSnap.maxBy(_._2)._2, postSnap.maxBy(_._2)._2)
+    println("\nFULL PRE:")
+    println(scale(preSnap, max))
+    println("\nFULL POST:")
+    println(scale(postSnap, max))
+
+    val preSnapM  = fix(preM)
+    val postSnapM = fix(postM)
+    val maxM      = math.max(preSnapM.maxBy(_._2)._2, postSnapM.maxBy(_._2)._2)
+    println("\nMARK PRE:")
+    println(scale(preSnapM, maxM))
+    println("\nMARK POST:")
+    println(scale(postSnapM, maxM))
   }
 }
