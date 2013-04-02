@@ -23,13 +23,14 @@
  *  contact@sciss.de
  */
 
-package de.sciss.lucre
+package de.sciss
+package lucre
 package data
 
 import scala.{specialized => spec}
 import stm.{Mutable, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
-import io.{DataInput, DataOutput, Serializer}
+import serial.{DataInput, DataOutput, Serializer}
 
 object SkipList {
   /**

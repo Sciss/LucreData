@@ -23,11 +23,12 @@
  *  contact@sciss.de
  */
 
-package de.sciss.lucre
+package de.sciss
+package lucre
 package data
 
 import geom.{IntHyperCubeN, IntPointN, IntSpace, LongSquare, LongPoint2D, IntCube, IntPoint3D, IntSquare, IntPoint2D}
-import io.{DataInput, DataOutput, ImmutableSerializer}
+import serial.{DataInput, DataOutput, ImmutableSerializer}
 
 object SpaceSerializers {
   // ---- int space ----

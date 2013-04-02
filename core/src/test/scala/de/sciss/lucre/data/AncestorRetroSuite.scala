@@ -1,4 +1,5 @@
-package de.sciss.lucre
+package de.sciss
+package lucre
 package data
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
@@ -9,7 +10,7 @@ import stm.store.BerkeleyDB
 import stm.{InMemory, Durable, Cursor, Sys}
 import annotation.tailrec
 import collection.immutable.{Vector => IIdxSeq}
-import io.{Reader, Writable, DataInput, DataOutput, Serializer}
+import serial.{Reader, Writable, DataInput, DataOutput, Serializer}
 
 /**
 * To run this test copy + paste the following into sbt:

@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object Build extends sbt.Build {
-  lazy val stmVersion = "1.8.+"
+  lazy val stmVersion = "2.0.+"
 
   lazy val root: Project = Project(
     id            = "lucredata",

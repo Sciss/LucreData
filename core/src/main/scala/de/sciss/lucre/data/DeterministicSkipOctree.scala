@@ -23,7 +23,8 @@
  *  contact@sciss.de
  */
 
-package de.sciss.lucre
+package de.sciss
+package lucre
 package data
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
@@ -31,7 +32,7 @@ import collection.mutable.{PriorityQueue, Queue => MQueue}
 import annotation.{switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
 import stm.{Identifiable, Sys, Mutable}
-import io.{Writable, DataInput, DataOutput, Serializer}
+import serial.{Writable, DataInput, DataOutput, Serializer}
 
 /**
 * A transactional determinstic skip octree as outlined in the paper by Eppstein et al.

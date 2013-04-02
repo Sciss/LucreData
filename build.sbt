@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version in ThisBuild := "1.9.1-SNAPSHOT"
+version in ThisBuild := "2.0.0-SNAPSHOT"
 
 organization in ThisBuild := "de.sciss"
 
@@ -11,8 +11,6 @@ homepage in ThisBuild <<= name { n => Some(url("https://github.com/Sciss/" + n))
 licenses in ThisBuild := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
 scalaVersion in ThisBuild := "2.10.1"
-
-// crossScalaVersions in ThisBuild := Seq("2.10.0", "2.9.2")
 
 resolvers in ThisBuild ++= Seq(
   "itextpdf.com" at "http://maven.itextpdf.com",

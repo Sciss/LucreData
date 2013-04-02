@@ -23,14 +23,15 @@
  *  contact@sciss.de
  */
 
-package de.sciss.lucre
+package de.sciss
+package lucre
 package data
 
 import geom.{DistanceMeasure, IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
 import stm.{Disposable, Sys}
 import geom.IntSpace.ThreeDim
 import scala.{specialized => spec}
-import io.{DataInput, DataOutput, Serializer, Writable}
+import serial.{DataInput, DataOutput, Serializer, Writable}
 
 //import stm.{SpecGroup => ialized}
 

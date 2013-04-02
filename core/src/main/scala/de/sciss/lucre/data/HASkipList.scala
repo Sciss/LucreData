@@ -23,7 +23,8 @@
  *  contact@sciss.de
  */
 
-package de.sciss.lucre
+package de.sciss
+package lucre
 package data
 
 import collection.mutable
@@ -31,7 +32,7 @@ import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
 import scala.{specialized => spec}
 import stm.{Mutable, Sink, Sys}
-import io.{DataInput, DataOutput, Serializer}
+import serial.{DataInput, DataOutput, Serializer}
 
 /**
  * A transactional version of the deterministic k-(2k+1) top-down operated skip list

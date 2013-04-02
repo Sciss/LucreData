@@ -1,4 +1,5 @@
-package de.sciss.lucre
+package de.sciss
+package lucre
 package data
 
 import org.scalatest.{GivenWhenThen, FeatureSpec}
@@ -7,7 +8,7 @@ import java.io.File
 import TotalOrder.Map.RelabelObserver
 import stm.{Cursor, Durable, InMemory, Sys}
 import collection.immutable.{Vector => IIdxSeq}
-import io.{DataInput, DataOutput, Writable}
+import serial.{DataInput, DataOutput, Writable}
 
 /**
  * To run this test copy + paste the following into sbt:
@@ -241,7 +242,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
    object MapHolder {
       final class Serializer[ S <: Sys[ S ]]( observer: RelabelObserver[ S#Tx, MapHolder[ S ]], tx0: S#Tx )
-      extends io.Serializer[ S#Tx, S#Acc, MapHolder[ S ]] {
+      extends serial.Serializer[ S#Tx, S#Acc, MapHolder[ S ]] {
          val map = TotalOrder.Map.empty[ S, MapHolder[ S ]]( observer, _.entry )( tx0, this )
 
          def write( v: MapHolder[ S ], out: DataOutput ) { v.write( out )}
