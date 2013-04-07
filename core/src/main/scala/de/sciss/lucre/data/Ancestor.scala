@@ -36,7 +36,7 @@ import serial.{DataInput, DataOutput, Serializer, Writable}
 //import stm.{SpecGroup => ialized}
 
 object Ancestor {
-  private val SER_VERSION = 0
+  private final val SER_VERSION = 65
 
   private[Ancestor] val cube = IntCube(0x40000000, 0x40000000, 0x40000000, 0x40000000)
 

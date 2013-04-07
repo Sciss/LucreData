@@ -48,7 +48,7 @@ import serial.{Writable, Serializer, DataInput, DataOutput}
  * the amortized time per insertion in an n-item list is O(log n)."
  */
 object TotalOrder {
-  private val SER_VERSION = 0
+  private final val SER_VERSION = 84
 
   // ---- Set ----
 

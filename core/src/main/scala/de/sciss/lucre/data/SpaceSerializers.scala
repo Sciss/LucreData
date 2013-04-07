@@ -78,11 +78,11 @@ object SpaceSerializers {
 
   implicit object IntCubeSerializer extends ImmutableSerializer[geom.IntCube] {
     def read(in: DataInput): IntCube = {
-      val cx = in.readInt()
-      val cy = in.readInt()
-      val cz = in.readInt()
-      val extent = in.readInt()
-      IntCube(cx, cy, cz, extent)
+      val cx  = in.readInt()
+      val cy  = in.readInt()
+      val cz  = in.readInt()
+      val ext = in.readInt()
+      IntCube(cx, cy, cz, ext)
     }
 
     def write(q: IntCube, out: DataOutput) {
@@ -98,12 +98,12 @@ object SpaceSerializers {
   implicit object IntPointNSerializer extends ImmutableSerializer[NDim#Point] {
     def write(v: NDim#Point, out: DataOutput) {
       val c = v.components
-      out.writeInt(c.size)
+      out.writeShort(c.size)
       c.foreach(out.writeInt _)
     }
 
     def read(in: DataInput): NDim#Point = {
-      val sz = in.readInt()
+      val sz = in.readShort()
       val c = Vector.fill(sz)(in.readInt())
       IntPointN(c)
     }
@@ -112,14 +112,14 @@ object SpaceSerializers {
   implicit object IntHyperCubeNSerializer extends ImmutableSerializer[NDim#HyperCube] {
     def write(v: NDim#HyperCube, out: DataOutput) {
       val c = v.components
-      out.writeInt(c.size)
+      out.writeShort(c.size)
       c.foreach(out.writeInt _)
       out.writeInt(v.extent)
     }
 
     def read(in: DataInput): NDim#HyperCube = {
-      val sz = in.readInt()
-      val c = Vector.fill(sz)(in.readInt())
+      val sz  = in.readShort()
+      val c   = Vector.fill(sz)(in.readInt())
       val ext = in.readInt()
       IntHyperCubeN(c, ext)
     }

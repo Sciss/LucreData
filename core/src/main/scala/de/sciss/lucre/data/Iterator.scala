@@ -33,13 +33,13 @@ import scala.{specialized => spec}
 //import stm.{SpecGroup => ialized}
 
 object Iterator {
-   private final class Map[-Tx, @spec(ValueSpec) +A, @spec(ValueSpec) B](peer: Iterator[Tx, A], fun: A => B)
-   extends Iterator[Tx, B] {
-     def hasNext(implicit tx: Tx): Boolean  = peer.hasNext
-     def next() (implicit tx: Tx): B        = fun(peer.next())
+  private final class Map[-Tx, @spec(ValueSpec) +A, @spec(ValueSpec) B](peer: Iterator[Tx, A], fun: A => B)
+  extends Iterator[Tx, B] {
+    def hasNext(implicit tx: Tx): Boolean  = peer.hasNext
+    def next() (implicit tx: Tx): B        = fun(peer.next())
 
-     override def toString = peer.toString + ".map(" + fun + ")"
-   }
+    override def toString = peer.toString + ".map(" + fun + ")"
+  }
 
   def empty: Iterator[Any, Nothing] = Empty
 

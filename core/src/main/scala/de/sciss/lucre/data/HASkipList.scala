@@ -66,7 +66,7 @@ import serial.{DataInput, DataOutput, Serializer}
 object HASkipList {
   private def opNotSupported: Nothing = sys.error("Operation not supported")
 
-  private val SER_VERSION = 0
+  private final val SER_VERSION = 76
 
   private final class SetSer[S <: Sys[S], A](keyObserver: SkipList.KeyObserver[S#Tx, A])
                                             (implicit ordering: Ordering[S#Tx, A],
@@ -266,7 +266,7 @@ object HASkipList {
 
     final protected def writeData(out: DataOutput) {
       out.writeByte(SER_VERSION)
-      out.writeInt(minGap)
+      out.writeByte(minGap)
       downNode.write(out)
     }
 
@@ -1350,7 +1350,7 @@ object HASkipList {
       require(version == SER_VERSION, "Incompatible serialized version (found " + version +
         ", required " + SER_VERSION + ").")
 
-      val minGap = in.readInt()
+      val minGap = in.readByte()
       new SetImpl[S, A](id, minGap, keyObserver, list => tx.readVar[Node[S, A]](id, in)(list))
     }
 
@@ -1424,10 +1424,9 @@ object HASkipList {
 
       val id      = tx.readID(in, access)
       val version = in.readByte()
-      require(version == SER_VERSION, "Incompatible serialized version (found " + version +
-        ", required " + SER_VERSION + ").")
+      require(version == SER_VERSION, s"Incompatible serialized version (found $version, required $SER_VERSION).")
 
-      val minGap = in.readInt()
+      val minGap = in.readByte()
       new MapImpl[S, A, B](id, minGap, keyObserver, list => tx.readVar[Node[S, A, B]](id, in)(list))
     }
 
