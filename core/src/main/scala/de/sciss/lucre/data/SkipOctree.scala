@@ -197,4 +197,6 @@ trait SkipOctree[S <: Sys[S], D <: Space[D], A] extends Mutable[S#ID, S#Tx] {
 
   def +=(elem: A)(implicit tx: S#Tx): this.type
   def -=(elem: A)(implicit tx: S#Tx): this.type
+
+  def debugPrint()(implicit tx: S#Tx): String
 }

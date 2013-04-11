@@ -213,7 +213,7 @@ sealed trait SkipList[S <: Sys[S], /* @spec(KeySpec) */ A, /* @spec(ValueSpec) *
 
   def iterator(implicit tx: S#Tx): Iterator[S#Tx, E]
 
-  def debugPrint(implicit tx: S#Tx): String
+  def debugPrint()(implicit tx: S#Tx): String
 
   def write(out: DataOutput): Unit
 

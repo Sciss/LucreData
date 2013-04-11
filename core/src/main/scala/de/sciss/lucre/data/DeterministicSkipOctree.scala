@@ -33,6 +33,8 @@ import annotation.{switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
 import stm.{Identifiable, Sys, Mutable}
 import serial.{Writable, DataInput, DataOutput, Serializer}
+import java.io.PrintStream
+import de.sciss.serial.impl.ByteArrayOutputStream
 
 /**
 * A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
@@ -49,7 +51,7 @@ import serial.{Writable, DataInput, DataOutput, Serializer}
 * this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
 */
 object DeterministicSkipOctree {
-  private final val SER_VERSION = 79
+  private final val SER_VERSION = 79  // 'O'
 
   def empty[S <: Sys[S], D <: Space[D], A](hyperCube: D#HyperCube, skipGap: Int = 2)
                                           (implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
@@ -133,8 +135,10 @@ object DeterministicSkipOctree {
         i += 1
       }
       implicit val r2 = RightOptionReader
-      val headRight = tx0.newVar[NextOption](cid, EmptyValue)
-      new LeftTopBranch(cid, totalOrder.root, ch, headRight)
+      val headRight   = tx0.newVar[NextOption](cid, EmptyValue)
+      val startOrder  = totalOrder.root
+      val stopOrder   = startOrder.append()(tx0)
+      new LeftTopBranch(cid, startOrder = totalOrder.root, stopOrder = stopOrder, children = ch, nextRef = headRight)
     }
     val lastTreeRef = {
       implicit val r3 = TopBranchSerializer
@@ -153,6 +157,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   private type Order = TotalOrder.Set.Entry[S]
 
+  // ---- abstract types and methods ----
+
   implicit def space: D
   implicit def keySerializer: Serializer[S#Tx, S#Acc, A]
   implicit def hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube]
@@ -161,6 +167,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   protected def skipList: HASkipList.Set[S, LeafImpl]
   protected def head: LeftTopBranch
   protected def lastTreeRef: S#Var[TopBranch]
+
+  // ----
 
   override def toString = "Octree-" + space.dim + "d" + id
 
@@ -201,9 +209,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       val cookie = in.readByte()
       val id = tx.readID(in, access)
       (cookie: @switch) match {
-        case 2 => readLeftTopBranch(in, access, id)
-        case 3 => readLeftChildBranch(in, access, id)
-        case 4 => readRightTopBranch(in, access, id)
+        case 2 => readLeftTopBranch   (in, access, id)
+        case 3 => readLeftChildBranch (in, access, id)
+        case 4 => readRightTopBranch  (in, access, id)
         case 5 => readRightChildBranch(in, access, id)
         case _ => sys.error("Unexpected cookie " + cookie)
       }
@@ -219,7 +227,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       val cookie = in.readByte()
       val id = tx.readID(in, access)
       (cookie: @switch) match {
-        case 2 => readLeftTopBranch(in, access, id)
+        case 2 => readLeftTopBranch (in, access, id)
         case 4 => readRightTopBranch(in, access, id)
         case _ => sys.error("Unexpected cookie " + cookie)
       }
@@ -253,7 +261,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       val cookie = in.readByte()
       val id = tx.readID(in, access)
       (cookie: @switch) match {
-        case 2 => readLeftTopBranch(in, access, id)
+        case 2 => readLeftTopBranch  (in, access, id)
         case 3 => readLeftChildBranch(in, access, id)
         case _ => sys.error("Unexpected cookie " + cookie)
       }
@@ -1101,7 +1109,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
      * the `startOrder` and `stopOrder` form the interval
      * borders of the sub-tree.
      */
-    def stopOrder(implicit tx: S#Tx): Order
+    def stopOrder /* (implicit tx: S#Tx) */: Order
   }
 
   protected sealed trait Left
@@ -1202,7 +1210,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
      * For a leaf (which does not have a subtree),
      * the `stopOrder` is identical to its `order`.
      */
-    def stopOrder(implicit tx: S#Tx): Order = order
+    def stopOrder /* (implicit tx: S#Tx) */: Order = order
 
     def shortString = "Leaf(" + value + ")"
 
@@ -1450,8 +1458,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
    * `findImmediateLeaf` which is typically called after arriving here
    * from a `findP0` call.
    */
-  protected sealed trait LeftBranch extends /* LeftBranchOption with */ BranchLike with LeftNonEmpty /* with Writable */
-  /* Mutable[ S ] */ {
+  protected sealed trait LeftBranch extends /* LeftBranchOption with */ BranchLike with LeftNonEmpty {
     /**
      * For a `LeftBranch`, all its children are more specific
      * -- they are instances of `LeftChild` and thus support
@@ -1461,25 +1468,25 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     final def prevOption: Option[Branch] = None
 
-    /**
-     * The stop-order of a left node is now always implicitly defined.
-     * It is not a real entry in the total-order. Instead it is either
-     * the start-order, if the node is empty, otherwise the stop-order
-     * of the right-most non-empty child of the node. Since only `append`
-     * is used on the order entries, this totally suffices for maintaining
-     * the tree's binarization.
-     */
-    final def stopOrder(implicit tx: S#Tx): Order = {
-      val sz = children.length
-      @tailrec def step(found: Order, i: Int): Order = if (i == sz) found
-      else {
-        step(child(i) match {
-          case n: LeftNonEmpty => n.stopOrder
-          case _ => found
-        }, i + 1)
-      }
-      step(startOrder, 0)
-    }
+    //    /**
+    //     * The stop-order of a left node is now always implicitly defined.
+    //     * It is not a real entry in the total-order. Instead it is either
+    //     * the start-order, if the node is empty, otherwise the stop-order
+    //     * of the right-most non-empty child of the node. Since only `append`
+    //     * is used on the order entries, this totally suffices for maintaining
+    //     * the tree's binarization.
+    //     */
+    //    final def stopOrder(implicit tx: S#Tx): Order = {
+    //      val sz = children.length
+    //      @tailrec def step(found: Order, i: Int): Order = if (i == sz) found
+    //      else {
+    //        step(child(i) match {
+    //          case n: LeftNonEmpty => n.stopOrder
+    //          case _ => found
+    //        }, i + 1)
+    //      }
+    //      step(startOrder, 0)
+    //    }
 
     final def child(idx: Int)(implicit tx: S#Tx): LeftChildOption = children(idx)()
 
@@ -1488,7 +1495,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
 
     final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx) {
-      //         val point   = pointView( leaf.value )
+      // val point = pointView( leaf.value )
       val qidx = hyperCube.indexOf(point)
       assert(child(qidx) == leaf, "Internal error - expected leaf not found")
       updateChild(qidx, EmptyValue)
@@ -1590,9 +1597,13 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         ch(i) = tx.newVar[LeftChildOption](cid, EmptyValue)(LeftChildOptionSerializer)
         i += 1
       }
-      val parentRef = tx.newVar[LeftBranch](cid, this)
-      val rightRef  = tx.newVar[NextOption](cid, EmptyValue)(RightOptionReader)
-      val n         = new LeftChildBranch(cid, parentRef, iq, newChildOrder(qidx), ch, rightRef)
+      val parentRef   = tx.newVar[LeftBranch](cid, this)
+      val rightRef    = tx.newVar[NextOption](cid, EmptyValue)(RightOptionReader)
+      val startOrder  = newChildOrder(qidx)
+      val stopOrder   = startOrder.append()
+      val n           = new LeftChildBranch(
+        cid, parentRef, iq, startOrder = startOrder, stopOrder = stopOrder, children = ch, nextRef = rightRef
+      )
       updateChild(qidx, n)
       n
     }
@@ -1607,7 +1618,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
    * Serialization-id: 2
    */
   private def readLeftTopBranch(in: DataInput, access: S#Acc, id: S#ID)(implicit tx: S#Tx): LeftTopBranch = {
-    val startOrder  = totalOrder.readEntry(in, access)
+    val startOrder  = totalOrder.root // .readEntry(in, access)
+    val stopOrder   = totalOrder.readEntry(in, access)
     val sz          = numOrthants
     val ch          = tx.newVarArray[LeftChildOption](sz)
     var i = 0
@@ -1616,10 +1628,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       i += 1
     }
     val nextRef = tx.readVar[NextOption](id, in)(RightOptionReader)
-    new LeftTopBranch(id, startOrder, ch, nextRef)
+    new LeftTopBranch(id, startOrder = startOrder, stopOrder = stopOrder, children = ch, nextRef = nextRef)
   }
 
-  protected final class LeftTopBranch(val id: S#ID, val startOrder: Order,
+  protected final class LeftTopBranch(val id: S#ID, val startOrder: Order, val stopOrder: Order,
                                       protected val children: Array[S#Var[LeftChildOption]],
                                       protected val nextRef: S#Var[NextOption])
     extends LeftBranch with TopBranch with Mutable[S#ID, S#Tx] {
@@ -1628,7 +1640,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     def dispose()(implicit tx: S#Tx) {
       id.dispose()
-      // startOrder.dispose() -- no, because tree will call totalOrder.dispose which will do this!
+      // startOrder.dispose() -- no, because tree will call totalOrder.dispose which will do this (as it is the root)!
+      stopOrder.dispose()
       var i = 0
       val sz = children.length
       while (i < sz) {
@@ -1642,7 +1655,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       out.writeByte(2)
       id.write(out)
       // no need to write the hyperCube?
-      startOrder.write(out)
+      // startOrder.write(out) -- can be recovered as totalOrder.root
+      stopOrder .write(out)
       var i = 0
       val sz = children.length
       while (i < sz) {
@@ -1662,6 +1676,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     val parentRef   = tx.readVar[LeftBranch](id, in)
     val hyperCube   = hyperSerializer.read(in, access)
     val startOrder  = totalOrder.readEntry(in, access)
+    val stopOrder   = totalOrder.readEntry(in, access)
     val sz          = numOrthants
     val ch          = tx.newVarArray[LeftChildOption](sz)
     var i = 0
@@ -1670,11 +1685,12 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       i += 1
     }
     val nextRef = tx.readVar[NextOption](id, in)(RightOptionReader)
-    new LeftChildBranch(id, parentRef, hyperCube, startOrder, ch, nextRef)
+    new LeftChildBranch(id, parentRef, hyperCube, startOrder = startOrder, stopOrder = stopOrder,
+      children = ch, nextRef = nextRef)
   }
 
   private final class LeftChildBranch(val id: S#ID, parentRef: S#Var[LeftBranch], val hyperCube: D#HyperCube,
-                                      val startOrder: Order,
+                                      val startOrder: Order, val stopOrder: Order,
                                       protected val children: Array[S#Var[LeftChildOption]],
                                       protected val nextRef: S#Var[NextOption])
     extends LeftBranch with ChildBranch with LeftNonEmptyChild {
@@ -1691,11 +1707,12 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
 
     def dispose()(implicit tx: S#Tx) {
-      id.dispose()
-      parentRef.dispose()
+      id        .dispose()
+      parentRef .dispose()
       startOrder.dispose()
+      stopOrder .dispose()
       var i = 0
-      val sz = children.length;
+      val sz = children.length
       while (i < sz) {
         children(i).dispose()
         i += 1
@@ -1709,6 +1726,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       parentRef.write(out)
       hyperSerializer.write(hyperCube, out)
       startOrder.write(out)
+      stopOrder .write(out)
       var i = 0
       val sz = children.length
       while (i < sz) {
@@ -1720,6 +1738,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     private def remove()(implicit tx: S#Tx) {
       startOrder.remove() // totalOrder.remove( startOrder )
+      stopOrder .remove()
       dispose()
     }
 
@@ -1943,5 +1962,54 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
       removeIfLonely(0)
     }
+  }
+
+  def debugPrint()(implicit tx: S#Tx): String = {
+    //    protected def totalOrder: TotalOrder.Set[S]
+    //    protected def skipList: HASkipList.Set[S, LeafImpl]
+    //    protected def head: LeftTopBranch
+    //    protected def lastTreeRef: S#Var[TopBranch]
+
+    val baos  = new ByteArrayOutputStream()
+    val ps    = new PrintStream(baos)
+    import ps._
+
+    println(s"Debug print for $this")
+    println("Total order tag list:")
+    println(totalOrder.tagList(totalOrder.head).mkString(", "))
+    println("Skip list of leaves:")
+    println(skipList.debugPrint())
+    println("Octree structure:")
+
+    def dumpTree(b: Branch, indent: Int) {
+      val iStr = " " * indent
+      b match {
+        case lb: LeftBranch =>
+          println(s"${iStr}Left Branch with ${b.hyperCube}; start = ${lb.startOrder.tag}, stop = ${lb.stopOrder.tag}")
+        case _ =>
+          println(s"Right Branch with ${b.hyperCube}")
+      }
+      for(i <- 0 until numOrthants) {
+        print(s"$iStr  Child #${i+1} = ")
+        b.child(i) match {
+          case cb: Branch =>
+            println("Branch:")
+            dumpTree(cb, indent + 4)
+          case l: LeafImpl =>
+            println(s"Leaf with ${l.value}; order = ${l.order.tag}")
+          case empty => println(empty)
+        }
+      }
+    }
+
+    def dumpTrees(b: Branch, level: Int) {
+      println(s"\n---level $level----")
+      dumpTree(b, 0)
+      b.nextOption.foreach(b => dumpTrees(b, level + 1))
+    }
+
+    dumpTrees(headTree, 0)
+    ps.close()
+    new String(baos.toByteArray, "UTF-8")
   }
 }

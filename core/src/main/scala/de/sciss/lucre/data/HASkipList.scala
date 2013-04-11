@@ -318,7 +318,7 @@ object HASkipList {
 
     @inline final protected def topN(implicit tx: S#Tx): Node[S, A, E] = downNode()
 
-    final def debugPrint(implicit tx: S#Tx): String = topN.printNode(isRight = true).mkString("\n")
+    final def debugPrint()(implicit tx: S#Tx): String = topN.printNode(isRight = true).mkString("\n")
 
     final def toIndexedSeq(implicit tx: S#Tx): IIdxSeq[E] = fillBuilder(Vector.newBuilder)
     final def toList      (implicit tx: S#Tx): List[E]    = fillBuilder(List.newBuilder)

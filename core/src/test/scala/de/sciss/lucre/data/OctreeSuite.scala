@@ -14,7 +14,7 @@ import stm.{Cursor, Durable, InMemory, Sys}
  *
  * To run this test copy + paste the following into sbt:
  * {{
- * test-only de.sciss.collection.txn.OctreeSuite
+ * test-only de.sciss.lucre.data.OctreeSuite
  * }}
  */
 class OctreeSuite extends FeatureSpec with GivenWhenThen {
