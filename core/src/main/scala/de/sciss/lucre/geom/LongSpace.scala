@@ -35,34 +35,47 @@ import annotation.tailrec
  * they should be >= -0x2000000000000000L and < 0x2000000000000000L
  */
 object LongSpace {
-   sealed trait TwoDim extends Space[ TwoDim ] {
-      type PointLike       = LongPoint2DLike
-      type Point           = LongPoint2D
-      type HyperCubeLike   = LongSquareLike
-      type HyperCube       = LongSquare
-   }
-   implicit object TwoDim extends TwoDim {
-      val maxPoint         = LongPoint2D( Long.MaxValue, Long.MaxValue )
-      val dim              = 2
-   }
+  sealed trait TwoDim extends Space[TwoDim] {
+    type PointLike      = LongPoint2DLike
+    type Point          = LongPoint2D
+    type HyperCubeLike  = LongSquareLike
+    type HyperCube      = LongSquare
+  }
 
-   /**
-    * A helper method which efficiently calculates the unique integer in an interval [a, b] which has
-    * the maximum number of trailing zeros in its binary representation (a and b are integers > 0).
-    * This is used by the `HyperCube` implementations to find the greatest interesting square for
-    * two given children.
-    *
-    * Thanks to Rex Kerr and Daniel Sobral
-    * ( http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits )
-    */
-   def binSplit( a: Long, b: Long ): Long = binSplitRec( a, b, 0xFFFFFFFF00000000L, 16 )
+  implicit object TwoDim extends TwoDim {
+    val maxPoint  = LongPoint2D(Long.MaxValue, Long.MaxValue)
+    val dim       = 2
 
-   @tailrec private def binSplitRec( a: Long, b: Long, mask: Long, shift: Int ): Long = {
-      val gt = a > (b & mask)
-      if( shift == 0 ) {
-         if( gt ) mask >> 1 else mask
-      } else {
-         binSplitRec( a, b, if( gt ) mask >> shift else mask << shift, shift >> 1 )
+    object lexicalOrder extends Ordering[LongPoint2DLike] {
+      def compare(a: LongPoint2DLike, b: LongPoint2DLike): Int = {
+        val ax = a.x
+        val bx = b.x
+        if (ax < bx) -1 else if (ax > bx) 1 else {
+          val ay = a.y
+          val by = b.y
+          if (ay < by) -1 else if (ay > by) 1 else 0
+        }
       }
-   }
+    }
+  }
+
+  /**
+   * A helper method which efficiently calculates the unique integer in an interval [a, b] which has
+   * the maximum number of trailing zeros in its binary representation (a and b are integers > 0).
+   * This is used by the `HyperCube` implementations to find the greatest interesting square for
+   * two given children.
+   *
+   * Thanks to Rex Kerr and Daniel Sobral
+   * ( http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits )
+   */
+  def binSplit(a: Long, b: Long): Long = binSplitRec(a, b, 0xFFFFFFFF00000000L, 16)
+
+  @tailrec private def binSplitRec(a: Long, b: Long, mask: Long, shift: Int): Long = {
+    val gt = a > (b & mask)
+    if (shift == 0) {
+      if (gt) mask >> 1 else mask
+    } else {
+      binSplitRec(a, b, if (gt) mask >> shift else mask << shift, shift >> 1)
+    }
+  }
 }
