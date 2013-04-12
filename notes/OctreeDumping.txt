@@ -39,3 +39,43 @@ p0': Right Branch with IntSquare(256,256,256)
   Child #2 = Leaf 'a'
   Child #3 = <empty>
   Child #4 = <empty>
+
+::::::::::::
+
+'a'
+'b'
+'n'
+'g'
+'m'
+
+Debug print for Octree-2d<2>
+Skip list of leaves:
+'b'--------M                                                                                              
+|          |                                                                                              
+'a'--'b'  'n'--'g'--'m'--M  
+Octree structure:
+
+---level 0----
+Left Branch with IntSquare(256,256,256)
+  Child #1 = Branch:
+    Left Branch with IntSquare(384,128,128)
+      Child #1 = <empty>
+      Child #2 = <empty>
+      Child #3 = Leaf IntPoint2D(324,245)
+      Child #4 = Leaf IntPoint2D(396,171)
+  Child #2 = Branch:
+    Left Branch with IntSquare(64,64,64)
+      Child #1 = <empty>
+      Child #2 = Leaf IntPoint2D(22,26)
+      Child #3 = <empty>
+      Child #4 = Leaf IntPoint2D(124,71)
+  Child #3 = Leaf IntPoint2D(152,290)
+  Child #4 = <empty>
+
+---level 1----
+Right Branch with IntSquare(256,256,256)
+  Child #1 = <empty>
+  Child #2 = Leaf IntPoint2D(124,71)
+  Child #3 = <empty>
+  Child #4 = <empty>
+
