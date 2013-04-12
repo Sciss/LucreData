@@ -55,25 +55,23 @@ object DeterministicSkipOctree {
 
   def empty[S <: Sys[S], D <: Space[D], A](hyperCube: D#HyperCube, skipGap: Int = 2)
                                           (implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
-                                           keySerializer: Serializer[S#Tx, S#Acc, A],
-                                           hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube]): DeterministicSkipOctree[S, D, A] = {
+                                           keySerializer: Serializer[S#Tx, S#Acc, A]): DeterministicSkipOctree[S, D, A] = {
 
     new ImplNew[S, D, A](skipGap, tx.newID(), hyperCube, view, tx)
   }
 
   def read[S <: Sys[S], D <: Space[D], A](in: DataInput, access: S#Acc)(
-    implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D, keySerializer: Serializer[S#Tx, S#Acc, A],
-    hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube]): DeterministicSkipOctree[S, D, A] =
+    implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
+    keySerializer: Serializer[S#Tx, S#Acc, A]): DeterministicSkipOctree[S, D, A] =
     new ImplRead[S, D, A](view, in, access, tx)
 
   implicit def serializer[S <: Sys[S], D <: Space[D], A](
-    implicit view: (A, S#Tx) => D#PointLike, space: D, keySerializer: Serializer[S#Tx, S#Acc, A],
-    hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube]): Serializer[S#Tx, S#Acc, DeterministicSkipOctree[S, D, A]] =
+    implicit view: (A, S#Tx) => D#PointLike, space: D,
+    keySerializer: Serializer[S#Tx, S#Acc, A]): Serializer[S#Tx, S#Acc, DeterministicSkipOctree[S, D, A]] =
     new OctreeSerializer[S, D, A]
 
   private final class OctreeSerializer[S <: Sys[S], D <: Space[D], A](
-    implicit view: (A, S#Tx) => D#PointLike, space: D, keySerializer: Serializer[S#Tx, S#Acc, A],
-    hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube])
+    implicit view: (A, S#Tx) => D#PointLike, space: D, keySerializer: Serializer[S#Tx, S#Acc, A])
     extends Serializer[S#Tx, S#Acc, DeterministicSkipOctree[S, D, A]] {
 
     def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): DeterministicSkipOctree[S, D, A] = {
@@ -90,8 +88,7 @@ object DeterministicSkipOctree {
   private final class ImplRead[S <: Sys[S], D <: Space[D], A](val pointView: (A, S#Tx) => D#PointLike, in: DataInput,
                                                               access: S#Acc, tx0: S#Tx)
                                                              (implicit val space: D,
-                                                              val keySerializer: Serializer[S#Tx, S#Acc, A],
-                                                              val hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube])
+                                                              val keySerializer: Serializer[S#Tx, S#Acc, A])
     extends DeterministicSkipOctree[S, D, A] {
 
     {
@@ -101,7 +98,7 @@ object DeterministicSkipOctree {
     }
 
     val id          = tx0.readID(in, access)
-    val hyperCube   = hyperSerializer.read(in, access)(tx0)
+    val hyperCube   = space.hyperCubeSerializer.read(in, access)(tx0)
     val skipList    = {
       implicit val ord  = LeafOrdering
       implicit val r1   = LeafSerializer
@@ -117,8 +114,7 @@ object DeterministicSkipOctree {
   private final class ImplNew[S <: Sys[S], D <: Space[D], A](skipGap: Int, val id: S#ID, val hyperCube: D#HyperCube,
                                                              val pointView: (A, S#Tx) => D#PointLike, tx0: S#Tx)
                                                             (implicit val space: D,
-                                                             val keySerializer: Serializer[S#Tx, S#Acc, A],
-                                                             val hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube])
+                                                             val keySerializer: Serializer[S#Tx, S#Acc, A])
     extends DeterministicSkipOctree[S, D, A] {
 
     val skipList    = HASkipList.Set.empty[S, LeafImpl](skipGap, KeyObserver)(tx0, LeafOrdering, LeafSerializer)
@@ -157,7 +153,6 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   implicit def space: D
   implicit def keySerializer: Serializer[S#Tx, S#Acc, A]
-  implicit def hyperSerializer: Serializer[S#Tx, S#Acc, D#HyperCube]
 
   protected def skipList: HASkipList.Set[S, LeafImpl]
   protected def head: LeftTopBranch
@@ -165,7 +160,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   // ----
 
-  override def toString = "Octree-" + space.dim + "d" + id
+  override def toString = s"Octree-${space.dim}d$id"
 
   protected object LeafOrdering extends Ordering[S#Tx, LeafImpl] {
     /**
@@ -409,7 +404,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   final def write(out: DataOutput) {
     out.writeByte(SER_VERSION)
     id.write(out)
-    hyperSerializer.write(hyperCube, out)
+    space.hyperCubeSerializer.write(hyperCube, out)
     skipList.write(out)
     head.write(out)
     lastTreeRef.write(out)
@@ -1571,7 +1566,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     */
   private def readLeftChildBranch(in: DataInput, access: S#Acc, id: S#ID)(implicit tx: S#Tx): LeftChildBranch = {
     val parentRef   = tx.readVar[LeftBranch](id, in)
-    val hyperCube   = hyperSerializer.read(in, access)
+    val hyperCube   = space.hyperCubeSerializer.read(in)
     val sz          = numOrthants
     val ch          = tx.newVarArray[LeftChildOption](sz)
     var i = 0
@@ -1615,7 +1610,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       out.writeByte(3)
       id.write(out)
       parentRef.write(out)
-      hyperSerializer.write(hyperCube, out)
+      space.hyperCubeSerializer.write(hyperCube, out)
       var i = 0
       val sz = children.length
       while (i < sz) {
@@ -1751,7 +1746,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   private def readRightChildBranch(in: DataInput, access: S#Acc, id: S#ID)(implicit tx: S#Tx): RightChildBranch = {
     val parentRef = tx.readVar[RightBranch](id, in)
     val prev      = BranchSerializer.read(in, access)
-    val hyperCube = hyperSerializer.read(in, access)
+    val hyperCube = space.hyperCubeSerializer.read(in)
     val sz        = numOrthants
     val ch        = tx.newVarArray[RightChildOption](sz)
     var i = 0
@@ -1802,7 +1797,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       id.write(out)
       parentRef.write(out)
       prev.write(out)
-      hyperSerializer.write(hyperCube, out)
+      space.hyperCubeSerializer.write(hyperCube, out)
       var i = 0
       val sz = children.length
       while (i < sz) {

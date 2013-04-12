@@ -27,6 +27,7 @@ package de.sciss.lucre
 package geom
 
 import annotation.tailrec
+import de.sciss.serial.{DataOutput, DataInput, ImmutableSerializer}
 
 object IntSpace {
   sealed trait TwoDim extends Space[TwoDim] {
@@ -37,9 +38,10 @@ object IntSpace {
   }
 
   implicit object TwoDim extends TwoDim {
-    val maxPoint  = IntPoint2D(Int.MaxValue, Int.MaxValue)
-    val dim       = 2
-    object lexicalOrder extends Ordering[IntPoint2DLike] {
+    final val maxPoint  = IntPoint2D(Int.MaxValue, Int.MaxValue)
+    final val dim       = 2
+
+    implicit object lexicalOrder extends Ordering[IntPoint2DLike] {
       def compare(a: IntPoint2DLike, b: IntPoint2DLike): Int = {
         val ax = a.x
         val bx = b.x
@@ -48,6 +50,34 @@ object IntSpace {
           val by = b.y
           if (ay < by) -1 else if (ay > by) 1 else 0
         }
+      }
+    }
+
+    implicit object pointSerializer extends ImmutableSerializer[IntPoint2D] {
+      def read(in: DataInput): IntPoint2D = {
+        val x = in.readInt()
+        val y = in.readInt()
+        IntPoint2D(x, y)
+      }
+
+      def write(p: IntPoint2D, out: DataOutput) {
+        out.writeInt(p.x)
+        out.writeInt(p.y)
+      }
+    }
+
+    implicit object hyperCubeSerializer extends ImmutableSerializer[IntSquare] {
+      def read(in: DataInput): IntSquare = {
+        val cx = in.readInt()
+        val cy = in.readInt()
+        val extent = in.readInt()
+        IntSquare(cx, cy, extent)
+      }
+
+      def write(q: IntSquare, out: DataOutput) {
+        out.writeInt(q.cx)
+        out.writeInt(q.cy)
+        out.writeInt(q.extent)
       }
     }
   }
@@ -60,10 +90,10 @@ object IntSpace {
   }
 
   implicit object ThreeDim extends ThreeDim {
-    val maxPoint  = IntPoint3D(Int.MaxValue, Int.MaxValue, Int.MaxValue)
-    val dim       = 3
+    final val maxPoint  = IntPoint3D(Int.MaxValue, Int.MaxValue, Int.MaxValue)
+    final val dim       = 3
 
-    object lexicalOrder extends Ordering[IntPoint3DLike] {
+    implicit object lexicalOrder extends Ordering[IntPoint3DLike] {
       def compare(a: IntPoint3DLike, b: IntPoint3DLike): Int = {
         val ax = a.x
         val bx = b.x
@@ -78,18 +108,42 @@ object IntSpace {
         }
       }
     }
+
+    implicit object pointSerializer extends ImmutableSerializer[IntPoint3D] {
+      def read(in: DataInput): IntPoint3D = {
+        val x = in.readInt()
+        val y = in.readInt()
+        val z = in.readInt()
+        IntPoint3D(x, y, z)
+      }
+
+      def write(p: IntPoint3D, out: DataOutput) {
+        out.writeInt(p.x)
+        out.writeInt(p.y)
+        out.writeInt(p.z)
+      }
+    }
+
+    implicit object hyperCubeSerializer extends ImmutableSerializer[IntCube] {
+      def read(in: DataInput): IntCube = {
+        val cx  = in.readInt()
+        val cy  = in.readInt()
+        val cz  = in.readInt()
+        val ext = in.readInt()
+        IntCube(cx, cy, cz, ext)
+      }
+
+      def write(q: IntCube, out: DataOutput) {
+        out.writeInt(q.cx)
+        out.writeInt(q.cy)
+        out.writeInt(q.cz)
+        out.writeInt(q.extent)
+      }
+    }
   }
 
-  final case class NDim(dim: Int) extends Space[NDim] {
-    space =>
-
-    type PointLike      = IntPointNLike
-    type Point          = IntPointN
-    type HyperCubeLike  = IntHyperCubeNLike
-    type HyperCube      = IntHyperCubeN
-    val maxPoint        = IntPointN(Vector.fill(dim)(Int.MaxValue))
-
-    object lexicalOrder extends Ordering[IntPointNLike] {
+  object NDim {
+    implicit object lexicalOrder extends Ordering[IntPointNLike] {
       def compare(a: IntPointNLike, b: IntPointNLike): Int = {
         var i = 0
         val d = a.dim
@@ -102,6 +156,49 @@ object IntSpace {
         0
       }
     }
+
+    implicit object pointSerializer extends ImmutableSerializer[NDim#Point] {
+      def write(v: NDim#Point, out: DataOutput) {
+        val c = v.components
+        out.writeShort(c.size)
+        c.foreach(out.writeInt _)
+      }
+
+      def read(in: DataInput): NDim#Point = {
+        val sz = in.readShort()
+        val c = Vector.fill(sz)(in.readInt())
+        IntPointN(c)
+      }
+    }
+
+    implicit object hyperCubeSerializer extends ImmutableSerializer[NDim#HyperCube] {
+      def write(v: NDim#HyperCube, out: DataOutput) {
+        val c = v.components
+        out.writeShort(c.size)
+        c.foreach(out.writeInt _)
+        out.writeInt(v.extent)
+      }
+
+      def read(in: DataInput): NDim#HyperCube = {
+        val sz  = in.readShort()
+        val c   = Vector.fill(sz)(in.readInt())
+        val ext = in.readInt()
+        IntHyperCubeN(c, ext)
+      }
+    }
+  }
+  final case class NDim(dim: Int) extends Space[NDim] {
+    space =>
+
+    type PointLike      = IntPointNLike
+    type Point          = IntPointN
+    type HyperCubeLike  = IntHyperCubeNLike
+    type HyperCube      = IntHyperCubeN
+    val maxPoint        = IntPointN(Vector.fill(dim)(Int.MaxValue))
+
+    def lexicalOrder        = NDim.lexicalOrder
+    def pointSerializer     = NDim.pointSerializer
+    def hyperCubeSerializer = NDim.hyperCubeSerializer
   }
 
   /**

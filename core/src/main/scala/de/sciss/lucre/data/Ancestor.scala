@@ -535,8 +535,7 @@ object Ancestor {
 
     private[Ancestor] val skip: SkipOctree[S, IntSpace.ThreeDim, M] = {
       val pointView = (p: M, tx: S#Tx) => p.toPoint(tx)
-      SkipOctree.empty[S, IntSpace.ThreeDim, M](cube)(tx0, pointView, IntSpace.ThreeDim, markSerializer,
-        SpaceSerializers.IntCubeSerializer)
+      SkipOctree.empty[S, IntSpace.ThreeDim, M](cube)(tx0, pointView, IntSpace.ThreeDim, markSerializer)
     }
 
     protected val root: M = {
@@ -603,8 +602,7 @@ object Ancestor {
 
     private[Ancestor] val skip: SkipOctree[S, IntSpace.ThreeDim, M] = {
       val pointView = (p: M, tx: S#Tx) => p.toPoint(tx)
-      SkipOctree.read[S, IntSpace.ThreeDim, M](in, access)(tx0, pointView, IntSpace.ThreeDim, markSerializer,
-        SpaceSerializers.IntCubeSerializer)
+      SkipOctree.read[S, IntSpace.ThreeDim, M](in, access)(tx0, pointView, IntSpace.ThreeDim, markSerializer)
     }
   }
 

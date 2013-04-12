@@ -19,46 +19,47 @@ import serial.{Reader, Writable, DataInput, DataOutput, Serializer}
 * }}
 */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
-   val PARENT_LOOKUP          = true
-   val MARKED_ANCESTOR        = true
-   val NUM1                   = 10000 // 4407 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
-   val NUM2                   = 11000  // tree size in MARKED_ANCESTOR // 100000    // 150000
-   val MARKER_PERCENTAGE      = 0.3 // 0.3       // 0.5 // percentage of elements marked (0 to 1)
-   val RETRO_CHILD_PERCENTAGE = 0.1       // from those elements marked, amount which are inserted as retro-children (0 to 1)
-   val RETRO_PARENT_PERCENTAGE= 0.1       // from those elements marked, amount which are inserted as retro-parents (0 to 1)
+  val PARENT_LOOKUP             = true
+  val MARKED_ANCESTOR           = true
+  val NUM1                      = 10000   // 4407 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
+  val NUM2                      = 11000   // tree size in MARKED_ANCESTOR // 100000    // 150000
+  val MARKER_PERCENTAGE         = 0.3     // 0.3       // 0.5 // percentage of elements marked (0 to 1)
+  val RETRO_CHILD_PERCENTAGE    = 0.1     // from those elements marked, amount which are inserted as retro-children (0 to 1)
+  val RETRO_PARENT_PERCENTAGE   = 0.1     // from those elements marked, amount which are inserted as retro-parents (0 to 1)
 
-   val INMEMORY               = true
-   val DATABASE               = true
+  val INMEMORY                  = true
+  val DATABASE                  = true
 
-   val VERIFY_MARKTREE_CONTENTS = false // be careful to not enable this with large TREE_SIZE (> some 1000)
-   val PRINT_DOT              = false
-   val PRINT_ORDERS           = false  // to print out the pre- and post-order lists (enable for debugging only)
-   val HUNT_DOWN_ORDER_BUGS   = false
+  val VERIFY_MARKTREE_CONTENTS  = false   // be careful to not enable this with large TREE_SIZE (> some 1000)
+  val PRINT_DOT                 = false
+  val PRINT_ORDERS              = false   // to print out the pre- and post-order lists (enable for debugging only)
+  val HUNT_DOWN_ORDER_BUGS      = false
 
-   def seed : Long            = 0L
+  def seed: Long                = 0L
 
-   var verbose                = false
-   val DEBUG_LAST             = false // if enabled, switches to verbosity for the last element in the sequence
+  var verbose                   = false
+  val DEBUG_LAST                = false   // if enabled, switches to verbosity for the last element in the sequence
 
-   if( INMEMORY ) {
-      withSys[ InMemory ]( "Mem", () => InMemory() : InMemory /* please IDEA */, (_, _) => () )
-   }
-   if( DATABASE ) {
-      withSys[ Durable ]( "BDB", () => {
-         val dir     = File.createTempFile( "ancestor", "_database" )
-         dir.delete()
-         dir.mkdir()
-         println( dir.getAbsolutePath )
-         Durable( BerkeleyDB.open( dir )) : Durable   /* please IDEA */
-      }, { case (bdb, success) =>
-         if( success ) {
-//            val sz = bdb.step( bdb.numUserRecords( _ ))
-//            if( sz != 0 ) bdb.step( implicit tx => bdb.debugListUserRecords() ).foreach( println )
-//            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
-         }
-         bdb.close()
-      })
-   }
+  if (INMEMORY) {
+    withSys[InMemory]("Mem", () => InMemory(): InMemory /* please IDEA */ , (_, _) => ())
+  }
+  if (DATABASE) {
+    withSys[Durable]("BDB", () => {
+      val dir = File.createTempFile("ancestor", "_database")
+      dir.delete()
+      dir.mkdir()
+      println(dir.getAbsolutePath)
+      Durable(BerkeleyDB.open(dir)): Durable /* please IDEA */
+    }, {
+      case (bdb, success) =>
+        if (success) {
+          //            val sz = bdb.step( bdb.numUserRecords( _ ))
+          //            if( sz != 0 ) bdb.step( implicit tx => bdb.debugListUserRecords() ).foreach( println )
+          //            assert( sz == 0, "Final DB user size should be 0, but is " + sz )
+        }
+        bdb.close()
+    })
+  }
 
   object FullVertexPre {
     implicit def serializer[S <: Sys[S]](implicit vertexReader: Reader[S#Tx, S#Acc, FullVertex[S]]): Serializer[S#Tx, S#Acc, FullVertexPre[S]] =
@@ -80,6 +81,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
   sealed trait FullVertexPre[S <: Sys[S]] extends Writable with VertexSource[S, FullVertex[S]] {
     def order: FullPreOrder[S]
+
     def id: Int
 
     final def write(out: DataOutput) {
@@ -98,6 +100,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
     extends FullVertexPre[S] {
 
     def order = source.pre
+
     def id = 0
 
     override def toString = source.toString + "<pre>"
@@ -109,6 +112,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
     extends FullVertexPre[S] {
 
     def order = source.preTail
+
     def id = 1
 
     override def toString = source.toString + "<pre-tail>"
@@ -116,33 +120,33 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
     def debugString(implicit tx: S#Tx) = toString + "@" + source.preTail.tag
   }
 
-   object FullTree {
-      def apply[ S <: Sys[ S ]]()( implicit tx: S#Tx ) : FullTree[ S ] = {
-         implicit val pointView = (p: FullVertex[ S ], tx: S#Tx) => p.toPoint( tx )
-         new FullTree[ S ] {
-            val system  = tx.system
-            val cube    = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
-            val t = {
-               import SpaceSerializers.IntCubeSerializer
-//               implicit val smf = Sys.manifest[ S ]( system )
-               SkipOctree.empty[ S, IntSpace.ThreeDim, FullVertex[ S ]]( cube )
-            }
-            val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
-            val preOrder      = TotalOrder.Map.empty[ S, FullVertexPre[ S ]]( orderObserver, _.order, 0 )
-            val postOrder     = TotalOrder.Map.empty[ S, FullVertex[ S ]]( orderObserver, _.post, Int.MaxValue /* - 1 */)
-            implicit lazy val vertexSer : Serializer[ S#Tx, S#Acc, FullVertex[ S ]] = new Serializer[ S#Tx, S#Acc, FullVertex[ S ]] {
-               def write( v: FullVertex[ S ], out: DataOutput ) { v.write( out )}
+  object FullTree {
+    def apply[S <: Sys[S]]()(implicit tx: S#Tx): FullTree[S] = {
+      implicit val pointView = (p: FullVertex[S], tx: S#Tx) => p.toPoint(tx)
+      new FullTree[S] {
+        val system = tx.system
+        val cube = IntCube(0x40000000, 0x40000000, 0x40000000, 0x40000000)
+        val t = {
+          SkipOctree.empty[S, IntSpace.ThreeDim, FullVertex[S]](cube)
+        }
+        val orderObserver = new RelabelObserver[ S, FullVertex[ S ]]( "full", t )
+        val preOrder      = TotalOrder.Map.empty[S, FullVertexPre[S]](orderObserver, _.order, 0)
+        val postOrder     = TotalOrder.Map.empty[S, FullVertex[S]](orderObserver, _.post, Int.MaxValue /* - 1 */)
+        implicit lazy val vertexSer: Serializer[S#Tx, S#Acc, FullVertex[S]] = new Serializer[S#Tx, S#Acc, FullVertex[S]] {
+          def write(v: FullVertex[S], out: DataOutput) {
+            v.write(out)
+          }
 
-               def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : FullVertex[ S ] = {
-                  new FullVertex[ S ] {
-                     val version = in.readInt()
-                     val pre     = preOrder.readEntry( in, access )
-                     val post    = postOrder.readEntry( in, access )
-                     val preTail = preOrder.readEntry( in, access )
-                  }
-               }
+          def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): FullVertex[S] = {
+            new FullVertex[S] {
+              val version = in.readInt()
+              val pre = preOrder.readEntry(in, access)
+              val post = postOrder.readEntry(in, access)
+              val preTail = preOrder.readEntry(in, access)
             }
-            val root: FullVertex[ S ] = new FullVertex[ S ] {
+          }
+        }
+        val root: FullVertex[ S ] = new FullVertex[ S ] {
 //               val pre: FullPreOrder[ S ]       = preOrder.root
 //               val post: FullPostOrder[ S ]     = postOrder.root // insertAfter( this, this )
 //               val preTail: FullPreOrder[ S ]   = preOrder.insertAfter( preHeadKey, preTailKey )
@@ -405,7 +409,6 @@ if( verbose ) {
 
    object MarkTree {
       def apply[ S <: Sys[ S ]]( ft: FullTree[ S ])( implicit tx: S#Tx, system: S ) : MarkTree[ S ] = {
-         import SpaceSerializers.IntCubeSerializer
          implicit val pointView = (p: MarkVertex[ S ], tx: S#Tx) => p.toPoint( tx )
          lazy val orderObserver = new RelabelObserver[ S, MarkVertex[ S ]]( "mark", t )
          lazy val _vertexSer: Serializer[ S#Tx, S#Acc, MarkVertex[ S ]] = new Serializer[ S#Tx, S#Acc, MarkVertex[ S ]] {

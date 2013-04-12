@@ -26,9 +26,11 @@
 package de.sciss.lucre
 package geom
 
+import de.sciss.serial.ImmutableSerializer
+
 object Space {
-   val bigZero = BigInt( 0 )
-   val bigOne  = BigInt( 1 )
+  final val bigZero = BigInt(0)
+  final val bigOne  = BigInt(1)
 }
 
 /**
@@ -51,7 +53,7 @@ trait Space[D <: Space[D]] {
    * The square or hypercube in the space.
    */
   type HyperCubeLike <: geom.HyperCube[D]
-  type HyperCube <: D#HyperCubeLike
+  type HyperCube     <: D#HyperCubeLike
 
   //   /**
   //    * Represents larger values from multiplications
@@ -66,10 +68,13 @@ trait Space[D <: Space[D]] {
    */
   def maxPoint: D#Point // Like
 
-  def lexicalOrder: Ordering[D#PointLike]
-
   /**
    * The number of dimensions in the space.
    */
   def dim: Int
+
+  implicit def lexicalOrder: Ordering[D#PointLike]
+
+  implicit def pointSerializer    : ImmutableSerializer[D#Point    ]
+  implicit def hyperCubeSerializer: ImmutableSerializer[D#HyperCube]
 }

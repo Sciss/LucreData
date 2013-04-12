@@ -27,6 +27,7 @@ package de.sciss.lucre
 package geom
 
 import annotation.tailrec
+import de.sciss.serial.{DataInput, DataOutput, ImmutableSerializer}
 
 /**
  * Provides spaces in which coordinates are expressed using `Long` values.
@@ -43,10 +44,10 @@ object LongSpace {
   }
 
   implicit object TwoDim extends TwoDim {
-    val maxPoint  = LongPoint2D(Long.MaxValue, Long.MaxValue)
-    val dim       = 2
+    final val maxPoint  = LongPoint2D(Long.MaxValue, Long.MaxValue)
+    final val dim       = 2
 
-    object lexicalOrder extends Ordering[LongPoint2DLike] {
+    implicit object lexicalOrder extends Ordering[LongPoint2DLike] {
       def compare(a: LongPoint2DLike, b: LongPoint2DLike): Int = {
         val ax = a.x
         val bx = b.x
@@ -55,6 +56,35 @@ object LongSpace {
           val by = b.y
           if (ay < by) -1 else if (ay > by) 1 else 0
         }
+      }
+    }
+
+
+    implicit object pointSerializer extends ImmutableSerializer[LongPoint2D] {
+      def read(in: DataInput): LongPoint2D = {
+        val x = in.readLong()
+        val y = in.readLong()
+        LongPoint2D(x, y)
+      }
+
+      def write(p: LongPoint2D, out: DataOutput) {
+        out.writeLong(p.x)
+        out.writeLong(p.y)
+      }
+    }
+
+    implicit object hyperCubeSerializer extends ImmutableSerializer[LongSquare] {
+      def read(in: DataInput): LongSquare = {
+        val cx = in.readLong()
+        val cy = in.readLong()
+        val extent = in.readLong()
+        LongSquare(cx, cy, extent)
+      }
+
+      def write(q: LongSquare, out: DataOutput) {
+        out.writeLong(q.cx)
+        out.writeLong(q.cy)
+        out.writeLong(q.extent)
       }
     }
   }

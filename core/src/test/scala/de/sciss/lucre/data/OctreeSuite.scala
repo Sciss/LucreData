@@ -18,33 +18,33 @@ import stm.{Cursor, Durable, InMemory, Sys}
  * }}
  */
 class OctreeSuite extends FeatureSpec with GivenWhenThen {
-   val CONSISTENCY   = true
-   val RANGE_SEARCH  = true
-   val NN_SEARCH     = true
-   val REMOVAL       = true
-   val INMEMORY      = true
-   val DATABASE      = true
+  val CONSISTENCY     = true
+  val RANGE_SEARCH    = true
+  val NN_SEARCH       = true
+  val REMOVAL         = true
+  val INMEMORY        = true
+  val DATABASE        = true
 
-   val n             = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
-   val n2            = n >> 3    // 0x1000    // range query and nn
+  val n               = 0x1000    // tree size ;  0xE0    // 0x4000 is the maximum acceptable speed
+  val n2              = n >> 3    // 0x1000    // range query and nn
 
-   val rnd           = new util.Random( 2L ) // ( 12L )
+  val rnd = new util.Random(2L) // ( 12L )
 
-   val cube          = IntCube( 0x40000000, 0x40000000, 0x40000000, 0x40000000 )
+  val cube = IntCube(0x40000000, 0x40000000, 0x40000000, 0x40000000)
 
-   def withSys[ S <: Sys[ S ] with Cursor[ S ]]( sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit ) {
-      withTree[ S ]( sysName, () => {
-         implicit val sys = sysCreator()
-         val t = sys.step { implicit tx =>
-            import SpaceSerializers.{IntPoint3DSerializer, IntCubeSerializer}
-            implicit val pointView = (p: IntPoint3D, _: Any) => p
-            DeterministicSkipOctree.empty[ S, ThreeDim, IntPoint3D ]( cube )
-         }
-         (sys, t, succ => sysCleanUp( sys, succ ))
-      })
-   }
+  def withSys[S <: Sys[S] with Cursor[S]](sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit) {
+    withTree[S](sysName, () => {
+      implicit val sys = sysCreator()
+      val t = sys.step { implicit tx =>
+        import ThreeDim.pointSerializer
+        implicit val pointView = (p: IntPoint3D, _: Any) => p
+        DeterministicSkipOctree.empty[S, ThreeDim, IntPoint3D](cube)
+      }
+      (sys, t, succ => sysCleanUp(sys, succ))
+    })
+  }
 
-   if( INMEMORY ) {
+  if( INMEMORY ) {
       withSys[ InMemory ]( "Mem", () => InMemory() : InMemory /* please IDEA */, (_, _) => () )
    }
    if( DATABASE ) {

@@ -37,89 +37,102 @@ import stm.{Source, Cursor, Sys}
 object InteractiveSkipOctreePanel {
    val seed = 0L
 
-   def makeModel2D[ S <: Sys[ S ]]( system: S )( cons: => Unit )( implicit cursor: Cursor[ S ]) : Model2D[ S ] = {
-      import SpaceSerializers.{IntPoint2DSerializer, IntSquareSerializer}
-      implicit val pointView = (p: IntPoint2D, t: Any) => p
-      implicit val reader = DeterministicSkipOctree.serializer[ S, TwoDim, IntPoint2D ]
-      val access = system.root { implicit tx =>
-         DeterministicSkipOctree.empty[ S, TwoDim, IntPoint2D ](
-            IntSquare( sz, sz, sz ), skipGap = 1 )
+  def makeModel2D[S <: Sys[S]](system: S)(cons: => Unit)(implicit cursor: Cursor[S]): Model2D[S] = {
+    implicit val pointView  = (p: IntPoint2D, t: Any) => p
+    import TwoDim.pointSerializer
+    implicit val reader     = DeterministicSkipOctree.serializer[S, TwoDim, IntPoint2D]
+    val access = system.root {
+      implicit tx =>
+        DeterministicSkipOctree.empty[S, TwoDim, IntPoint2D](
+          IntSquare(sz, sz, sz), skipGap = 1)
+    }
+    new Model2D[S](cursor, access, () => cons)
+  }
+
+  def makeFrame[S <: Sys[S], D <: Space[D], Point <: D#PointLike](model: Model[S, D, Point]) {
+    val f = new JFrame("Skip Octree")
+    //      f.setResizable( false )
+    val cp = f.getContentPane
+    val iv = model.newPanel()
+    cp.add(iv, BorderLayout.CENTER)
+    model.addPDFSupport(f)
+    f.pack()
+    f.setLocationRelativeTo(null)
+    f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
+    f.setVisible(true)
+  }
+
+  private val sz = 256
+
+  final class Model2D[S <: Sys[S]](val cursor: Cursor[S],
+                                   access: Source[S#Tx, DeterministicSkipOctree[S, TwoDim, IntPoint2D]],
+                                   cons: () => Unit, val nTimes: Int = 10)
+    extends Model[S, TwoDim, IntPoint2D] {
+
+    def tree(implicit tx: S#Tx): SkipOctree[S, TwoDim, IntPoint2D] = access()
+
+    def queryShape(sq: IntSquare) = sq
+
+    def point(coords: IndexedSeq[Int]) = coords match {
+      case IndexedSeq(x, y) => IntPoint2D(x, y)
+    }
+
+    def coords(p: TwoDim#PointLike): IndexedSeq[Int] = IndexedSeq(p.x, p.y)
+
+    def hyperCube(coords: IndexedSeq[Int], ext: Int) = coords match {
+      case IndexedSeq(x, y) => IntSquare(x, y, ext)
+    }
+
+    def consistency() {
+      cons()
+    }
+
+    val view = {
+      val res = new SkipQuadtreeView[S, IntPoint2D](access, cursor, identity)
+      res.topPainter = Some(topPaint _)
+      res
+    }
+
+    def repaint() {
+      view.repaint()
+    }
+
+    //      val baseDistance = IntDistanceMeasure2D$.euclideanSq
+
+    def highlight: Set[IntPoint2D] = view.highlight
+
+    def highlight_=(points: Set[IntPoint2D]) {
+      view.highlight = points
+    }
+
+    val distanceMeasures = IndexedSeq(
+      "Euclidean" -> IntDistanceMeasure2D.euclideanSq,
+      "Maximum"   -> IntDistanceMeasure2D.chebyshev,
+      "Next Span" -> IntDistanceMeasure2D.nextSpanEvent(IntSquare(sz, sz, sz)),
+      "Prev Span" -> IntDistanceMeasure2D.prevSpanEvent(IntSquare(sz, sz, sz)),
+      "Minimum"   -> IntDistanceMeasure2D.vehsybehc
+    )
+
+    var rangeHyperCube = Option.empty[IntSquare]
+
+    private val colrTrns = new Color(0x00, 0x00, 0xFF, 0x40)
+
+    private def topPaint(h: QuadView.PaintHelper) {
+      rangeHyperCube.foreach { q =>
+        h.g2.setColor(Color.blue)
+        val side = q.extent << 1
+        h.g2.drawRect(q.left, q.top, side, side)
+        h.g2.setColor(colrTrns)
+        h.g2.fillRect(q.left, q.top, side, side)
       }
-      new Model2D[ S ]( cursor, access, () => cons )
-   }
+    }
 
-   def makeFrame[ S <: Sys[ S ], D <: Space[ D ], Point <: D#PointLike ]( model: Model[ S, D, Point ]) {
-      val f    = new JFrame( "Skip Octree" )
-//      f.setResizable( false )
-      val cp   = f.getContentPane
-      val iv   = model.newPanel()
-      cp.add( iv, BorderLayout.CENTER )
-      model.addPDFSupport( f )
-      f.pack()
-      f.setLocationRelativeTo( null )
-      f.setDefaultCloseOperation( WindowConstants.EXIT_ON_CLOSE )
-      f.setVisible( true )
-   }
+    def addPDFSupport(f: JFrame) {
+      PDFSupport.addMenu[SkipQuadtreeView[S, IntPoint2D]](f, view :: Nil, _.adjustPreferredSize())
+    }
+  }
 
-   private val sz = 256
-
-   final class Model2D[ S <: Sys[ S ]]( val cursor: Cursor[ S ],
-                                        access: Source[ S#Tx, DeterministicSkipOctree[ S, TwoDim, IntPoint2D ]],
-                                        cons: () => Unit, val nTimes: Int = 10 )
-   extends Model[ S, TwoDim, IntPoint2D ] {
-//      val tree = DeterministicSkipOctree.empty[ S, Space.IntTwoDim, IntTwoDim#Point ]( Space.IntTwoDim, IntSquare( sz, sz, sz ), skipGap = 1 )
-
-      def tree( implicit tx: S#Tx ) : SkipOctree[ S, TwoDim, IntPoint2D ] = access()
-
-      def queryShape( sq: IntSquare ) = sq
-      def point( coords: IndexedSeq[ Int ]) = coords match {
-         case IndexedSeq( x, y ) => IntPoint2D( x, y )
-      }
-      def coords( p: TwoDim#PointLike ) : IndexedSeq[ Int ] = IndexedSeq( p.x, p.y )
-      def hyperCube( coords: IndexedSeq[ Int ], ext: Int ) = coords match {
-         case IndexedSeq( x, y ) => IntSquare( x, y, ext )
-      }
-
-      def consistency() { cons() }
-
-      val view = {
-         val res = new SkipQuadtreeView[ S, IntPoint2D ]( access, cursor, identity )
-         res.topPainter = Some( topPaint _ )
-         res
-      }
-      def repaint() { view.repaint() }
-//      val baseDistance = IntDistanceMeasure2D$.euclideanSq
-
-      def highlight: Set[ IntPoint2D ] = view.highlight
-      def highlight_=( points: Set[ IntPoint2D ]) { view.highlight = points }
-
-      val distanceMeasures = IndexedSeq(
-         "Euclidean" -> IntDistanceMeasure2D.euclideanSq,
-         "Maximum"   -> IntDistanceMeasure2D.chebyshev,
-         "Next Span" -> IntDistanceMeasure2D.nextSpanEvent( IntSquare( sz, sz, sz )),
-         "Prev Span" -> IntDistanceMeasure2D.prevSpanEvent( IntSquare( sz, sz, sz )),
-         "Minimum"   -> IntDistanceMeasure2D.vehsybehc
-      )
-
-      var rangeHyperCube = Option.empty[ IntSquare ]
-
-      private val colrTrns = new Color( 0x00, 0x00, 0xFF, 0x40 )
-      private def topPaint( h: QuadView.PaintHelper ) {
-         rangeHyperCube.foreach { q =>
-            h.g2.setColor( Color.blue )
-            val side = q.extent << 1
-            h.g2.drawRect( q.left, q.top, side, side )
-            h.g2.setColor( colrTrns )
-            h.g2.fillRect( q.left, q.top, side, side )
-         }
-      }
-
-      def addPDFSupport( f: JFrame ) {
-         PDFSupport.addMenu[ SkipQuadtreeView[ S, IntPoint2D ]]( f, view :: Nil, _.adjustPreferredSize() )
-      }
-   }
-
-//   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.IntThreeDim, IntPoint3DLike ])
+  //   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.IntThreeDim, IntPoint3DLike ])
 //   extends Model[ S, Space.IntThreeDim ] {
 //
 //      def queryShape( c: IntCubeLike ) = c
