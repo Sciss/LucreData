@@ -86,7 +86,7 @@ object InteractiveSkipOctreeApp extends App with Runnable {
     val offx    = 34.5
     val offy    = 12.0
     val scale   = 500.0/512
-    val marked  = false // true
+    val marked  = true
 
     def adjust(p: Vector[(Char, Double, Double)]) = p.map { case (_, x, y) =>
       IntPoint2D(((x - offx) * scale + 0.5).toInt, 512 - ((y - offy) * scale + 0.5).toInt)

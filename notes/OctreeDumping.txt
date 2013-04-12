@@ -1,0 +1,41 @@
+marks:
+'g'
+'m'
+'a'
+'b'
+'n'
+
+Debug print for Octree-2d<2>
+Total order tag list:
+<p0_start>, <p1_start>, 'g', 'm', <p1_stop>, <p2_start>, 'a', 'b', <p2_stop>, 'n', <p0_stop>
+
+Skip list of leaves:
+'a'--------------M                                
+|                |                                
+'g'--'m'--'a'   'b'--'n'--M  
+
+Octree structure:
+
+Q0 ---level 0----
+p0: Left Branch with IntSquare(256,256,256)
+  p1: Child #1 = Branch:
+    Left Branch with IntSquare(384,128,128)
+      Child #1 = <empty>
+      Child #2 = <empty>
+      Child #3 = Leaf 'g'
+      Child #4 = Leaf 'm'
+  p2: Child #2 = Branch:
+    Left Branch with IntSquare(64,64,64)
+      Child #1 = <empty>
+      Child #2 = Leaf 'a'
+      Child #3 = <empty>
+      Child #4 = Leaf 'b'
+  Child #3 = Leaf 'n'
+  Child #4 = <empty>
+
+Q1---level 1----
+p0': Right Branch with IntSquare(256,256,256)
+  Child #1 = <empty>
+  Child #2 = Leaf 'a'
+  Child #3 = <empty>
+  Child #4 = <empty>

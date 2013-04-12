@@ -137,7 +137,7 @@ object DeterministicSkipOctree {
       implicit val r2 = RightOptionReader
       val headRight   = tx0.newVar[NextOption](cid, EmptyValue)
       val startOrder  = totalOrder.root
-      val stopOrder   = startOrder.append()(tx0)
+      val stopOrder   = startOrder.appendMax()(tx0)
       new LeftTopBranch(cid, startOrder = totalOrder.root, stopOrder = stopOrder, children = ch, nextRef = headRight)
     }
     val lastTreeRef = {
@@ -1545,12 +1545,12 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     private def newLeaf(qidx: Int, value: A)(implicit tx: S#Tx): LeafImpl = {
       val leafID    = tx.newID()
       val parentRef = tx.newVar[BranchLike](leafID, this)
-      val l         = new LeafImpl(leafID, value, newChildOrder(qidx), parentRef)
+      val l         = new LeafImpl(leafID, value, newChildStartOrder(qidx), parentRef)
       updateChild(qidx, l)
       l
     }
 
-    /**
+    /*
      * Creates a new entry in the total-order for a new child to be
      * inserted into this node. This is determined by the following rules:
      *
@@ -1564,17 +1564,52 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
      * @return  the entry in the total-order to associate with the child
      *          (in the case of a node, the start-order)
      */
-    private def newChildOrder(qidx: Int)(implicit tx: S#Tx): Order = {
-      @tailrec def step(found: Order, i: Int): Order = {
-        if (i == qidx) found
+    //    private def newChildOrder(qidx: Int)(implicit tx: S#Tx): Order = {
+    //      @tailrec def step(found: Order, i: Int): Order = {
+    //        if (i == qidx) found
+    //        else {
+    //          step(child(i) match {
+    //            case n: LeftNonEmptyChild => n.stopOrder
+    //            case _ => found
+    //          }, i + 1)
+    //        }
+    //      }
+    //      step(startOrder, 0).append()
+    //    }
+
+    // appends to the stop order of the first non-empty child at
+    // an index less than the given `qidx` (or this node's start order
+    // if there is no such child)
+    private def newChildStartOrder(qidx: Int)(implicit tx: S#Tx): Order = {
+      @tailrec def step(i: Int): Order = {
+        if (i == 0) startOrder
         else {
-          step(child(i) match {
+          val j = i - 1
+          child(j) match {
             case n: LeftNonEmptyChild => n.stopOrder
-            case _ => found
-          }, i + 1)
+            case _ => step(j)
+          }
         }
       }
-      step(startOrder, 0).append()
+      step(qidx).append()
+    }
+
+    // prepends to the start order of the first non-empty child at
+    // an index greater than the given `qidx` (or this node's stop order
+    // if there is no such child)
+    private def newChildStopOrder(qidx: Int)(implicit tx: S#Tx): Order = {
+      val max = children.length - 1
+      @tailrec def step(i: Int): Order = {
+        if (i == max) stopOrder
+        else {
+          val j = i + 1
+          child(j) match {
+            case n: LeftNonEmptyChild => n.startOrder
+            case _ => step(j)
+          }
+        }
+      }
+      step(qidx).prepend()
     }
 
     /*
@@ -1599,8 +1634,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
       val parentRef   = tx.newVar[LeftBranch](cid, this)
       val rightRef    = tx.newVar[NextOption](cid, EmptyValue)(RightOptionReader)
-      val startOrder  = newChildOrder(qidx)
-      val stopOrder   = startOrder.append()
+      val startOrder  = newChildStartOrder(qidx)
+      val stopOrder   = newChildStopOrder (qidx) // startOrder.append()
       val n           = new LeftChildBranch(
         cid, parentRef, iq, startOrder = startOrder, stopOrder = stopOrder, children = ch, nextRef = rightRef
       )
@@ -1996,7 +2031,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
             println("Branch:")
             dumpTree(cb, indent + 4)
           case l: LeafImpl =>
-            println(s"Leaf with ${l.value}; order = ${l.order.tag}")
+            println(s"Leaf ${l.value}; order = ${l.order.tag}")
           case empty => println(empty)
         }
       }
