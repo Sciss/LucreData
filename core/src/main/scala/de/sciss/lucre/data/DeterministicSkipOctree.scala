@@ -29,7 +29,7 @@ package data
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue, Queue => MQueue}
-import annotation.{switch, tailrec}
+import scala.annotation.{elidable, switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
 import stm.{Identifiable, Sys, Mutable}
 import serial.{Writable, DataInput, DataOutput, Serializer}
@@ -52,6 +52,35 @@ import de.sciss.serial.impl.ByteArrayOutputStream
 */
 object DeterministicSkipOctree {
   private final val SER_VERSION = 79  // 'O'
+
+  private var stat_rounds = 0
+  private var stat_pq_add = 0
+  private var stat_pq_rem = 0
+  private val stat_print  = true
+
+  @elidable(elidable.CONFIG) private def stat_reset() {
+    stat_rounds = 0
+    stat_pq_add = 0
+    stat_pq_rem = 0
+  }
+
+  @elidable(elidable.CONFIG) private def stat_report() {
+    println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
+  }
+
+  @elidable(elidable.CONFIG) private def stat_rounds1() {
+    stat_rounds += 1
+  }
+
+  @elidable(elidable.CONFIG) private def stat_pq_add1(obj: Any) {
+    stat_pq_add += 1
+    if (stat_print) println(s"<stat> add    pq: $obj")
+  }
+
+  @elidable(elidable.CONFIG) private def stat_pq_rem1(obj: Any) {
+    stat_pq_rem += 1
+    if (stat_print) println(s"<stat> remove pq: $obj")
+  }
 
   def empty[S <: Sys[S], D <: Space[D], A](hyperCube: D#HyperCube, skipGap: Int = 2)
                                           (implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
@@ -145,7 +174,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   extends SkipOctree[S, D, A] {
   octree =>
 
-  import DeterministicSkipOctree.{SER_VERSION, opNotSupported}
+  import DeterministicSkipOctree.{SER_VERSION, opNotSupported,
+    stat_reset, stat_rounds1, stat_pq_add1, stat_pq_rem1, stat_report}
 
   private type Order = TotalOrder.Set.Entry[S]
 
@@ -527,7 +557,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final def nearestNeighbor[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
                                                  (implicit tx: S#Tx): A = {
-    new NN(point, metric).find() match {
+    val nn = new NN(point, metric).find()
+    stat_report()
+    nn match {
       case EmptyValue => throw new NoSuchElementException("nearestNeighbor on an empty tree")
       case l: LeafImpl => l.value
     }
@@ -535,7 +567,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final def nearestNeighborOption[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
                                                        (implicit tx: S#Tx): Option[A] = {
-    new NN(point, metric).find() match {
+    val nn = new NN(point, metric).find()
+    stat_report()
+    nn match {
       case EmptyValue => None
       case l: LeafImpl => Some(l.value)
     }
@@ -744,19 +778,23 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   private final class NN[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
     extends scala.math.Ordering[VisitedNode[M]] {
 
+    stat_reset()
+
     // NOTE: `sz` must be protected and not private, otherwise
     // scala's specialization blows up
     protected val sz = numOrthants
-    private val acceptedChildren = new Array[LeftBranch](sz)
+    private val acceptedChildren = new Array[Branch](sz)
     //      private val acceptedDists     = {
     //         implicit val mf = metric.manifest
     //         new Array[ M ]( sz )
     //      }
-    private val acceptedDists = metric.newArray(sz)
+    private val acceptedMinDists = metric.newArray(sz)
+    private val acceptedMaxDists = metric.newArray(sz)
 
-    @tailrec private def findNNTail(n0: LeftBranch, pri: PriorityQueue[VisitedNode[M]],
+    /* @tailrec */ private def findNNTail(n0: LeftBranch, pri: PriorityQueue[VisitedNode[M]],
                                     _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
                                    (implicit tx: S#Tx): NNIter[M] = {
+      stat_rounds1()
       var numAccepted   = 0
       var acceptedQidx  = 0
 
@@ -786,7 +824,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
                 rmax = cMaxDist                               // found a new minimum required distance
               }
               acceptedChildren(numAccepted) = c
-              acceptedDists(numAccepted) = cMinDist
+              acceptedMinDists(numAccepted) = cMinDist
+              acceptedMaxDists(numAccepted) = cMaxDist
               numAccepted += 1
               acceptedQidx = i                                // this will be used only if numAccepted == 1
             }
@@ -799,14 +838,15 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         // recheck
         var j = 0
         while (j < numAccepted) {
-          if (metric.isMeasureGreater(acceptedDists(j), rmax)) {
+          if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
             // immediately kick it out
             numAccepted -= 1
             var k = j
             while (k < numAccepted) {
               val k1 = k + 1
               acceptedChildren(k) = acceptedChildren(k1)
-              acceptedDists(k) = acceptedDists(k1)
+              acceptedMinDists(k) = acceptedMinDists(k1)
+              acceptedMaxDists(k) = acceptedMaxDists(k1)
               k = k1
             }
           }
@@ -815,55 +855,146 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
 
       // Unless exactly one child is accepted, round is over
-      if (numAccepted != 1) {
-        var i = 0
+//      if (numAccepted != 1) {
+        /* var */ i = 0
         while (i < numAccepted) { // ...and the children are added to the priority queue
-          pri += new VisitedNode[M](acceptedChildren(i), acceptedDists(i))
+          val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
+          stat_pq_add1(vn)
+          pri += vn
           i += 1
         }
         new NNIter[M](bestLeaf, bestDist, rmax)
 
-      } else {
+//      } else {
         // Otherwise find corresponding node in highest level, and descend
-        val dn0 = acceptedChildren(0)
-        val qdn = dn0.hyperCube
+//        val dn0 = acceptedChildren(0)
+        //        val qdn = dn0.hyperCube
+        //
+        //        @tailrec def findRight(cand: BranchLike, prev: BranchLike): BranchLike = {
+        //          prev.next match {
+        //            case EmptyValue => cand
+        //            case next: BranchLike =>
+        //              next.child(acceptedQidx) match {
+        //                case _: LeafOrEmpty => cand
+        //                case cb: BranchLike =>
+        //                  if (cb.hyperCube != qdn) cand else findRight(cb, next)
+        //              }
+        //          }
+        //        }
+        //
+        //        val dn = findRight(dn0, n0)
+        //
+        //        // now go left
+        //        @tailrec def findLeft(n: BranchLike): LeftBranch = n match {
+        //          case lb: LeftBranch   => lb
+        //          case rb: RightBranch  => findLeft(rb.prev)
+        //        }
+        //
+        //        val dnl = findLeft(dn)
+        //        assert(dnl == dn0)  // if this assertion holds, that would make the whole process of going right/left useless
+//        findNNTail(dn0 /* dnl */, pri, bestLeaf, bestDist, rmax)
+//      }
+    }
 
-        @tailrec def findRight(cand: BranchLike, prev: BranchLike): BranchLike = {
-          prev.next match {
-            case EmptyValue => cand
-            case next: BranchLike =>
-              next.child(acceptedQidx) match {
-                case _: LeafOrEmpty => cand
-                case cb: BranchLike =>
-                  if (cb.hyperCube != qdn) cand else findRight(cb, next)
+    private def findNNTailNew(n0: Branch, pri: PriorityQueue[VisitedNode[M]],
+                              _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
+                             (implicit tx: S#Tx): NNIter[M] = {
+      stat_rounds1()
+
+      var numAccepted   = 0
+      // var acceptedQidx  = 0
+
+      var bestLeaf  = _bestLeaf
+      var bestDist  = _bestDist
+      var rmax      = _rmax
+
+      def fall(parent: Branch, qidx: Int) {
+        parent.child(qidx) match {
+          case l: LeafImpl =>
+            val ldist = metric.distance(point, pointView(l.value, tx))
+            if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
+              bestDist = ldist
+              bestLeaf = l
+              if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+                rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
               }
-          }
+            }
+            parent.prevOption match {
+              case Some(prev) => fall(prev, qidx)
+              case _ =>
+            }
+
+          case EmptyValue =>
+            parent.prevOption match {
+              case Some(prev) => fall(prev, qidx)
+              case _ =>
+            }
+
+          case c: Branch =>
+            val cq = c.hyperCube
+            val cMinDist = metric.minDistance(point, cq)
+            if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
+                                                              // (otherwise we're out already)
+              val cMaxDist = metric.maxDistance(point, cq)
+              if (metric.isMeasureGreater(rmax, cMaxDist)) {
+                rmax = cMaxDist                               // found a new minimum required distance
+              }
+              acceptedChildren(numAccepted) = c
+              acceptedMinDists(numAccepted) = cMinDist
+              acceptedMaxDists(numAccepted) = cMaxDist
+              numAccepted += 1
+              // acceptedQidx = i                                // this will be used only if numAccepted == 1
+            }
         }
-
-        val dn = findRight(dn0, n0)
-
-        // now go left
-        @tailrec def findLeft(n: BranchLike): LeftBranch = n match {
-          case lb: LeftBranch   => lb
-          case rb: RightBranch  => findLeft(rb.prev)
-        }
-
-        val dnl = findLeft(dn)
-        assert(dnl == dn0)  // if this assertion holds, that would make the whole process of going right/left useless
-        findNNTail(dnl, pri, bestLeaf, bestDist, rmax)
       }
+
+      var i = 0
+      while (i < sz) {
+        fall(n0, i)
+        i += 1
+      }
+
+      if (rmax != _rmax) {
+        // recheck
+        var j = 0
+        while (j < numAccepted) {
+          if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
+            // immediately kick it out
+            numAccepted -= 1
+            var k = j
+            while (k < numAccepted) {
+              val k1 = k + 1
+              acceptedChildren(k) = acceptedChildren(k1)
+              acceptedMinDists(k) = acceptedMinDists(k1)
+              acceptedMaxDists(k) = acceptedMaxDists(k1)
+              k = k1
+            }
+          }
+          j += 1
+        }
+      }
+
+      i = 0
+      while (i < numAccepted) { // ...and the children are added to the priority queue
+        val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
+        stat_pq_add1(vn)
+        pri += vn
+        i   += 1
+      }
+      new NNIter[M](bestLeaf, bestDist, rmax)
     }
 
     def find()(implicit tx: S#Tx): LeafOrEmpty = {
       val pri = PriorityQueue.empty[VisitedNode[M]](this)
-      @tailrec def step(n0: LeftBranch, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M): LeafOrEmpty = {
-        val res = findNNTail(n0, pri, bestLeaf, bestDist, rmax)
+      @tailrec def step(n0: Branch, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M): LeafOrEmpty = {
+        val res = findNNTailNew(n0, pri, bestLeaf, bestDist, rmax)
         if (metric.isMeasureZero(res.bestDist)) {
           res.bestLeaf   // found a point exactly at the query position, so stop right away
         } else {
           if (pri.isEmpty) res.bestLeaf
           else {
             val vis = pri.dequeue()
+            stat_pq_rem1(vis)
             // if (!metric.isMeasureGreater(vis.minDist, res.rmax)) vis.n else pop()
 
             // because the queue is sorted by smallest minDist, if we find an element
@@ -878,13 +1009,18 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
 
       val mmax = metric.maxValue
-      step(head, EmptyValue, mmax, mmax)
+      step(lastTree, EmptyValue, mmax, mmax)
     }
 
-    def compare(a: VisitedNode[M], b: VisitedNode[M]) = metric.compareMeasure(b.minDist, a.minDist)
+    def compare(a: VisitedNode[M], b: VisitedNode[M]) = {
+      val min = metric.compareMeasure(b.minDist, a.minDist)
+      if (min != 0) min else metric.compareMeasure(b.maxDist, a.maxDist)
+    }
   }
 
-  private final class VisitedNode[@specialized(Long) M](val n: LeftBranch, val minDist: M)
+  private final class VisitedNode[@specialized(Long) M](val n: Branch, val minDist: M, val maxDist: M) {
+    override def toString = s"($n, min = $minDist, max = $maxDist)"
+  }
 
   // note: Iterator is not specialized, hence we can safe use the effort to specialize in A anyway
   private final class RangeQuery[@specialized(Long) Area](qs: QueryShape[Area, D]) extends Iterator[S#Tx, A] {

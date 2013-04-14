@@ -27,78 +27,78 @@ package de.sciss.lucre
 package geom
 
 object IntDistanceMeasure2D {
-   import IntSpace.TwoDim
-   import TwoDim._
-   import DistanceMeasure.Ops
+  import IntSpace.TwoDim
+  import TwoDim._
+  import DistanceMeasure.Ops
 
-   private type M = DistanceMeasure[ Long, TwoDim ] with Ops[ Long, TwoDim ]
+  private type M = DistanceMeasure[Long, TwoDim] with Ops[Long, TwoDim]
 
-   /**
-    * A measure that uses the euclidean squared distance
-    * which is faster than the euclidean distance as the square root
-    * does not need to be taken.
-    */
-   val euclideanSq : M = EuclideanSq
+  /**
+   * A measure that uses the euclidean squared distance
+   * which is faster than the euclidean distance as the square root
+   * does not need to be taken.
+   */
+  val euclideanSq: M = EuclideanSq
 
-   /**
-    * A chebychev distance measure, based on the maximum of the absolute
-    * distances across all dimensions.
-    */
-   val chebyshev : M = Chebyshev
+  /**
+   * A chebychev distance measure, based on the maximum of the absolute
+   * distances across all dimensions.
+   */
+  val chebyshev: M = Chebyshev
 
-   /**
-    * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
-    * distances across all dimensions. This is, strictly speaking, only a semi metric,
-    * and probably totally **useless**.
-    */
-   val vehsybehc : M = Vehsybehc
+  /**
+   * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
+   * distances across all dimensions. This is, strictly speaking, only a semi metric,
+   * and probably totally **useless**.
+   */
+  val vehsybehc: M = Vehsybehc
 
-   /**
-    * A 'next event' search when the quadtree is used to store spans (intervals).
-    * It assumes that a span or interval is represented by a point whose x coordinate
-    * corresponds to the span's start and whose y coordinate corresponds to the span's stop.
-    * Furthermore, it allows for spans to be unbounded: A span which does not have a defined
-    * start, should use `quad.left` as the x coordinate, and a span which does not have a defined
-    * stop, should use `quad.right` as the y coordinate. A span denoting the special value 'void'
-    * (no extent) can be encoded by giving it `quad.right` as x coordinate.
-    *
-    * The measure searches for the next 'event' beginning from the query point which is supposed
-    * to have `x == y == query-time point`. It finds the closest span start _or_ span stop which
-    * is greater than or equal to the query-time point, i.e. the nearest neighbor satisfying
-    * `qx >= x || qy >= y` (given the special treatment of unbounded coordinates).
-    *
-    * @param quad the tree's root square which is used to deduce the special values for representing unbounded spans
-    *
-    * @return  the measure instance
-    */
-   def nextSpanEvent( quad: IntSquare ) : M = new NextSpanEvent( quad )
+  /**
+   * A 'next event' search when the quadtree is used to store spans (intervals).
+   * It assumes that a span or interval is represented by a point whose x coordinate
+   * corresponds to the span's start and whose y coordinate corresponds to the span's stop.
+   * Furthermore, it allows for spans to be unbounded: A span which does not have a defined
+   * start, should use `quad.left` as the x coordinate, and a span which does not have a defined
+   * stop, should use `quad.right` as the y coordinate. A span denoting the special value 'void'
+   * (no extent) can be encoded by giving it `quad.right` as x coordinate.
+   *
+   * The measure searches for the next 'event' beginning from the query point which is supposed
+   * to have `x == y == query-time point`. It finds the closest span start _or_ span stop which
+   * is greater than or equal to the query-time point, i.e. the nearest neighbor satisfying
+   * `qx >= x || qy >= y` (given the special treatment of unbounded coordinates).
+   *
+   * @param quad the tree's root square which is used to deduce the special values for representing unbounded spans
+   *
+   * @return  the measure instance
+   */
+  def nextSpanEvent(quad: IntSquare): M = new NextSpanEvent(quad)
 
-   /**
-    * A 'previous event' search when the quadtree is used to store spans (intervals).
-    * It assumes that a span or interval is represented by a point whose x coordinate
-    * corresponds to the span's start and whose y coordinate corresponds to the span's stop.
-    * Furthermore, it allows for spans to be unbounded: A span which does not have a defined
-    * start, should use `quad.left` as the x coordinate, and a span which does not have a defined
-    * stop, should use `quad.right` as the y coordinate. A span denoting the special value 'void'
-    * (no extent) can be encoded by giving it `quad.right` as x coordinate.
-    *
-    * The measure searches for the previous 'event' beginning from the query point which is supposed
-    * to have `x == y == query-time point`. It finds the closest span start _or_ span stop which
-    * is smaller than or equal to the query-time point, i.e. the nearest neighbor satisfying
-    * `qx <= x || qy <= y` (given the special treatment of unbounded coordinates).
-    *
-    * @param quad the tree's root square which is used to deduce the special values for representing unbounded spans
-    *
-    * @return  the measure instance
-    */
-   def prevSpanEvent( quad: IntSquare ) : M = new PrevSpanEvent( quad )
+  /**
+   * A 'previous event' search when the quadtree is used to store spans (intervals).
+   * It assumes that a span or interval is represented by a point whose x coordinate
+   * corresponds to the span's start and whose y coordinate corresponds to the span's stop.
+   * Furthermore, it allows for spans to be unbounded: A span which does not have a defined
+   * start, should use `quad.left` as the x coordinate, and a span which does not have a defined
+   * stop, should use `quad.right` as the y coordinate. A span denoting the special value 'void'
+   * (no extent) can be encoded by giving it `quad.right` as x coordinate.
+   *
+   * The measure searches for the previous 'event' beginning from the query point which is supposed
+   * to have `x == y == query-time point`. It finds the closest span start _or_ span stop which
+   * is smaller than or equal to the query-time point, i.e. the nearest neighbor satisfying
+   * `qx <= x || qy <= y` (given the special treatment of unbounded coordinates).
+   *
+   * @param quad the tree's root square which is used to deduce the special values for representing unbounded spans
+   *
+   * @return  the measure instance
+   */
+  def prevSpanEvent(quad: IntSquare): M = new PrevSpanEvent(quad)
 
-   private object Chebyshev extends ChebyshevLike {
-      override def toString = "IntDistanceMeasure2D.chebyshev"
-      protected def apply( dx: Long, dy: Long ) : Long = math.max( dx, dy )
-   }
+  private object Chebyshev extends ChebyshevLike {
+    override def toString = "IntDistanceMeasure2D.chebyshev"
+    protected def apply(dx: Long, dy: Long): Long = math.max(dx, dy)
+  }
 
-   private final class NextSpanEvent( quad: IntSquare ) extends ChebyshevLike {
+  private final class NextSpanEvent( quad: IntSquare ) extends ChebyshevLike {
       private val maxX = quad.right
       private val maxY = quad.bottom
 

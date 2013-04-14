@@ -35,7 +35,7 @@ import IntSpace.TwoDim
 import stm.{Source, Cursor, Sys}
 
 object InteractiveSkipOctreePanel {
-   val seed = 0L
+  val seed = 0L
 
   def makeModel2D[S <: Sys[S]](system: S)(cons: => Unit)(implicit cursor: Cursor[S]): Model2D[S] = {
     implicit val pointView  = (p: IntPoint2D, t: Any) => p

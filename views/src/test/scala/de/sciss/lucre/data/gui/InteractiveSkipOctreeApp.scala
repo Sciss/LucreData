@@ -92,7 +92,12 @@ object InteractiveSkipOctreeApp extends App with Runnable {
       IntPoint2D(((x - offx) * scale + 0.5).toInt, 512 - ((y - offy) * scale + 0.5).toInt)
     }
 
-    val ins = adjust(if (marked) markedPoints else allPoints)
+    // val ins = adjust(if (marked) markedPoints else allPoints)
+    // val ins = (0 until 512 by 8).flatMap { i => IntPoint2D(i, i) :: IntPoint2D(511 - i, i + 1) :: Nil }
+    // val ins = (0 until 512 by 4).map { i => IntPoint2D(i, i) }
+    // val ins = (0 until 512 by 4).map { i => IntPoint2D(i, math.abs(256 - i) / 4) }
+    // val ins = (0 until 512 by 1).map { i => IntPoint2D(i, 256) }
+    val ins = (0 until 512 by 32).map { i => IntPoint2D(i, 256) }
 
     ins.foreach(model.tree += _)
   }
