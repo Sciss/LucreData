@@ -741,8 +741,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   private final class NNIter[@specialized(Long) M](val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M)
 
-  private final class NN[@specialized(Long) M](
-                                                point: D#PointLike, metric: DistanceMeasure[M, D])
+  private final class NN[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
     extends scala.math.Ordering[VisitedNode[M]] {
 
     // NOTE: `sz` must be protected and not private, otherwise
@@ -770,28 +769,28 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         n0.child(i) match {
           case l: LeafImpl =>
             val ldist = metric.distance(point, pointView(l.value, tx))
-            if (metric.isMeasureGreater(bestDist, ldist)) {
+            if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
               bestDist = ldist
               bestLeaf = l
-              if (metric.isMeasureGreater(rmax, bestDist)) {
-                rmax = bestDist
+              if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+                rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
               }
             }
           case c: LeftBranch =>
             val cq = c.hyperCube
             val cMinDist = metric.minDistance(point, cq)
-            if (!metric.isMeasureGreater(cMinDist, rmax)) {
-              // otherwise we're out already
+            if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
+                                                              // (otherwise we're out already)
               val cMaxDist = metric.maxDistance(point, cq)
               if (metric.isMeasureGreater(rmax, cMaxDist)) {
-                rmax = cMaxDist
+                rmax = cMaxDist                               // found a new minimum required distance
               }
               acceptedChildren(numAccepted) = c
               acceptedDists(numAccepted) = cMinDist
               numAccepted += 1
-              acceptedQidx = i
+              acceptedQidx = i                                // this will be used only if numAccepted == 1
             }
-          case _ =>
+          case _ => // ignore empty orthants
         }
         i += 1
       }
@@ -817,8 +816,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
       // Unless exactly one child is accepted, round is over
       if (numAccepted != 1) {
-        var i = 0;
-        while (i < numAccepted) {
+        var i = 0
+        while (i < numAccepted) { // ...and the children are added to the priority queue
           pri += new VisitedNode[M](acceptedChildren(i), acceptedDists(i))
           i += 1
         }
@@ -848,7 +847,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           case lb: LeftBranch   => lb
           case rb: RightBranch  => findLeft(rb.prev)
         }
-        findNNTail(findLeft(dn), pri, bestLeaf, bestDist, rmax)
+
+        val dnl = findLeft(dn)
+        assert(dnl == dn0)  // if this assertion holds, that would make the whole process of going right/left useless
+        findNNTail(dnl, pri, bestLeaf, bestDist, rmax)
       }
     }
 
@@ -857,19 +859,20 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       @tailrec def step(n0: LeftBranch, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M): LeafOrEmpty = {
         val res = findNNTail(n0, pri, bestLeaf, bestDist, rmax)
         if (metric.isMeasureZero(res.bestDist)) {
-          res.bestLeaf
+          res.bestLeaf   // found a point exactly at the query position, so stop right away
         } else {
-          @tailrec def pop(): Left = {
-            if (pri.isEmpty) res.bestLeaf
-            else {
-              val vis = pri.dequeue()
-              if (!metric.isMeasureGreater(vis.minDist, res.rmax)) vis.n else pop()
-            }
-          }
+          if (pri.isEmpty) res.bestLeaf
+          else {
+            val vis = pri.dequeue()
+            // if (!metric.isMeasureGreater(vis.minDist, res.rmax)) vis.n else pop()
 
-          pop() match {
-            case l: LeafOrEmpty => l
-            case lb: LeftBranch => step(lb, res.bestLeaf, res.bestDist, res.rmax)
+            // because the queue is sorted by smallest minDist, if we find an element
+            // whose minimum distance is greater than the maximum distance allowed,
+            // we are done and do not need to process the remainder of the priority queue.
+            if (metric.isMeasureGreater(vis.minDist, res.rmax)) res.bestLeaf else {
+              val lb = vis.n
+              step(lb, res.bestLeaf, res.bestDist, res.rmax)
+            }
           }
         }
       }
