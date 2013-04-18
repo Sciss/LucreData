@@ -26,6 +26,8 @@
 package de.sciss.lucre
 package geom
 
+import scala.annotation.switch
+
 // import de.sciss.lucrestm.{DataOutput, Writer}
 
 trait IntSquareLike extends HyperCube[IntSpace.TwoDim] with QueryShape[Long, IntSpace.TwoDim] {
@@ -50,7 +52,7 @@ trait IntSquareLike extends HyperCube[IntSpace.TwoDim] with QueryShape[Long, Int
 
   final def orthant(idx: Int): HyperCube = {
     val e = extent >> 1
-    idx match {
+    (idx: @switch) match {
       case 0 => IntSquare(cx + e, cy - e, e) // ne
       case 1 => IntSquare(cx - e, cy - e, e) // nw
       case 2 => IntSquare(cx - e, cy + e, e) // sw
@@ -271,23 +273,23 @@ trait IntSquareLike extends HyperCube[IntSpace.TwoDim] with QueryShape[Long, Int
     val tlx = cx - extent
     val tly = cy - extent
     val akx = aleft - tlx
-    val aky = atop - tly
-    val bkx = b.x - tlx
-    val bky = b.y - tly
+    val aky = atop  - tly
+    val bkx = b.x   - tlx
+    val bky = b.y   - tly
 
-    var x0 = 0
-    var x1 = 0
-    var x2 = 0
+    // var x0 = 0  // smallest of akx and bkx
+    var x1 = 0  //
+    var x2 = 0  // largest  of akx and bkx
     if (akx <= bkx) {
-      x0 = akx
+      // x0 = akx
       x1 = akx + asize
       x2 = bkx
     } else {
-      x0 = bkx
+      // x0 = bkx
       x1 = bkx + 1
       x2 = akx
     }
-    val mx = IntSpace.binSplit(x1, x2)
+    val mx = IntSpace.binSplit(x1, x2)  // bitmask for x coordinate
 
     var y0 = 0
     var y1 = 0
@@ -303,11 +305,15 @@ trait IntSquareLike extends HyperCube[IntSpace.TwoDim] with QueryShape[Long, Int
     }
     val my = IntSpace.binSplit(y1, y2)
 
-    // that means the x extent is greater (x grid more coarse).
+    // a smaller mask means that more lsb's are zero, hence it's a coarser mask
     if (mx <= my) {
-      IntSquare(tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx)
+      // IntSquare(tlx + (x2 & mx),             tly + (y0 & (mx << 1)) - mx, -mx)
+      val mx2 = mx << 1
+      IntSquare(tlx + (x2 & mx2) - mx, tly + (y2 & mx2) - mx, -mx)
     } else {
-      IntSquare(tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my)
+      // IntSquare(tlx + (x0 & (my << 1)) - my, tly + (y2 & my),             -my)
+      val my2 = my << 1
+      IntSquare(tlx + (x2 & my2) - my, tly + (y2 & my2) - my, -my)
     }
   }
 }

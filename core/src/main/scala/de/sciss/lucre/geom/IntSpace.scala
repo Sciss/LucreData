@@ -210,7 +210,7 @@ object IntSpace {
    * Thanks to Rex Kerr and Daniel Sobral
    * ( http://stackoverflow.com/questions/6156502/integer-in-an-interval-with-maximized-number-of-trailing-zero-bits )
    */
-  def binSplit(a: Int, b: Int): Int = binSplitRec(a, b, 0xFFFF0000, 8)
+  def binSplit(a: Int, b: Int): Int = /* if (a <= b) */ binSplitRec(a, b, 0xFFFF0000, 8) // else binSplitRec(b, a, 0xFFFF0000, 8)
 
   @tailrec private def binSplitRec(a: Int, b: Int, mask: Int, shift: Int): Int = {
     val gt = a > (b & mask)

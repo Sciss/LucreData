@@ -274,29 +274,29 @@ trait LongSquareLike extends HyperCube[LongSpace.TwoDim] with QueryShape[BigInt,
     val bkx = b.x - tlx
     val bky = b.y - tly
 
-    var x0 = 0L
+    // var x0 = 0L
     var x1 = 0L
     var x2 = 0L
     if (akx <= bkx) {
-      x0 = akx
+      // x0 = akx
       x1 = akx + asize
       x2 = bkx
     } else {
-      x0 = bkx
+      // x0 = bkx
       x1 = bkx + 1
       x2 = akx
     }
     val mx = LongSpace.binSplit(x1, x2)
 
-    var y0 = 0L
+    // var y0 = 0L
     var y1 = 0L
     var y2 = 0L
     if (aky <= bky) {
-      y0 = aky
+      // y0 = aky
       y1 = aky + asize
       y2 = bky
     } else {
-      y0 = bky
+      // y0 = bky
       y1 = bky + 1
       y2 = aky
     }
@@ -304,9 +304,13 @@ trait LongSquareLike extends HyperCube[LongSpace.TwoDim] with QueryShape[BigInt,
 
     // that means the x extent is greater (x grid more coarse).
     if (mx <= my) {
-      LongSquare(tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx)
+      // LongSquare(tlx + (x2 & mx), tly + (y0 & (mx << 1)) - mx, -mx)
+      val mx2 = mx << 1
+      LongSquare(tlx + (x2 & mx2) - mx, tly + (y2 & mx2) - mx, -mx)
     } else {
-      LongSquare(tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my)
+      // LongSquare(tlx + (x0 & (my << 1)) - my, tly + (y2 & my), -my)
+      val my2 = my << 1
+      LongSquare(tlx + (x2 & my2) - my, tly + (y2 & my2) - my, -my)
     }
   }
 }

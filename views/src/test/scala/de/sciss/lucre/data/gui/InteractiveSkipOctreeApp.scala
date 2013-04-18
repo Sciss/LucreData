@@ -97,9 +97,17 @@ object InteractiveSkipOctreeApp extends App with Runnable {
     // val ins = (0 until 512 by 4).map { i => IntPoint2D(i, i) }
     // val ins = (0 until 512 by 4).map { i => IntPoint2D(i, math.abs(256 - i) / 4) }
     // val ins = (0 until 512 by 1).map { i => IntPoint2D(i, 256) }
-    val ins = (0 until 512 by 1).map { i => IntPoint2D(i, 256) }
+    // val ins = (0 until 512 by 1).map { i => IntPoint2D(i, 256) }
     // val ins = (0 until 512 by 32).flatMap { i => IntPoint2D(i, 256 - 32) :: IntPoint2D(i, 256) :: Nil }
+    val ins = Seq(
+      IntPoint2D(256,   0),
+      IntPoint2D(256,   1)
+      // IntPoint2D(256,   2)
+      // IntPoint2D(256,   3)
+    )
 
-    ins.foreach(model.tree += _)
+    // ins.foreach(model.tree += _)
+    model.tree += IntPoint2D(256, 0)
+    model.tree += IntPoint2D(256, 1)
   }
 }
