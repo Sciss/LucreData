@@ -384,5 +384,8 @@ trait IntCubeLike extends HyperCube[ ThreeDim ] with QueryShape[ BigInt, ThreeDi
    }
 }
 
-final case class IntCube( cx: Int, cy: Int, cz: Int, extent: Int )
-extends IntCubeLike
+object IntCube {
+  implicit def serializer = IntSpace.ThreeDim.hyperCubeSerializer
+}
+final case class IntCube(cx: Int, cy: Int, cz: Int, extent: Int)
+  extends IntCubeLike

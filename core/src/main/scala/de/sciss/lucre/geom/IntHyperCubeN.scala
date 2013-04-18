@@ -247,9 +247,13 @@ sealed trait IntHyperCubeNLike extends HyperCube[ NDim ] with QueryShape[ BigInt
    }
 }
 
-final case class IntHyperCubeN( components: IIdxSeq[ Int ], extent: Int ) extends IntHyperCubeNLike {
-//   if( components.size != dim ) throw new IllegalArgumentException( "Expected " + dim + " components: " + components )
+object IntHyperCubeN {
+  implicit def serializer = IntSpace.NDim.hyperCubeSerializer
+}
+final case class IntHyperCubeN(components: IIdxSeq[Int], extent: Int) extends IntHyperCubeNLike {
+  //   if( components.size != dim ) throw new IllegalArgumentException( "Expected " + dim + " components: " + components )
 
-   def center( idx: Int ) : Int = components( idx )
-   def dim : Int = components.size
+  def center(idx: Int): Int = components(idx)
+
+  def dim: Int = components.size
 }

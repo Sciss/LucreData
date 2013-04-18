@@ -46,6 +46,9 @@ trait IntPointNLike {
   }
 }
 
+object IntPointN {
+  implicit def serializer = IntSpace.NDim.pointSerializer
+}
 final case class IntPointN(components: IIdxSeq[Int]) extends IntPointNLike {
   // if( components.size != dim ) throw new IllegalArgumentException( "Expected " + dim + " components: " + components )
 

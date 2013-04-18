@@ -28,7 +28,7 @@ package lucre
 package data
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
-import collection.mutable.{PriorityQueue, Queue => MQueue}
+import collection.mutable.{PriorityQueue => MPriorityQueue, Queue => MQueue}
 import scala.annotation.{elidable, switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
 import stm.{Identifiable, Sys, Mutable}
@@ -56,7 +56,7 @@ object DeterministicSkipOctree {
   private var stat_rounds = 0
   private var stat_pq_add = 0
   private var stat_pq_rem = 0
-  private val stat_print  = true
+  private val stat_print  = false
 
   @elidable(elidable.CONFIG) private def stat_reset() {
     stat_rounds = 0
@@ -791,7 +791,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     private val acceptedMinDists = metric.newArray(sz)
     private val acceptedMaxDists = metric.newArray(sz)
 
-    /* @tailrec */ private def findNNTail(n0: LeftBranch, pri: PriorityQueue[VisitedNode[M]],
+    /* @tailrec */ private def findNNTailOLD(n0: LeftBranch, pri: MPriorityQueue[VisitedNode[M]],
                                     _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
                                    (implicit tx: S#Tx): NNIter[M] = {
       stat_rounds1()
@@ -892,11 +892,115 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         //
         //        val dnl = findLeft(dn)
         //        assert(dnl == dn0)  // if this assertion holds, that would make the whole process of going right/left useless
-//        findNNTail(dn0 /* dnl */, pri, bestLeaf, bestDist, rmax)
+//        findNNTailOLD(dn0 /* dnl */, pri, bestLeaf, bestDist, rmax)
 //      }
     }
 
-    private def findNNTailNew(n0: Branch, pri: PriorityQueue[VisitedNode[M]],
+    private def findNNTail(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
+                           _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
+                          (implicit tx: S#Tx): NNIter[M] = {
+
+      var bestLeaf  = _bestLeaf
+      var bestDist  = _bestDist
+      var rmax      = _rmax
+
+      @tailrec def inHighestLevel(b: Branch): Branch = b.nextOption match {
+        case Some(n) => inHighestLevel(n)
+        case _ => b
+      }
+
+      def scanChildren(b: Branch): Int = {
+        var numAccepted = 0
+        val oldRMax     = rmax
+        var i           = 0
+        while (i < sz) {
+          b.child(i) match {
+            case l: LeafImpl =>
+              val ldist = metric.distance(point, pointView(l.value, tx))
+              if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
+                bestDist = ldist
+                bestLeaf = l
+                if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+                  rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
+                }
+              }
+
+            case c: Branch =>
+              val cq = c.hyperCube
+              val cMinDist = metric.minDistance(point, cq)
+              if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
+                                                                // (otherwise we're out already)
+                val cMaxDist = metric.maxDistance(point, cq)
+                if (metric.isMeasureGreater(rmax, cMaxDist)) {
+                  rmax = cMaxDist                               // found a new minimum required distance
+                }
+                acceptedChildren(numAccepted) = c
+                acceptedMinDists(numAccepted) = cMinDist
+                acceptedMaxDists(numAccepted) = cMaxDist
+                numAccepted += 1
+                // acceptedQidx = i                                // this will be used only if numAccepted == 1
+              }
+
+            case _ =>
+          }
+          i += 1
+        }
+
+        if (rmax != oldRMax) {
+          // recheck
+          var j = 0
+          while (j < numAccepted) {
+            if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
+              // immediately kick it out
+              numAccepted -= 1
+              var k = j
+              while (k < numAccepted) {
+                val k1 = k + 1
+                acceptedChildren(k) = acceptedChildren(k1)
+                acceptedMinDists(k) = acceptedMinDists(k1)
+                acceptedMaxDists(k) = acceptedMaxDists(k1)
+                k = k1
+              }
+            }
+            j += 1
+          }
+        }
+
+        numAccepted
+      }
+
+      @tailrec def loop(b: Branch): NNIter[M] = {
+        val num = scanChildren(b)
+
+        @tailrec def findEquipotent(i: Int): Int = {
+          if (i == num) -1 else {
+            val res = metric.isEquipotent(v = point, rmax = rmax, parent = b.hyperCube,
+              child = acceptedChildren(i).hyperCube)
+            if (res) i else findEquipotent(i + 1)
+          }
+        }
+
+        val eqi = findEquipotent(0)
+        if (eqi >= 0) loop(acceptedChildren(eqi))
+        else b.prevOption match {
+          case Some(prev) => loop(prev)
+          case _ =>
+            var i = 0
+            while (i < num) {
+              val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
+              stat_pq_add1(vn)
+              pri += vn
+              i   += 1
+            }
+            new NNIter(bestLeaf, bestDist, rmax)
+        }
+      }
+
+      val nh  = inHighestLevel(n0)
+      loop(nh)
+    }
+
+    private def findNNTailNO(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
                               _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
                              (implicit tx: S#Tx): NNIter[M] = {
       stat_rounds1()
@@ -985,9 +1089,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
 
     def find()(implicit tx: S#Tx): LeafOrEmpty = {
-      val pri = PriorityQueue.empty[VisitedNode[M]](this)
+      val pri = MPriorityQueue.empty[VisitedNode[M]](this)
       @tailrec def step(n0: Branch, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M): LeafOrEmpty = {
-        val res = findNNTailNew(n0, pri, bestLeaf, bestDist, rmax)
+        val res = findNNTailNO(n0, pri, bestLeaf, bestDist, rmax)
         if (metric.isMeasureZero(res.bestDist)) {
           res.bestLeaf   // found a point exactly at the query position, so stop right away
         } else {

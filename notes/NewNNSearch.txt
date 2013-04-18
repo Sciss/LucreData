@@ -1,0 +1,65 @@
+equiwhatever: given parent coverage area P, child coverage area C. where coverage consideres the radius r_max which is dynamically shrinking as points and squares are detected.
+
+condition: dist(v, P-C) >= dist'(v, C).
+
+notwendige aber nicht hinreichende bedingung ist dist(v, P) == dist(v, C)
+
+:::::::::::::::
+
+the actual question answered is this: exists in P a point p which is not contained in C and which is closer than r_max (where r_max has been adjusted according to all children of P)
+
+if the answer is NO, then C is equiwhatever
+
+or put the other way: def equiwhatever: there exists no point p in P which is not in contains in C and closer to v than r_max
+
+unklar ist, wie sich das in hoeheren levels verhaelt wrt nicht vorhandene children, die nur in unseren levels sind
+
+:::::::::::::::
+
+probably easiest is operate with the relative positions of v towards square instead of actually calculating intersecting shapes
+
+def isEquipotent(v: D#PointLike, rmax: M, parent: D#HyperCube, child: D#HyperCube): Boolean = ???
+
+:::::::::::::::
+
+wouldn't this suffer: X = hypercube constructed from v with extent = r_max. def equiwhatever: P.overlapArea(X) == C.overlapArea(X)
+
+this even works in the euclidean case where it should be a hyperball instead.
+
+the problem is only that r_max is distance squared in the implementation, and so can't be used straight as a hypercube's extent
+
+:::::::::::::::
+
+some observations
+- there is no square P in Pi which is not also in Pj, for any j < i
+- then, for if there is a child of P in Pi in orthant k whise is another square Qi, there there will be in Pj in orthant k
+  a square Rj which includes Qi, for any j < i
+- if Pj contains child square Qj, there may be a Qj+1 but not Pj+1
+
+"!! go to highest level in which p occurs. then each step involves check if there are at least two children which belong to the equidistance class. if so, return that square (by definition this is the tail of the equidistant path), otherwise decend if possible or go to next lower level. One such operation takes O(log n) which follows from the previous sections."
+
+- if the current rmax cuts a child, we can still savely go to a next lower level
+- however, if there is a child c1 which is not equipotent, and one child c2 which is equipotent,
+  is it save to descend to c2 ?
+- intuitively it must be save. because there is no possible candidate left out by going from the parent to c2
+- i'm trying to imagine such a case (with c1 and c2 as above)... i don't think it can possibly occur.
+- that is to say, if there is one equipotent child c2, there cannot be in the same parent a non equipotent c1,
+  because they would necessarily overlap. right?
+
+:::::::::::::::
+
+start with PQ = [headTree or lastTree ?]
+round
+- pop P from PQ
+- go to Pmax
+[A] - update nn-candidate and rmax by iterating over the children
+- consider the set X of children whose minDist <= rmax
+- in X check for an equipotent child square
+  - if it exists descend to it and continue at [A]
+  - otherwise
+    - if P.prev exists, go to P.prev and continue at [A]
+    - otherwise insert all X into PQ
+ 
+with this algorithm we see the following performance
+: random set of points: O(log n)
+: pathological setup (e.g. points spaced by 1 across a horizontal centered line, query point in the bottom middel): O(2 * sqrt(n))
