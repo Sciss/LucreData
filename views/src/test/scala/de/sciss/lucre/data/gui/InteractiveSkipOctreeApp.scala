@@ -95,21 +95,21 @@ object InteractiveSkipOctreeApp extends App with Runnable {
     // val ins = adjust(if (marked) markedPoints else allPoints)
     // val ins = (0 until 512 by 8).flatMap { i => IntPoint2D(i, i) :: IntPoint2D(511 - i, i + 1) :: Nil }
     // val ins = (0 until 512 by 4).map { i => IntPoint2D(i, i) }
-    // val ins = (0 until 512 by 4).map { i => IntPoint2D(i, math.abs(256 - i) / 4) }
+    val ins = (0 until 512 by 4).map { i => IntPoint2D(i, math.abs(256 - i) / 4) }
     // val ins = (0 until 512 by 1).map { i => IntPoint2D(i, 256) }
     // val ins = (0 until 512 by 1).map { i => IntPoint2D(i, 256) }
     // val ins = (0 until 512 by 32).flatMap { i => IntPoint2D(i, 256 - 32) :: IntPoint2D(i, 256) :: Nil }
-    val ins = Seq(
-      IntPoint2D( 10,340),
-      // IntPoint2D( 36,353),
-      IntPoint2D( 70,180),
-      IntPoint2D(170,310),
-      // IntPoint2D(178,417),
-      IntPoint2D(240,140)
-      // IntPoint2D(366, 32),
-      // IntPoint2D(369,343),
-      // IntPoint2D(501,157)
-    )
+    //    val ins = Seq(
+    //      IntPoint2D( 10,340),
+    //      // IntPoint2D( 36,353),
+    //      IntPoint2D( 70,180),
+    //      IntPoint2D(170,310),
+    //      // IntPoint2D(178,417),
+    //      IntPoint2D(240,140)
+    //      // IntPoint2D(366, 32),
+    //      // IntPoint2D(369,343),
+    //      // IntPoint2D(501,157)
+    //    )
 
     ins.foreach(model.tree += _)
     //    model.tree += IntPoint2D(256, 0)

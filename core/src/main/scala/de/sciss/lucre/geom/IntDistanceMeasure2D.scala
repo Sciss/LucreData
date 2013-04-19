@@ -298,7 +298,7 @@ object IntDistanceMeasure2D {
 
         } else {                      // v is inside parent
           // equipotent if v is inside child
-          // and distance between v and each of the child's corners
+          // and distance between v and each of the child's sides
           // is greater than or equal to the radius
           child.contains(v) && {
             val cl  = child.left
@@ -306,8 +306,8 @@ object IntDistanceMeasure2D {
             val cb  = child.bottom
             val cr  = child.right
             val cx  = if (cr - vx < vx - cl) cr else cl
-            val cy  = if (cb - vy < vy - ct) ct else cb
-            IntPoint2D(cx, cy).distanceSq(v) >= rmax
+            val cy  = if (cb - vy < vy - ct) cb else ct
+            IntPoint2D(vx, cy).distanceSq(v) >= rmax && IntPoint2D(cx, vy).distanceSq(v) >= rmax
           }
         }
       }

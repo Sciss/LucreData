@@ -26,7 +26,8 @@ object NNPerf extends App {
       ins.foreach(tree += _)
       println(s"\nSize = $j")
       val res = tree.nearestNeighbor(v, IntDistanceMeasure2D.euclideanSq)
-      assert(res == q, res)
+      val manual = ins.minBy(p => p.distanceSq(v))
+      assert(res == manual, s"NN yields $res but manual is $manual")
     }
 
     j <<= 1
