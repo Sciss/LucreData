@@ -12,14 +12,15 @@ object NNPerf extends App {
   var j   = 32
   val r   = new util.Random(0L)
   val down = 1
+  import SpaceSerializers._
   while (j <= 262144) {
     i.step { implicit tx =>
       val cube  = IntSquare(j >> 1, j >> 1, j >> 1)
       val tree  = SkipOctree.empty[S, D, IntPoint2D](cube)
-//      val ins   = (0 until j by down).map { i => IntPoint2D(i, j >> 1) }
-//      val v     = IntPoint2D(0, j - 1)
-      val ins   = (0 until j by down).map { i => IntPoint2D(j >> 1, i) }
-      val v     = IntPoint2D(j - 1, 0)
+      val ins   = (0 until j by down).map { i => IntPoint2D(i, j >> 1) }
+      val v     = IntPoint2D(0, j - 1)
+//      val ins   = (0 until j by down).map { i => IntPoint2D(j >> 1, i) }
+//      val v     = IntPoint2D(j - 1, 0)
 
       //val ins   = Vector.fill(j)(IntPoint2D(r.nextInt(j), r.nextInt(j)))
       ins.foreach(tree += _)

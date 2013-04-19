@@ -29,7 +29,7 @@ package data
 
 import collection.immutable.{IndexedSeq => IIdxSeq}
 import collection.mutable.{PriorityQueue => MPriorityQueue, Queue => MQueue}
-import annotation.{switch, tailrec}
+import scala.annotation.{elidable, switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
 import stm.{Identifiable, Sys, Mutable}
 import serial.{Writable, DataInput, DataOutput, Serializer}
@@ -50,6 +50,35 @@ import serial.{Writable, DataInput, DataOutput, Serializer}
 */
 object DeterministicSkipOctree {
   private final val SER_VERSION = 79
+
+  private var stat_rounds = 0
+  private var stat_pq_add = 0
+  private var stat_pq_rem = 0
+  private val stat_print  = false
+
+  @elidable(elidable.CONFIG) private def stat_reset() {
+    stat_rounds = 0
+    stat_pq_add = 0
+    stat_pq_rem = 0
+  }
+
+  @elidable(elidable.CONFIG) private def stat_report() {
+    println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
+  }
+
+  @elidable(elidable.CONFIG) private def stat_rounds1() {
+    stat_rounds += 1
+  }
+
+  @elidable(elidable.CONFIG) private def stat_pq_add1(obj: Any) {
+    stat_pq_add += 1
+    if (stat_print) println(s"<stat> add    pq: $obj")
+  }
+
+  @elidable(elidable.CONFIG) private def stat_pq_rem1(obj: Any) {
+    stat_pq_rem += 1
+    if (stat_print) println(s"<stat> remove pq: $obj")
+  }
 
   def empty[S <: Sys[S], D <: Space[D], A](hyperCube: D#HyperCube, skipGap: Int = 2)
                                           (implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
@@ -149,7 +178,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   extends SkipOctree[S, D, A] {
   octree =>
 
-  import DeterministicSkipOctree.{SER_VERSION, opNotSupported}
+  import DeterministicSkipOctree.{SER_VERSION, opNotSupported,
+    stat_reset, stat_rounds1, stat_pq_add1, stat_pq_rem1, stat_report}
 
   private type Order = TotalOrder.Set.Entry[S]
 
@@ -532,7 +562,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final def nearestNeighbor[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
                                                  (implicit tx: S#Tx): A = {
-    new NN(point, metric).find() match {
+    val nn = new NN(point, metric).find()
+    stat_report()
+    nn match {
       case EmptyValue => throw new NoSuchElementException("nearestNeighbor on an empty tree")
       case l: LeafImpl => l.value
     }
@@ -540,7 +572,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final def nearestNeighborOption[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
                                                        (implicit tx: S#Tx): Option[A] = {
-    new NN(point, metric).find() match {
+    val nn = new NN(point, metric).find()
+    stat_report()
+    nn match {
       case EmptyValue => None
       case l: LeafImpl => Some(l.value)
     }
@@ -1093,7 +1127,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
   }
 
-  private final class VisitedNode[@specialized(Long) M](val n: LeftBranch, val minDist: M)
+  private final class VisitedNode[@specialized(Long) M](val n: Branch, val minDist: M, val maxDist: M)
 
   // note: Iterator is not specialized, hence we can safe use the effort to specialize in A anyway
   private final class RangeQuery[@specialized(Long) Area](qs: QueryShape[Area, D]) extends Iterator[S#Tx, A] {
