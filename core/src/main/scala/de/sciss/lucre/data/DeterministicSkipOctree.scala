@@ -65,7 +65,7 @@ object DeterministicSkipOctree {
   }
 
   @elidable(elidable.CONFIG) private def stat_report() {
-    // println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
+    println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
   }
 
   @elidable(elidable.CONFIG) private def stat_rounds1() {
@@ -899,6 +899,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     private def findNNTail(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
                            _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
                           (implicit tx: S#Tx): NNIter[M] = {
+      stat_rounds1()
 
       var bestLeaf  = _bestLeaf
       var bestDist  = _bestDist
@@ -1091,7 +1092,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     def find()(implicit tx: S#Tx): LeafOrEmpty = {
       val pri = MPriorityQueue.empty[VisitedNode[M]](this)
       @tailrec def step(n0: Branch, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M): LeafOrEmpty = {
-        val res = findNNTailNO(n0, pri, bestLeaf, bestDist, rmax)
+        val res = findNNTail(n0, pri, bestLeaf, bestDist, rmax)
         if (metric.isMeasureZero(res.bestDist)) {
           res.bestLeaf   // found a point exactly at the query position, so stop right away
         } else {
