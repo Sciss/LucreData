@@ -63,3 +63,44 @@ round
 with this algorithm we see the following performance
 : random set of points: O(log n)
 : pathological setup (e.g. points spaced by 1 across a horizontal centered line, query point in the bottom middel): O(2 * sqrt(n))
+
+- that is to say, if there is one equipotent child c2, there cannot be in the same parent a non equipotent c1,
+  because they would necessarily overlap. right?
+
+:::::::::::::::
+
+start with PQ = [headTree or lastTree ?]
+round
+- pop P from PQ
+- go to Pmax
+[A] - update nn-candidate and rmax by iterating over the children
+- consider the set X of children whose minDist <= rmax
+- in X check for an equipotent child square
+  - if it exists descend to it and continue at [A]
+  - otherwise
+    - if P.prev exists, go to P.prev and continue at [A]
+    - otherwise insert all X into PQ
+ 
+with this algorithm we see the following performance
+: random set of points: O(log n)
+: pathological setup (e.g. points spaced by 1 across a horizontal centered line, query point in the bottom middel): O(2 * sqrt(n))
+
+:::::::::::::::::
+
+Lemma 12 proof. First part is ok (dist'(u,q)−dist(u,q) <= c's(q).). But then the claim that "q'' is at least log(c/eps) steps above q''" is not correct? That was said about q' but not q''. The sentence should probably read "_if_ q'' is at least..." (using that as a condition?)
+
+// in 3D: sqrt(3)
+
+so if we understand the q'' num-steps as a condition, the following does hold:
+
+"the side length s(q'') is at least cs(q)/eps." // einfacher gesagt: exp(log(c/eps)) * s(q) = c/eps * s(q)
+
+"Therefore the distance from any sibling of q'' to v is at least cs(q)/eps." // ABER NUR WENN dist(v, q) EINE ECKE IST !!!
+("Lemma 12 is for a path that goes directly to a corner.")
+
+wenn ein sibling von q'' stabbing ist, dann hat die NN range einen radius von mind. cs(q)/eps; ok
+
+dschub dschub, ...., "q and its lowest log(c/ε) ancestors are the only possibly stabbing squares on the equidistant path." // dalé
+
+eingefuegt werden muessen die children dieser squares. // und das ist logischerweise eine konstante zahl
+

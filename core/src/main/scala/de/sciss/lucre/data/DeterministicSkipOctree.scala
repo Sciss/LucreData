@@ -56,7 +56,7 @@ object DeterministicSkipOctree {
   private var stat_rounds = 0
   private var stat_pq_add = 0
   private var stat_pq_rem = 0
-  private val stat_print  = false
+  private val stat_print  = true
 
   @elidable(elidable.CONFIG) private def stat_reset() {
     stat_rounds = 0
@@ -68,8 +68,9 @@ object DeterministicSkipOctree {
     println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
   }
 
-  @elidable(elidable.CONFIG) private def stat_rounds1() {
+  @elidable(elidable.CONFIG) private def stat_rounds1(obj: Any) {
     stat_rounds += 1
+    if (stat_print) println(s"<stat> round max: $obj")
   }
 
   @elidable(elidable.CONFIG) private def stat_pq_add1(obj: Any) {
@@ -794,7 +795,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     /* @tailrec */ private def findNNTailOLD(n0: LeftBranch, pri: MPriorityQueue[VisitedNode[M]],
                                     _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
                                    (implicit tx: S#Tx): NNIter[M] = {
-      stat_rounds1()
+      stat_rounds1(_rmax)
       var numAccepted   = 0
       var acceptedQidx  = 0
 
@@ -899,7 +900,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     private def findNNTail(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
                            _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
                           (implicit tx: S#Tx): NNIter[M] = {
-      stat_rounds1()
+      stat_rounds1(_rmax)
 
       var bestLeaf  = _bestLeaf
       var bestDist  = _bestDist
@@ -910,21 +911,24 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         case _ => b
       }
 
+      def inspectLeaf(l: LeafImpl) {
+        val ldist = metric.distance(point, pointView(l.value, tx))
+        if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
+          bestDist = ldist
+          bestLeaf = l
+          if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+            rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
+          }
+        }
+      }
+
       def scanChildren(b: Branch): Int = {
         var numAccepted = 0
         val oldRMax     = rmax
         var i           = 0
         while (i < sz) {
           b.child(i) match {
-            case l: LeafImpl =>
-              val ldist = metric.distance(point, pointView(l.value, tx))
-              if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
-                bestDist = ldist
-                bestLeaf = l
-                if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
-                  rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
-                }
-              }
+            case l: LeafImpl => inspectLeaf(l)
 
             case c: Branch =>
               val cq = c.hyperCube
