@@ -61,6 +61,11 @@ trait IntSquareLike extends HyperCube[IntSpace.TwoDim] with QueryShape[Long, Int
     }
   }
 
+  /** The top is center-y minus the extent.
+    *
+    * __Note therefore,__ that the vertical coordinates
+    * are considered top-down as in screen coordinates, not bottom-up!
+    */
   final def top : Int = cy - extent
   final def left: Int = cx - extent
 

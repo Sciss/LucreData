@@ -203,26 +203,26 @@ object IntDistanceMeasure2D {
       val vx  = v.x
       val vy  = v.y
       val pl  = parent.left
-      val pb  = parent.bottom
       val pt  = parent.top
       val pr  = parent.right
+      val pb  = parent.bottom
 
       if (vx < pl) {
         val cl  = child.left
         cl == pl && {
-          if (vy < pb) {                // v outside of parent, to its left bottom
-            // equipotent if child is in the bottom left corner of parent
-            // and distance between v and child's bottom right or top left corner
-            // is greater than or equal to the radius
-            val cb  = child.bottom
-            cb == pb && IntPoint2D(child.right, cb).distanceSq(v) >= rmax
-
-          } else if (vy > parent.top) { // v outside of parent, to its left top
+          if (vy < pt) { // v outside of parent, to its left top
             // equipotent if child is in the top left corner of parent
             // and distance between v and child's bottom left or top right corner
             // is greater than or equal to the radius
             val ct  = child.top
             ct == pt && IntPoint2D(child.right, ct).distanceSq(v) >= rmax
+
+          } else if (vy > pb) {                // v outside of parent, to its left bottom
+            // equipotent if child is in the bottom left corner of parent
+            // and distance between v and child's bottom right or top left corner
+            // is greater than or equal to the radius
+            val cb  = child.bottom
+            cb == pb && IntPoint2D(child.right, cb).distanceSq(v) >= rmax
 
           } else {                      // v is left to parent
             // equipotent if child is on the left side of parent
@@ -236,22 +236,24 @@ object IntDistanceMeasure2D {
           }
         }
 
-      } else if (vx > parent.right) {
+      } else if (vx > pr) {
         val cr = child.right
         cr == pr && {
-          if (vy < pb) {                // v outside of parent, to its right bottom
-            // equipotent if child is in the bottom right corner of parent
-            // and distance between v and child's bottom left or top right corner
-            // is greater than or equal to the radius
-            val cb  = child.bottom
-            cb == pb && IntPoint2D(child.left, cb).distanceSq(v) >= rmax
-
-          } else if (vy > parent.top) { // v outside of parent, to its right top
+          if (vy < pt) {
+            // v outside of parent, to its right top
             // equipotent if child is in the top right corner of parent
             // and distance between v and child's bottom right or top left corner
             // is greater than or equal to the radius
-            val ct  = child.top
+            val ct = child.top
             ct == pt && IntPoint2D(child.left, ct).distanceSq(v) >= rmax
+
+          } else if (vy > pb) {
+            // v outside of parent, to its right bottom
+            // equipotent if child is in the bottom right corner of parent
+            // and distance between v and child's bottom left or top right corner
+            // is greater than or equal to the radius
+            val cb = child.bottom
+            cb == pb && IntPoint2D(child.left, cb).distanceSq(v) >= rmax
 
           } else {                      // v is right to parent
             // equipotent if child is on the right side of parent
@@ -266,30 +268,32 @@ object IntDistanceMeasure2D {
         }
 
       } else {
-        if (vy < pb) {                // v outside of parent, to its bottom
-          // equipotent if child is on the bottom side of parent
-          // and distance between v and both child's bottom left and bottom right corner
-          // is greater than or equal to the radius
-          val cb  = child.bottom
-          cb == pb && {
-            val cl  = child.left
-            val cr  = child.right
-            // cc is closest bottom side corner of child wrt v
-            val cc  = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
-            IntPoint2D(cc, cb).distanceSq(v) >= rmax
-          }
-
-        } else if (vy > parent.top) { // v outside of parent, to its top
+        if (vy < pt) {
+          // v outside of parent, to its top
           // equipotent if child is on the top side of parent
           // and distance between v and both child's top left and top right corner
           // is greater than or equal to the radius
-          val ct  = child.top
+          val ct = child.top
           ct == pt && {
-            val cl  = child.left
-            val cr  = child.right
+            val cl = child.left
+            val cr = child.right
             // cc is closest top side corner of child wrt v
-            val cc  = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
+            val cc = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
             IntPoint2D(cc, ct).distanceSq(v) >= rmax
+          }
+
+        } else if (vy > pb) {
+          // v outside of parent, to its bottom
+          // equipotent if child is on the bottom side of parent
+          // and distance between v and both child's bottom left and bottom right corner
+          // is greater than or equal to the radius
+          val cb = child.bottom
+          cb == pb && {
+            val cl = child.left
+            val cr = child.right
+            // cc is closest bottom side corner of child wrt v
+            val cc = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
+            IntPoint2D(cc, cb).distanceSq(v) >= rmax
           }
 
         } else {                      // v is inside parent
@@ -302,7 +306,7 @@ object IntDistanceMeasure2D {
             val cb  = child.bottom
             val cr  = child.right
             val cx  = if (cr - vx < vx - cl) cr else cl
-            val cy  = if (ct - vy < vy - cb) ct else cb
+            val cy  = if (cb - vy < vy - ct) ct else cb
             IntPoint2D(cx, cy).distanceSq(v) >= rmax
           }
         }
@@ -310,62 +314,65 @@ object IntDistanceMeasure2D {
     }
   }
 
-  private final class Clip( underlying: Impl, quad: HyperCube ) extends Impl {
-      override def toString = underlying.toString + ".clip(" + quad + ")"
-      def distance( a: PointLike, b: PointLike )    = if( quad.contains( b )) underlying.distance(    a, b ) else Long.MaxValue
-      def minDistance( a: PointLike, b: HyperCube ) = if( quad.contains( b )) underlying.minDistance( a, b ) else Long.MaxValue
-      def maxDistance( a: PointLike, b: HyperCube ) = if( quad.contains( b )) underlying.maxDistance( a, b ) else Long.MaxValue
-   }
+  private final class Clip(underlying: Impl, quad: HyperCube) extends Impl {
+    override def toString = underlying.toString + ".clip(" + quad + ")"
 
-   private final class Approximate( underlying: Impl, thresh: Long ) extends Impl {
-      override def toString = underlying.toString + ".approximate(" + thresh + ")"
-      def minDistance( a: PointLike, b: HyperCube ) = underlying.minDistance( a, b )
-      def maxDistance( a: PointLike, b: HyperCube ) = underlying.maxDistance( a, b )
-      def distance( a: PointLike, b: PointLike ) = {
-         val res = underlying.distance( a, b ) // b.distanceSq( a )
-         if( res > thresh ) res else 0L
-      }
-   }
+    def distance   (a: PointLike, b: PointLike) = if (quad.contains(b)) underlying.distance(a, b) else Long.MaxValue
+    def minDistance(a: PointLike, b: HyperCube) = if (quad.contains(b)) underlying.minDistance(a, b) else Long.MaxValue
+    def maxDistance(a: PointLike, b: HyperCube) = if (quad.contains(b)) underlying.maxDistance(a, b) else Long.MaxValue
+  }
 
-   private final class Quadrant( underlying: DistanceMeasure[ Long, TwoDim ], idx: Int )
-   extends Impl {
-      private val right    = idx == 0 || idx == 3
-      private val bottom   = idx >= 2
+  private final class Approximate(underlying: Impl, thresh: Long) extends Impl {
+    override def toString = underlying.toString + ".approximate(" + thresh + ")"
 
-      override def toString = underlying.toString + ".quadrant(" + idx + ")"
+    def minDistance(a: PointLike, b: HyperCube) = underlying.minDistance(a, b)
+    def maxDistance(a: PointLike, b: HyperCube) = underlying.maxDistance(a, b)
 
-      def distance( a: PointLike, b: PointLike ) : Long = {
-         if( (if( right  ) b.x >= a.x else b.x <= a.x) &&
-             (if( bottom ) b.y >= a.y else b.y <= a.y) ) {
+    def distance(a: PointLike, b: PointLike) = {
+      val res = underlying.distance(a, b) // b.distanceSq( a )
+      if (res > thresh) res else 0L
+    }
+  }
 
-            underlying.distance( a, b )
-         } else Long.MaxValue
-      }
+  private final class Quadrant(underlying: DistanceMeasure[Long, TwoDim], idx: Int)
+    extends Impl {
+    private val right = idx == 0 || idx == 3
+    private val bottom = idx >= 2
 
-      def minDistance( p: PointLike, q: HyperCube ) : Long = {
-         val qe   = q.extent
-         val qem1 = qe - 1
+    override def toString = underlying.toString + ".quadrant(" + idx + ")"
 
-         if( (if( right  ) (q.cx + qem1) >= p.x else (q.cx - qe) <= p.x) &&
-             (if( bottom ) (q.cy + qem1) >= p.y else (q.cy - qe) <= p.y) ) {
+    def distance(a: PointLike, b: PointLike): Long = {
+      if ((if (right ) b.x >= a.x else b.x <= a.x) &&
+          (if (bottom) b.y >= a.y else b.y <= a.y)) {
 
-            underlying.minDistance( p, q )
-         } else Long.MaxValue
-      }
+        underlying.distance(a, b)
+      } else Long.MaxValue
+    }
 
-      def maxDistance( p: PointLike, q: HyperCube ) : Long = {
-         val qe   = q.extent
-         val qem1 = qe - 1
+    def minDistance(p: PointLike, q: HyperCube): Long = {
+      val qe    = q.extent
+      val qem1  = qe - 1
 
-         if( (if( right  ) (q.cx - qe) >= p.x else (q.cx + qem1) <= p.x) &&
-             (if( bottom ) (q.cy - qe) >= p.y else (q.cy + qem1) <= p.y) ) {
+      if ((if (right ) (q.cx + qem1) >= p.x else (q.cx - qe) <= p.x) &&
+          (if (bottom) (q.cy + qem1) >= p.y else (q.cy - qe) <= p.y)) {
 
-            underlying.maxDistance( p, q )
-         } else Long.MaxValue
-      }
-   }
+        underlying.minDistance(p, q)
+      } else Long.MaxValue
+    }
 
-   private final class ExceptQuadrant( underlying: DistanceMeasure[ Long, TwoDim ], idx: Int )
+    def maxDistance(p: PointLike, q: HyperCube): Long = {
+      val qe = q.extent
+      val qem1 = qe - 1
+
+      if ((if (right ) (q.cx - qe) >= p.x else (q.cx + qem1) <= p.x) &&
+          (if (bottom) (q.cy - qe) >= p.y else (q.cy + qem1) <= p.y)) {
+
+        underlying.maxDistance(p, q)
+      } else Long.MaxValue
+    }
+  }
+
+  private final class ExceptQuadrant( underlying: DistanceMeasure[ Long, TwoDim ], idx: Int )
    extends Impl {
       private val right    = idx == 0 || idx == 3
       private val bottom   = idx >= 2
@@ -403,91 +410,96 @@ object IntDistanceMeasure2D {
       }
    }
 
-   private sealed trait ChebyshevLike extends Impl {
-      protected def apply( dx: Long, dy: Long ) : Long
+  private sealed trait ChebyshevLike extends Impl {
+    protected def apply(dx: Long, dy: Long): Long
 
-      def distance( a: PointLike, b: PointLike ) = {
-         val dx = math.abs( a.x.toLong - b.x.toLong )
-         val dy = math.abs( a.y.toLong - b.y.toLong )
-         apply( dx, dy )
-      }
-      def minDistance( a: PointLike, q: HyperCube ) : Long = {
-         val px   = a.x
-         val py   = a.y
-         val l    = q.left
-         val t    = q.top
-         var dx   = 0L
-         var dy   = 0L
-         if( px < l ) {
+    def distance(a: PointLike, b: PointLike) = {
+      val dx = math.abs(a.x.toLong - b.x.toLong)
+      val dy = math.abs(a.y.toLong - b.y.toLong)
+      apply(dx, dy)
+    }
+
+    def minDistance(a: PointLike, q: HyperCube): Long = {
+      val px  = a.x
+      val py  = a.y
+      val l   = q.left
+      val t   = q.top
+      var dx  = 0L
+      var dy  = 0L
+      if (px < l) {
+        dx = l.toLong - px.toLong
+        if (py < t) {
+          dy = t.toLong - py.toLong
+        } else {
+          val b = q.bottom
+          if (py > b) {
+            dy = py.toLong - b.toLong
+          }
+        }
+      } else {
+        val r = q.right
+        if (px > r) {
+          dx = px.toLong - r.toLong
+          if (py < t) {
+            dy = t.toLong - py.toLong
+          } else {
+            val b = q.bottom
+            if (py > b) {
+              dy = py.toLong - b.toLong
+            }
+          }
+        } else if (py < t) {
+          dy = t.toLong - py.toLong
+          if (px < l) {
             dx = l.toLong - px.toLong
-            if( py < t ) {
-               dy = t.toLong - py.toLong
-            } else {
-               val b = q.bottom
-               if( py > b ) {
-                  dy = py.toLong - b.toLong
-               }
+          } else {
+            if (px > r) {
+              dx = px.toLong - r.toLong
             }
-         } else {
-            val r = q.right
-            if( px > r ) {
-               dx   = px.toLong - r.toLong
-               if( py < t ) {
-                  dy = t.toLong - py.toLong
-               } else {
-                  val b = q.bottom
-                  if( py > b ) {
-                     dy = py.toLong - b.toLong
-                  }
-               }
-            } else if( py < t ) {
-               dy = t.toLong - py.toLong
-               if( px < l ) {
-                  dx = l.toLong - px.toLong
-               } else {
-                  if( px > r ) {
-                     dx = px.toLong - r.toLong
-                  }
-               }
+          }
+        } else {
+          val b = q.bottom
+          if (py > b) {
+            dy = py.toLong - b.toLong
+            if (px < l) {
+              dx = l.toLong - px.toLong
             } else {
-               val b = q.bottom
-               if( py > b ) {
-                  dy = py.toLong - b.toLong
-                  if( px < l ) {
-                     dx = l.toLong - px.toLong
-                  } else {
-                     if( px > r ) {
-                        dx = px.toLong - r.toLong
-                     }
-                  }
-               }
+              if (px > r) {
+                dx = px.toLong - r.toLong
+              }
             }
-         }
-         apply( dx, dy )
+          }
+        }
       }
+      apply(dx, dy)
+    }
 
-      def maxDistance( a: PointLike, q: HyperCube ) : Long = {
-         val px = a.x
-         val py = a.y
-         if( px < q.cx ) {
-            val dx = q.right.toLong - px.toLong
-            val dy = if( py < q.cy ) {    // bottom right is furthest
-               q.bottom.toLong - py.toLong
-            } else {                      // top right is furthest
-               py.toLong - q.top.toLong
-            }
-            apply( dx, dy )
-         } else {
-            val dx = px.toLong - q.left.toLong
-            val dy = if( py < q.cy ) {    // bottom left is furthest
-               q.bottom.toLong - py.toLong
-            } else {                      // top left is furthest
-               py.toLong - q.top.toLong
-            }
-            apply( dx, dy )
-         }
+    def maxDistance(a: PointLike, q: HyperCube): Long = {
+      val px = a.x
+      val py = a.y
+      if (px < q.cx) {
+        val dx = q.right.toLong - px.toLong
+        val dy = if (py < q.cy) {
+          // bottom right is furthest
+          q.bottom.toLong - py.toLong
+        } else {
+          // top right is furthest
+          py.toLong - q.top.toLong
+        }
+        apply(dx, dy)
+      } else {
+        val dx = px.toLong - q.left.toLong
+        val dy = if (py < q.cy) {
+          // bottom left is furthest
+          q.bottom.toLong - py.toLong
+        } else {
+          // top left is furthest
+          py.toLong - q.top.toLong
+        }
+        apply(dx, dy)
       }
-   }
+    }
+  }
 
   private sealed trait Impl extends DistanceMeasure[Long, TwoDim] with Ops[Long, TwoDim] {
     //      final def manifest : Manifest[ Long ] = Manifest.Long
