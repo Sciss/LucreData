@@ -28,8 +28,6 @@ package geom
 
 import scala.annotation.switch
 
-// import de.sciss.lucrestm.{DataOutput, Writer}
-
 trait IntSquareLike extends HyperCube[IntSpace.TwoDim] with QueryShape[Long, IntSpace.TwoDim] {
   import IntSpace.TwoDim._
 

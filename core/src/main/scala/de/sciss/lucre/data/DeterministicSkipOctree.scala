@@ -897,7 +897,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 //      }
     }
 
-    private def findNNTail(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
+    private def findNNTail(p0: Branch, pMinDist: M, pri: MPriorityQueue[VisitedNode[M]],
                            _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
                           (implicit tx: S#Tx): NNIter[M] = {
       stat_rounds1(_rmax)
@@ -906,10 +906,140 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       var bestDist  = _bestDist
       var rmax      = _rmax
 
-      @tailrec def inHighestLevel(b: Branch): Branch = b.nextOption match {
-        case Some(n) => inHighestLevel(n)
-        case _ => b
+      def inspectLeaf(l: LeafImpl) {
+        val ldist = metric.distance(point, pointView(l.value, tx))
+        if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
+          bestDist = ldist
+          bestLeaf = l
+          if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+            rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
+          }
+        }
       }
+
+      // pMinDist = parent's minDist
+      def scanChildren(parent: Branch): Int = {
+        var numAccepted = 0
+        var i           = 0
+        while (i < sz) {
+          parent.child(i) match {
+            case l: LeafImpl => inspectLeaf(l)
+
+            case c: Branch =>
+              val cq        = c.hyperCube
+              val cMinDist  = metric.minDistance(point, cq)
+              if (cMinDist == pMinDist) {                       // equistabbing
+                acceptedChildren(numAccepted) = c
+                acceptedMinDists(numAccepted) = cMinDist
+                numAccepted += 1
+              }
+
+            case _ =>
+          }
+          i += 1
+        }
+
+        numAccepted
+      }
+
+      // TODO: this needs to use the skip structure
+      def ancestorOf(b: Branch): Branch = {
+        val h   = b.hyperCube
+
+        @tailrec def loop(q: Branch): Branch = {
+          val idx = q.hyperCube.indexOf(h)
+          q.child(idx) match {
+            case `b` => q
+            case c: Branch => loop(c)
+            case other => sys.error(s"Unexpected child $other")
+          }
+        }
+        loop(p0)
+      }
+
+      def pushChildren(b: Branch, skip: Int) {
+        var i = 0
+        while (i < sz) {
+          if (i != skip) b.child(i) match {
+            case l: LeafImpl => inspectLeaf(l)
+
+            case c: Branch =>
+              val cq        = c.hyperCube
+              val cMinDist  = metric.minDistance(point, cq)
+              val vn        = new VisitedNode(c, cMinDist, null.asInstanceOf[M])
+              pri += vn
+
+            case _ =>
+          }
+          i += 1
+        }
+      }
+
+      def finish(b: Branch): NNIter[M] = {
+        val b0      = inLowestLevel(b)
+        val numAnc  = 1 // XXX TODO needs to be retrieved from metric and numDim
+
+        @tailrec def checkendorfer(b: Branch, si: Int, _anc: Int) {
+          val a   = ancestorOf(b)
+          val ai  = a.hyperCube.indexOf(b.hyperCube)
+          var anc = _anc
+          if (ai == si) {
+            pushChildren(b, si)
+            anc -= 1
+          }
+
+          if (anc > 0 && a != p0) {
+            checkendorfer(a, si, anc)
+          }
+        }
+
+        pushChildren(b0, -1)
+        if (b0 != p0) metric.stabbingDirections(point, p0.hyperCube, b0.hyperCube).foreach { si =>
+          checkendorfer(b0, si, numAnc)
+        }
+//                val cMinDist  = metric.minDistance(point, c.hyperCube)
+//                val cv  = new VisitedNode(c, cMinDist, null.asInstanceOf[M])
+//                pri += cv
+
+        new NNIter(bestLeaf, bestDist, rmax)
+      }
+
+      @tailrec def loop(b: Branch): NNIter[M] = {
+        val num = scanChildren(b)
+        if (num >= 2) {
+          finish(b)
+        } else if (num == 1) {
+          findNNTail(acceptedChildren(0), pMinDist, pri, bestLeaf, bestDist, rmax)
+        } else {
+          b.prevOption match {
+            case Some(prev) => loop(prev)
+            case _          => finish(b)
+          }
+        }
+      }
+
+      val ph = inHighestLevel(p0)
+      loop(ph)
+    }
+
+    @tailrec private def inHighestLevel(b: Branch)(implicit tx: S#Tx): Branch = b.nextOption match {
+      case Some(n)  => inHighestLevel(n)
+      case _        => b
+    }
+
+    @tailrec private def inLowestLevel(b: Branch)(implicit tx: S#Tx): Branch = b.prevOption match {
+      case Some(n)  => inLowestLevel(n)
+      case _        => b
+    }
+
+    private def findNNTailEquiPotency(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
+                           _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
+                          (implicit tx: S#Tx): NNIter[M] = {
+      stat_rounds1(_rmax)
+
+      var bestLeaf  = _bestLeaf
+      var bestDist  = _bestDist
+      var rmax      = _rmax
 
       def inspectLeaf(l: LeafImpl) {
         val ldist = metric.distance(point, pointView(l.value, tx))
@@ -1095,8 +1225,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     def find()(implicit tx: S#Tx): LeafOrEmpty = {
       val pri = MPriorityQueue.empty[VisitedNode[M]](this)
-      @tailrec def step(n0: Branch, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M): LeafOrEmpty = {
-        val res = findNNTail(n0, pri, bestLeaf, bestDist, rmax)
+      @tailrec def step(p0: Branch, pMinDist: M, bestLeaf: LeafOrEmpty, bestDist: M, rmax: M): LeafOrEmpty = {
+        val res = findNNTail(p0, pMinDist, pri, bestLeaf, bestDist, rmax)
         if (metric.isMeasureZero(res.bestDist)) {
           res.bestLeaf   // found a point exactly at the query position, so stop right away
         } else {
@@ -1111,19 +1241,21 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
             // we are done and do not need to process the remainder of the priority queue.
             if (metric.isMeasureGreater(vis.minDist, res.rmax)) res.bestLeaf else {
               val lb = vis.n
-              step(lb, res.bestLeaf, res.bestDist, res.rmax)
+              step(lb, vis.minDist, res.bestLeaf, res.bestDist, res.rmax)
             }
           }
         }
       }
 
-      val mmax = metric.maxValue
-      step(lastTree, EmptyValue, mmax, mmax)
+      val mmax      = metric.maxValue
+      val p         = lastTree
+      val pMinDist  = metric.minDistance(point, hyperCube)  // XXX could have metric.zero
+      step(p, pMinDist, EmptyValue, mmax, mmax)
     }
 
     def compare(a: VisitedNode[M], b: VisitedNode[M]) = {
       val min = metric.compareMeasure(b.minDist, a.minDist)
-      if (min != 0) min else metric.compareMeasure(b.maxDist, a.maxDist)
+      min // if (min != 0) min else metric.compareMeasure(b.maxDist, a.maxDist)
     }
   }
 
@@ -1271,10 +1403,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
   }
 
-  //   protected sealed trait Down extends Child
   final protected type ChildOption = Child with Writable
-
-  /* MutableOption[ S ] */
 
   /**
    * A node is an object that can be
@@ -1293,13 +1422,6 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     override def hashCode = id.hashCode()
 
-    //      def isEmpty : Boolean
-    //      def isLeaf : Boolean
-    //      def isBranch : Boolean
-    //      def asLeaf : LeafImpl
-    //      def asBranch : BranchLike
-    //      def asNonEmpty : NonEmpty[ S, D, A ]
-
     /**
      * Computes the greatest interesting hyper-cube within
      * a given hyper-cube `mq` so that this (leaf's or node's)
@@ -1313,8 +1435,6 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
      * with respect to a given outer hyper-cube `iq`.
      */
     def orthantIndexIn(iq: D#HyperCube)(implicit tx: S#Tx): Int
-
-    //      def removeAndDispose()( implicit tx: S#Tx ) : Unit
   }
 
   /**
@@ -1327,8 +1447,6 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   protected sealed trait LeftChild extends Left with Child
   protected type LeftChildOption = LeftChild with Writable
 
-  /* with MutableOption[ S ] */
-
   /**
    * A common trait used in pattern matching, comprised of `Leaf` and `LeftChildBranch`.
    */
@@ -1339,12 +1457,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   protected sealed trait RightChild extends Child
   protected type RightChildOption = RightChild with Writable
 
-  /* with MutableOption[ S ] */
-
   /**
    * A common trait used in pattern matching, comprised of `Leaf` and `RightChildBranch`.
    */
-  protected sealed trait RightNonEmptyChild extends RightChild with NonEmptyChild with Writable /* Mutable[ S ] */ {
+  protected sealed trait RightNonEmptyChild extends RightChild with NonEmptyChild with Writable {
     def updateParentRight(p: RightBranch)(implicit tx: S#Tx): Unit
   }
 
@@ -1523,10 +1639,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   protected sealed trait Next
 
-  // { def toOption: Option[ RightBranch ]}
   final protected type NextOption = Next with Writable
-
-  /* MutableOption[ S ] */
 
   /**
    * A right tree node implementation provides more specialized child nodes
@@ -1632,7 +1745,6 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
 
     final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx) {
-      //         val point   = pointView( leaf.value )
       val qidx = hyperCube.indexOf(point)
       updateChild(qidx, EmptyValue)
 
@@ -1755,8 +1867,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
   }
 
-  protected sealed trait TopBranch extends BranchLike /* with Writable */
-  /* Mutable[ S ] */ {
+  protected sealed trait TopBranch extends BranchLike {
     final def hyperCube: D#HyperCube = octree.hyperCube
   }
 

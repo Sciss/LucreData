@@ -125,4 +125,6 @@ trait DistanceMeasure[@specialized(Long) M, D <: Space[D]] {
   def maxDistance(a: D#PointLike, b: D#HyperCube): M
 
   def isEquipotent(v: D#PointLike, rmax: M, parent: D#HyperCube, child: D#HyperCube): Boolean = ???
+
+  def stabbingDirections(v: D#PointLike, parent: D#HyperCube, child: D#HyperCube): List[Int] = ???
 }

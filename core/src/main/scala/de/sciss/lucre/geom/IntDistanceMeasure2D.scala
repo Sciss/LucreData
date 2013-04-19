@@ -312,6 +312,57 @@ object IntDistanceMeasure2D {
         }
       }
     }
+
+    override def stabbingDirections(v: PointLike, parent: HyperCube, child: HyperCube): List[Int] = {
+      val vx  = v.x
+      val vy  = v.y
+      val pl  = parent.left
+      val pt  = parent.top
+      val pr  = parent.right
+      val pb  = parent.bottom
+
+      if (vx < pl) {
+        require(child.left == pl)
+        if (vy < pt) {          // v outside of parent, to its left top
+          require(child.top == pt)
+          1 :: Nil              // only expanding to the right is relevant
+
+        } else if (vy > pb) {   // v outside of parent, to its left bottom
+          require(child.bottom == pb)
+          2 :: Nil              // only expanding to the right is relevant
+
+        } else {                // v is left to parent
+          1 :: 2 :: Nil
+        }
+
+      } else if (vx > pr) {
+        require(child.right == pr)
+        if (vy < pt) {          // v outside of parent, to its right top
+          require(child.top == pt)
+          0 :: Nil              // only expanding to the left is relevant
+
+        } else if (vy > pb) {   // v outside of parent, to its right bottom
+          require(child.bottom == pb)
+          3 :: Nil              // only expanding to the left is relevant
+
+        } else {                // v is left to parent
+          0 :: 3 :: Nil
+        }
+
+      } else {
+        if (vy < pt) {          // v outside of parent, to its top
+          require(child.top == pt)
+          0 :: 1 :: Nil
+
+        } else if (vy > pb) {   // v outside of parent, to its bottom
+          require(child.bottom == pb)
+          2 :: 3 :: Nil
+
+        } else {                // v is inside parent
+          0 :: 1 :: 2 :: 3 :: Nil // throw new IllegalArgumentException
+        }
+      }
+    }
   }
 
   private final class Clip(underlying: Impl, quad: HyperCube) extends Impl {

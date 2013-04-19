@@ -54,9 +54,9 @@ trait LongPoint2DLike {
    * to the following scheme:
    *
    * 5   4    6
-   * +---+
+   *   +---+
    * 1 | 0 |  2
-   * +---+
+   *   +---+
    * 9   8   10
    *
    * Therefore the horizontal orientation can be extracted
