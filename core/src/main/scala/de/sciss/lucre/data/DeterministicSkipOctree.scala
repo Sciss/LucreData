@@ -1028,7 +1028,16 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           val ai  = a.hyperCube.indexOf(b.hyperCube)
           var anc = _anc
           if (ai == si) {
-            pushChildren(a, si)
+            // pushChildren(a, si)
+            var i = 0
+            while (i < sz) {
+              a.child(i) match {
+                case l: LeafImpl  => inspectLeaf(l)
+                case c: Branch    => if (i != si) pushChildren(c, -1)
+                case _            =>
+              }
+              i += 1
+            }
             anc -= 1
           }
 
