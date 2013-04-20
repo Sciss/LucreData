@@ -96,6 +96,8 @@ trait DistanceMeasure[@specialized(Long) M, D <: Space[D]] {
 
   def compareMeasure(a: M, b: M): Int
 
+  def compareArea(a: D#HyperCube, b: D#HyperCube): Int = ???
+
   def isMeasureZero(m: M): Boolean
 
   /**

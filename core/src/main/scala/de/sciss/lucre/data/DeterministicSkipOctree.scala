@@ -56,12 +56,16 @@ object DeterministicSkipOctree {
   private var stat_rounds = 0
   private var stat_pq_add = 0
   private var stat_pq_rem = 0
-  private val stat_print  = false
+  private val stat_print  = false // true
 
   @elidable(elidable.CONFIG) private def stat_reset() {
     stat_rounds = 0
     stat_pq_add = 0
     stat_pq_rem = 0
+  }
+
+  @elidable(elidable.CONFIG) private def stat_debug(what: => String) {
+    if (stat_print) println(s"<stat> $what")
   }
 
   @elidable(elidable.CONFIG) private def stat_report() {
@@ -176,7 +180,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   octree =>
 
   import DeterministicSkipOctree.{SER_VERSION, opNotSupported,
-    stat_reset, stat_rounds1, stat_pq_add1, stat_pq_rem1, stat_report}
+    stat_reset, stat_rounds1, stat_pq_add1, stat_pq_rem1, stat_report, stat_debug}
 
   private type Order = TotalOrder.Set.Entry[S]
 
@@ -912,6 +916,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           bestDist = ldist
           bestLeaf = l
           if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+            stat_debug(s"better NN candidate ${l.value}")
             rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
           }
         }
@@ -931,7 +936,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
               if (cMinDist == pMinDist) {                       // equistabbing
                 // val cMaxDist  = metric.maxDistance(point, cq)
                 acceptedChildren(numAccepted) = c
-                acceptedMinDists(numAccepted) = cMinDist
+                // acceptedMinDists(numAccepted) = cMinDist     // removed
                 // acceptedMaxDists(numAccepted) = cMaxDist
                 numAccepted += 1
               }
@@ -960,6 +965,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
 
       def pushChildren(b: Branch, skip: Int) {
+        stat_debug(s"pushing child nodes of ${b.hyperCube} to priority queue")
         var i = 0
         while (i < sz) {
           if (i != skip) b.child(i) match {
@@ -968,10 +974,14 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
             case c: Branch =>
               val cq        = c.hyperCube
               val cMinDist  = metric.minDistance(point, cq)
-              // val cMaxDist  = metric.maxDistance(point, cq)
-              val vn        = new VisitedNode(c, cMinDist, null.asInstanceOf[M]) // cMaxDist)
-              pri += vn
-              stat_pq_add1(vn)
+
+              // ---- added filter ----
+              // if (!metric.isMeasureGreater(cMinDist, rmax)) {
+                val cMaxDist = metric.maxDistance(point, cq)  // ---- added ----
+                val vn = new VisitedNode(c, cMinDist, cMaxDist)
+                pri += vn
+                stat_pq_add1(cq)
+              // }
 
             case _ =>
           }
@@ -999,6 +1009,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
         pushChildren(b0, -1) // TODO: do not need to inspect leaves again!
         if (b0 != p0) metric.stabbingDirections(point, p0.hyperCube, b0.hyperCube).foreach { si =>
+          stat_debug(s"searching for ancestor in ${if (si == 0) "SW" else if (si == 1) "SE" else if (si == 2) "NE" else if (si == 3) "NW"} direction")
           checkendorfer(b0, si, numAnc)
         }
 //                val cMinDist  = metric.minDistance(point, c.hyperCube)
@@ -1011,18 +1022,25 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       @tailrec def loop(b: Branch): NNIter[M] = {
         val num = scanChildren(b)
         if (num >= 2) {
+          stat_debug(s"found $num equistabbing children. stop here")
           finish(b)
         } else if (num == 1) {
+          stat_debug(s"found 1 equistabbing child ${acceptedChildren(0).hyperCube}. descend")
           loop(acceptedChildren(0))
         } else {
           b.prevOption match {
-            case Some(prev) => loop(prev)
-            case _          => finish(b)
+            case Some(prev) =>
+              stat_debug(s"found no equistabbing children. go to previous tree ${prev.hyperCube}")
+              loop(prev)
+            case _ =>
+              stat_debug("found no equistabbing children and ended in Q0. stop here")
+              finish(b)
           }
         }
       }
 
       val ph = inHighestLevel(p0)
+      stat_debug(s"begin round in ${ph.hyperCube}")
       loop(ph)
     }
 
@@ -1237,17 +1255,17 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           if (pri.isEmpty) res.bestLeaf
           else {
             val vis = pri.dequeue()
-            stat_pq_rem1(vis)
+            stat_pq_rem1(vis.n.hyperCube)
             // if (!metric.isMeasureGreater(vis.minDist, res.rmax)) vis.n else pop()
 
             // because the queue is sorted by smallest minDist, if we find an element
             // whose minimum distance is greater than the maximum distance allowed,
             // we are done and do not need to process the remainder of the priority queue.
 
-            if (metric.isMeasureGreater(vis.minDist, res.rmax)) res.bestLeaf else {
+            // if (metric.isMeasureGreater(vis.minDist, res.rmax)) res.bestLeaf else {  // ---- removed ----
               val lb = vis.n
               step(lb, vis.minDist, res.bestLeaf, res.bestDist, res.rmax)
-            }
+            // }
           }
         }
       }
@@ -1258,9 +1276,14 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       step(p, pMinDist, EmptyValue, mmax, mmax)
     }
 
+    //    def compare(a: VisitedNode[M], b: VisitedNode[M]) = {
+    //      val min = metric.compareMeasure(b.minDist, a.minDist)
+    //      if (min != 0) min else metric.compareMeasure(b.maxDist, a.maxDist)
+    //    }
+
     def compare(a: VisitedNode[M], b: VisitedNode[M]) = {
-      val min = metric.compareMeasure(b.minDist, a.minDist)
-      min // if (min != 0) min else metric.compareMeasure(b.maxDist, a.maxDist)
+      metric.compareArea(b.n.hyperCube, a.n.hyperCube)
+
     }
   }
 

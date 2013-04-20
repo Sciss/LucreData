@@ -313,6 +313,8 @@ object IntDistanceMeasure2D {
       }
     }
 
+    override def compareArea(a: HyperCube, b: HyperCube): Int = a.area compare b.area
+
     override def stabbingDirections(v: PointLike, parent: HyperCube, child: HyperCube): List[Int] = {
       val vx  = v.x
       val vy  = v.y
