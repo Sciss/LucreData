@@ -1262,10 +1262,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
             // whose minimum distance is greater than the maximum distance allowed,
             // we are done and do not need to process the remainder of the priority queue.
 
-            // if (metric.isMeasureGreater(vis.minDist, res.rmax)) res.bestLeaf else {  // ---- removed ----
+            if (metric.isMeasureGreater(vis.minDist, res.rmax)) res.bestLeaf else {
               val lb = vis.n
               step(lb, vis.minDist, res.bestLeaf, res.bestDist, res.rmax)
-            // }
+            }
           }
         }
       }
@@ -1276,14 +1276,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       step(p, pMinDist, EmptyValue, mmax, mmax)
     }
 
-    //    def compare(a: VisitedNode[M], b: VisitedNode[M]) = {
-    //      val min = metric.compareMeasure(b.minDist, a.minDist)
-    //      if (min != 0) min else metric.compareMeasure(b.maxDist, a.maxDist)
-    //    }
-
     def compare(a: VisitedNode[M], b: VisitedNode[M]) = {
-      metric.compareArea(b.n.hyperCube, a.n.hyperCube)
-
+      val min = metric.compareMeasure(b.minDist, a.minDist)
+      min // if (min != 0) min else metric.compareMeasure(b.maxDist, a.maxDist)
     }
   }
 
