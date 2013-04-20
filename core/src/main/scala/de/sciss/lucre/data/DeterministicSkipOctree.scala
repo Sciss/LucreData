@@ -993,8 +993,14 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
                     case cc: Branch =>
                       val cch   = cc.hyperCube
                       val cmin  = metric.minDistance(point, cch)
-                      if (!metric.isMeasureGreater(cmin, rmax) &&
-                           metric.isMeasureGreater( min, cmin)) min = cmin
+//                      if (!metric.isMeasureGreater(cmin, rmax) &&
+//                           metric.isMeasureGreater( min, cmin)) min = cmin
+                      if (!metric.isMeasureGreater(cmin, rmax)) {
+                        val cmax = metric.maxDistance(point, cch)
+                        val vn = new VisitedNode(cc, cmin, cmax)
+                        pri += vn
+                        stat_pq_add1(cch)
+                      }
 
                     case _ =>
                   }
@@ -1004,14 +1010,14 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
                 min
               }
 
-              // ---- added filter ----
-              // if (!metric.isMeasureGreater(cMinDist, rmax)) {
-              if (cMinDist != metric.maxValue) {
-                val cMaxDist = metric.maxDistance(point, cq)  // ---- added ----
-                val vn = new VisitedNode(c, cMinDist, cMaxDist)
-                pri += vn
-                stat_pq_add1(cq)
-              }
+            //              // ---- added filter ----
+            //              // if (!metric.isMeasureGreater(cMinDist, rmax)) {
+            //              if (cMinDist != metric.maxValue) {
+            //                val cMaxDist = metric.maxDistance(point, cq)  // ---- added ----
+            //                val vn = new VisitedNode(c, cMinDist, cMaxDist)
+            //                pri += vn
+            //                stat_pq_add1(cq)
+            //              }
 
             case _ =>
           }
