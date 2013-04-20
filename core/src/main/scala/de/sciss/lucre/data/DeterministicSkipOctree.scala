@@ -56,7 +56,7 @@ object DeterministicSkipOctree {
   private var stat_rounds = 0
   private var stat_pq_add = 0
   private var stat_pq_rem = 0
-  private val stat_print  = true
+  private val stat_print  = false
 
   @elidable(elidable.CONFIG) private def stat_reset() {
     stat_rounds = 0
@@ -792,110 +792,110 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     private val acceptedMinDists = metric.newArray(sz)
     private val acceptedMaxDists = metric.newArray(sz)
 
-    /* @tailrec */ private def findNNTailOLD(n0: LeftBranch, pri: MPriorityQueue[VisitedNode[M]],
-                                    _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
-                                   (implicit tx: S#Tx): NNIter[M] = {
-      stat_rounds1(_rmax)
-      var numAccepted   = 0
-      var acceptedQidx  = 0
-
-      var bestLeaf  = _bestLeaf
-      var bestDist  = _bestDist
-      var rmax      = _rmax
-
-      var i = 0
-      while (i < sz) {
-        n0.child(i) match {
-          case l: LeafImpl =>
-            val ldist = metric.distance(point, pointView(l.value, tx))
-            if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
-              bestDist = ldist
-              bestLeaf = l
-              if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
-                rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
-              }
-            }
-          case c: LeftBranch =>
-            val cq = c.hyperCube
-            val cMinDist = metric.minDistance(point, cq)
-            if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
-                                                              // (otherwise we're out already)
-              val cMaxDist = metric.maxDistance(point, cq)
-              if (metric.isMeasureGreater(rmax, cMaxDist)) {
-                rmax = cMaxDist                               // found a new minimum required distance
-              }
-              acceptedChildren(numAccepted) = c
-              acceptedMinDists(numAccepted) = cMinDist
-              acceptedMaxDists(numAccepted) = cMaxDist
-              numAccepted += 1
-              acceptedQidx = i                                // this will be used only if numAccepted == 1
-            }
-          case _ => // ignore empty orthants
-        }
-        i += 1
-      }
-
-      if (rmax != _rmax) {
-        // recheck
-        var j = 0
-        while (j < numAccepted) {
-          if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
-            // immediately kick it out
-            numAccepted -= 1
-            var k = j
-            while (k < numAccepted) {
-              val k1 = k + 1
-              acceptedChildren(k) = acceptedChildren(k1)
-              acceptedMinDists(k) = acceptedMinDists(k1)
-              acceptedMaxDists(k) = acceptedMaxDists(k1)
-              k = k1
-            }
-          }
-          j += 1
-        }
-      }
-
-      // Unless exactly one child is accepted, round is over
-//      if (numAccepted != 1) {
-        /* var */ i = 0
-        while (i < numAccepted) { // ...and the children are added to the priority queue
-          val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
-          stat_pq_add1(vn)
-          pri += vn
-          i += 1
-        }
-        new NNIter[M](bestLeaf, bestDist, rmax)
-
-//      } else {
-        // Otherwise find corresponding node in highest level, and descend
-//        val dn0 = acceptedChildren(0)
-        //        val qdn = dn0.hyperCube
-        //
-        //        @tailrec def findRight(cand: BranchLike, prev: BranchLike): BranchLike = {
-        //          prev.next match {
-        //            case EmptyValue => cand
-        //            case next: BranchLike =>
-        //              next.child(acceptedQidx) match {
-        //                case _: LeafOrEmpty => cand
-        //                case cb: BranchLike =>
-        //                  if (cb.hyperCube != qdn) cand else findRight(cb, next)
-        //              }
-        //          }
-        //        }
-        //
-        //        val dn = findRight(dn0, n0)
-        //
-        //        // now go left
-        //        @tailrec def findLeft(n: BranchLike): LeftBranch = n match {
-        //          case lb: LeftBranch   => lb
-        //          case rb: RightBranch  => findLeft(rb.prev)
-        //        }
-        //
-        //        val dnl = findLeft(dn)
-        //        assert(dnl == dn0)  // if this assertion holds, that would make the whole process of going right/left useless
-//        findNNTailOLD(dn0 /* dnl */, pri, bestLeaf, bestDist, rmax)
-//      }
-    }
+    //    /* @tailrec */ private def findNNTailOLD(n0: LeftBranch, pri: MPriorityQueue[VisitedNode[M]],
+    //                                    _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
+    //                                   (implicit tx: S#Tx): NNIter[M] = {
+    //      stat_rounds1(_rmax)
+    //      var numAccepted   = 0
+    //      var acceptedQidx  = 0
+    //
+    //      var bestLeaf  = _bestLeaf
+    //      var bestDist  = _bestDist
+    //      var rmax      = _rmax
+    //
+    //      var i = 0
+    //      while (i < sz) {
+    //        n0.child(i) match {
+    //          case l: LeafImpl =>
+    //            val ldist = metric.distance(point, pointView(l.value, tx))
+    //            if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
+    //              bestDist = ldist
+    //              bestLeaf = l
+    //              if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+    //                rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
+    //              }
+    //            }
+    //          case c: LeftBranch =>
+    //            val cq = c.hyperCube
+    //            val cMinDist = metric.minDistance(point, cq)
+    //            if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
+    //                                                              // (otherwise we're out already)
+    //              val cMaxDist = metric.maxDistance(point, cq)
+    //              if (metric.isMeasureGreater(rmax, cMaxDist)) {
+    //                rmax = cMaxDist                               // found a new minimum required distance
+    //              }
+    //              acceptedChildren(numAccepted) = c
+    //              acceptedMinDists(numAccepted) = cMinDist
+    //              acceptedMaxDists(numAccepted) = cMaxDist
+    //              numAccepted += 1
+    //              acceptedQidx = i                                // this will be used only if numAccepted == 1
+    //            }
+    //          case _ => // ignore empty orthants
+    //        }
+    //        i += 1
+    //      }
+    //
+    //      if (rmax != _rmax) {
+    //        // recheck
+    //        var j = 0
+    //        while (j < numAccepted) {
+    //          if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
+    //            // immediately kick it out
+    //            numAccepted -= 1
+    //            var k = j
+    //            while (k < numAccepted) {
+    //              val k1 = k + 1
+    //              acceptedChildren(k) = acceptedChildren(k1)
+    //              acceptedMinDists(k) = acceptedMinDists(k1)
+    //              acceptedMaxDists(k) = acceptedMaxDists(k1)
+    //              k = k1
+    //            }
+    //          }
+    //          j += 1
+    //        }
+    //      }
+    //
+    //      // Unless exactly one child is accepted, round is over
+    ////      if (numAccepted != 1) {
+    //        /* var */ i = 0
+    //        while (i < numAccepted) { // ...and the children are added to the priority queue
+    //          val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
+    //          stat_pq_add1(vn)
+    //          pri += vn
+    //          i += 1
+    //        }
+    //        new NNIter[M](bestLeaf, bestDist, rmax)
+    //
+    ////      } else {
+    //        // Otherwise find corresponding node in highest level, and descend
+    ////        val dn0 = acceptedChildren(0)
+    //        //        val qdn = dn0.hyperCube
+    //        //
+    //        //        @tailrec def findRight(cand: BranchLike, prev: BranchLike): BranchLike = {
+    //        //          prev.next match {
+    //        //            case EmptyValue => cand
+    //        //            case next: BranchLike =>
+    //        //              next.child(acceptedQidx) match {
+    //        //                case _: LeafOrEmpty => cand
+    //        //                case cb: BranchLike =>
+    //        //                  if (cb.hyperCube != qdn) cand else findRight(cb, next)
+    //        //              }
+    //        //          }
+    //        //        }
+    //        //
+    //        //        val dn = findRight(dn0, n0)
+    //        //
+    //        //        // now go left
+    //        //        @tailrec def findLeft(n: BranchLike): LeftBranch = n match {
+    //        //          case lb: LeftBranch   => lb
+    //        //          case rb: RightBranch  => findLeft(rb.prev)
+    //        //        }
+    //        //
+    //        //        val dnl = findLeft(dn)
+    //        //        assert(dnl == dn0)  // if this assertion holds, that would make the whole process of going right/left useless
+    ////        findNNTailOLD(dn0 /* dnl */, pri, bestLeaf, bestDist, rmax)
+    ////      }
+    //    }
 
     private def findNNTail(p0: Branch, pMinDist: M, pri: MPriorityQueue[VisitedNode[M]],
                            _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
@@ -929,8 +929,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
               val cq        = c.hyperCube
               val cMinDist  = metric.minDistance(point, cq)
               if (cMinDist == pMinDist) {                       // equistabbing
+                // val cMaxDist  = metric.maxDistance(point, cq)
                 acceptedChildren(numAccepted) = c
                 acceptedMinDists(numAccepted) = cMinDist
+                // acceptedMaxDists(numAccepted) = cMaxDist
                 numAccepted += 1
               }
 
@@ -966,8 +968,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
             case c: Branch =>
               val cq        = c.hyperCube
               val cMinDist  = metric.minDistance(point, cq)
-              val vn        = new VisitedNode(c, cMinDist, null.asInstanceOf[M])
+              // val cMaxDist  = metric.maxDistance(point, cq)
+              val vn        = new VisitedNode(c, cMinDist, null.asInstanceOf[M]) // cMaxDist)
               pri += vn
+              stat_pq_add1(vn)
 
             case _ =>
           }
@@ -984,7 +988,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           val ai  = a.hyperCube.indexOf(b.hyperCube)
           var anc = _anc
           if (ai == si) {
-            pushChildren(b, si)
+            pushChildren(a, si)
             anc -= 1
           }
 
@@ -1009,7 +1013,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         if (num >= 2) {
           finish(b)
         } else if (num == 1) {
-          findNNTail(acceptedChildren(0), pMinDist, pri, bestLeaf, bestDist, rmax)
+          loop(acceptedChildren(0))
         } else {
           b.prevOption match {
             case Some(prev) => loop(prev)
@@ -1032,196 +1036,196 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       case _        => b
     }
 
-    private def findNNTailEquiPotency(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
-                           _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
-                          (implicit tx: S#Tx): NNIter[M] = {
-      stat_rounds1(_rmax)
+    //    private def findNNTailEquiPotency(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
+    //                           _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
+    //                          (implicit tx: S#Tx): NNIter[M] = {
+    //      stat_rounds1(_rmax)
+    //
+    //      var bestLeaf  = _bestLeaf
+    //      var bestDist  = _bestDist
+    //      var rmax      = _rmax
+    //
+    //      def inspectLeaf(l: LeafImpl) {
+    //        val ldist = metric.distance(point, pointView(l.value, tx))
+    //        if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
+    //          bestDist = ldist
+    //          bestLeaf = l
+    //          if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+    //            rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
+    //          }
+    //        }
+    //      }
+    //
+    //      def scanChildren(b: Branch): Int = {
+    //        var numAccepted = 0
+    //        val oldRMax     = rmax
+    //        var i           = 0
+    //        while (i < sz) {
+    //          b.child(i) match {
+    //            case l: LeafImpl => inspectLeaf(l)
+    //
+    //            case c: Branch =>
+    //              val cq = c.hyperCube
+    //              val cMinDist = metric.minDistance(point, cq)
+    //              if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
+    //                                                                // (otherwise we're out already)
+    //                val cMaxDist = metric.maxDistance(point, cq)
+    //                if (metric.isMeasureGreater(rmax, cMaxDist)) {
+    //                  rmax = cMaxDist                               // found a new minimum required distance
+    //                }
+    //                acceptedChildren(numAccepted) = c
+    //                acceptedMinDists(numAccepted) = cMinDist
+    //                acceptedMaxDists(numAccepted) = cMaxDist
+    //                numAccepted += 1
+    //                // acceptedQidx = i                                // this will be used only if numAccepted == 1
+    //              }
+    //
+    //            case _ =>
+    //          }
+    //          i += 1
+    //        }
+    //
+    //        if (rmax != oldRMax) {
+    //          // recheck
+    //          var j = 0
+    //          while (j < numAccepted) {
+    //            if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
+    //              // immediately kick it out
+    //              numAccepted -= 1
+    //              var k = j
+    //              while (k < numAccepted) {
+    //                val k1 = k + 1
+    //                acceptedChildren(k) = acceptedChildren(k1)
+    //                acceptedMinDists(k) = acceptedMinDists(k1)
+    //                acceptedMaxDists(k) = acceptedMaxDists(k1)
+    //                k = k1
+    //              }
+    //            }
+    //            j += 1
+    //          }
+    //        }
+    //
+    //        numAccepted
+    //      }
+    //
+    //      @tailrec def loop(b: Branch): NNIter[M] = {
+    //        val num = scanChildren(b)
+    //
+    //        @tailrec def findEquipotent(i: Int): Int = {
+    //          if (i == num) -1 else {
+    //            val res = metric.isEquipotent(v = point, rmax = rmax, parent = b.hyperCube,
+    //              child = acceptedChildren(i).hyperCube)
+    //            if (res) i else findEquipotent(i + 1)
+    //          }
+    //        }
+    //
+    //        val eqi = findEquipotent(0)
+    //        if (eqi >= 0) loop(acceptedChildren(eqi))
+    //        else b.prevOption match {
+    //          case Some(prev) => loop(prev)
+    //          case _ =>
+    //            var i = 0
+    //            while (i < num) {
+    //              val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
+    //              stat_pq_add1(vn)
+    //              pri += vn
+    //              i   += 1
+    //            }
+    //            new NNIter(bestLeaf, bestDist, rmax)
+    //        }
+    //      }
+    //
+    //      val nh  = inHighestLevel(n0)
+    //      loop(nh)
+    //    }
 
-      var bestLeaf  = _bestLeaf
-      var bestDist  = _bestDist
-      var rmax      = _rmax
-
-      def inspectLeaf(l: LeafImpl) {
-        val ldist = metric.distance(point, pointView(l.value, tx))
-        if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
-          bestDist = ldist
-          bestLeaf = l
-          if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
-            rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
-          }
-        }
-      }
-
-      def scanChildren(b: Branch): Int = {
-        var numAccepted = 0
-        val oldRMax     = rmax
-        var i           = 0
-        while (i < sz) {
-          b.child(i) match {
-            case l: LeafImpl => inspectLeaf(l)
-
-            case c: Branch =>
-              val cq = c.hyperCube
-              val cMinDist = metric.minDistance(point, cq)
-              if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
-                                                                // (otherwise we're out already)
-                val cMaxDist = metric.maxDistance(point, cq)
-                if (metric.isMeasureGreater(rmax, cMaxDist)) {
-                  rmax = cMaxDist                               // found a new minimum required distance
-                }
-                acceptedChildren(numAccepted) = c
-                acceptedMinDists(numAccepted) = cMinDist
-                acceptedMaxDists(numAccepted) = cMaxDist
-                numAccepted += 1
-                // acceptedQidx = i                                // this will be used only if numAccepted == 1
-              }
-
-            case _ =>
-          }
-          i += 1
-        }
-
-        if (rmax != oldRMax) {
-          // recheck
-          var j = 0
-          while (j < numAccepted) {
-            if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
-              // immediately kick it out
-              numAccepted -= 1
-              var k = j
-              while (k < numAccepted) {
-                val k1 = k + 1
-                acceptedChildren(k) = acceptedChildren(k1)
-                acceptedMinDists(k) = acceptedMinDists(k1)
-                acceptedMaxDists(k) = acceptedMaxDists(k1)
-                k = k1
-              }
-            }
-            j += 1
-          }
-        }
-
-        numAccepted
-      }
-
-      @tailrec def loop(b: Branch): NNIter[M] = {
-        val num = scanChildren(b)
-
-        @tailrec def findEquipotent(i: Int): Int = {
-          if (i == num) -1 else {
-            val res = metric.isEquipotent(v = point, rmax = rmax, parent = b.hyperCube,
-              child = acceptedChildren(i).hyperCube)
-            if (res) i else findEquipotent(i + 1)
-          }
-        }
-
-        val eqi = findEquipotent(0)
-        if (eqi >= 0) loop(acceptedChildren(eqi))
-        else b.prevOption match {
-          case Some(prev) => loop(prev)
-          case _ =>
-            var i = 0
-            while (i < num) {
-              val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
-              stat_pq_add1(vn)
-              pri += vn
-              i   += 1
-            }
-            new NNIter(bestLeaf, bestDist, rmax)
-        }
-      }
-
-      val nh  = inHighestLevel(n0)
-      loop(nh)
-    }
-
-    private def findNNTailNO(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
-                              _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
-                             (implicit tx: S#Tx): NNIter[M] = {
-      stat_rounds1()
-
-      var numAccepted   = 0
-      // var acceptedQidx  = 0
-
-      var bestLeaf  = _bestLeaf
-      var bestDist  = _bestDist
-      var rmax      = _rmax
-
-      def fall(parent: Branch, qidx: Int) {
-        parent.child(qidx) match {
-          case l: LeafImpl =>
-            val ldist = metric.distance(point, pointView(l.value, tx))
-            if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
-              bestDist = ldist
-              bestLeaf = l
-              if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
-                rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
-              }
-            }
-            parent.prevOption match {
-              case Some(prev) => fall(prev, qidx)
-              case _ =>
-            }
-
-          case EmptyValue =>
-            parent.prevOption match {
-              case Some(prev) => fall(prev, qidx)
-              case _ =>
-            }
-
-          case c: Branch =>
-            val cq = c.hyperCube
-            val cMinDist = metric.minDistance(point, cq)
-            if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
-                                                              // (otherwise we're out already)
-              val cMaxDist = metric.maxDistance(point, cq)
-              if (metric.isMeasureGreater(rmax, cMaxDist)) {
-                rmax = cMaxDist                               // found a new minimum required distance
-              }
-              acceptedChildren(numAccepted) = c
-              acceptedMinDists(numAccepted) = cMinDist
-              acceptedMaxDists(numAccepted) = cMaxDist
-              numAccepted += 1
-              // acceptedQidx = i                                // this will be used only if numAccepted == 1
-            }
-        }
-      }
-
-      var i = 0
-      while (i < sz) {
-        fall(n0, i)
-        i += 1
-      }
-
-      if (rmax != _rmax) {
-        // recheck
-        var j = 0
-        while (j < numAccepted) {
-          if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
-            // immediately kick it out
-            numAccepted -= 1
-            var k = j
-            while (k < numAccepted) {
-              val k1 = k + 1
-              acceptedChildren(k) = acceptedChildren(k1)
-              acceptedMinDists(k) = acceptedMinDists(k1)
-              acceptedMaxDists(k) = acceptedMaxDists(k1)
-              k = k1
-            }
-          }
-          j += 1
-        }
-      }
-
-      i = 0
-      while (i < numAccepted) { // ...and the children are added to the priority queue
-        val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
-        stat_pq_add1(vn)
-        pri += vn
-        i   += 1
-      }
-      new NNIter[M](bestLeaf, bestDist, rmax)
-    }
+    //    private def findNNTailNO(n0: Branch, pri: MPriorityQueue[VisitedNode[M]],
+    //                              _bestLeaf: LeafOrEmpty, _bestDist: M, _rmax: M)
+    //                             (implicit tx: S#Tx): NNIter[M] = {
+    //      stat_rounds1()
+    //
+    //      var numAccepted   = 0
+    //      // var acceptedQidx  = 0
+    //
+    //      var bestLeaf  = _bestLeaf
+    //      var bestDist  = _bestDist
+    //      var rmax      = _rmax
+    //
+    //      def fall(parent: Branch, qidx: Int) {
+    //        parent.child(qidx) match {
+    //          case l: LeafImpl =>
+    //            val ldist = metric.distance(point, pointView(l.value, tx))
+    //            if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
+    //              bestDist = ldist
+    //              bestLeaf = l
+    //              if (metric.isMeasureGreater(rmax, bestDist)) {  // update minimum required distance if necessary
+    //                rmax = bestDist // note: we'll re-check acceptedChildren at the end of the loop
+    //              }
+    //            }
+    //            parent.prevOption match {
+    //              case Some(prev) => fall(prev, qidx)
+    //              case _ =>
+    //            }
+    //
+    //          case EmptyValue =>
+    //            parent.prevOption match {
+    //              case Some(prev) => fall(prev, qidx)
+    //              case _ =>
+    //            }
+    //
+    //          case c: Branch =>
+    //            val cq = c.hyperCube
+    //            val cMinDist = metric.minDistance(point, cq)
+    //            if (!metric.isMeasureGreater(cMinDist, rmax)) {   // is less than or equal to minimum required distance
+    //                                                              // (otherwise we're out already)
+    //              val cMaxDist = metric.maxDistance(point, cq)
+    //              if (metric.isMeasureGreater(rmax, cMaxDist)) {
+    //                rmax = cMaxDist                               // found a new minimum required distance
+    //              }
+    //              acceptedChildren(numAccepted) = c
+    //              acceptedMinDists(numAccepted) = cMinDist
+    //              acceptedMaxDists(numAccepted) = cMaxDist
+    //              numAccepted += 1
+    //              // acceptedQidx = i                                // this will be used only if numAccepted == 1
+    //            }
+    //        }
+    //      }
+    //
+    //      var i = 0
+    //      while (i < sz) {
+    //        fall(n0, i)
+    //        i += 1
+    //      }
+    //
+    //      if (rmax != _rmax) {
+    //        // recheck
+    //        var j = 0
+    //        while (j < numAccepted) {
+    //          if (metric.isMeasureGreater(acceptedMinDists(j), rmax)) {
+    //            // immediately kick it out
+    //            numAccepted -= 1
+    //            var k = j
+    //            while (k < numAccepted) {
+    //              val k1 = k + 1
+    //              acceptedChildren(k) = acceptedChildren(k1)
+    //              acceptedMinDists(k) = acceptedMinDists(k1)
+    //              acceptedMaxDists(k) = acceptedMaxDists(k1)
+    //              k = k1
+    //            }
+    //          }
+    //          j += 1
+    //        }
+    //      }
+    //
+    //      i = 0
+    //      while (i < numAccepted) { // ...and the children are added to the priority queue
+    //        val vn = new VisitedNode[M](acceptedChildren(i), acceptedMinDists(i), acceptedMaxDists(i))
+    //        stat_pq_add1(vn)
+    //        pri += vn
+    //        i   += 1
+    //      }
+    //      new NNIter[M](bestLeaf, bestDist, rmax)
+    //    }
 
     def find()(implicit tx: S#Tx): LeafOrEmpty = {
       val pri = MPriorityQueue.empty[VisitedNode[M]](this)
@@ -1239,6 +1243,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
             // because the queue is sorted by smallest minDist, if we find an element
             // whose minimum distance is greater than the maximum distance allowed,
             // we are done and do not need to process the remainder of the priority queue.
+
             if (metric.isMeasureGreater(vis.minDist, res.rmax)) res.bestLeaf else {
               val lb = vis.n
               step(lb, vis.minDist, res.bestLeaf, res.bestDist, res.rmax)
