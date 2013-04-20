@@ -56,7 +56,7 @@ object DeterministicSkipOctree {
   private var stat_rounds = 0
   private var stat_pq_add = 0
   private var stat_pq_rem = 0
-  private val stat_print  = false // true
+  private val stat_print  = false
 
   @elidable(elidable.CONFIG) private def stat_reset() {
     stat_rounds = 0
@@ -934,9 +934,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
               val cq        = c.hyperCube
               val cMinDist  = metric.minDistance(point, cq)
               if (cMinDist == pMinDist) {                       // equistabbing
+                stat_debug(s"... scanChild $cq has minDist $cMinDist == pMinDist ($pMinDist)")
                 // val cMaxDist  = metric.maxDistance(point, cq)
                 acceptedChildren(numAccepted) = c
-                // acceptedMinDists(numAccepted) = cMinDist     // removed
+                acceptedMinDists(numAccepted) = cMinDist
                 // acceptedMaxDists(numAccepted) = cMaxDist
                 numAccepted += 1
               }
@@ -966,6 +967,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
       def pushChildren(b: Branch, skip: Int) {
         stat_debug(s"pushing child nodes of ${b.hyperCube} to priority queue")
+        assert(b.isInstanceOf[LeftBranch])
         var i = 0
         while (i < sz) {
           if (i != skip) b.child(i) match {
@@ -973,15 +975,43 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
             case c: Branch =>
               val cq        = c.hyperCube
-              val cMinDist  = metric.minDistance(point, cq)
+
+              // val cMinDist = metric.minDistance(point, cq)
+              val cMinDist  = {
+                var j   = 0
+                var min = metric.maxValue
+                while (j < sz) {
+                  c.child(j) match {
+                    case l: LeafImpl => inspectLeaf(l)
+                    case _ =>
+                  }
+                  j += 1
+                }
+                j = 0
+                while (j < sz) {
+                  c.child(j) match {
+                    case cc: Branch =>
+                      val cch   = cc.hyperCube
+                      val cmin  = metric.minDistance(point, cch)
+                      if (!metric.isMeasureGreater(cmin, rmax) &&
+                           metric.isMeasureGreater( min, cmin)) min = cmin
+
+                    case _ =>
+                  }
+                  j += 1
+                }
+
+                min
+              }
 
               // ---- added filter ----
               // if (!metric.isMeasureGreater(cMinDist, rmax)) {
+              if (cMinDist != metric.maxValue) {
                 val cMaxDist = metric.maxDistance(point, cq)  // ---- added ----
                 val vn = new VisitedNode(c, cMinDist, cMaxDist)
                 pri += vn
                 stat_pq_add1(cq)
-              // }
+              }
 
             case _ =>
           }
@@ -1025,7 +1055,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           stat_debug(s"found $num equistabbing children. stop here")
           finish(b)
         } else if (num == 1) {
-          stat_debug(s"found 1 equistabbing child ${acceptedChildren(0).hyperCube}. descend")
+          stat_debug(s"found 1 equistabbing child ${acceptedChildren(0).hyperCube}, minDist = ${acceptedMinDists(0)}. descend")
           loop(acceptedChildren(0))
         } else {
           b.prevOption match {
@@ -1040,7 +1070,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
 
       val ph = inHighestLevel(p0)
-      stat_debug(s"begin round in ${ph.hyperCube}")
+      stat_debug(s"begin round in ${ph.hyperCube}, minDist = $pMinDist")
       loop(ph)
     }
 

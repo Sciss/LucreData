@@ -324,7 +324,7 @@ object IntDistanceMeasure2D {
       val pb  = parent.bottom
 
       if (vx < pl) {
-        require(child.left == pl)
+        // require(child.left == pl, s"v = $v, parent = $parent, child = $child")
         if (child.top == pt) {
           1 :: Nil              // only expanding to the right is relevant
 
@@ -336,7 +336,7 @@ object IntDistanceMeasure2D {
         }
 
       } else if (vx > pr) {
-        require(child.right == pr)
+        // require(child.right == pr, s"v = $v, parent = $parent, child = $child")
         if (child.top == pt) {
           0 :: Nil              // only expanding to the left is relevant
 
@@ -349,7 +349,7 @@ object IntDistanceMeasure2D {
 
       } else {
         if (vy < pt) {          // v outside of parent, to its top
-          require(child.top == pt)
+          // require(child.top == pt, s"v = $v, parent = $parent, child = $child")
           if (child.left == pl) {
             1 :: Nil
           } else if (child.right == pr) {
@@ -359,7 +359,7 @@ object IntDistanceMeasure2D {
           }
 
         } else if (vy > pb) {   // v outside of parent, to its bottom
-          require(child.bottom == pb)
+          // require(child.bottom == pb, s"v = $v, parent = $parent, child = $child")
           if (child.left == pl) {
             2 :: Nil
           } else if (child.right == pr) {
