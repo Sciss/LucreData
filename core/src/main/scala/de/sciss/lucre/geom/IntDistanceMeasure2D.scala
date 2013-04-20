@@ -199,204 +199,121 @@ object IntDistanceMeasure2D {
     def minDistance(a: PointLike, b: HyperCube) = b.minDistanceSq(a)
     def maxDistance(a: PointLike, b: HyperCube) = b.maxDistanceSq(a)
 
-    override def isEquipotent(v: PointLike, rmax: Long, parent: HyperCube, child: HyperCube): Boolean = {
-      val vx  = v.x
-      val vy  = v.y
-      val pl  = parent.left
-      val pt  = parent.top
-      val pr  = parent.right
-      val pb  = parent.bottom
-
-      if (vx < pl) {
-        val cl  = child.left
-        cl == pl && {
-          if (vy < pt) { // v outside of parent, to its left top
-            // equipotent if child is in the top left corner of parent
-            // and distance between v and child's bottom left or top right corner
-            // is greater than or equal to the radius
-            val ct  = child.top
-            ct == pt && IntPoint2D(child.right, ct).distanceSq(v) >= rmax
-
-          } else if (vy > pb) {                // v outside of parent, to its left bottom
-            // equipotent if child is in the bottom left corner of parent
-            // and distance between v and child's bottom right or top left corner
-            // is greater than or equal to the radius
-            val cb  = child.bottom
-            cb == pb && IntPoint2D(child.right, cb).distanceSq(v) >= rmax
-
-          } else {                      // v is left to parent
-            // equipotent if child is on the left side of parent
-            // and distance between v and both child's bottom left and top left corner
-            // is greater than or equal to the radius
-            val ct  = child.top
-            val cb  = child.bottom
-            // cc is closest left side corner of child wrt v
-            val cc  = if (vy <= cb) cb else if (vy >= ct) ct else if (ct - vy < vy - cb) ct else cb
-            IntPoint2D(cl, cc).distanceSq(v) >= rmax
-          }
-        }
-
-      } else if (vx > pr) {
-        val cr = child.right
-        cr == pr && {
-          if (vy < pt) {
-            // v outside of parent, to its right top
-            // equipotent if child is in the top right corner of parent
-            // and distance between v and child's bottom right or top left corner
-            // is greater than or equal to the radius
-            val ct = child.top
-            ct == pt && IntPoint2D(child.left, ct).distanceSq(v) >= rmax
-
-          } else if (vy > pb) {
-            // v outside of parent, to its right bottom
-            // equipotent if child is in the bottom right corner of parent
-            // and distance between v and child's bottom left or top right corner
-            // is greater than or equal to the radius
-            val cb = child.bottom
-            cb == pb && IntPoint2D(child.left, cb).distanceSq(v) >= rmax
-
-          } else {                      // v is right to parent
-            // equipotent if child is on the right side of parent
-            // and distance between v and both child's bottom right and top right corner
-            // is greater than or equal to the radius
-            val ct  = child.top
-            val cb  = child.bottom
-            // cc is closest right side corner of child wrt v
-            val cc  = if (vy <= cb) cb else if (vy >= ct) ct else if (ct - vy < vy - cb) ct else cb
-            IntPoint2D(cr, cc).distanceSq(v) >= rmax
-          }
-        }
-
-      } else {
-        if (vy < pt) {
-          // v outside of parent, to its top
-          // equipotent if child is on the top side of parent
-          // and distance between v and both child's top left and top right corner
-          // is greater than or equal to the radius
-          val ct = child.top
-          ct == pt && {
-            val cl = child.left
-            val cr = child.right
-            // cc is closest top side corner of child wrt v
-            val cc = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
-            IntPoint2D(cc, ct).distanceSq(v) >= rmax
-          }
-
-        } else if (vy > pb) {
-          // v outside of parent, to its bottom
-          // equipotent if child is on the bottom side of parent
-          // and distance between v and both child's bottom left and bottom right corner
-          // is greater than or equal to the radius
-          val cb = child.bottom
-          cb == pb && {
-            val cl = child.left
-            val cr = child.right
-            // cc is closest bottom side corner of child wrt v
-            val cc = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
-            IntPoint2D(cc, cb).distanceSq(v) >= rmax
-          }
-
-        } else {                      // v is inside parent
-          // equipotent if v is inside child
-          // and distance between v and each of the child's sides
-          // is greater than or equal to the radius
-          child.contains(v) && {
-            val cl  = child.left
-            val ct  = child.top
-            val cb  = child.bottom
-            val cr  = child.right
-            val cx  = if (cr - vx < vx - cl) cr else cl
-            val cy  = if (cb - vy < vy - ct) cb else ct
-            IntPoint2D(vx, cy).distanceSq(v) >= rmax && IntPoint2D(cx, vy).distanceSq(v) >= rmax
-          }
-        }
-      }
-    }
+//    override def isEquipotent(v: PointLike, rmax: Long, parent: HyperCube, child: HyperCube): Boolean = {
+    //      val vx  = v.x
+    //      val vy  = v.y
+    //      val pl  = parent.left
+    //      val pt  = parent.top
+    //      val pr  = parent.right
+    //      val pb  = parent.bottom
+    //
+    //      if (vx < pl) {
+    //        val cl  = child.left
+    //        cl == pl && {
+    //          if (vy < pt) { // v outside of parent, to its left top
+    //            // equipotent if child is in the top left corner of parent
+    //            // and distance between v and child's bottom left or top right corner
+    //            // is greater than or equal to the radius
+    //            val ct  = child.top
+    //            ct == pt && IntPoint2D(child.right, ct).distanceSq(v) >= rmax
+    //
+    //          } else if (vy > pb) {                // v outside of parent, to its left bottom
+    //            // equipotent if child is in the bottom left corner of parent
+    //            // and distance between v and child's bottom right or top left corner
+    //            // is greater than or equal to the radius
+    //            val cb  = child.bottom
+    //            cb == pb && IntPoint2D(child.right, cb).distanceSq(v) >= rmax
+    //
+    //          } else {                      // v is left to parent
+    //            // equipotent if child is on the left side of parent
+    //            // and distance between v and both child's bottom left and top left corner
+    //            // is greater than or equal to the radius
+    //            val ct  = child.top
+    //            val cb  = child.bottom
+    //            // cc is closest left side corner of child wrt v
+    //            val cc  = if (vy <= cb) cb else if (vy >= ct) ct else if (ct - vy < vy - cb) ct else cb
+    //            IntPoint2D(cl, cc).distanceSq(v) >= rmax
+    //          }
+    //        }
+    //
+    //      } else if (vx > pr) {
+    //        val cr = child.right
+    //        cr == pr && {
+    //          if (vy < pt) {
+    //            // v outside of parent, to its right top
+    //            // equipotent if child is in the top right corner of parent
+    //            // and distance between v and child's bottom right or top left corner
+    //            // is greater than or equal to the radius
+    //            val ct = child.top
+    //            ct == pt && IntPoint2D(child.left, ct).distanceSq(v) >= rmax
+    //
+    //          } else if (vy > pb) {
+    //            // v outside of parent, to its right bottom
+    //            // equipotent if child is in the bottom right corner of parent
+    //            // and distance between v and child's bottom left or top right corner
+    //            // is greater than or equal to the radius
+    //            val cb = child.bottom
+    //            cb == pb && IntPoint2D(child.left, cb).distanceSq(v) >= rmax
+    //
+    //          } else {                      // v is right to parent
+    //            // equipotent if child is on the right side of parent
+    //            // and distance between v and both child's bottom right and top right corner
+    //            // is greater than or equal to the radius
+    //            val ct  = child.top
+    //            val cb  = child.bottom
+    //            // cc is closest right side corner of child wrt v
+    //            val cc  = if (vy <= cb) cb else if (vy >= ct) ct else if (ct - vy < vy - cb) ct else cb
+    //            IntPoint2D(cr, cc).distanceSq(v) >= rmax
+    //          }
+    //        }
+    //
+    //      } else {
+    //        if (vy < pt) {
+    //          // v outside of parent, to its top
+    //          // equipotent if child is on the top side of parent
+    //          // and distance between v and both child's top left and top right corner
+    //          // is greater than or equal to the radius
+    //          val ct = child.top
+    //          ct == pt && {
+    //            val cl = child.left
+    //            val cr = child.right
+    //            // cc is closest top side corner of child wrt v
+    //            val cc = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
+    //            IntPoint2D(cc, ct).distanceSq(v) >= rmax
+    //          }
+    //
+    //        } else if (vy > pb) {
+    //          // v outside of parent, to its bottom
+    //          // equipotent if child is on the bottom side of parent
+    //          // and distance between v and both child's bottom left and bottom right corner
+    //          // is greater than or equal to the radius
+    //          val cb = child.bottom
+    //          cb == pb && {
+    //            val cl = child.left
+    //            val cr = child.right
+    //            // cc is closest bottom side corner of child wrt v
+    //            val cc = if (vx <= cl) cl else if (vx >= cr) cr else if (cr - vx < vx - cl) cr else cl
+    //            IntPoint2D(cc, cb).distanceSq(v) >= rmax
+    //          }
+    //
+    //        } else {                      // v is inside parent
+    //          // equipotent if v is inside child
+    //          // and distance between v and each of the child's sides
+    //          // is greater than or equal to the radius
+    //          child.contains(v) && {
+    //            val cl  = child.left
+    //            val ct  = child.top
+    //            val cb  = child.bottom
+    //            val cr  = child.right
+    //            val cx  = if (cr - vx < vx - cl) cr else cl
+    //            val cy  = if (cb - vy < vy - ct) cb else ct
+    //            IntPoint2D(vx, cy).distanceSq(v) >= rmax && IntPoint2D(cx, vy).distanceSq(v) >= rmax
+    //          }
+    //        }
+    //      }
+    //    }
 
     override def compareArea(a: HyperCube, b: HyperCube): Int = a.area compare b.area
-
-    override def stabbingDirections(v: PointLike, parent: HyperCube, child: HyperCube): List[Int] = {
-      val vx  = v.x
-      val vy  = v.y
-      val pl  = parent.left
-      val pt  = parent.top
-      val pr  = parent.right
-      val pb  = parent.bottom
-
-      if (vx < pl) {
-        // require(child.left == pl, s"v = $v, parent = $parent, child = $child")
-        if (child.top == pt) {
-          1 :: Nil              // only expanding to the right is relevant
-
-        } else if (child.bottom == pb) {
-          2 :: Nil              // only expanding to the right is relevant
-
-        } else {                // v is left to parent
-          1 :: 2 :: Nil
-        }
-
-      } else if (vx > pr) {
-        // require(child.right == pr, s"v = $v, parent = $parent, child = $child")
-        if (child.top == pt) {
-          0 :: Nil              // only expanding to the left is relevant
-
-        } else if (child.bottom == pb) {
-          3 :: Nil              // only expanding to the left is relevant
-
-        } else {                // v is left to parent
-          0 :: 3 :: Nil
-        }
-
-      } else {
-        if (vy < pt) {          // v outside of parent, to its top
-          // require(child.top == pt, s"v = $v, parent = $parent, child = $child")
-          if (child.left == pl) {
-            1 :: Nil
-          } else if (child.right == pr) {
-            0 :: Nil
-          } else {
-            0 :: 1 :: Nil
-          }
-
-        } else if (vy > pb) {   // v outside of parent, to its bottom
-          // require(child.bottom == pb, s"v = $v, parent = $parent, child = $child")
-          if (child.left == pl) {
-            2 :: Nil
-          } else if (child.right == pr) {
-            3 :: Nil
-          } else {
-            2 :: 3 :: Nil
-          }
-
-        } else {                // v is inside parent
-          if (child.left == pl) {
-            if (child.top == pt) {
-              1 :: Nil
-            } else if (child.bottom == pb) {
-              2 :: Nil
-            } else {
-              1 :: 2 :: Nil
-            }
-          } else if (child.right == pr) {
-            if (child.top == pt) {
-              0 :: Nil
-            } else if (child.bottom == pb) {
-              3 :: Nil
-            } else {
-              0 :: 3 :: Nil
-            }
-          } else {
-            if (child.top == pt) {
-              0 :: 1 :: Nil
-            } else if (child.bottom == pb) {
-              2 :: 3 :: Nil
-            } else {
-              0 :: 1 :: 2 :: 3 :: Nil
-            }
-          }
-        }
-      }
-    }
   }
 
   private final class Clip(underlying: Impl, quad: HyperCube) extends Impl {
@@ -609,6 +526,88 @@ object IntDistanceMeasure2D {
       require(idx >= 0 && idx < 4, "Quadrant index out of range (" + idx + ")")
       new ExceptQuadrant(this, idx)
     }
-  }
 
+    override def stabbingDirections(v: PointLike, parent: HyperCube, child: HyperCube): List[Int] = {
+      val vx  = v.x
+      val vy  = v.y
+      val pl  = parent.left
+      val pt  = parent.top
+      val pr  = parent.right
+      val pb  = parent.bottom
+
+      if (vx < pl) {
+        // require(child.left == pl, s"v = $v, parent = $parent, child = $child")
+        if (child.top == pt) {
+          1 :: Nil              // only expanding to the right is relevant
+
+        } else if (child.bottom == pb) {
+          2 :: Nil              // only expanding to the right is relevant
+
+        } else {                // v is left to parent
+          1 :: 2 :: Nil
+        }
+
+      } else if (vx > pr) {
+        // require(child.right == pr, s"v = $v, parent = $parent, child = $child")
+        if (child.top == pt) {
+          0 :: Nil              // only expanding to the left is relevant
+
+        } else if (child.bottom == pb) {
+          3 :: Nil              // only expanding to the left is relevant
+
+        } else {                // v is left to parent
+          0 :: 3 :: Nil
+        }
+
+      } else {
+        if (vy < pt) {          // v outside of parent, to its top
+          // require(child.top == pt, s"v = $v, parent = $parent, child = $child")
+          if (child.left == pl) {
+            1 :: Nil
+          } else if (child.right == pr) {
+            0 :: Nil
+          } else {
+            0 :: 1 :: Nil
+          }
+
+        } else if (vy > pb) {   // v outside of parent, to its bottom
+          // require(child.bottom == pb, s"v = $v, parent = $parent, child = $child")
+          if (child.left == pl) {
+            2 :: Nil
+          } else if (child.right == pr) {
+            3 :: Nil
+          } else {
+            2 :: 3 :: Nil
+          }
+
+        } else {                // v is inside parent
+          if (child.left == pl) {
+            if (child.top == pt) {
+              1 :: Nil
+            } else if (child.bottom == pb) {
+              2 :: Nil
+            } else {
+              1 :: 2 :: Nil
+            }
+          } else if (child.right == pr) {
+            if (child.top == pt) {
+              0 :: Nil
+            } else if (child.bottom == pb) {
+              3 :: Nil
+            } else {
+              0 :: 3 :: Nil
+            }
+          } else {
+            if (child.top == pt) {
+              0 :: 1 :: Nil
+            } else if (child.bottom == pb) {
+              2 :: 3 :: Nil
+            } else {
+              0 :: 1 :: 2 :: 3 :: Nil
+            }
+          }
+        }
+      }
+    }
+  }
 }

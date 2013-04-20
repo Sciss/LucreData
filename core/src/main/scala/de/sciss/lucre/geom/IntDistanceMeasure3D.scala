@@ -53,12 +53,12 @@ object IntDistanceMeasure3D {
    */
   val chebyshevXY: ML = ChebyshevXY
 
-  //  /**
-  //   * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
-  //   * distances across the first two dimensions. The 3rd dimension is ignored!
-  //   * This is, strictly speaking, only a semi metric.
-  //   */
-  //  val vehsybehcXY: ML = VehsybehcXY
+    /**
+     * An 'inverted' chebychev distance measure, based on the *minimum* of the absolute
+     * distances across the first two dimensions. The 3rd dimension is ignored!
+     * This is, strictly speaking, only a semi metric.
+     */
+    val vehsybehcXY: ML = VehsybehcXY
 
   private object EuclideanSq extends SqrImpl {
     override def toString = "IntDistanceMeasure3D.euclideanSq"
@@ -216,11 +216,13 @@ object IntDistanceMeasure3D {
     protected def applyMax(dx: Long, dy: Long): Long = math.max(dx, dy)
   }
 
-  //  private object VehsybehcXY extends ChebyshevXYLike {
-  //    override def toString = "IntDistanceMeasure3D.vehsybehcXY"
-  //
-  //    protected def apply(dx: Long, dy: Long): Long = math.min(dx, dy)
-  //  }
+  private object VehsybehcXY extends ChebyshevXYLike {
+    override def toString = "IntDistanceMeasure3D.vehsybehcXY"
+
+    protected def apply   (dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def applyMin(dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def applyMax(dx: Long, dy: Long): Long = math.min(dx, dy) // math.min(dx, dy)
+  }
 
   private sealed trait ChebyshevXYLike extends LongImpl {
     protected def apply   (dx: Long, dy: Long): Long
@@ -325,6 +327,230 @@ object IntDistanceMeasure3D {
 
   sealed trait Impl[@specialized(Long) M] extends Ops[M, ThreeDim] {
     protected def zeroValue: M
+
+    // TODO XXX WARNING: this is probably faulty
+    override def stabbingDirections(v: PointLike, parent: HyperCube, child: HyperCube): List[Int] = {
+      val vx  = v.x
+      val vy  = v.y
+      val pl  = parent.left
+      val pt  = parent.top
+      val pr  = parent.right
+      val pbm = parent.bottom
+      val pf  = parent.front
+      val pbk = parent.back
+
+      if (vx < pl) {
+        // require(child.left == pl, s"v = $v, parent = $parent, child = $child")
+        if (child.top == pt) {
+          if (child.front == pf) {
+            0 :: Nil              // only expanding to the right is relevant
+          } else if (child.back == pbk) {
+            4 :: Nil
+          } else {
+            0 :: 4 :: Nil
+          }
+
+        } else if (child.bottom == pbm) {
+          if (child.front == pf) {
+            2 :: Nil              // only expanding to the right is relevant
+          } else if (child.back == pbk) {
+            6 :: Nil
+          } else {
+            2 :: 6 :: Nil
+          }
+
+        } else {                // v is left to parent
+          if (child.front == pf) {
+            0 :: 2 :: Nil
+          } else if (child.back == pbk) {
+            4 :: 6 :: Nil
+          } else {
+            0 :: 2 :: 4 :: 6 :: Nil
+          }
+        }
+
+      } else if (vx > pr) {
+        // require(child.right == pr, s"v = $v, parent = $parent, child = $child")
+        if (child.top == pt) {
+          if (child.front == pf) {
+            1 :: Nil              // only expanding to the left is relevant
+          } else if (child.back == pbk) {
+            5 :: Nil
+          } else {
+            1 :: 5 :: Nil
+          }
+
+        } else if (child.bottom == pbm) {
+          if (child.front == pf) {
+            3 :: Nil              // only expanding to the left is relevant
+          } else if (child.back == pbk) {
+            7 :: Nil
+          } else {
+            3 :: 7 :: Nil
+          }
+
+        } else {                // v is left to parent
+          if (child.front == pf) {
+            1 :: 3 :: Nil
+          } else if (child.back == pbk) {
+            5 :: 7 :: Nil
+          } else {
+            1 :: 3 :: 5 :: 7 :: Nil
+          }
+        }
+
+      } else {
+        if (vy < pt) {          // v outside of parent, to its top
+          // require(child.top == pt, s"v = $v, parent = $parent, child = $child")
+          if (child.left == pl) {
+            if (child.front == pf) {
+              0 :: Nil
+            } else if (child.back == pbk) {
+              4 :: Nil
+            } else {
+              0 :: 4 :: Nil
+            }
+
+          } else if (child.right == pr) {
+            if (child.front == pf) {
+              1 :: Nil
+            } else if (child.back == pbk) {
+              5 :: Nil
+            } else {
+              1 :: 5 :: Nil
+            }
+
+          } else {
+            if (child.front == pf) {
+              0 :: 1 :: Nil
+            } else if (child.back == pbk) {
+              4 :: 5 :: Nil
+            } else {
+              0 :: 1 :: 4 :: 5 :: Nil
+            }
+          }
+
+        } else if (vy > pbm) {   // v outside of parent, to its bottom
+          // require(child.bottom == pb, s"v = $v, parent = $parent, child = $child")
+          if (child.left == pl) {
+            if (child.front == pf) {
+              2 :: Nil
+            } else if (child.back == pbk) {
+              6 :: Nil
+            } else {
+              2 :: 6 :: Nil
+            }
+
+          } else if (child.right == pr) {
+            if (child.front == pf) {
+              3 :: Nil
+            } else if (child.back == pbk) {
+              7 :: Nil
+            } else {
+              3 :: 7 :: Nil
+            }
+
+          } else {
+            if (child.front == pf) {
+              2 :: 3 :: Nil
+            } else if (child.back == pbk) {
+              6 :: 7 :: Nil
+            } else {
+              2 :: 3 :: 6 :: 7 :: Nil
+            }
+          }
+
+        } else {                // v is inside parent
+          if (child.left == pl) {
+            if (child.top == pt) {
+              if (child.front == pf) {
+                0 :: Nil
+              } else if (child.back == pbk) {
+                4 :: Nil
+              } else {
+                0 :: 4 :: Nil
+              }
+
+            } else if (child.bottom == pbm) {
+              if (child.front == pf) {
+                2 :: Nil
+              } else if (child.back == pbk) {
+                6 :: Nil
+              } else {
+                2 :: 6 :: Nil
+              }
+
+            } else {
+              if (child.front == pf) {
+                0 :: 2 :: Nil
+              } else if (child.back == pbk) {
+                4 :: 6 :: Nil
+              } else {
+                0 :: 2 :: 4 :: 6 :: Nil
+              }
+            }
+
+          } else if (child.right == pr) {
+            if (child.top == pt) {
+              if (child.front == pf) {
+                1 :: Nil
+              } else if (child.back == pbk) {
+                5 :: Nil
+              } else {
+                1 :: 5 :: Nil
+              }
+
+            } else if (child.bottom == pbm) {
+              if (child.front == pf) {
+                3 :: Nil
+              } else if (child.back == pbk) {
+                7 :: Nil
+              } else {
+                3 :: 7 :: Nil
+              }
+
+            } else {
+              if (child.front == pf) {
+                1 :: 3 :: Nil
+              } else if (child.back == pbk) {
+                5 :: 7 :: Nil
+              } else {
+                1 :: 3 :: 5 :: 7 :: Nil
+              }
+            }
+
+          } else {
+            if (child.top == pt) {
+              if (child.front == pf) {
+                0 :: 1 :: Nil
+              } else if (child.back == pbk) {
+                4 :: 5 :: Nil
+              } else {
+                0 :: 1 :: 4 :: 5 :: Nil
+              }
+
+            } else if (child.bottom == pbm) {
+              if (child.front == pf) {
+                2 :: 3 :: Nil
+              } else if (child.back == pbk) {
+                6 :: 7 :: Nil
+              } else {
+                2 :: 3 :: 6 :: 7 :: Nil
+              }
+
+            } else {
+              if (child.front == pf) {
+                0 :: 1 :: 2 :: 3 :: Nil
+              } else if (child.back == pbk) {
+                4 :: 5 :: 6 :: 7 :: Nil
+              } else {
+                0 :: 1 :: 2 :: 3 :: 4 :: 5 :: 6 :: 7 :: Nil
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   trait SqrImpl extends Impl[Sqr] {
@@ -379,5 +605,4 @@ object IntDistanceMeasure3D {
       new LongExceptOrthant(this, idx)
     }
   }
-
 }

@@ -15,7 +15,7 @@ import serial.{Reader, Writable, DataInput, DataOutput, Serializer}
 /**
 * To run this test copy + paste the following into sbt:
 * {{
-* test-only de.sciss.collection.txn.AncestorRetroSuite
+* test-only de.sciss.lucre.data.AncestorRetroSuite
 * }}
 */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
@@ -587,6 +587,7 @@ if( verbose ) {
                   When( "each vertex is asked for its parent node through NN search in the quadtree" )
                   Then( "the results should be identical to an independently maintained map" )
                   val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
+                  // val metric = IntDistanceMeasure3D.vehsybehcXY.orthant( 2 )
 
          //         if( verbose ) printPrePost( t, treeSeq )
 
@@ -778,6 +779,8 @@ if( verbose ) {
                   }
 
                   val metric = IntDistanceMeasure3D.chebyshevXY.orthant( 2 )
+                  // val metric = IntDistanceMeasure3D.vehsybehcXY.orthant( 2 )
+
          if( DEBUG_LAST ) verbose = false
                   treeSeq.zipWithIndex.foreach { case (child, i) =>
          if( DEBUG_LAST && i == NUM2 - 1 ) verbose = true

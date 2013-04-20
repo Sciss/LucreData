@@ -69,7 +69,7 @@ object DeterministicSkipOctree {
   }
 
   @elidable(elidable.CONFIG) private def stat_report() {
-    println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
+    // println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
   }
 
   @elidable(elidable.CONFIG) private def stat_rounds1(obj: Any) {
