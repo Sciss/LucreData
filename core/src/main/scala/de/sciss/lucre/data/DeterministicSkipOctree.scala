@@ -993,7 +993,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           }
         }
 
-        pushChildren(b0, -1)
+        pushChildren(b0, -1) // TODO: do not need to inspect leaves again!
         if (b0 != p0) metric.stabbingDirections(point, p0.hyperCube, b0.hyperCube).foreach { si =>
           checkendorfer(b0, si, numAnc)
         }
@@ -1248,7 +1248,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
 
       val mmax      = metric.maxValue
-      val p         = lastTree
+      val p         = headTree // lastTree
       val pMinDist  = metric.minDistance(point, hyperCube)  // XXX could have metric.zero
       step(p, pMinDist, EmptyValue, mmax, mmax)
     }
