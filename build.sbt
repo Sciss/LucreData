@@ -27,6 +27,8 @@ scalacOptions in ThisBuild ++= Seq("-deprecation", "-unchecked", "-feature")  //
 
 scalacOptions in ThisBuild += "-no-specialization"    // specialization still broken in Scala 2.10
 
+scalacOptions in ThisBuild ++= Seq("-Xelide-below", "INFO")     // elide debug logging!
+
 testOptions in Test += Tests.Argument("-oDF")
 
 parallelExecution in ThisBuild := false
