@@ -282,14 +282,14 @@ object Ancestor {
 
     final def write(out: DataOutput) {
       fullVertex.write(out)
-      pre.write(out)
-      post.write(out)
+      pre       .write(out)
+      post      .write(out)
       map.valueSerializer.write(value, out)
     }
 
     final def removeAndDispose()(implicit tx: S#Tx) {
       map.skip.remove(this)
-      pre.removeAndDispose()
+      pre .removeAndDispose()
       post.removeAndDispose()
     }
 
@@ -367,9 +367,9 @@ object Ancestor {
         def map         = me
 
         val fullVertex  = full.vertexSerializer.read(in, access)
-        val pre         = preOrder.readEntry(in, access)
-        val post        = postOrder.readEntry(in, access)
-        val value       = valueSerializer.read(in, access)
+        val pre         = preOrder        .readEntry(in, access)
+        val post        = postOrder       .readEntry(in, access)
+        val value       = valueSerializer      .read(in, access)
       }
     }
 
@@ -377,11 +377,11 @@ object Ancestor {
       out.writeByte(SER_VERSION)
       // note: we ask for the full tree through the serializer constructor,
       // thus we omit writing it out ourselves
-      preOrder.write(out)
+      preOrder .write(out)
       postOrder.write(out)
-      preList.write(out)
-      postList.write(out)
-      skip.write(out)
+      preList  .write(out)
+      postList .write(out)
+      skip     .write(out)
       // root.write( out )
     }
 
@@ -517,6 +517,14 @@ object Ancestor {
     final def afterRelabeling(iter: Iterator[S#Tx, M])(implicit tx: S#Tx) {
       iter.foreach(skip += _)
     }
+
+    final def debugPrint(implicit tx: S#Tx): String = {
+      val s = skip.toList.map { m =>
+        val v = m.fullVertex
+        s"{version = ${v.versionInt}, value = ${m.value}, pre = ${v.pre.tag}, post = ${v.post.tag}}"
+      }
+      s.mkString("[", ", ", "]")
+    }
   }
 
   // XXX boom! specialized
@@ -610,6 +618,8 @@ object Ancestor {
     type K = Vertex[S, Version]
 
     def full: Tree[S, Version]
+
+    def debugPrint(implicit tx: S#Tx): String
 
     /**
      * Marks a given key with a given value.
