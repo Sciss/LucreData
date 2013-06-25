@@ -27,7 +27,6 @@ package de.sciss
 package lucre
 package data
 
-import scala.{specialized => spec}
 import stm.{Mutable, Sys}
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import serial.{DataInput, DataOutput, Serializer}

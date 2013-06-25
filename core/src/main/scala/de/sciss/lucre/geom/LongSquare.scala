@@ -90,7 +90,7 @@ trait LongSquareLike extends HyperCube[LongSpace.TwoDim] with QueryShape[BigInt,
   final def contains(point: PointLike): Boolean = {
     val px = point.x
     val py = point.y
-    (left <= px) && (right >= px) && (top <= py) && (bottom >= py)
+    left <= px && right >= px && top <= py && bottom >= py
   }
 
   /**

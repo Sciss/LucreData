@@ -30,7 +30,6 @@ package data
 import collection.mutable
 import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
 import annotation.{switch, tailrec}
-import scala.{specialized => spec}
 import stm.{Mutable, Sink, Sys}
 import serial.{DataInput, DataOutput, Serializer}
 
@@ -382,7 +381,7 @@ object HASkipList {
           if (n.isLeaf) {
             if (bckNode eq null) None else Some(straight(bckNode, bckIdx))
           } else {
-            step(n.asBranch.down(idx), bckNode, bckIdx, isRight && (idx == n.size - 1))
+            step(n.asBranch.down(idx), bckNode, bckIdx, isRight && idx == n.size - 1)
           }
         }
       }
@@ -404,7 +403,7 @@ object HASkipList {
       @tailrec def step(n: Node[S, A, E], isRight: Boolean): Option[E] = {
         val idx = if (isRight) indexInNodeR(key, n) else indexInNodeL(key, n)
         val idxP = if (idx < 0) -(idx + 1) else idx
-        val newRight = isRight && (idxP == n.size - 1)
+        val newRight = isRight && idxP == n.size - 1
         if (n.isLeaf) {
           if (newRight) None else Some(n.asLeaf.entry(idxP))
         } else {
@@ -580,9 +579,9 @@ object HASkipList {
       var pNew        = p
       var pidxNew     = pidx
       val bsz         = b.size
-      val isRightNew  = isRight && (idxP == bsz - 1)
+      val isRightNew  = isRight && idxP == bsz - 1
 
-      if (!found && (bsz == arrMaxSz)) {
+      if (!found && bsz == arrMaxSz) {
         val splitKey  = b.key(minGap)
         val tup       = b.split
         val left      = tup._1
@@ -753,13 +752,13 @@ object HASkipList {
             pDown() = bNew // update down ref from which we came
             val bDown = bNew.downRef( idxP )
             return if( c.isLeaf ) {
-               removeFromLeaf( key, bDown, c.asLeaf, isRight = false, false )
+               removeFromLeaf( key, bDown, c.asLeaf, isRight = false, lDirty = false )
             } else {
                removeFromBranchAndBubble( key, bDown, c.asBranch, leafUpKey )
             }
          }
 
-         var isRightNew = isRight && (idxP == bsz - 1)
+         var isRightNew = isRight && idxP == bsz - 1
          var bNew       = b
          var bDownIdx   = idxP
          var cNew       = c
@@ -786,7 +785,7 @@ object HASkipList {
                   bNew        = b.removeColumn( idxP )
                   b.downRef( idxP ).dispose()
                   cNew        = c.mergeRight( cSib )
-                  isRightNew  = isRight && (idxP == bsz - 2) // ! we might be in the right-most branch now
+                  isRightNew  = isRight && idxP == bsz - 2 // ! we might be in the right-most branch now
                } else {                                      // borrow from the right
                   assert( cSibSz > mns )
                   // update the key index idxP of the
@@ -909,7 +908,7 @@ object HASkipList {
         } else {
           val b     = n.asBranch
           stack.push((b, idx0 + 1, r))
-          pushDown(b.down(idx0), 0, r && (idx0 == b.size - 1))
+          pushDown(b.down(idx0), 0, r && idx0 == b.size - 1)
         }
       }
 
@@ -1213,7 +1212,7 @@ object HASkipList {
          val keySz = ks.length()
          val colSz = math.max(keySz, childSz) + 2
          val keyAdd = (if (idx == size - 1) " " else "-") * (colSz - keySz)
-         val bar = "|" + (" " * (colSz - 1))
+         val bar = "|" + " " * (colSz - 1)
          val childAdd = " " * (colSz - childSz)
          Vector(ks + keyAdd, bar) ++ child.map(_ + childAdd)
        }

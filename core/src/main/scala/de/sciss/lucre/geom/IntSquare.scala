@@ -96,7 +96,7 @@ trait IntSquareLike extends HyperCube[IntSpace.TwoDim] with QueryShape[Long, Int
   final def contains(point: PointLike): Boolean = {
     val px = point.x
     val py = point.y
-    (left <= px) && (right >= px) && (top <= py) && (bottom >= py)
+    left <= px && right >= px && top <= py && bottom >= py
   }
 
   /**

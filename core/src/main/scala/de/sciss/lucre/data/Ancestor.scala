@@ -239,7 +239,7 @@ object Ancestor {
     override def toString = "Ancestor.FilterMetric@" + pred.hashCode.toHexString
 
     def distance(a: PointLike, b: PointLike): Long = {
-      if ((b.x <= a.x) && (b.y >= a.y) && pred(b.z)) {
+      if (b.x <= a.x && b.y >= a.y && pred(b.z)) {
         chebyMetric.distance(a, b)
       } else maxValue
     }
@@ -248,7 +248,7 @@ object Ancestor {
       val qe = q.extent
       val qem1 = qe - 1
 
-      if (((q.cx - qe) <= p.x) && ((q.cy + qem1) >= p.y) && pred(q.cz - qe)) {
+      if (q.cx - qe <= p.x && q.cy + qem1 >= p.y && pred(q.cz - qe)) {
         chebyMetric.minDistance(p, q)
       } else maxValue
     }
@@ -257,7 +257,7 @@ object Ancestor {
       val qe = q.extent
       val qem1 = qe - 1
 
-      if (((q.cx + qem1) <= p.x) && ((q.cy - qe) >= p.y) && pred(q.cz + qem1)) {
+      if (q.cx + qem1 <= p.x && q.cy - qe >= p.y && pred(q.cz + qem1)) {
         chebyMetric.maxDistance(p, q)
       } else maxValue
     }
@@ -447,7 +447,7 @@ object Ancestor {
 
     final def remove(vertex: K)(implicit tx: S#Tx): Boolean = {
       val iso = query(vertex)
-      (iso.preCmp == 0) /* && (iso.postCmp == 0) */ && {
+      iso.preCmp == 0 /* && (iso.postCmp == 0) */ && {
         // assert(iso.postCmp == 0)
         iso.pre.removeAndDispose() // iso.pre is a VM!
         true

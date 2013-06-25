@@ -730,7 +730,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   private def findLeafInP0(b: LeftBranch, point: D#PointLike)(implicit tx: S#Tx): LeafOrEmpty = {
     val qidx = b.hyperCube.indexOf(point)
     b.child(qidx) match {
-      case l: LeafImpl if (pointView(l.value, tx) == point) => l
+      case l: LeafImpl if pointView(l.value, tx) == point => l
       case _ => EmptyValue
     }
   }
@@ -760,7 +760,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       case rb: RightBranch =>
         val qidx = rb.hyperCube.indexOf(point)
         val n = rb.child(qidx) match {
-          case cb: BranchLike if (cb.hyperCube.contains(point)) => cb
+          case cb: BranchLike if cb.hyperCube.contains(point) => cb
           case _ => rb.prev
         }
         step(n)
@@ -1389,9 +1389,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     // definition stabbing: 0 < overlap-area < area-of-p
     @tailrec def findHighestUncritical(p0: BranchLike, area: Area)(implicit tx: S#Tx): BranchLike = {
       @tailrec def isCritical(b: BranchLike, i: Int): Boolean = {
-        (i < sz) && (b.child(i) match {
+        i < sz && (b.child(i) match {
           // if there is any child which has the same overlap area, it means the node is uncritical
-          case ci: BranchLike if (qs.overlapArea(ci.hyperCube) == area) => true
+          case ci: BranchLike if qs.overlapArea(ci.hyperCube) == area => true
           case _ => isCritical(b, i + 1)
         })
       }
@@ -1482,10 +1482,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     override def toString = shortString + id
 
-    override def equals(that: Any): Boolean = {
-      (if (that.isInstanceOf[NonEmpty]) {
-        id == that.asInstanceOf[NonEmpty].id
-      } else super.equals(that))
+    override def equals(that: Any): Boolean = that match {
+      case n: NonEmpty =>
+        id == n.id
+      case _ => super.equals(that)
     }
 
     override def hashCode = id.hashCode()
@@ -2059,7 +2059,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         if (i < sz) child(i) match {
           case lonely: LeftNonEmptyChild =>
             @tailrec def isLonely(j: Int): Boolean = {
-              (j == sz) || (child(j) match {
+              j == sz || (child(j) match {
                 case _: LeftNonEmptyChild => false
                 case _ => isLonely(j + 1)
               })
@@ -2253,7 +2253,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         if (i < sz) child(i) match {
           case lonely: RightNonEmptyChild =>
             @tailrec def isLonely(j: Int): Boolean = {
-              (j == sz) || (child(j) match {
+              j == sz || (child(j) match {
                 case _: RightNonEmptyChild  => false
                 case _                      => isLonely(j + 1)
               })

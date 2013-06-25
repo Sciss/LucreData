@@ -106,7 +106,7 @@ object TotalOrder {
                                                        nextRef: S#Var[EntryOption[S] /* with MutableOption[ S ] */ ])
       extends EntryOption[S] with Mutable.Impl[S] with Ordered[S#Tx, Entry[S]] {
 
-      override def toString = "Set.Entry" + id
+      override def toString() = "Set.Entry" + id
 
       def compare(that: Entry[S])(implicit tx: S#Tx): Int = {
         val thisTag = tag
@@ -378,13 +378,13 @@ object TotalOrder {
       var base    = _first.tag
       do {
         var prev = first.prevOrNull
-        while ((prev ne null) && ((prev.tag & mask) == base)) {
+        while ((prev ne null) && (prev.tag & mask) == base) {
           first = prev
           prev  = prev.prevOrNull
           num  += 1
         }
         var next = last.nextOrNull
-        while ((next ne null) && ((next.tag & mask) == base)) {
+        while ((next ne null) && (next.tag & mask) == base) {
           last = next
           next = next.nextOrNull
           num += 1
@@ -398,7 +398,7 @@ object TotalOrder {
         // algorithm would immediately terminate with num == 1, which
         // will obviously leave the tag unchanged! thus we must add
         // the additional condition that num is greater than 1!
-        if ((inc >= thresh) && (num > 1)) {
+        if (inc >= thresh && num > 1) {
           // found rebalanceable range
           //               observer.beforeRelabeling( first, num )
           //sys.error( "TODO" )
