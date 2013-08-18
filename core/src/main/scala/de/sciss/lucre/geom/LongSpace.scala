@@ -67,7 +67,7 @@ object LongSpace {
         LongPoint2D(x, y)
       }
 
-      def write(p: LongPoint2D, out: DataOutput) {
+      def write(p: LongPoint2D, out: DataOutput): Unit = {
         out.writeLong(p.x)
         out.writeLong(p.y)
       }
@@ -81,7 +81,7 @@ object LongSpace {
         LongSquare(cx, cy, extent)
       }
 
-      def write(q: LongSquare, out: DataOutput) {
+      def write(q: LongSquare, out: DataOutput): Unit = {
         out.writeLong(q.cx)
         out.writeLong(q.cy)
         out.writeLong(q.extent)

@@ -36,20 +36,19 @@ import serial.{Writable, DataInput, DataOutput, Serializer}
 import java.io.PrintStream
 import de.sciss.serial.impl.ByteArrayOutputStream
 
-/**
-* A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
-* It is constructed from a given space (dimensions) and a skip-gap parameter
-* which determines the kind of skip list which is used to govern the
-* level decimation.
-*
-* The tree is a mutable data structure which supports lookup, insertion and removal
-* in O(log n), as well as efficient range queries and nearest neighbour search.
-*
-* The current implementation, backed by `impl.SkipOctreeImpl`, uses the types of
-* the `geom` package, assuming that coordinates are integers, with the maximum
-* root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.IntTwoDim`,
-* this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
-*/
+/** A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
+ * It is constructed from a given space (dimensions) and a skip-gap parameter
+ * which determines the kind of skip list which is used to govern the
+ * level decimation.
+ *
+ * The tree is a mutable data structure which supports lookup, insertion and removal
+ * in O(log n), as well as efficient range queries and nearest neighbour search.
+ *
+ * The current implementation, backed by `impl.SkipOctreeImpl`, uses the types of
+ * the `geom` package, assuming that coordinates are integers, with the maximum
+ * root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.IntTwoDim`,
+ * this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
+ */
 object DeterministicSkipOctree {
   private final val SER_VERSION = 79  // 'O'
 
@@ -58,31 +57,29 @@ object DeterministicSkipOctree {
   private var stat_pq_rem = 0
   private val stat_print  = false
 
-  @elidable(elidable.CONFIG) private def stat_reset() {
+  @elidable(elidable.CONFIG) private def stat_reset(): Unit = {
     stat_rounds = 0
     stat_pq_add = 0
     stat_pq_rem = 0
   }
 
-  @elidable(elidable.CONFIG) private def stat_debug(what: => String) {
+  @elidable(elidable.CONFIG) private def stat_debug(what: => String): Unit =
     if (stat_print) println(s"<stat> $what")
-  }
 
-  @elidable(elidable.CONFIG) private def stat_report() {
+  @elidable(elidable.CONFIG) private def stat_report() = ()
     // println(s"NN took $stat_rounds rounds, adding $stat_pq_add and removing $stat_pq_rem times to/from PQ")
-  }
 
-  @elidable(elidable.CONFIG) private def stat_rounds1(obj: Any) {
+  @elidable(elidable.CONFIG) private def stat_rounds1(obj: Any): Unit = {
     stat_rounds += 1
     if (stat_print) println(s"<stat> round max: $obj")
   }
 
-  @elidable(elidable.CONFIG) private def stat_pq_add1(obj: Any) {
+  @elidable(elidable.CONFIG) private def stat_pq_add1(obj: Any): Unit = {
     stat_pq_add += 1
     if (stat_print) println(s"<stat> add    pq: $obj")
   }
 
-  @elidable(elidable.CONFIG) private def stat_pq_rem1(obj: Any) {
+  @elidable(elidable.CONFIG) private def stat_pq_rem1(obj: Any): Unit = {
     stat_pq_rem += 1
     if (stat_print) println(s"<stat> remove pq: $obj")
   }
@@ -114,9 +111,7 @@ object DeterministicSkipOctree {
 
     override def toString = "DeterministicSkipOctree.serializer"
 
-    def write(v: DeterministicSkipOctree[S, D, A], out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: DeterministicSkipOctree[S, D, A], out: DataOutput): Unit = v.write(out)
   }
 
   private final class ImplRead[S <: Sys[S], D <: Space[D], A](val pointView: (A, S#Tx) => D#PointLike, in: DataInput,
@@ -198,13 +193,12 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   override def toString = s"Octree-${space.dim}d$id"
 
   protected object LeafOrdering extends Ordering[S#Tx, LeafImpl] {
-    /**
-     * Leafs are ordered by the tree's in-order traversal,
-     * where the quadrants I+II and III+IV can be thought
-     * of as dummy nodes to binarize the octree. That is
-     * to say, in a node, the child order corresponds to
-     * their quadrant indices (I < II < III < IV).
-     */
+    /** Leafs are ordered by the tree's in-order traversal,
+      * where the quadrants I+II and III+IV can be thought
+      * of as dummy nodes to binarize the octree. That is
+      * to say, in a node, the child order corresponds to
+      * their quadrant indices (I < II < III < IV).
+      */
     def compare(a: LeafImpl, b: LeafImpl)(implicit tx: S#Tx): Int = {
       val pa = pointView(a.value, tx)
       val pb = pointView(b.value, tx)
@@ -223,9 +217,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def write(v: RightBranch, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: RightBranch, out: DataOutput): Unit = v.write(out)
   }
 
   implicit protected object BranchSerializer extends Serializer[S#Tx, S#Acc, BranchLike] {
@@ -241,9 +233,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def write(v: BranchLike, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: BranchLike, out: DataOutput): Unit = v.write(out)
   }
 
   protected object TopBranchSerializer extends Serializer[S#Tx, S#Acc, TopBranch] {
@@ -257,9 +247,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def write(v: TopBranch, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: TopBranch, out: DataOutput): Unit = v.write(out)
   }
 
   protected object LeftChildOptionSerializer extends Serializer[S#Tx, S#Acc, LeftChildOption] {
@@ -275,9 +263,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def write(v: LeftChildOption, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: LeftChildOption, out: DataOutput): Unit = v.write(out)
   }
 
   implicit protected object LeftBranchSerializer extends Serializer[S#Tx, S#Acc, LeftBranch] {
@@ -291,9 +277,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def write(v: LeftBranch, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: LeftBranch, out: DataOutput): Unit = v.write(out)
   }
 
   implicit protected object RightChildOptionSerializer extends Serializer[S#Tx, S#Acc, RightChildOption] {
@@ -309,9 +293,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def write(v: RightChildOption, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: RightChildOption, out: DataOutput): Unit = v.write(out)
   }
 
   implicit protected object LeftTopBranchSerializer extends Serializer[S#Tx, S#Acc, LeftTopBranch] {
@@ -322,9 +304,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       readLeftTopBranch(in, access, id)
     }
 
-    def write(v: LeftTopBranch, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: LeftTopBranch, out: DataOutput): Unit = v.write(out)
   }
 
   protected object RightOptionReader extends Serializer[S#Tx, S#Acc, NextOption] {
@@ -340,9 +320,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def write(v: NextOption, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: NextOption, out: DataOutput): Unit = v.write(out)
   }
 
   protected object LeafSerializer extends Serializer[S#Tx, S#Acc, LeafImpl] {
@@ -353,13 +331,11 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       readLeaf(in, access, id)
     }
 
-    def write(l: LeafImpl, out: DataOutput) {
-      l.write(out)
-    }
+    def write(l: LeafImpl, out: DataOutput): Unit = l.write(out)
   }
 
   implicit protected object KeyObserver extends SkipList.KeyObserver[S#Tx, LeafImpl] {
-    def keyUp(l: LeafImpl)(implicit tx: S#Tx) {
+    def keyUp(l: LeafImpl)(implicit tx: S#Tx): Unit = {
       //println( "up : " + l )
       // "To insert x into Qi+1 we go from xi to pi(x) in Qi,
       //  then traverse upwards in Qi until we find the lowest
@@ -404,7 +380,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       pNext.insert(pointView(l.value, tx), l)
     }
 
-    def keyDown(l: LeafImpl)(implicit tx: S#Tx) {
+    def keyDown(l: LeafImpl)(implicit tx: S#Tx): Unit = {
       //println( "down : " + l )
       // "To delete x from Qi we go from xi to the smallest interesting
       //  square pi(x) containing x in Qi following the pointers. Then
@@ -436,18 +412,18 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   final def headTree: Branch = head
   final def lastTree(implicit tx: S#Tx): Branch = lastTreeImpl
 
-  final def write(out: DataOutput) {
+  final def write(out: DataOutput): Unit = {
     out.writeByte(SER_VERSION)
-    id.write(out)
+    id          .write(out)
     space.hyperCubeSerializer.write(hyperCube, out)
-    skipList.write(out)
-    head.write(out)
-    lastTreeRef.write(out)
+    skipList    .write(out)
+    head        .write(out)
+    lastTreeRef .write(out)
   }
 
-  final def clear()(implicit tx: S#Tx) {
+  final def clear()(implicit tx: S#Tx): Unit = {
     val sz = numOrthants
-    @tailrec def removeAllLeaves(b: BranchLike) {
+    @tailrec def removeAllLeaves(b: BranchLike): Unit = {
       @tailrec def stepB(down: BranchLike, i: Int): ChildOption = {
         if (i == sz) down
         else b.child(i) match {
@@ -477,10 +453,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     removeAllLeaves(lastTreeImpl)
   }
 
-  final def dispose()(implicit tx: S#Tx) {
+  final def dispose()(implicit tx: S#Tx): Unit = {
     //      val sz = numOrthants
     //
-    //      def disposeBranch( b: BranchLike ) {
+    //      def disposeBranch( b: BranchLike ): Unit = {
     //         var i = 0; while( i < sz ) {
     //            b.child( i ) match {
     //               case l: LeafImpl => l.remove()
@@ -491,7 +467,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     //         b.remove()
     //      }
     //
-    //      @tailrec def disposeTree( b: BranchLike ) {
+    //      @tailrec def disposeTree( b: BranchLike ): Unit = {
     //         disposeBranch( b )
     //         b match {
     //            case _: LeftBranch   =>
@@ -499,44 +475,37 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     //         }
     //      }
     //      disposeTree( lastTreeImpl )
-    id.dispose()
-    lastTreeRef.dispose()
-    head.dispose()
-    skipList.dispose()
+    id          .dispose()
+    lastTreeRef .dispose()
+    head        .dispose()
+    skipList    .dispose()
   }
 
-  final def lastTreeImpl(implicit tx: S#Tx): TopBranch = lastTreeRef()
-
-  final def lastTreeImpl_=(node: TopBranch)(implicit tx: S#Tx) {
-    lastTreeRef() = node
-  }
+  final def lastTreeImpl                   (implicit tx: S#Tx): TopBranch = lastTreeRef()
+  final def lastTreeImpl_=(node: TopBranch)(implicit tx: S#Tx): Unit      = lastTreeRef() = node
 
   final def size(implicit tx: S#Tx): Int = skipList.size
 
-  final def add(elem: A)(implicit tx: S#Tx): Boolean = {
+  final def add(elem: A)(implicit tx: S#Tx): Boolean =
     insertLeaf(elem) match {
       case EmptyValue => true
       case oldLeaf: LeafImpl => oldLeaf.value != elem
     }
-  }
 
-  final def update(elem: A)(implicit tx: S#Tx): Option[A] = {
+  final def update(elem: A)(implicit tx: S#Tx): Option[A] =
     insertLeaf(elem) match {
       case EmptyValue => None
       case oldLeaf: LeafImpl => Some(oldLeaf.value)
     }
-  }
 
-  final def remove(elem: A)(implicit tx: S#Tx): Boolean = {
+  final def remove(elem: A)(implicit tx: S#Tx): Boolean =
     removeLeafAt(pointView(elem, tx)) != EmptyValue
-  }
 
-  final def removeAt(point: D#PointLike)(implicit tx: S#Tx): Option[A] = {
+  final def removeAt(point: D#PointLike)(implicit tx: S#Tx): Option[A] =
     removeLeafAt(point) match {
       case EmptyValue => None
       case oldLeaf: LeafImpl => Some(oldLeaf.value)
     }
-  }
 
   final def contains(elem: A)(implicit tx: S#Tx): Boolean = {
     val point = pointView(elem, tx)
@@ -565,8 +534,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     val nn = new NN(point, metric).find()
     stat_report()
     nn match {
-      case EmptyValue => throw new NoSuchElementException("nearestNeighbor on an empty tree")
-      case l: LeafImpl => l.value
+      case EmptyValue   => throw new NoSuchElementException("nearestNeighbor on an empty tree")
+      case l: LeafImpl  => l.value
     }
   }
 
@@ -696,10 +665,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     findLeafInP0(p0, point) match {
       case EmptyValue =>
         val res = None
-        fun(res).foreach {
-          elem =>
-            val leaf = p0.insert(point, elem)
-            skipList.add(leaf)
+        fun(res).foreach { elem =>
+          val leaf = p0.insert(point, elem)
+          skipList.add(leaf)
         }
         res
 
@@ -721,12 +689,12 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   }
 
   /*
-    * After arriving at this node from a `findP0` call, this resolves
-    * the given point to an actual leaf.
-    *
-    * @return  the `Leaf` child in this node associated with the given
-    *          `point`, or `empty` if no such leaf exists.
-    */
+   * After arriving at this node from a `findP0` call, this resolves
+   * the given point to an actual leaf.
+   *
+   * @return  the `Leaf` child in this node associated with the given
+   *          `point`, or `empty` if no such leaf exists.
+   */
   private def findLeafInP0(b: LeftBranch, point: D#PointLike)(implicit tx: S#Tx): LeafOrEmpty = {
     val qidx = b.hyperCube.indexOf(point)
     b.child(qidx) match {
@@ -736,15 +704,15 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   }
 
   /*
-    * Finds to smallest interesting hyper-cube
-    * in Q0, containing a given point. This method
-    * traverses downwards into its children, or,
-    * if the "bottom" has been reached, tries to
-    * continue in Qi-1.
-    *
-    * @return  the node defined by the given search `point`, or `empty`
-    *          if no such node exists.
-    */
+   * Finds to smallest interesting hyper-cube
+   * in Q0, containing a given point. This method
+   * traverses downwards into its children, or,
+   * if the "bottom" has been reached, tries to
+   * continue in Qi-1.
+   *
+   * @return  the node defined by the given search `point`, or `empty`
+   *          if no such node exists.
+   */
   private def findP0(point: D#PointLike)(implicit tx: S#Tx): LeftBranch = {
     @tailrec def stepLeft(lb: LeftBranch): LeftBranch = {
       val qidx = lb.hyperCube.indexOf(point)
@@ -769,7 +737,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     step(lastTreeImpl)
   }
 
-  private def removeLeaf(point: D#PointLike, l: LeafImpl)(implicit tx: S#Tx) {
+  private def removeLeaf(point: D#PointLike, l: LeafImpl)(implicit tx: S#Tx): Unit = {
     // this will trigger removals from upper levels
     skipList.remove(l)
     // now l is in P0. demote it once more (this will dispose the leaf)
@@ -910,7 +878,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       var bestDist  = _bestDist
       var rmax      = _rmax
 
-      def inspectLeaf(l: LeafImpl) {
+      def inspectLeaf(l: LeafImpl): Unit = {
         val ldist = metric.distance(point, pointView(l.value, tx))
         if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
           bestDist = ldist
@@ -957,15 +925,15 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         @tailrec def loop(q: Branch): Branch = {
           val idx = q.hyperCube.indexOf(h)
           q.child(idx) match {
-            case `b` => q
-            case c: Branch => loop(c)
-            case other => sys.error(s"Unexpected child $other")
+            case `b`        => q
+            case c: Branch  => loop(c)
+            case other      => sys.error(s"Unexpected child $other")
           }
         }
         loop(p0)
       }
 
-      def pushChildren(b: Branch, skip: Int) {
+      def pushChildren(b: Branch, skip: Int): Unit = {
         stat_debug(s"pushing child nodes of ${b.hyperCube} to priority queue")
         assert(b.isInstanceOf[LeftBranch])
         var i = 0
@@ -978,37 +946,37 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
               // val cMinDist = metric.minDistance(point, cq)
               // val cMinDist  = {
-                var j   = 0
-                // var min = metric.maxValue
-                while (j < sz) {
-                  c.child(j) match {
-                    case l: LeafImpl => inspectLeaf(l)
-                    case _ =>
-                  }
-                  j += 1
+              var j = 0
+              // var min = metric.maxValue
+              while (j < sz) {
+                c.child(j) match {
+                  case l: LeafImpl => inspectLeaf(l)
+                  case _ =>
                 }
-                j = 0
-                while (j < sz) {
-                  c.child(j) match {
-                    case cc: Branch =>
-                      val cch   = cc.hyperCube
-                      val cmin  = metric.minDistance(point, cch)
-//                      if (!metric.isMeasureGreater(cmin, rmax) &&
-//                           metric.isMeasureGreater( min, cmin)) min = cmin
-                      if (!metric.isMeasureGreater(cmin, rmax)) {
-                        // val cmax = metric.maxDistance(point, cch)
-                        val vn = new VisitedNode(cc, cmin /* , cmax */)
-                        pri += vn
-                        stat_pq_add1(cch)
-                      }
+                j += 1
+              }
+              j = 0
+              while (j < sz) {
+                c.child(j) match {
+                  case cc: Branch =>
+                    val cch   = cc.hyperCube
+                    val cmin  = metric.minDistance(point, cch)
+                    //                      if (!metric.isMeasureGreater(cmin, rmax) &&
+                    //                           metric.isMeasureGreater( min, cmin)) min = cmin
+                    if (!metric.isMeasureGreater(cmin, rmax)) {
+                      // val cmax = metric.maxDistance(point, cch)
+                      val vn = new VisitedNode(cc, cmin /* , cmax */)
+                      pri += vn
+                      stat_pq_add1(cch)
+                    }
 
-                    case _ =>
-                  }
-                  j += 1
+                  case _ =>
                 }
+                j += 1
+              }
 
-                // min
-              // }
+            // min
+            // }
 
             //              // ---- added filter ----
             //              // if (!metric.isMeasureGreater(cMinDist, rmax)) {
@@ -1057,9 +1025,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           stat_debug(s"searching for ancestor in ${if (si == 0) "SW" else if (si == 1) "SE" else if (si == 2) "NE" else if (si == 3) "NW"} direction")
           checkendorfer(b0, si, numAnc)
         }
-//                val cMinDist  = metric.minDistance(point, c.hyperCube)
-//                val cv  = new VisitedNode(c, cMinDist, null.asInstanceOf[M])
-//                pri += cv
+        //                val cMinDist  = metric.minDistance(point, c.hyperCube)
+        //                val cv  = new VisitedNode(c, cMinDist, null.asInstanceOf[M])
+        //                pri += cv
 
         new NNIter(bestLeaf, bestDist, rmax)
       }
@@ -1108,7 +1076,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     //      var bestDist  = _bestDist
     //      var rmax      = _rmax
     //
-    //      def inspectLeaf(l: LeafImpl) {
+    //      def inspectLeaf(l: LeafImpl): Unit = {
     //        val ldist = metric.distance(point, pointView(l.value, tx))
     //        if (metric.isMeasureGreater(bestDist, ldist)) {   // found a point that is closer than previously known best result
     //          bestDist = ldist
@@ -1214,7 +1182,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     //      var bestDist  = _bestDist
     //      var rmax      = _rmax
     //
-    //      def fall(parent: Branch, qidx: Int) {
+    //      def fall(parent: Branch, qidx: Int): Unit = {
     //        parent.child(qidx) match {
     //          case l: LeafImpl =>
     //            val ldist = metric.distance(point, pointView(l.value, tx))
@@ -1409,7 +1377,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       res
     }
 
-    def findNextValue()(implicit tx: S#Tx) {
+    def findNextValue()(implicit tx: S#Tx): Unit = {
       while (true) {
         if (in.isEmpty) {
           if (stabbing.isEmpty) {
@@ -1554,49 +1522,38 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   protected final class LeafImpl(val id: S#ID, val value: A, /* val point: D#PointLike, */ parentRef: S#Var[BranchLike])
     extends LeftNonEmptyChild with RightNonEmptyChild with LeafOrEmpty with Leaf {
 
-    def updateParentLeft(p: LeftBranch)(implicit tx: S#Tx) {
-      parent_=(p)
-    }
+    def updateParentLeft (p: LeftBranch )(implicit tx: S#Tx): Unit = parent_=(p)
+    def updateParentRight(p: RightBranch)(implicit tx: S#Tx): Unit = parent_=(p)
 
-    def updateParentRight(p: RightBranch)(implicit tx: S#Tx) {
-      parent_=(p)
-    }
-
-    def parent(implicit tx: S#Tx): BranchLike = parentRef()
-    def parent_=(p: BranchLike)(implicit tx: S#Tx) {
-      parentRef() = p
-    }
+    def parent                 (implicit tx: S#Tx): BranchLike  = parentRef()
+    def parent_=(p: BranchLike)(implicit tx: S#Tx): Unit        = parentRef() = p
 
     def isLeaf                = true
     def isBranch              = false
     def asLeaf: LeafImpl      = this
     def asBranch: BranchLike  = opNotSupported
 
-    def dispose()(implicit tx: S#Tx) {
+    def dispose()(implicit tx: S#Tx): Unit = {
       id.dispose()
       parentRef.dispose()
     }
 
-    def write(out: DataOutput) {
+    def write(out: DataOutput): Unit = {
       out.writeByte(1)
       id.write(out)
       keySerializer.write(value, out)
       parentRef.write(out)
     }
 
-    def union(mq: D#HyperCube, point2: D#PointLike)(implicit tx: S#Tx) = {
+    def union(mq: D#HyperCube, point2: D#PointLike)(implicit tx: S#Tx): D#HyperCube =
       mq.greatestInteresting(pointView(value, tx), point2)
-    }
 
-    def orthantIndexIn(iq: D#HyperCube)(implicit tx: S#Tx): Int = {
+    def orthantIndexIn(iq: D#HyperCube)(implicit tx: S#Tx): Int =
       iq.indexOf(pointView(value, tx))
-    }
 
-    def shortString = "Leaf(" + value + ")"
+    def shortString = s"Leaf($value)"
 
-    def remove()(implicit tx: S#Tx) {
-      dispose()
-    }
+    def remove()(implicit tx: S#Tx): Unit = dispose()
   }
 
   /**
@@ -1637,33 +1594,29 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       case b: BranchLike => Some(b)
     }
 
-    /**
-     * Sets the corresponding interesting
-     * node in Qi+1.
-     */
-    final def next_=(node: NextOption)(implicit tx: S#Tx) {
-      nextRef() = node
-    }
+    /** Sets the corresponding interesting
+      * node in Qi+1.
+      */
+    final def next_=(node: NextOption)(implicit tx: S#Tx): Unit = nextRef() = node
 
     protected def nextRef: S#Var[NextOption]
 
-    final def union(mq: D#HyperCube, point2: D#PointLike)(implicit tx: S#Tx) = {
+    final def union(mq: D#HyperCube, point2: D#PointLike)(implicit tx: S#Tx): D#HyperCube = {
       val q = hyperCube
       mq.greatestInteresting(q, point2)
     }
 
     final def orthantIndexIn(iq: D#HyperCube)(implicit tx: S#Tx): Int = iq.indexOf(hyperCube)
 
-    /**
-     * Called when a leaf has been removed from the node.
-     * The node may need to cleanup after this, e.g. promote
-     * an underfull node upwards.
-     */
+    /** Called when a leaf has been removed from the node.
+      * The node may need to cleanup after this, e.g. promote
+      * an underfull node upwards.
+      */
     protected def leafRemoved()(implicit tx: S#Tx): Unit
 
     protected def nodeName: String
 
-    final protected def shortString = nodeName + "(" + hyperCube + ")"
+    final protected def shortString = s"$nodeName($hyperCube)"
 
     final def isLeaf                = false
     final def isBranch              = true
@@ -1671,9 +1624,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     final def asLeaf: LeafImpl      = opNotSupported
   }
 
-  /**
-   * An inner non empty tree element has a mutable parent node.
-   */
+  /** An inner non empty tree element has a mutable parent node. */
   sealed trait NonEmptyChild extends NonEmpty with Child {
     def parent(implicit tx: S#Tx): BranchLike
   }
@@ -1686,9 +1637,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   case object EmptyValue extends LeftChild with RightChild with Next with LeafOrEmpty with Empty with Writable /* EmptyMutable */ {
     override def toString = "<empty>"
 
-    def write(out: DataOutput) {
-      out.writeByte(0)
-    }
+    def write(out: DataOutput): Unit = out.writeByte(0)
 
     override def hashCode: Int = 0
 
@@ -1700,20 +1649,17 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       that.isInstanceOf[x.EmptyValue.type forSome {val x: DeterministicSkipOctree[_, _, _]}]
   }
 
-  /**
-   * Utility trait which elements the rightward search `findPN`.
-   */
+  /** Utility trait which elements the rightward search `findPN`. */
   protected sealed trait ChildBranch extends BranchLike with NonEmptyChild
 
   protected sealed trait Next
 
   final protected type NextOption = Next with Writable
 
-  /**
-   * A right tree node implementation provides more specialized child nodes
-   * of type `RightChild`. It furthermore defines the node in Qi-1 via the
-   * `prev` method.
-   */
+  /** A right tree node implementation provides more specialized child nodes
+    * of type `RightChild`. It furthermore defines the node in Qi-1 via the
+    * `prev` method.
+    */
   protected sealed trait RightBranch extends Next with BranchLike /* with Writable */
   /* Mutable[ S ] */ {
     protected def children: Array[S#Var[RightChildOption]]
@@ -1721,27 +1667,23 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     final def prevOption: Option[Branch] = Some(prev: Branch)
     def prev: BranchLike
 
-    final def child(idx: Int)(implicit tx: S#Tx): RightChildOption = children(idx)()
+    final def child      (idx: Int)                     (implicit tx: S#Tx): RightChildOption = children(idx)()
+    final def updateChild(idx: Int, c: RightChildOption)(implicit tx: S#Tx): Unit             = children(idx)() = c
 
-    final def updateChild(idx: Int, c: RightChildOption)(implicit tx: S#Tx) {
-      children(idx)() = c
-    }
-
-    /**
-     * Promotes a leaf that exists in Qi-1 to this
-     * tree, by inserting it into this node which
-     * is its interesting node in Qi.
-     *
-     * If the result of insertion is a new child node
-     * below this node, this intermediate node will
-     * be connected to Qi by looking for the corresponding
-     * hyper-cube in the given search path that led here
-     * (i.e. that was constructed in `findPN`).
-     *
-     * This method also sets the parent of the leaf
-     * accordingly.
-     */
-    final def insert(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx) {
+    /** Promotes a leaf that exists in Qi-1 to this
+      * tree, by inserting it into this node which
+      * is its interesting node in Qi.
+      *
+      * If the result of insertion is a new child node
+      * below this node, this intermediate node will
+      * be connected to Qi by looking for the corresponding
+      * hyper-cube in the given search path that led here
+      * (i.e. that was constructed in `findPN`).
+      *
+      * This method also sets the parent of the leaf
+      * accordingly.
+      */
+    final def insert(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit = {
       //         val point   = pointView( leaf.value )
       val qidx = hyperCube.indexOf(point)
       child(qidx) match {
@@ -1812,7 +1754,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       n
     }
 
-    final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx) {
+    final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit = {
       val qidx = hyperCube.indexOf(point)
       updateChild(qidx, EmptyValue)
 
@@ -1827,29 +1769,24 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
   }
 
-  /**
-   * A left tree node implementation provides more specialized child nodes
-   * of type `LeftChild`. It furthermore defines a resolution method
-   * `findImmediateLeaf` which is typically called after arriving here
-   * from a `findP0` call.
-   */
+  /** A left tree node implementation provides more specialized child nodes
+    * of type `LeftChild`. It furthermore defines a resolution method
+    * `findImmediateLeaf` which is typically called after arriving here
+    * from a `findP0` call.
+    */
   protected sealed trait LeftBranch extends /* LeftBranchOption with */ BranchLike with LeftNonEmpty {
-    /**
-     * For a `LeftBranch`, all its children are more specific
-     * -- they are instances of `LeftChild` and thus support
-     * order intervals.
-     */
+    /** For a `LeftBranch`, all its children are more specific
+      * -- they are instances of `LeftChild` and thus support
+      * order intervals.
+      */
     protected def children: Array[S#Var[LeftChildOption]]
 
     final def prevOption: Option[Branch] = None
 
-    final def child(idx: Int)(implicit tx: S#Tx): LeftChildOption = children(idx)()
+    final def child      (idx: Int)                    (implicit tx: S#Tx): LeftChildOption = children(idx)()
+    final def updateChild(idx: Int, c: LeftChildOption)(implicit tx: S#Tx): Unit            = children(idx)() = c
 
-    final def updateChild(idx: Int, c: LeftChildOption)(implicit tx: S#Tx) {
-      children(idx)() = c
-    }
-
-    final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx) {
+    final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit = {
       // val point = pointView( leaf.value )
       val qidx = hyperCube.indexOf(point)
       assert(child(qidx) == leaf, "Internal error - expected leaf not found")
@@ -1886,17 +1823,16 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    /**
-     * Instantiates an appropriate
-     * leaf whose parent is this node, and which should be
-     * ordered according to its position in this node.
-     *
-     * @param   qidx  the orthant index of the new leaf in this node
-     * @param   value the value associated with the new leaf
-     * @return  the new leaf which has already assigned this node as
-     *          parent and is already stored in this node's children
-     *          at index `qidx`
-     */
+    /** Instantiates an appropriate
+      * leaf whose parent is this node, and which should be
+      * ordered according to its position in this node.
+      *
+      * @param   qidx  the orthant index of the new leaf in this node
+      * @param   value the value associated with the new leaf
+      * @return  the new leaf which has already assigned this node as
+      *          parent and is already stored in this node's children
+      *          at index `qidx`
+      */
     private def newLeaf(qidx: Int, value: A)(implicit tx: S#Tx): LeafImpl = {
       val leafID    = tx.newID()
       val parentRef = tx.newVar[BranchLike](leafID, this)
@@ -1959,9 +1895,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
                                       protected val nextRef: S#Var[NextOption])
     extends LeftBranch with TopBranch with Mutable[S#ID, S#Tx] {
     // that's alright, we don't need to do anything special here
-    protected def leafRemoved()(implicit tx: S#Tx) {}
+    protected def leafRemoved()(implicit tx: S#Tx) = ()
 
-    def dispose()(implicit tx: S#Tx) {
+    def dispose()(implicit tx: S#Tx): Unit = {
       id.dispose()
       var i = 0
       val sz = children.length
@@ -1972,7 +1908,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       nextRef.dispose()
     }
 
-    def write(out: DataOutput) {
+    def write(out: DataOutput): Unit = {
       out.writeByte(2)
       id.write(out)
       // no need to write the hyperCube?
@@ -1989,8 +1925,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   }
 
   /*
-    * Serialization-id: 3
-    */
+   * Serialization-id: 3
+   */
   private def readLeftChildBranch(in: DataInput, access: S#Acc, id: S#ID)(implicit tx: S#Tx): LeftChildBranch = {
     val parentRef   = tx.readVar[LeftBranch](id, in)
     val hyperCube   = space.hyperCubeSerializer.read(in)
@@ -2011,17 +1947,12 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     extends LeftBranch with ChildBranch with LeftNonEmptyChild {
     protected def nodeName = "LeftInner"
 
-    def updateParentLeft(p: LeftBranch)(implicit tx: S#Tx) {
-      parent = p
-    }
+    def updateParentLeft(p: LeftBranch)(implicit tx: S#Tx): Unit = parent = p
 
-    def parent(implicit tx: S#Tx): LeftBranch = parentRef()
+    def parent                    (implicit tx: S#Tx): LeftBranch = parentRef()
+    def parent_=(node: LeftBranch)(implicit tx: S#Tx): Unit       = parentRef() = node
 
-    def parent_=(node: LeftBranch)(implicit tx: S#Tx) {
-      parentRef() = node
-    }
-
-    def dispose()(implicit tx: S#Tx) {
+    def dispose()(implicit tx: S#Tx): Unit = {
       id        .dispose()
       parentRef .dispose()
       var i = 0
@@ -2033,7 +1964,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       nextRef.dispose()
     }
 
-    def write(out: DataOutput) {
+    def write(out: DataOutput): Unit = {
       out.writeByte(3)
       id.write(out)
       parentRef.write(out)
@@ -2047,15 +1978,13 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       nextRef.write(out)
     }
 
-    private def remove()(implicit tx: S#Tx) {
-      dispose()
-    }
+    private def remove()(implicit tx: S#Tx): Unit = dispose()
 
     // make sure the node is not becoming uninteresting, in which case
     // we need to merge upwards
-    protected def leafRemoved()(implicit tx: S#Tx) {
+    protected def leafRemoved()(implicit tx: S#Tx): Unit = {
       val sz = children.length
-      @tailrec def removeIfLonely(i: Int) {
+      @tailrec def removeIfLonely(i: Int): Unit =
         if (i < sz) child(i) match {
           case lonely: LeftNonEmptyChild =>
             @tailrec def isLonely(j: Int): Boolean = {
@@ -2074,7 +2003,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
           case _ => removeIfLonely(i + 1)
         }
-      }
+
       removeIfLonely(0)
     }
   }
@@ -2104,7 +2033,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     //      def hyperCube = impl.hyperCube
 
-    private def remove()(implicit tx: S#Tx) {
+    private def remove()(implicit tx: S#Tx): Unit = {
       // first unlink
       assert(lastTreeImpl == this)
       lastTreeImpl  = prev
@@ -2112,7 +2041,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       dispose()
     }
 
-    def dispose()(implicit tx: S#Tx) {
+    def dispose()(implicit tx: S#Tx): Unit = {
       id.dispose()
       //         // first unlink
       //         assert( lastTreeImpl == this )
@@ -2129,7 +2058,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       nextRef.dispose()
     }
 
-    def write(out: DataOutput) {
+    def write(out: DataOutput): Unit = {
       out.writeByte(4)
       id.write(out)
       // no need to write the hypercube!
@@ -2144,7 +2073,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
 
     // remove this node if it empty now and right-node tree
-    protected def leafRemoved()(implicit tx: S#Tx) {
+    protected def leafRemoved()(implicit tx: S#Tx): Unit = {
       if (next != EmptyValue) return
 
       val sz = children.length
@@ -2193,17 +2122,15 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     protected def nodeName = "RightInner"
 
-    def updateParentRight(p: RightBranch)(implicit tx: S#Tx) {
-      parent = p
-    }
+    def updateParentRight(p: RightBranch)(implicit tx: S#Tx): Unit = parent = p
 
-    private def remove()(implicit tx: S#Tx) {
+    private def remove()(implicit tx: S#Tx): Unit = {
       // first unlink
       prev.next = EmptyValue
       dispose()
     }
 
-    def dispose()(implicit tx: S#Tx) {
+    def dispose()(implicit tx: S#Tx): Unit = {
       id.dispose()
       //         // first unlink
       //         prev.next = EmptyValue
@@ -2234,22 +2161,19 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       nextRef.write(out)
     }
 
-    //      private def removeAndDispose()( implicit tx: S#Tx ) {
+    //      private def removeAndDispose()( implicit tx: S#Tx ): Unit = {
     //         prev.next = EmptyValue
     //         dispose()
     //      }
 
-    def parent( implicit tx: S#Tx ) : RightBranch = parentRef()
-
-    def parent_=(node: RightBranch)(implicit tx: S#Tx) {
-      parentRef() = node
-    }
+    def parent                     (implicit tx: S#Tx): RightBranch = parentRef()
+    def parent_=(node: RightBranch)(implicit tx: S#Tx): Unit        = parentRef() = node
 
     // make sure the node is not becoming uninteresting, in which case
     // we need to merge upwards
-    protected def leafRemoved()(implicit tx: S#Tx) {
+    protected def leafRemoved()(implicit tx: S#Tx): Unit = {
       val sz = children.length
-      @tailrec def removeIfLonely(i: Int) {
+      @tailrec def removeIfLonely(i: Int): Unit =
         if (i < sz) child(i) match {
           case lonely: RightNonEmptyChild =>
             @tailrec def isLonely(j: Int): Boolean = {
@@ -2268,7 +2192,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
           case _ => removeIfLonely(i + 1)
         }
-      }
+
       removeIfLonely(0)
     }
   }
@@ -2287,7 +2211,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     println(skipList.debugPrint())
     println("Octree structure:")
 
-    def dumpTree(b: Branch, indent: Int) {
+    def dumpTree(b: Branch, indent: Int): Unit = {
       val iStr = " " * indent
       b match {
         case lb: LeftBranch =>
@@ -2308,7 +2232,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
     }
 
-    def dumpTrees(b: Branch, level: Int) {
+    def dumpTrees(b: Branch, level: Int): Unit = {
       println(s"\n---level $level----")
       dumpTree(b, 0)
       b.nextOption.foreach(b => dumpTrees(b, level + 1))

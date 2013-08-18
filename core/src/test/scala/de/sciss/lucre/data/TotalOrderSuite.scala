@@ -240,25 +240,28 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   object MapHolder {
-      final class Serializer[ S <: Sys[ S ]]( observer: RelabelObserver[ S#Tx, MapHolder[ S ]], tx0: S#Tx )
-      extends serial.Serializer[ S#Tx, S#Acc, MapHolder[ S ]] {
-         val map = TotalOrder.Map.empty[ S, MapHolder[ S ]]( observer, _.entry )( tx0, this )
+  object MapHolder {
+    final class Serializer[S <: Sys[S]](observer: RelabelObserver[S#Tx, MapHolder[S]], tx0: S#Tx)
+      extends serial.Serializer[S#Tx, S#Acc, MapHolder[S]] {
 
-         def write( v: MapHolder[ S ], out: DataOutput ) { v.write( out )}
+      val map = TotalOrder.Map.empty[S, MapHolder[S]](observer, _.entry)(tx0, this)
 
-         def read( in: DataInput, access: S#Acc )( implicit tx: S#Tx ) : MapHolder[ S ] = {
-            val num = in.readInt()
-            val e   = map.readEntry( in, access )
-            new MapHolder( num, e )
-         }
+      def write(v: MapHolder[S], out: DataOutput): Unit = v.write(out)
+
+      def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): MapHolder[S] = {
+        val num = in.readInt()
+        val e = map.readEntry(in, access)
+        new MapHolder(num, e)
       }
-   }
-   final case class MapHolder[ S <: Sys[ S ]]( num: Int, entry: TotalOrder.Map.Entry[ S, MapHolder[ S ]])
-   extends Writable {
-      def write( out: DataOutput ) {
-         out.writeInt( num )
-         entry.write( out )
-      }
-   }
+    }
+  }
+
+  final case class MapHolder[S <: Sys[S]](num: Int, entry: TotalOrder.Map.Entry[S, MapHolder[S]])
+    extends Writable {
+
+    def write(out: DataOutput): Unit = {
+      out.writeInt(num)
+      entry.write(out)
+    }
+  }
 }

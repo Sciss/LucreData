@@ -84,14 +84,13 @@ object TotalOrder {
     }
 
     final class EmptyEntry[S <: Sys[S]] private[TotalOrder]() extends EntryOption[S] /* with EmptyMutable */ {
-      private[Set] def updatePrev(e: EOpt)(implicit tx: S#Tx) {}
-      private[Set] def updateNext(e: EOpt)(implicit tx: S#Tx) {}
+      private[Set] def updatePrev(e: EOpt)(implicit tx: S#Tx) = ()
+      private[Set] def updateNext(e: EOpt)(implicit tx: S#Tx) = ()
 
       def orNull: E = null
 
-      private[Set] def updateTag(value: Int)(implicit tx: S#Tx) {
+      private[Set] def updateTag(value: Int)(implicit tx: S#Tx): Unit =
         sys.error("Internal error - shouldn't be here")
-      }
 
       private[Set] def tagOr(empty: Int)(implicit tx: S#Tx) = empty
 
@@ -128,44 +127,35 @@ object TotalOrder {
       def isDefined = true
       def isEmpty   = false
 
-      private[Set] def updatePrev(e: EOpt)(implicit tx: S#Tx) {
-        prevRef() = e
-      }
+      private[Set] def updatePrev(e: EOpt)(implicit tx: S#Tx): Unit = prevRef() = e
+      private[Set] def updateNext(e: EOpt)(implicit tx: S#Tx): Unit = nextRef() = e
 
-      private[Set] def updateNext(e: EOpt)(implicit tx: S#Tx) {
-        nextRef() = e
-      }
+      private[Set] def updateTag(value: Int)(implicit tx: S#Tx): Unit = tagVal() = value
 
-      private[Set] def updateTag(value: Int)(implicit tx: S#Tx) {
-        tagVal() = value
-      }
-
-      protected def writeData(out: DataOutput) {
+      protected def writeData(out: DataOutput): Unit = {
         tagVal .write(out)
         prevRef.write(out)
         nextRef.write(out)
       }
 
-      protected def disposeData()(implicit tx: S#Tx) {
+      protected def disposeData()(implicit tx: S#Tx): Unit = {
         prevRef.dispose()
         nextRef.dispose()
         tagVal .dispose()
       }
 
-      def remove()(implicit tx: S#Tx) {
-        set.remove(this)
-      }
+      def remove()(implicit tx: S#Tx): Unit = set.remove(this)
 
       def append   ()(implicit tx: S#Tx): E = set.insertAfter   (this)
       def appendMax()(implicit tx: S#Tx): E = set.insertMaxAfter(this)
       def prepend  ()(implicit tx: S#Tx): E = set.insertBefore  (this)
 
-      def removeAndDispose()(implicit tx: S#Tx) {
+      def removeAndDispose()(implicit tx: S#Tx): Unit = {
         remove()
         dispose()
       }
 
-      def validate(msg: => String)(implicit tx: S#Tx) {
+      def validate(msg: => String)(implicit tx: S#Tx): Unit = {
         val recTag = tag
         if (prev.isDefined) {
           val prevTag = prev.orNull.tag
@@ -180,13 +170,10 @@ object TotalOrder {
   }
 
   private final class SetSerializer[S <: Sys[S]] extends Serializer[S#Tx, S#Acc, Set[S]] {
-    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): Set[S] = {
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): Set[S] =
       new SetRead[S](in, access, tx)
-    }
 
-    def write(v: Set[S], out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: Set[S], out: DataOutput): Unit = v.write(out)
 
     override def toString = "Set.serializer"
   }
@@ -244,9 +231,7 @@ object TotalOrder {
         new E(id, me, tagVal, prevRef, nextRef)
       }
 
-      def write(v: E, out: DataOutput) {
-        v.write(out)
-      }
+      def write(v: E, out: DataOutput): Unit = v.write(out)
     }
 
     protected implicit object EntryOptionSerializer extends Serializer[S#Tx, S#Acc, EOpt] {
@@ -258,7 +243,7 @@ object TotalOrder {
         }
       }
 
-      def write(v: EOpt, out: DataOutput) {
+      def write(v: EOpt, out: DataOutput): Unit = {
         val e = v.orNull
         if (e == null) {
           out.writeByte(0)
@@ -269,12 +254,12 @@ object TotalOrder {
       }
     }
 
-    final protected def disposeData()(implicit tx: S#Tx) {
+    final protected def disposeData()(implicit tx: S#Tx): Unit = {
       root.dispose()
       sizeVal.dispose()
     }
 
-    final protected def writeData(out: DataOutput) {
+    final protected def writeData(out: DataOutput): Unit = {
       out.writeByte(SER_VERSION)
       sizeVal.write(out)
       root.write(out)
@@ -318,7 +303,7 @@ object TotalOrder {
       rec
     }
 
-    final private[TotalOrder] def remove(entry: E)(implicit tx: S#Tx) {
+    final private[TotalOrder] def remove(entry: E)(implicit tx: S#Tx): Unit = {
       val p = entry.prev
       val n = entry.next
       p.updateNext(n)
@@ -348,26 +333,25 @@ object TotalOrder {
       b.result()
     }
 
-    /**
-     * Relabels from a this entry to clean up collisions with
-     * its successors' tags.
-     *
-     * Original remark from Eppstein:
-     * "At each iteration of the rebalancing algorithm, we look at
-     * a contiguous subsequence of items, defined as the items for which
-     * self._tag &~ mask == base.  We keep track of the first and last
-     * items in the subsequence, and the number of items, until we find
-     * a subsequence with sufficiently low density, at which point
-     * we space the tags evenly throughout the available values.
-     *
-     * The multiplier controls the growth of the threshhold density;
-     * it is 2/T for the T parameter described by Bender et al.
-     * Large multipliers lead to fewer relabels, while small items allow
-     * us to handle more items with machine integer tags, so we vary the
-     * multiplier dynamically to allow it to be as large as possible
-     * without producing integer overflows."
-     */
-    private def relabel(_first: E)(implicit tx: S#Tx) {
+    /** Relabels from a this entry to clean up collisions with
+      * its successors' tags.
+      *
+      * Original remark from Eppstein:
+      * "At each iteration of the rebalancing algorithm, we look at
+      * a contiguous subsequence of items, defined as the items for which
+      * self._tag &~ mask == base.  We keep track of the first and last
+      * items in the subsequence, and the number of items, until we find
+      * a subsequence with sufficiently low density, at which point
+      * we space the tags evenly throughout the available values.
+      *
+      * The multiplier controls the growth of the threshhold density;
+      * it is 2/T for the T parameter described by Bender et al.
+      * Large multipliers lead to fewer relabels, while small items allow
+      * us to handle more items with machine integer tags, so we vary the
+      * multiplier dynamically to allow it to be as large as possible
+      * without producing integer overflows."
+      */
+    private def relabel(_first: E)(implicit tx: S#Tx): Unit = {
       var mask    = -1
       var thresh  = 1.0
       var num     = 1
@@ -490,8 +474,8 @@ object TotalOrder {
     final class NoRelabelObserver[Tx /* <: Txn[ _ ] */ , A]
       extends RelabelObserver[Tx, A] {
 
-      def beforeRelabeling(/* inserted: A, */ dirty: Iterator[Tx, A])(implicit tx: Tx) {}
-      def afterRelabeling (/* inserted: A, */ clean: Iterator[Tx, A])(implicit tx: Tx) {}
+      def beforeRelabeling(/* inserted: A, */ dirty: Iterator[Tx, A])(implicit tx: Tx) = ()
+      def afterRelabeling (/* inserted: A, */ clean: Iterator[Tx, A])(implicit tx: Tx) = ()
 
       override def toString = "NoRelabelObserver"
     }
@@ -507,7 +491,7 @@ object TotalOrder {
 
       def tag(implicit tx: S#Tx): Int = tagVal()
 
-      def validate(msg: => String)(implicit tx: S#Tx) {
+      def validate(msg: => String)(implicit tx: S#Tx): Unit = {
         val recTag = tag
         if (prev.isDefined) {
           val prevTag = map.entryView(prev.get).tag
@@ -528,17 +512,10 @@ object TotalOrder {
       // private[TotalOrder] def nextOrNull( implicit tx: S#Tx ) : A = nextRef.get.orNull
       // def orNull : E = this
 
-      private[TotalOrder] def updatePrev(e: KOpt)(implicit tx: S#Tx) {
-        prevRef() = e
-      }
+      private[TotalOrder] def updatePrev(e: KOpt)(implicit tx: S#Tx): Unit = prevRef() = e
+      private[TotalOrder] def updateNext(e: KOpt)(implicit tx: S#Tx): Unit = nextRef() = e
 
-      private[TotalOrder] def updateNext(e: KOpt)(implicit tx: S#Tx) {
-        nextRef() = e
-      }
-
-      private[TotalOrder] def updateTag(value: Int)(implicit tx: S#Tx) {
-        tagVal() = value
-      }
+      private[TotalOrder] def updateTag(value: Int)(implicit tx: S#Tx): Unit = tagVal() = value
 
       // ---- Ordered ----
 
@@ -548,23 +525,21 @@ object TotalOrder {
         if (thisTag < thatTag) -1 else if (thisTag > thatTag) 1 else 0
       }
 
-      protected def writeData(out: DataOutput) {
+      protected def writeData(out: DataOutput): Unit = {
         tagVal .write(out)
         prevRef.write(out)
         nextRef.write(out)
       }
 
-      protected def disposeData()(implicit tx: S#Tx) {
+      protected def disposeData()(implicit tx: S#Tx): Unit = {
         prevRef.dispose()
         nextRef.dispose()
         tagVal .dispose()
       }
 
-      def remove()(implicit tx: S#Tx) {
-        map.remove(this)
-      }
+      def remove()(implicit tx: S#Tx): Unit = map.remove(this)
 
-      def removeAndDispose()(implicit tx: S#Tx) {
+      def removeAndDispose()(implicit tx: S#Tx): Unit = {
         remove()
         dispose()
       }
@@ -573,8 +548,10 @@ object TotalOrder {
 
   private[TotalOrder] sealed trait KeyOption[S <: Sys[S], A] extends Writable {
     def orNull: Map.Entry[S, A]
+
     def isDefined: Boolean
-    def isEmpty: Boolean
+    def isEmpty  : Boolean
+
     def get: A
   }
 
@@ -590,9 +567,7 @@ object TotalOrder {
 
     def orNull: Map.Entry[S, A] = null
 
-    def write(out: DataOutput) {
-      out.writeByte(0)
-    }
+    def write(out: DataOutput): Unit = out.writeByte(0)
 
     override def toString = "<empty>"
   }
@@ -605,7 +580,7 @@ object TotalOrder {
 
     def orNull: Map.Entry[S, A] = map.entryView(get)
 
-    def write(out: DataOutput) {
+    def write(out: DataOutput): Unit = {
       out.writeByte(1)
       map.keySerializer.write(get, out)
     }
@@ -621,9 +596,7 @@ object TotalOrder {
     def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): Map[S, A] =
       new MapRead[S, A](relabelObserver, entryView, in, access, tx)
 
-    def write(v: Map[S, A], out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: Map[S, A], out: DataOutput): Unit = v.write(out)
 
     override def toString = "Map.serializer"
   }
@@ -643,7 +616,7 @@ object TotalOrder {
     }
 
     val sizeVal = tx0.readIntVar(id, in)
-    val root = EntrySerializer.read(in, access)(tx0)
+    val root    = EntrySerializer.read(in, access)(tx0)
   }
 
   private final class MapNew[S <: Sys[S], A](val id: S#ID, protected val sizeVal: S#Var[Int],
@@ -676,9 +649,7 @@ object TotalOrder {
       new Map.Entry[S, A](map, id, tagVal, prevRef, nextRef)
     }
 
-    def write(v: E, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: E, out: DataOutput): Unit = v.write(out)
   }
 
   private final class KeyOptionSerializer[S <: Sys[S], A](map: Map[S, A])
@@ -686,9 +657,7 @@ object TotalOrder {
 
     private type KOpt = KeyOption[S, A]
 
-    def write(v: KOpt, out: DataOutput) {
-      v.write(out)
-    }
+    def write(v: KOpt, out: DataOutput): Unit = v.write(out)
 
     def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): KOpt = {
       if (in.readByte() == 0) map.emptyKey
@@ -730,7 +699,7 @@ object TotalOrder {
       res
     }
 
-    def reset() {
+    def reset(): Unit = {
       currK = firstK
       cnt = 0
     }
@@ -760,15 +729,15 @@ object TotalOrder {
 
     final def readEntry(in: DataInput, access: S#Acc)(implicit tx: S#Tx): E = EntrySerializer.read(in, access)
 
-    final protected def disposeData()(implicit tx: S#Tx) {
-      root.dispose()
+    final protected def disposeData()(implicit tx: S#Tx): Unit = {
+      root   .dispose()
       sizeVal.dispose()
     }
 
-    final protected def writeData(out: DataOutput) {
+    final protected def writeData(out: DataOutput): Unit = {
       out.writeByte(SER_VERSION)
       sizeVal.write(out)
-      root.write(out)
+      root   .write(out)
     }
 
     /** Creates a new _unlinked_ entry in the order. The actual insertion (linking)
@@ -782,19 +751,20 @@ object TotalOrder {
       new Map.Entry(this, id, recTagVal, recPrevRef, recNextRef)
     }
 
-    def placeAfter(prev: A, key: A)(implicit tx: S#Tx) {
+    def placeAfter(prev: A, key: A)(implicit tx: S#Tx): Unit = {
       val prevE = entryView(prev)
       val nextO = prevE.next
       placeBetween(prevE, new DefinedKey[S, A](map, prev), nextO.orNull, nextO, key)
     }
 
-    def placeBefore(next: A, key: A)(implicit tx: S#Tx) {
+    def placeBefore(next: A, key: A)(implicit tx: S#Tx): Unit = {
       val nextE = entryView(next)
       val prevO = nextE.prev
       placeBetween(prevO.orNull, prevO, nextE, new DefinedKey[S, A](map, next), key)
     }
 
-    private[TotalOrder] def placeBetween(prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A)(implicit tx: S#Tx) {
+    private[TotalOrder] def placeBetween(prevE: E, prevO: KOpt, nextE: E, nextO: KOpt, key: A)
+                                        (implicit tx: S#Tx): Unit = {
       val prevTag = if (prevE ne null) prevE.tag else 0 // could use Int.MinValue+1, but that collides with Octree max space
       val nextTag = if (nextE ne null) nextE.tag else Int.MaxValue
 
@@ -824,7 +794,7 @@ object TotalOrder {
       if (recTag == nextTag) relabel(key, recE)
     }
 
-    private[TotalOrder] def remove(e: E)(implicit tx: S#Tx) {
+    private[TotalOrder] def remove(e: E)(implicit tx: S#Tx): Unit = {
       val p = e.prev
       val n = e.next
       if (p.isDefined) p.orNull.updateNext(n)
@@ -874,7 +844,7 @@ object TotalOrder {
      * multiplier dynamically to allow it to be as large as possible
      * without producing integer overflows."
      */
-    private def relabel(recK: A, recE: E)(implicit tx: S#Tx) {
+    private def relabel(recK: A, recE: E)(implicit tx: S#Tx): Unit = {
       var mask    = -1
       var thresh  = 1.0
       var num     = 1
@@ -887,7 +857,7 @@ object TotalOrder {
       var recOff  = 0
 
       do {
-        @tailrec def stepLeft() {
+        @tailrec def stepLeft(): Unit = {
           val prevO = firstE.prev
           if (prevO.isDefined) {
             val prevK = prevO.get
@@ -903,7 +873,7 @@ object TotalOrder {
         }
         stepLeft()
 
-        @tailrec def stepRight() {
+        @tailrec def stepRight(): Unit = {
           val nextO = lastE.next
           if (nextO.isDefined) {
             val nextE = entryView(nextO.get)

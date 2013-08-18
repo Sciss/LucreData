@@ -58,8 +58,8 @@ object SkipList {
   // `A` was made contravariant, too. But I guess we would end up in boxing since
   // that wouldn't be specialized any more?
   object NoKeyObserver extends KeyObserver[Any, Any] {
-    def keyUp  (key: Any)(implicit tx: Any) {}
-    def keyDown(key: Any)(implicit tx: Any) {}
+    def keyUp  (key: Any)(implicit tx: Any) = ()
+    def keyDown(key: Any)(implicit tx: Any) = ()
   }
 
   object Set {

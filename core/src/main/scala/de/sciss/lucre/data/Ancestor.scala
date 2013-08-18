@@ -66,13 +66,13 @@ object Ancestor {
 
     final def versionInt: Int = tree.intView(version)
 
-    final def write(out: DataOutput) {
+    final def write(out: DataOutput): Unit = {
       tree.versionSerializer.write(version, out)
       pre .write(out)
       post.write(out)
     }
 
-    final def dispose()(implicit tx: S#Tx) {
+    final def dispose()(implicit tx: S#Tx): Unit = {
       pre .dispose()
       post.dispose()
     }
@@ -102,9 +102,7 @@ object Ancestor {
                                                     versionView: Version => Int)
     extends Serializer[S#Tx, S#Acc, Tree[S, Version]] {
 
-    def write(t: Tree[S, Version], out: DataOutput) {
-      t.write(out)
-    }
+    def write(t: Tree[S, Version], out: DataOutput): Unit = t.write(out)
 
     def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): Tree[S, Version] = 
       new TreeRead[S, Version](in, access, tx)
@@ -124,9 +122,7 @@ object Ancestor {
     override def toString = "Ancestor.Tree(root=" + root + ")"
 
     implicit protected object VertexSerializer extends Serializer[S#Tx, S#Acc, K] {
-      def write(v: K, out: DataOutput) {
-        v.write(out)
-      }
+      def write(v: K, out: DataOutput): Unit = v.write(out)
 
       def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): K = new K {
         def tree = me
@@ -137,13 +133,13 @@ object Ancestor {
       }
     }
 
-    final def write(out: DataOutput) {
+    final def write(out: DataOutput): Unit = {
       out.writeByte(SER_VERSION)
       order.write(out)
       root.write(out)
     }
 
-    final def dispose()(implicit tx: S#Tx) {
+    final def dispose()(implicit tx: S#Tx): Unit = {
       order.dispose()
       root.dispose()
     }
@@ -280,14 +276,14 @@ object Ancestor {
 
     final def toPoint(implicit tx: S#Tx): IntPoint3D = IntPoint3D(pre.tag, post.tag, fullVertex.versionInt)
 
-    final def write(out: DataOutput) {
+    final def write(out: DataOutput): Unit = {
       fullVertex.write(out)
       pre       .write(out)
       post      .write(out)
       map.valueSerializer.write(value, out)
     }
 
-    final def removeAndDispose()(implicit tx: S#Tx) {
+    final def removeAndDispose()(implicit tx: S#Tx): Unit = {
       map.skip.remove(this)
       pre .removeAndDispose()
       post.removeAndDispose()
@@ -359,9 +355,7 @@ object Ancestor {
     }
 
     protected implicit object markSerializer extends Serializer[S#Tx, S#Acc, M] {
-      def write(v: M, out: DataOutput) {
-        v.write(out)
-      }
+      def write(v: M, out: DataOutput): Unit = v.write(out)
 
       def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): M = new M {
         def map         = me
@@ -373,7 +367,7 @@ object Ancestor {
       }
     }
 
-    final def write(out: DataOutput) {
+    final def write(out: DataOutput): Unit = {
       out.writeByte(SER_VERSION)
       // note: we ask for the full tree through the serializer constructor,
       // thus we omit writing it out ourselves
@@ -385,7 +379,7 @@ object Ancestor {
       // root.write( out )
     }
 
-    final def dispose()(implicit tx: S#Tx) {
+    final def dispose()(implicit tx: S#Tx): Unit = {
       preOrder.dispose()
       postOrder.dispose()
       preList.dispose()
@@ -510,13 +504,11 @@ object Ancestor {
     }
 
     // ---- RelabelObserver ----
-    final def beforeRelabeling(iter: Iterator[S#Tx, M])(implicit tx: S#Tx) {
+    final def beforeRelabeling(iter: Iterator[S#Tx, M])(implicit tx: S#Tx): Unit =
       iter.foreach(skip -= _)
-    }
 
-    final def afterRelabeling(iter: Iterator[S#Tx, M])(implicit tx: S#Tx) {
+    final def afterRelabeling(iter: Iterator[S#Tx, M])(implicit tx: S#Tx): Unit =
       iter.foreach(skip += _)
-    }
 
     final def debugPrint(implicit tx: S#Tx): String = {
       val s = skip.toList.map { m =>

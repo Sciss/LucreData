@@ -63,9 +63,10 @@ object Iterator {
 
   private final class Filter[-Tx, @spec(ValueSpec) A](peer: Iterator[Tx, A], p: A => Boolean)
     extends Iterator[Tx, A] {
+
     private var nextValue = Option.empty[A]
 
-    @tailrec def step()(implicit tx: Tx) {
+    @tailrec def step()(implicit tx: Tx): Unit =
       if (!peer.hasNext) {
         nextValue = None
       } else {
@@ -76,9 +77,8 @@ object Iterator {
           step()
         }
       }
-    }
 
-    def hasNext(implicit tx: Tx) = nextValue.isDefined
+    def hasNext(implicit tx: Tx): Boolean = nextValue.isDefined
 
     def next()(implicit tx: Tx): A = {
       val res = nextValue.getOrElse(endReached())
@@ -95,7 +95,7 @@ object Iterator {
     private val pfl = pf.lift
     private var nextValue = Option.empty[B]
 
-    @tailrec def step()(implicit tx: Tx) {
+    @tailrec def step()(implicit tx: Tx): Unit =
       if (!peer.hasNext) {
         nextValue = None
       } else {
@@ -106,9 +106,8 @@ object Iterator {
           step()
         }
       }
-    }
 
-    def hasNext(implicit tx: Tx) = nextValue.isDefined
+    def hasNext(implicit tx: Tx): Boolean = nextValue.isDefined
 
     def next()(implicit tx: Tx): B = {
       val res = nextValue.getOrElse(endReached())
@@ -124,7 +123,7 @@ object Iterator {
 
     private var nextValue: collection.Iterator[B] = collection.Iterator.empty
 
-    @tailrec def step()(implicit tx: Tx) {
+    @tailrec def step()(implicit tx: Tx): Unit =
       if (peer.hasNext) {
         val it = fun(peer.next()).iterator
         if (it.hasNext) {
@@ -133,9 +132,8 @@ object Iterator {
           step()
         }
       }
-    }
 
-    def hasNext(implicit tx: Tx) = nextValue.hasNext
+    def hasNext(implicit tx: Tx): Boolean = nextValue.hasNext
 
     def next()(implicit tx: Tx): B = {
       val res = nextValue.next()
@@ -152,9 +150,8 @@ trait Iterator[-Tx, @spec(ValueSpec) +A] {
   def hasNext(implicit tx: Tx): Boolean
   def next() (implicit tx: Tx): A
 
-  final def foreach(fun: A => Unit)(implicit tx: Tx) {
+  final def foreach(fun: A => Unit)(implicit tx: Tx): Unit =
     while (hasNext) fun(next())
-  }
 
   final def toIndexedSeq  (implicit tx: Tx): IIdxSeq[A] = fromBuilder(Vector.newBuilder[A])
   final def toList        (implicit tx: Tx): List[A]    = fromBuilder(List.newBuilder[A])

@@ -60,7 +60,7 @@ object IntSpace {
         IntPoint2D(x, y)
       }
 
-      def write(p: IntPoint2D, out: DataOutput) {
+      def write(p: IntPoint2D, out: DataOutput): Unit = {
         out.writeInt(p.x)
         out.writeInt(p.y)
       }
@@ -74,7 +74,7 @@ object IntSpace {
         IntSquare(cx, cy, extent)
       }
 
-      def write(q: IntSquare, out: DataOutput) {
+      def write(q: IntSquare, out: DataOutput): Unit = {
         out.writeInt(q.cx)
         out.writeInt(q.cy)
         out.writeInt(q.extent)
@@ -117,7 +117,7 @@ object IntSpace {
         IntPoint3D(x, y, z)
       }
 
-      def write(p: IntPoint3D, out: DataOutput) {
+      def write(p: IntPoint3D, out: DataOutput): Unit = {
         out.writeInt(p.x)
         out.writeInt(p.y)
         out.writeInt(p.z)
@@ -133,7 +133,7 @@ object IntSpace {
         IntCube(cx, cy, cz, ext)
       }
 
-      def write(q: IntCube, out: DataOutput) {
+      def write(q: IntCube, out: DataOutput): Unit = {
         out.writeInt(q.cx)
         out.writeInt(q.cy)
         out.writeInt(q.cz)
@@ -158,10 +158,10 @@ object IntSpace {
     }
 
     implicit object pointSerializer extends ImmutableSerializer[NDim#Point] {
-      def write(v: NDim#Point, out: DataOutput) {
+      def write(v: NDim#Point, out: DataOutput): Unit = {
         val c = v.components
         out.writeShort(c.size)
-        c.foreach(out.writeInt _)
+        c.foreach(out.writeInt)
       }
 
       def read(in: DataInput): NDim#Point = {
@@ -172,10 +172,10 @@ object IntSpace {
     }
 
     implicit object hyperCubeSerializer extends ImmutableSerializer[NDim#HyperCube] {
-      def write(v: NDim#HyperCube, out: DataOutput) {
+      def write(v: NDim#HyperCube, out: DataOutput): Unit = {
         val c = v.components
         out.writeShort(c.size)
-        c.foreach(out.writeInt _)
+        c.foreach(out.writeInt)
         out.writeInt(v.extent)
       }
 
