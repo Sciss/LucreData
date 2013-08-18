@@ -28,7 +28,7 @@ package lucre
 package data
 
 import stm.{Mutable, Sys}
-import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
+import collection.immutable.{IndexedSeq => Vec, Set => ISet}
 import serial.{DataInput, DataOutput, Serializer}
 
 object SkipList {
@@ -177,7 +177,7 @@ sealed trait SkipList[S <: Sys[S], /* @spec(KeySpec) */ A, /* @spec(ValueSpec) *
    */
   def ceil(key: A)(implicit tx: S#Tx): Option[E]
 
-  def toIndexedSeq(implicit tx: S#Tx): IIdxSeq[E]
+  def toIndexedSeq(implicit tx: S#Tx): Vec[E]
   def toList      (implicit tx: S#Tx): List[E]
   def toSeq       (implicit tx: S#Tx): Seq[E]
   def toSet       (implicit tx: S#Tx): ISet[E]

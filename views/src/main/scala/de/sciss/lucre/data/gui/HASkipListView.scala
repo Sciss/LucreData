@@ -63,7 +63,7 @@ extends SkipListView[ A ] {
       (bb, b)
    }
 
-   protected def paintList( g2: Graphics2D ) {
+  protected def paintList(g2: Graphics2D): Unit = {
       cursor.step { implicit tx =>
          l.top match {
             case Some( n ) =>
@@ -75,7 +75,7 @@ extends SkipListView[ A ] {
       }
    }
 
-   private def drawNode( g2: Graphics2D, b: NodeBox, arr: Option[ Point ] = None )( implicit tx: S#Tx ) {
+  private def drawNode(g2: Graphics2D, b: NodeBox, arr: Option[Point] = None)(implicit tx: S#Tx): Unit = {
       g2.setColor( Color.black )
       g2.draw( b.r )
       val x = b.r.x
@@ -100,22 +100,23 @@ extends SkipListView[ A ] {
       }
    }
 
-   private trait Box {
-      var r = new Rectangle()
-      def moveTo( x: Int, y: Int ) {
-         r.x = x
-         r.y = y
-         updateChildren()
-      }
+  private trait Box {
+    var r = new Rectangle()
 
-      def updateChildren() : Unit
-   }
+    def moveTo(x: Int, y: Int): Unit = {
+      r.x = x
+      r.y = y
+      updateChildren()
+    }
 
-   private case class Horiz( spacing: Int = 20, bs: IndexedSeq[ Box ]) extends Box {
+    def updateChildren(): Unit
+  }
+
+  private case class Horiz( spacing: Int = 20, bs: IndexedSeq[ Box ]) extends Box {
       r.width  = bs.map( _.r.width ).sum + ((bs.size - 1) * spacing)
       r.height = bs.map( _.r.height ).max
 
-      def updateChildren() {
+      def updateChildren(): Unit = {
          var x = r.x
          bs.foreach { b =>
             b.moveTo( x, r.y + ((r.height - b.r.height) >> 1) )
@@ -128,7 +129,7 @@ extends SkipListView[ A ] {
       r.width  = bs.map( _.r.width ).max
       r.height = bs.map( _.r.height ).sum + ((bs.size - 1) * spacing)
 
-      def updateChildren() {
+      def updateChildren(): Unit = {
          var y = r.y
          bs.foreach { b =>
             b.moveTo( r.x + ((r.width - b.r.width) >> 1), y )
@@ -142,6 +143,6 @@ extends SkipListView[ A ] {
       r.width  = 23 * (/*l.*/maxGap + 1) + 1
       r.height = if( n.isLeaf ) 23 else 46
 
-      def updateChildren() {}
+      def updateChildren() = ()
    }
 }

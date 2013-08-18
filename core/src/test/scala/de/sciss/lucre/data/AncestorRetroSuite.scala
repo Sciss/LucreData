@@ -9,7 +9,7 @@ import java.io.File
 import stm.store.BerkeleyDB
 import stm.{InMemory, Durable, Cursor, Sys}
 import annotation.tailrec
-import collection.immutable.{Vector => IIdxSeq}
+import collection.immutable.{Vector => Vec}
 import serial.{Reader, Writable, DataInput, DataOutput, Serializer}
 
 /**
@@ -485,7 +485,7 @@ if( verbose ) {
          val (t, treeSeq, parents) = system.step { implicit tx =>
             val tr         = FullTree[ S ]()
             val rnd        = new util.Random( seed )
-            var treeSeq    = IIdxSeq[ FullVertex[ S ]]( tr.root )
+            var treeSeq    = Vec[ FullVertex[ S ]]( tr.root )
             var parents    = Map.empty[ FullVertex[ S ], FullVertex[ S ]]
             var children   = Map.empty[ FullVertex[ S ], Set[ FullVertex[ S ]]]
 

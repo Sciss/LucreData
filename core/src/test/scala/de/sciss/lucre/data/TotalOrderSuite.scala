@@ -7,7 +7,7 @@ import stm.store.BerkeleyDB
 import java.io.File
 import TotalOrder.Map.RelabelObserver
 import stm.{Cursor, Durable, InMemory, Sys}
-import collection.immutable.{Vector => IIdxSeq}
+import collection.immutable.{Vector => Vec}
 import serial.{DataInput, DataOutput, Writable}
 
 /**
@@ -172,7 +172,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                When( "the structure is filled by 1000x repeated appending" )
                val rootHolder = new MapHolder( 0, order.root )
                var e = rootHolder
-               var holders = IIdxSeq( e )
+               var holders = Vec( e )
                for( i <- 1 to 1000 ) {
                   e = system.step { implicit tx =>
                      val prev = e
@@ -202,7 +202,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                When( "the structure is filled by 1000x repeated prepending" )
                e = rootHolder
-               holders = IIdxSeq( e )
+               holders = Vec( e )
                for( i <- 1 to 1000 ) {
                   e = system.step { implicit tx =>
                      val prev = e

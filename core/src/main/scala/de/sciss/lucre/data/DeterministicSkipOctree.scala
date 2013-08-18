@@ -27,7 +27,7 @@ package de.sciss
 package lucre
 package data
 
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{IndexedSeq => Vec}
 import collection.mutable.{PriorityQueue => MPriorityQueue, Queue => MQueue}
 import scala.annotation.{elidable, switch, tailrec}
 import geom.{QueryShape, DistanceMeasure, Space}
@@ -86,19 +86,17 @@ object DeterministicSkipOctree {
 
   def empty[S <: Sys[S], D <: Space[D], A](hyperCube: D#HyperCube, skipGap: Int = 2)
                                           (implicit view: (A, S#Tx) => D#PointLike, tx: S#Tx, space: D,
-                                           keySerializer: Serializer[S#Tx, S#Acc, A]): DeterministicSkipOctree[S, D, A] = {
-
+                                           keySerializer: Serializer[S#Tx, S#Acc, A]): DeterministicSkipOctree[S, D, A] =
     new ImplNew[S, D, A](skipGap, tx.newID(), hyperCube, view, tx)
-  }
 
   def read[S <: Sys[S], D <: Space[D], A](in: DataInput, access: S#Acc)(
-    implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
-    keySerializer: Serializer[S#Tx, S#Acc, A]): DeterministicSkipOctree[S, D, A] =
+      implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
+      keySerializer: Serializer[S#Tx, S#Acc, A]): DeterministicSkipOctree[S, D, A] =
     new ImplRead[S, D, A](view, in, access, tx)
 
   implicit def serializer[S <: Sys[S], D <: Space[D], A](
-    implicit view: (A, S#Tx) => D#PointLike, space: D,
-    keySerializer: Serializer[S#Tx, S#Acc, A]): Serializer[S#Tx, S#Acc, DeterministicSkipOctree[S, D, A]] =
+      implicit view: (A, S#Tx) => D#PointLike, space: D,
+      keySerializer: Serializer[S#Tx, S#Acc, A]): Serializer[S#Tx, S#Acc, DeterministicSkipOctree[S, D, A]] =
     new OctreeSerializer[S, D, A]
 
   private final class OctreeSerializer[S <: Sys[S], D <: Space[D], A](
@@ -594,7 +592,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     q
   }
 
-  final def toIndexedSeq(implicit tx: S#Tx): IIdxSeq[A] = iterator.toIndexedSeq
+  final def toIndexedSeq(implicit tx: S#Tx): Vec[A] = iterator.toIndexedSeq
   final def toList(implicit tx: S#Tx): List[A] = iterator.toList
 
   // note that `iterator.toSeq` produces a `Stream` !!

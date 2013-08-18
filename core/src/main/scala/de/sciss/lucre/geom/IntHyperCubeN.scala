@@ -25,7 +25,7 @@
 
 package de.sciss.lucre.geom
 
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{IndexedSeq => Vec}
 import IntSpace.NDim
 
 sealed trait IntHyperCubeNLike extends HyperCube[NDim] with QueryShape[BigInt, NDim] {
@@ -209,7 +209,7 @@ sealed trait IntHyperCubeNLike extends HyperCube[NDim] with QueryShape[BigInt, N
     gi(ac, ae << 1, b)
   }
 
-  private def gi(a: IIdxSeq[Int], asize: Int, b: NDim#PointLike): NDim#HyperCube = {
+  private def gi(a: Vec[Int], asize: Int, b: NDim#PointLike): NDim#HyperCube = {
     var mmc = Int.MaxValue
     var mi  = Int.MaxValue
     var i = 0; while (i < dim) {
@@ -254,7 +254,7 @@ sealed trait IntHyperCubeNLike extends HyperCube[NDim] with QueryShape[BigInt, N
 object IntHyperCubeN {
   implicit def serializer = IntSpace.NDim.hyperCubeSerializer
 }
-final case class IntHyperCubeN(components: IIdxSeq[Int], extent: Int) extends IntHyperCubeNLike {
+final case class IntHyperCubeN(components: Vec[Int], extent: Int) extends IntHyperCubeNLike {
   def center(idx: Int): Int = components(idx)
 
   def dim: Int = components.size

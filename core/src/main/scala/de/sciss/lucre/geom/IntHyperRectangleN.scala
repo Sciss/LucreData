@@ -27,7 +27,7 @@ package de.sciss.lucre
 package geom
 
 import geom.IntSpace.NDim
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{IndexedSeq => Vec}
 
 /**
  * An n-dimensional rectangular query shape.
@@ -72,7 +72,7 @@ trait IntHyperRectangleNLike extends QueryShape[ BigInt, NDim ] {
    final def isAreaNonEmpty( area: BigInt ) : Boolean = area > Space.bigZero
 }
 //object IntHyperRectangleN {
-//   def apply( min: IIdxSeq[ Int ], max: IIdxSeq[ Int ]) : IntHyperRectangleN = {
+//   def apply( min: Vec[ Int ], max: Vec[ Int ]) : IntHyperRectangleN = {
 //      val dim = min.size
 //      require( dim == max.size, "Min and max components must have same dimension (min dim is " + dim +
 //         " and max dim is " + max.size )
@@ -88,7 +88,7 @@ trait IntHyperRectangleNLike extends QueryShape[ BigInt, NDim ] {
  *                   coordinate **within** the shape), thus it is not possible to create rectangles with
  *                   side lenghts of zero.
  */
-final case class IntHyperRectangleN( components: IIdxSeq[ (Int, Int) ])
+final case class IntHyperRectangleN( components: Vec[ (Int, Int) ])
 extends IntHyperRectangleNLike {
 //   {
 //      var i = 0; while( i < dim ) {

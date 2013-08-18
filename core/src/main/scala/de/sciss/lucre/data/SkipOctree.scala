@@ -28,7 +28,7 @@ package lucre
 package data
 
 import geom.{Space, DistanceMeasure, QueryShape}
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{IndexedSeq => Vec}
 import stm.{Mutable, Sys}
 import serial.{DataInput, Serializer}
 
@@ -136,7 +136,7 @@ trait SkipOctree[S <: Sys[S], D <: Space[D], A] extends Mutable[S#ID, S#Tx] {
    * Converts the tree into a linearized indexed sequence. This is not necessarily a
    * very efficient method, and should usually just be used for debugging.
    */
-  def toIndexedSeq(implicit tx: S#Tx): IIdxSeq[A]
+  def toIndexedSeq(implicit tx: S#Tx): Vec[A]
 
   /**
    * Converts the tree into a linearized list. This is not necessarily a

@@ -13,7 +13,5 @@
 //
 //  EventQueue.invokeLater(this)
 //
-//  def run() {
-//
-//  }
+//  def run() = ()
 //}

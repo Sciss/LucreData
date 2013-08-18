@@ -28,7 +28,7 @@ package lucre
 package data
 
 import collection.mutable
-import collection.immutable.{IndexedSeq => IIdxSeq, Set => ISet}
+import collection.immutable.{IndexedSeq => Vec, Set => ISet}
 import annotation.{switch, tailrec}
 import stm.{Mutable, Sink, Sys}
 import serial.{DataInput, DataOutput, Serializer}
@@ -312,7 +312,7 @@ object HASkipList {
 
     final def debugPrint()(implicit tx: S#Tx): String = topN.printNode(isRight = true).mkString("\n")
 
-    final def toIndexedSeq(implicit tx: S#Tx): IIdxSeq[E] = fillBuilder(Vector.newBuilder)
+    final def toIndexedSeq(implicit tx: S#Tx): Vec[E] = fillBuilder(Vector.newBuilder)
     final def toList      (implicit tx: S#Tx): List[E]    = fillBuilder(List.newBuilder)
     final def toSeq       (implicit tx: S#Tx): Seq[E]     = fillBuilder(Seq.newBuilder)
     final def toSet       (implicit tx: S#Tx): ISet[E]    = fillBuilder(ISet.newBuilder)
@@ -969,7 +969,7 @@ object HASkipList {
 
     private[HASkipList] def leafSizeSum(implicit tx: S#Tx): Int
 
-    private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): IIdxSeq[String]
+    private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): Vec[String]
 
     /*
      * In merge-with-right, the right sibling's
@@ -1057,7 +1057,7 @@ object HASkipList {
 
     final private[HASkipList] def leafSizeSum(implicit tx: S#Tx): Int = size
 
-    final private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): IIdxSeq[String] = {
+    final private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): Vec[String] = {
       val sz = size
       val szm = sz - 1
       val strs = Seq.tabulate(sz)(idx => if (!isRight || idx < szm) entry(idx).toString else "M")
@@ -1196,7 +1196,7 @@ object HASkipList {
       res
     }
 
-     private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): IIdxSeq[String] = {
+     private[HASkipList] def printNode(isRight: Boolean)(implicit tx: S#Tx): Vec[String] = {
        val sz = size
        val szm = sz - 1
        val columns = Vector.tabulate(sz) { idx =>

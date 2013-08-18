@@ -26,7 +26,7 @@
 package de.sciss.lucre
 package data
 
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{IndexedSeq => Vec}
 import collection.mutable
 import annotation.tailrec
 import scala.{specialized => spec}
@@ -153,7 +153,7 @@ trait Iterator[-Tx, @spec(ValueSpec) +A] {
   final def foreach(fun: A => Unit)(implicit tx: Tx): Unit =
     while (hasNext) fun(next())
 
-  final def toIndexedSeq  (implicit tx: Tx): IIdxSeq[A] = fromBuilder(Vector.newBuilder[A])
+  final def toIndexedSeq  (implicit tx: Tx): Vec[A] = fromBuilder(Vector.newBuilder[A])
   final def toList        (implicit tx: Tx): List[A]    = fromBuilder(List.newBuilder[A])
   final def toSeq         (implicit tx: Tx): Seq[A]     = fromBuilder(Seq.newBuilder[A])
   final def toSet[B >: A] (implicit tx: Tx): Set[B]     = fromBuilder(Set.newBuilder[B])

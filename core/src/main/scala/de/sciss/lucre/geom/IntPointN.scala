@@ -25,11 +25,11 @@
 
 package de.sciss.lucre.geom
 
-import collection.immutable.{IndexedSeq => IIdxSeq}
+import collection.immutable.{IndexedSeq => Vec}
 import IntSpace.NDim
 
 trait IntPointNLike {
-  def components: IIdxSeq[Int]
+  def components: Vec[Int]
 
   final def apply(idx: Int): Int  = components(idx)
   final def dim: Int              = components.size
@@ -49,7 +49,7 @@ trait IntPointNLike {
 object IntPointN {
   implicit def serializer = IntSpace.NDim.pointSerializer
 }
-final case class IntPointN(components: IIdxSeq[Int]) extends IntPointNLike {
+final case class IntPointN(components: Vec[Int]) extends IntPointNLike {
   // if( components.size != dim ) throw new IllegalArgumentException( "Expected " + dim + " components: " + components )
 
   def +(that: NDim#Point) = IntPointN(Vector.tabulate(dim)(idx => this(idx) + that(idx)))

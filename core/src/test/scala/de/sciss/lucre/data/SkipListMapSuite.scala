@@ -1,7 +1,7 @@
 package de.sciss.lucre
 package data
 
-import collection.immutable.{Vector => IIdxSeq}    // see SI-6150
+import collection.immutable.{Vector => Vec}    // see SI-6150
 import org.scalatest.{GivenWhenThen, FeatureSpec}
 import stm.InMemory
 
@@ -57,7 +57,7 @@ class SkipListMapSuite extends FeatureSpec with GivenWhenThen {
          onEmptyList()
       }
 
-      val seq = IIdxSeq.tabulate( N )( n => rnd.nextInt() -> n )
+      val seq = Vec.tabulate( N )( n => rnd.nextInt() -> n )
 
       scenarioWithTime( "filled", "Consistency is verified on a randomly filled map" ) {
          atomic { implicit tx =>
@@ -74,7 +74,7 @@ class SkipListMapSuite extends FeatureSpec with GivenWhenThen {
          assert( h <= maxHeight, "found height " + h )
 
          When( "the floor and ceil values for a random number of elements are queried" )
-         val q    = IIdxSeq.fill( N )( rnd.nextInt() )
+         val q    = Vec.fill( N )( rnd.nextInt() )
          val fc   = atomic { implicit tx => q.map { v => (map.floor( v ).getOrElse( (Int.MinValue, 0) ),
                                                           map.ceil(  v ).getOrElse( (Int.MaxValue, 0) ))}}
          Then( "they should be the same as with brute force search" )
