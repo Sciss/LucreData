@@ -34,4 +34,4 @@ For a particular sub module:
     "de.sciss" %% "lucredata-core"  % v
     "de.sciss" %% "lucredata-views" % v
 
-The current version `v` is `"2.1.+"`.
+The current version `v` is `"2.2.+"`.

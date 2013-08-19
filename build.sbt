@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version in ThisBuild := "2.2.0-SNAPSHOT"
+version in ThisBuild := "2.2.0"
 
 organization in ThisBuild := "de.sciss"
 
