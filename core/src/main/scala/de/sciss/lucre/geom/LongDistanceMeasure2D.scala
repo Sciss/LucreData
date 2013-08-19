@@ -60,13 +60,17 @@ object LongDistanceMeasure2D {
   private object Chebyshev extends ChebyshevLike {
     override def toString = "LongDistanceMeasure2D.chebyshev"
 
-    protected def apply(dx: Long, dy: Long): Long = math.max(dx, dy)
+    protected def apply   (dx: Long, dy: Long): Long = math.max(dx, dy)
+    protected def applyMin(dx: Long, dy: Long): Long = math.max(dx, dy)
+    protected def applyMax(dx: Long, dy: Long): Long = math.max(dx, dy)
   }
 
   private object Vehsybehc extends ChebyshevLike {
     override def toString = "LongDistanceMeasure2D.vehsybehc"
 
-    protected def apply(dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def apply   (dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def applyMin(dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def applyMax(dx: Long, dy: Long): Long = math.min(dx, dy)
   }
 
   private object EuclideanSq extends SqrImpl {
@@ -115,35 +119,52 @@ object LongDistanceMeasure2D {
     */
   def prevSpanEvent(quad: LongSquare): ML = new PrevSpanEvent(quad)
 
-  private final class NextSpanEvent( quad: LongSquare ) extends ChebyshevLike {
+  // The tricky bit is to distinguish minimum distance and maximum distance metric:
+  // Unlike the versioning tree search, we are really combining two independent searches
+  // into one: Whenever the start coordinate is closer, find that one, whenever the stop
+  // coordinate is closer, find that one.
+  //
+  // If there are still bugs or corner cases, the alternative would be to use two successive searches:
+  // One taking only x axis into account, the other taking only y axis into account, then combining
+  // both results through `min`.
+  private sealed trait SpanEventLike extends ChebyshevLike {
+    protected final def apply   (dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected final def applyMin(dx: Long, dy: Long): Long = math.min(dx, dy)  // !
+    protected final def applyMax(dx: Long, dy: Long): Long = math.max(dx, dy)  // !
+  }
+
+  private final class NextSpanEvent(quad: LongSquare) extends SpanEventLike {
     private val maxX = quad.right
     private val maxY = quad.bottom
 
     override def toString = s"LongDistanceMeasure2D.NextSpanEvent($quad)"
-
-    protected def apply(dx: Long, dy: Long): Long = math.max(dx, dy) // SSS math.min(dx, dy)
 
     override def distance(a: PointLike, b: PointLike) = {
       val bx = b.x
       val by = b.y
       val ax = a.x
       val ay = a.y
-      if( bx < ax || bx >= maxX ) {          // either start too small or unbounded
-        if (by < ay || by >= maxY) {
-          // ... and also stop too small or unbounded
+      if( bx < ax || bx >= maxX ) {         // either start too small or unbounded
+        if (by < ay || by >= maxY) {        // ... and also stop too small or unbounded
           Long.MaxValue
         } else {
           by - ay
         }
-      } else if (by < ay || by >= maxY) {
-        // stop too small or unbounded
+      } else if (by < ay || by >= maxY) {   // stop too small or unbounded
         bx - ax
       } else {
         val dx = bx - ax
         val dy = by - ay
-        math.max(dx, dy) // SSS math.min(dx, dy)
+        apply(dx, dy)
       }
     }
+
+    /* minDistance:
+        q.right >= p.x && q.bottom >= p.y   OK
+
+       maxDistance:
+        q.left  >= p.x && q.top >= p.y      OK
+     */
 
     override def minDistance(p: PointLike, q: HyperCube): Long =
       if ((q.right >= p.x) || (q.bottom >= p.y)) {
@@ -156,34 +177,29 @@ object LongDistanceMeasure2D {
       } else Long.MaxValue
   }
 
-  private final class PrevSpanEvent(quad: LongSquare) extends ChebyshevLike {
+  private final class PrevSpanEvent(quad: LongSquare) extends SpanEventLike {
     private val minX = quad.left
     private val minY = quad.top // note: we allow this to be used for unbounded span stops, as a special representation of Span.Void
 
     override def toString = s"LongDistanceMeasure2D.PrevSpanEvent($quad)"
-
-    protected def apply(dx: Long, dy: Long): Long = math.max(dx, dy)  // SSS math.min(dx, dy)
 
     override def distance(a: PointLike, b: PointLike) = {
       val bx = b.x
       val by = b.y
       val ax = a.x
       val ay = a.y
-      if (bx > ax || bx <= minX) {
-        // either start too large or unbounded
-        if (by > ay || by <= minY) {
-          // ... and also stop too large or unbounded
+      if (bx > ax || bx <= minX) {        // either start too large or unbounded
+        if (by > ay || by <= minY) {      // ... and also stop too large or unbounded
           Long.MaxValue
         } else {
           ay - by
         }
-      } else if (by > ay || by <= minY) {
-        // stop too large or unbounded
+      } else if (by > ay || by <= minY) { // stop too large or unbounded
         ax - bx
       } else {
         val dx = ax - bx
         val dy = ay - by
-        math.max(dx, dy)  // SSS math.min(dx, dy)
+        apply(dx, dy)
       }
     }
 
@@ -333,7 +349,9 @@ object LongDistanceMeasure2D {
     extends ExceptQuadrantLike[Sqr] with SqrImpl
 
   private sealed trait ChebyshevLike extends LongImpl {
-    protected def apply(dx: Long, dy: Long): Long
+    protected def apply   (dx: Long, dy: Long): Long
+    protected def applyMin(dx: Long, dy: Long): Long
+    protected def applyMax(dx: Long, dy: Long): Long
 
     def distance(a: PointLike, b: PointLike) = {
       val dx = math.abs(a.x - b.x)
@@ -393,7 +411,7 @@ object LongDistanceMeasure2D {
           }
         }
       }
-      apply(dx, dy)
+      applyMin(dx, dy)
     }
 
     def maxDistance(a: PointLike, q: HyperCube): Long = {
@@ -406,7 +424,7 @@ object LongDistanceMeasure2D {
         } else {                      // top right is furthest
           py - q.top
         }
-        apply(dx, dy)
+        applyMax(dx, dy)
       } else {
         val dx = px - q.left
         val dy = if (py < q.cy) {     // bottom left is furthest
@@ -414,7 +432,7 @@ object LongDistanceMeasure2D {
         } else {                      // top left is furthest
           py - q.top
         }
-        apply(dx, dy)
+        applyMax(dx, dy)
       }
     }
   }

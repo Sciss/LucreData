@@ -95,16 +95,23 @@ object IntDistanceMeasure2D {
 
   private object Chebyshev extends ChebyshevLike {
     override def toString = "IntDistanceMeasure2D.chebyshev"
-    protected def apply(dx: Long, dy: Long): Long = math.max(dx, dy)
+
+    protected def apply   (dx: Long, dy: Long): Long = math.max(dx, dy)
+    protected def applyMin(dx: Long, dy: Long): Long = math.max(dx, dy)
+    protected def applyMax(dx: Long, dy: Long): Long = math.max(dx, dy)
   }
 
-  private final class NextSpanEvent(quad: IntSquare) extends ChebyshevLike {
+  private sealed trait SpanEventLike extends ChebyshevLike {
+    protected final def apply   (dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected final def applyMin(dx: Long, dy: Long): Long = math.min(dx, dy) // !
+    protected final def applyMax(dx: Long, dy: Long): Long = math.min(dx, dy) // !
+  }
+
+  private final class NextSpanEvent(quad: IntSquare) extends SpanEventLike {
     private val maxX = quad.right
     private val maxY = quad.bottom
 
-    override def toString = "IntDistanceMeasure2D.NextSpanEvent(" + quad + ")"
-
-    protected def apply(dx: Long, dy: Long): Long = math.min(dx, dy)
+    override def toString = s"IntDistanceMeasure2D.NextSpanEvent($quad)"
 
     override def distance(a: PointLike, b: PointLike) = {
       val bx = b.x
@@ -125,30 +132,26 @@ object IntDistanceMeasure2D {
       } else {
         val dx = bx.toLong - ax.toLong
         val dy = by.toLong - ay.toLong
-        math.min(dx, dy)
+        apply(dx, dy)
       }
     }
 
-    override def minDistance(p: PointLike, q: HyperCube): Long = {
+    override def minDistance(p: PointLike, q: HyperCube): Long =
       if ((q.right >= p.x) || (q.bottom >= p.y)) {
         super.minDistance(p, q)
       } else Long.MaxValue
-    }
 
-    override def maxDistance(p: PointLike, q: HyperCube): Long = {
+    override def maxDistance(p: PointLike, q: HyperCube): Long =
       if ((q.left >= p.x) || (q.top >= p.y)) {
         super.maxDistance(p, q)
       } else Long.MaxValue
-    }
   }
 
-  private final class PrevSpanEvent(quad: IntSquare) extends ChebyshevLike {
+  private final class PrevSpanEvent(quad: IntSquare) extends SpanEventLike {
     private val minX = quad.left
     private val minY = quad.top // note: we allow this to be used for unbounded span stops, as a special representation of Span.Void
 
-    override def toString = "IntDistanceMeasure2D.PrevSpanEvent(" + quad + ")"
-
-    protected def apply(dx: Long, dy: Long): Long = math.min(dx, dy)
+    override def toString = s"IntDistanceMeasure2D.PrevSpanEvent($quad)"
 
     override def distance(a: PointLike, b: PointLike) = {
       val bx = b.x
@@ -169,27 +172,27 @@ object IntDistanceMeasure2D {
       } else {
         val dx = ax.toLong - bx.toLong
         val dy = ay.toLong - by.toLong
-        math.min(dx, dy)
+        apply(dx, dy)
       }
     }
 
-    override def minDistance(p: PointLike, q: HyperCube): Long = {
+    override def minDistance(p: PointLike, q: HyperCube): Long =
       if ((q.left <= p.x) || (q.top <= p.y)) {
         super.minDistance(p, q)
       } else Long.MaxValue
-    }
 
-    override def maxDistance(p: PointLike, q: HyperCube): Long = {
+    override def maxDistance(p: PointLike, q: HyperCube): Long =
       if ((q.right <= p.x) || (q.bottom <= p.y)) {
         super.maxDistance(p, q)
       } else Long.MaxValue
-    }
   }
 
   private object Vehsybehc extends ChebyshevLike {
     override def toString = "IntDistanceMeasure2D.vehsybehc"
 
-    protected def apply(dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def apply   (dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def applyMin(dx: Long, dy: Long): Long = math.min(dx, dy)
+    protected def applyMax(dx: Long, dy: Long): Long = math.min(dx, dy)
   }
 
   private object EuclideanSq extends Impl {
@@ -413,7 +416,9 @@ object IntDistanceMeasure2D {
    }
 
   private sealed trait ChebyshevLike extends Impl {
-    protected def apply(dx: Long, dy: Long): Long
+    protected def apply   (dx: Long, dy: Long): Long
+    protected def applyMin(dx: Long, dy: Long): Long
+    protected def applyMax(dx: Long, dy: Long): Long
 
     def distance(a: PointLike, b: PointLike) = {
       val dx = math.abs(a.x.toLong - b.x.toLong)
@@ -473,7 +478,7 @@ object IntDistanceMeasure2D {
           }
         }
       }
-      apply(dx, dy)
+      applyMin(dx, dy)
     }
 
     def maxDistance(a: PointLike, q: HyperCube): Long = {
@@ -488,7 +493,7 @@ object IntDistanceMeasure2D {
           // top right is furthest
           py.toLong - q.top.toLong
         }
-        apply(dx, dy)
+        applyMax(dx, dy)
       } else {
         val dx = px.toLong - q.left.toLong
         val dy = if (py < q.cy) {
@@ -498,7 +503,7 @@ object IntDistanceMeasure2D {
           // top left is furthest
           py.toLong - q.top.toLong
         }
-        apply(dx, dy)
+        applyMax(dx, dy)
       }
     }
   }

@@ -10,6 +10,31 @@ import stm.{Cursor, Durable, InMemory, Sys}
 import collection.immutable.{Vector => Vec}
 import serial.{DataInput, DataOutput, Writable}
 
+object TotalOrderSuite {
+  object MapHolder {
+    final class Serializer[S <: Sys[S]](observer: RelabelObserver[S#Tx, MapHolder[S]], tx0: S#Tx)
+      extends serial.Serializer[S#Tx, S#Acc, MapHolder[S]] {
+
+      val map = TotalOrder.Map.empty[S, MapHolder[S]](observer, _.entry)(tx0, this)
+
+      def write(v: MapHolder[S], out: DataOutput): Unit = v.write(out)
+
+      def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): MapHolder[S] = {
+        val num = in.readInt()
+        val e = map.readEntry(in, access)
+        new MapHolder(num, e)
+      }
+    }
+  }
+  final case class MapHolder[S <: Sys[S]](num: Int, entry: TotalOrder.Map.Entry[S, MapHolder[S]])
+    extends Writable {
+
+    def write(out: DataOutput): Unit = {
+      out.writeInt(num)
+      entry.write(out)
+    }
+  }
+}
 /**
  * To run this test copy + paste the following into sbt:
  * {{
@@ -17,6 +42,8 @@ import serial.{DataInput, DataOutput, Writable}
  * }}
  */
 class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
+  import TotalOrderSuite.MapHolder
+
 //   val MONITOR_LABELING = false
    val INMEMORY         = true
    val DATABASE         = true
@@ -239,29 +266,4 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
          }
       }
    }
-
-  object MapHolder {
-    final class Serializer[S <: Sys[S]](observer: RelabelObserver[S#Tx, MapHolder[S]], tx0: S#Tx)
-      extends serial.Serializer[S#Tx, S#Acc, MapHolder[S]] {
-
-      val map = TotalOrder.Map.empty[S, MapHolder[S]](observer, _.entry)(tx0, this)
-
-      def write(v: MapHolder[S], out: DataOutput): Unit = v.write(out)
-
-      def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): MapHolder[S] = {
-        val num = in.readInt()
-        val e = map.readEntry(in, access)
-        new MapHolder(num, e)
-      }
-    }
-  }
-
-  final case class MapHolder[S <: Sys[S]](num: Int, entry: TotalOrder.Map.Entry[S, MapHolder[S]])
-    extends Writable {
-
-    def write(out: DataOutput): Unit = {
-      out.writeInt(num)
-      entry.write(out)
-    }
-  }
 }
