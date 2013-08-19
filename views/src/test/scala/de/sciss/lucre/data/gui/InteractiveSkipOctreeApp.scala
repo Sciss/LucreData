@@ -5,24 +5,24 @@ import java.io.File
 import de.sciss.lucre.stm.{Sys, InMemory, Durable}
 import de.sciss.lucre.stm.store.BerkeleyDB
 import de.sciss.lucre.geom.IntPoint2D
+import language.existentials
 
-/**
- * Options:
- * - "--db" launch with database on desktop.
- * - "--dbtmp" launch with database in temporary folder.
- * - "--memory" launch with in-memory stm
- * - "--thesis" launch with thesis chapter 5 approximate point set
- */
+/** Options:
+  * - "--db" launch with database on desktop.
+  * - "--dbtmp" launch with database in temporary folder.
+  * - "--memory" launch with in-memory stm
+  * - "--thesis" launch with thesis chapter 5 approximate point set
+  */
 object InteractiveSkipOctreeApp extends App with Runnable {
   import InteractiveSkipOctreePanel._
 
   EventQueue.invokeLater(this)
 
-  def run() {
+  def run(): Unit = {
     val a       = args.headOption.getOrElse("")
     val thesis  = args.contains("--thesis")
 
-    if (a.startsWith("--db")) {
+    val (frame, mod) = if (a.startsWith("--db")) {
       val dir = if (a == "--dbtmp") {
         File.createTempFile("octree", "_database")
       } else {
@@ -34,10 +34,11 @@ object InteractiveSkipOctreeApp extends App with Runnable {
       println(f.getAbsolutePath)
       implicit val system: Durable = Durable(BerkeleyDB.open(f))
       val model = makeModel2D(system) {
-        system.step(implicit tx => system.debugListUserRecords()).foreach(println _)
+        system.step(implicit tx => system.debugListUserRecords()).foreach(println)
       }
       if (thesis) system.step(implicit tx => addThesisPoints(model))
-      makeFrame(model)
+      val fr = makeFrame(model)
+      (fr, model)
 
     } else {
       implicit val system: InMemory = InMemory()
@@ -45,8 +46,11 @@ object InteractiveSkipOctreeApp extends App with Runnable {
         println("(Consistency not checked)")
       }
       if (thesis) system.step(implicit tx => addThesisPoints(model))
-      makeFrame(model)
+      val fr = makeFrame(model)
+      (fr, model)
     }
+
+    new de.sciss.pdflitz.SaveAction(mod.view :: Nil).setupMenu(frame)
   }
 
   def addThesisPoints[S <: Sys[S]](model: Model2D[S])(implicit tx: S#Tx) {

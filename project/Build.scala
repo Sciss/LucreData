@@ -45,7 +45,7 @@ object Build extends sbt.Build {
     settings      = Project.defaultSettings ++ Seq(
       libraryDependencies ++= Seq(
         "de.sciss" %% "lucrestm-bdb" % stmVersion % "test",
-        "com.itextpdf" % "itextpdf" % "5.3.2"
+        "de.sciss" %% "pdflitz" % "1.0.+" % "test"
       )
     )
   )

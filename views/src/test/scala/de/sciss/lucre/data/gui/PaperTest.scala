@@ -31,11 +31,14 @@ object PaperTest extends App with Runnable {
     val cp = f.getContentPane
     val iv = model.newPanel()
     cp.add(iv, BorderLayout.CENTER)
-    model.addPDFSupport(f)
+    // model.addPDFSupport(f)
     f.pack()
     f.setLocationRelativeTo(null)
     f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE)
     //     f.setVisible( true )
+
+    new de.sciss.pdflitz.SaveAction(model.view :: Nil).setupMenu(f)
+
 
     val rnd = new util.Random(33)
     def gen(n: Int) = {
