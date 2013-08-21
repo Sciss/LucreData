@@ -166,6 +166,102 @@ object DeterministicSkipOctree {
   }
 
   private def opNotSupported : Nothing = sys.error( "Operation not supported" )
+
+  /** Checks the tree for correctness.
+    *
+    * @param reportOnly if `true` simply scans the tree, if `false` it will apply corrections if necessary
+    * @return  `None` if no problems were found, otherwise `Some` string describing the problems found
+    */
+  def debugSanitize[S <: Sys[S], D <: Space[D], A](tree: DeterministicSkipOctree[S, D, A], reportOnly: Boolean)
+                                                  (implicit tx: S#Tx): Option[String] = {
+    val baos      = new ByteArrayOutputStream()
+    val ps        = new PrintStream(baos)
+    import ps._
+    var sawError  = false
+
+    tree.skipList.iterator.foreach { leaf =>
+      val parent  = leaf.parent
+      val pv      = tree.pointView(leaf.value, tx)
+      val idx     = parent.hyperCube.indexOf(pv)
+      if (idx < 0) {
+        println(s"Severe problem with $leaf - reported parent is $parent which doesn't contain the point $pv")
+        sawError  = true
+      } else {
+        val saw   = parent.child(idx)
+        if (saw != leaf) {
+          println(s"$leaf with point $pv reported parent $parent but in orthant $idx we see $saw")
+          sawError  = true
+
+          def sanitize(b: tree.BranchLike, lvl: Int): Unit = {
+            println(s"...checking $b in level $lvl")
+            val idx = b.hyperCube.indexOf(pv)
+            b.child(idx) match {
+              case `leaf` =>
+                println(s"...that is the correct parent!")
+                if (!reportOnly) {
+                  leaf.parent = b
+                }
+
+              case cb: tree.BranchLike if cb.hyperCube.contains(pv) =>
+                sanitize(cb, lvl)
+
+              case _ =>
+                b.prevOption match {
+                  case Some(pb: tree.BranchLike) =>
+                    sanitize(pb, lvl - 1)
+
+                  case _ =>
+                    println(s"...this is bad. can't locate leaf!")
+                }
+            }
+          }
+
+          sanitize(tree.lastTreeImpl, tree.numLevels)
+
+          //          @tailrec def descend(n: Child): Unit =
+          //            saw match {
+          //              case cb: BranchLike =>
+          //                val idx1 = cb.hyperCube.indexOf(pv)
+          //                if (idx1 < 0) {
+          //                  println(s"...what's worse, leaf doesn't lie in descending branch $cb")
+          //                } else {
+          //                  val cc = cb.child(idx1)
+          //                  if (cc == leaf) {
+          //                    println("...we found a direct parent.")
+          //
+          //                    @tailrec def goRight(b: BranchLike): Unit =
+          //                      b.nextOption match {
+          //                        case Some(br: BranchLike) if br.child(idx1) == leaf =>
+          //                          println(s"...we found a higher level branch $br")
+          //                          goRight(br)
+          //
+          //                        case _ =>
+          //                          println(s"...the correct parent is $b")
+          //                          if (!reportOnly) {
+          //                            leaf.parent = b
+          //                          }
+          //                      }
+          //
+          //                    goRight(cb)
+          //
+          //                  } else {
+          //                    println(s"...we found a descending node $cc")
+          //                    descend(cc)
+          //                  }
+          //                }
+          //
+          //              case _ => println(s"...what's worse, what we see is not a branch to descend to")
+          //            }
+          //
+          //          descend(saw)
+        }
+      }
+    }
+    if (!sawError) None else {
+      ps.close()
+      Some(new String(baos.toByteArray, "UTF-8"))
+    }
+  }
 }
 
 sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
@@ -2196,10 +2292,6 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   }
 
   def debugPrint()(implicit tx: S#Tx): String = {
-    //    protected def skipList: HASkipList.Set[S, LeafImpl]
-    //    protected def head: LeftTopBranch
-    //    protected def lastTreeRef: S#Var[TopBranch]
-
     val baos  = new ByteArrayOutputStream()
     val ps    = new PrintStream(baos)
     import ps._
