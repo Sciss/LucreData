@@ -33,35 +33,34 @@ import annotation.{switch, tailrec}
 import stm.{Mutable, Sink, Sys}
 import serial.{DataInput, DataOutput, Serializer}
 
-/**
- * A transactional version of the deterministic k-(2k+1) top-down operated skip list
- * as described in T. Papadakis, Skip Lists and Probabilistic Analysis of
- * Algorithms. Ch. 4 (Deterministic Skip Lists), pp. 55--78. Waterloo (CA) 1993
- *
- * It uses the horizontal array technique with a parameter for k (minimum gap size).
- * It uses a modified top-down removal algorithm that avoids the need for a second
- * pass as in the original algorithm, and is careful about object creations, so that
- * it will be able to persist the data structure without any unnecessary reads or
- * writes to the store.
- *
- * Three implementation notes: (1) We treat the nodes as immutable at the moment, storing them
- * directly in the S#Val child pointers of their parents. While this currently seems to
- * have a performance advantage (?), we could try to avoid this by using S#Refs for
- * the child pointers, making the nodes becomes mutables. We could avoid copying the
- * arrays for each insertion or deletion, at the cost of more space, but maybe better
- * performance.
- *
- * (2) The special treatment of `isRight` kind of sucks. Since now that information is
- * also persisted, we might just have two types of branches and leaves, and avoid passing
- * around this flag.
- *
- * (3) Since there is a bug with the top-down one-pass removal, we might end up removing
- * the creation of instances of virtual branches altogether again when replacing the
- * current algorithm by a two-pass one.
- *
- * TODO: nodes or at least leaves should be horizontally connected for a faster iterator
- *       and fast pair (interval) search
- */
+/** A transactional version of the deterministic k-(2k+1) top-down operated skip list
+  * as described in T. Papadakis, Skip Lists and Probabilistic Analysis of
+  * Algorithms. Ch. 4 (Deterministic Skip Lists), pp. 55--78. Waterloo (CA) 1993
+  *
+  * It uses the horizontal array technique with a parameter for k (minimum gap size).
+  * It uses a modified top-down removal algorithm that avoids the need for a second
+  * pass as in the original algorithm, and is careful about object creations, so that
+  * it will be able to persist the data structure without any unnecessary reads or
+  * writes to the store.
+  *
+  * Three implementation notes: (1) We treat the nodes as immutable at the moment, storing them
+  * directly in the S#Val child pointers of their parents. While this currently seems to
+  * have a performance advantage (?), we could try to avoid this by using S#Refs for
+  * the child pointers, making the nodes becomes mutables. We could avoid copying the
+  * arrays for each insertion or deletion, at the cost of more space, but maybe better
+  * performance.
+  *
+  * (2) The special treatment of `isRight` kind of sucks. Since now that information is
+  * also persisted, we might just have two types of branches and leaves, and avoid passing
+  * around this flag.
+  *
+  * (3) Since there is a bug with the top-down one-pass removal, we might end up removing
+  * the creation of instances of virtual branches altogether again when replacing the
+  * current algorithm by a two-pass one.
+  *
+  * TODO: nodes or at least leaves should be horizontally connected for a faster iterator
+  *       and fast pair (interval) search
+  */
 object HASkipList {
   private def opNotSupported: Nothing = sys.error("Operation not supported")
 
@@ -91,6 +90,31 @@ object HASkipList {
     def write(list: HASkipList.Map[S, A, B], out: DataOutput): Unit = list.write(out)
 
     override def toString = "HASkipList.Map.serializer"
+  }
+
+  def debugFindLevel[S <: Sys[S], A](list: SkipList[S, A, _], key: A)(implicit tx: S#Tx): Int = list match {
+    case impl0: Impl[S, A, _] =>
+      val h = impl0.height
+
+      @tailrec def stepRight[E](impl: Impl[S, A, E], n: Node[S, A, E], lvl: Int): Int = {
+        val idx = impl.indexInNodeR(key, n)
+        if (idx < 0) lvl
+        else if (n.isLeaf) -1
+        else {
+          val c = n.asBranch.down(idx)
+          if (idx < n.size - 1) stepLeft(impl, c, lvl - 1) else stepRight(impl, c, lvl - 1)
+        }
+      }
+
+      @tailrec def stepLeft[E](impl: Impl[S, A, E], n: Node[S, A, E], lvl: Int): Int = {
+        val idx = impl.indexInNodeL(key, n)
+        if (idx < 0) lvl else if (n.isLeaf) -1 else stepLeft(impl, n.asBranch.down(idx), lvl - 1)
+      }
+
+      val c = impl0.top.orNull // topN
+      if (c eq null) -1 else stepRight(impl0, c, h)
+
+    case _ => sys.error(s"Not a HA Skip List: $list")
   }
 
   // XXX boom! specialized runtime AbstractMethodError
@@ -495,7 +519,7 @@ object HASkipList {
       * @return  the index to go down (a node whose key is greater than `key`),
       *         or `-(index+1)` if `key` was found at `index`
       */
-    final protected def indexInNodeR(key: A, n: Node[S, A, E])(implicit tx: S#Tx): Int = {
+    final /*protected */ def indexInNodeR(key: A, n: Node[S, A, E])(implicit tx: S#Tx): Int = {
       var idx = 0
       val sz = n.size - 1
       do {
@@ -506,7 +530,7 @@ object HASkipList {
       sz
     }
 
-    final protected def indexInNodeL(key: A, n: Node[S, A, E])(implicit tx: S#Tx): Int = {
+    final /* protected */ def indexInNodeL(key: A, n: Node[S, A, E])(implicit tx: S#Tx): Int = {
       @tailrec def step(idx: Int): Int = {
         val cmp = ordering.compare(key, n.key(idx))
         if (cmp == 0) -(idx + 1) else if (cmp < 0) idx else step(idx + 1)

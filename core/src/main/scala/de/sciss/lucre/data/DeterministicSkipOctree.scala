@@ -37,18 +37,18 @@ import java.io.PrintStream
 import de.sciss.serial.impl.ByteArrayOutputStream
 
 /** A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
- * It is constructed from a given space (dimensions) and a skip-gap parameter
- * which determines the kind of skip list which is used to govern the
- * level decimation.
- *
- * The tree is a mutable data structure which supports lookup, insertion and removal
- * in O(log n), as well as efficient range queries and nearest neighbour search.
- *
- * The current implementation, backed by `impl.SkipOctreeImpl`, uses the types of
- * the `geom` package, assuming that coordinates are integers, with the maximum
- * root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.IntTwoDim`,
- * this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
- */
+  * It is constructed from a given space (dimensions) and a skip-gap parameter
+  * which determines the kind of skip list which is used to govern the
+  * level decimation.
+  *
+  * The tree is a mutable data structure which supports lookup, insertion and removal
+  * in O(log n), as well as efficient range queries and nearest neighbour search.
+  *
+  * The current implementation, backed by `impl.SkipOctreeImpl`, uses the types of
+  * the `geom` package, assuming that coordinates are integers, with the maximum
+  * root hyper-cube given by a span from `0` to `0x7FFFFFFF` (e.g. in `Space.IntTwoDim`,
+  * this is `IntSquare( 0x40000000, 0x40000000, 0x40000000 )`.
+  */
 object DeterministicSkipOctree {
   private final val SER_VERSION = 79  // 'O'
 
@@ -56,6 +56,8 @@ object DeterministicSkipOctree {
   private var stat_pq_add = 0
   private var stat_pq_rem = 0
   private val stat_print  = false
+
+  @volatile private var sanitizing = false
 
   @elidable(elidable.CONFIG) private def stat_reset(): Unit = {
     stat_rounds = 0
@@ -179,88 +181,154 @@ object DeterministicSkipOctree {
     import ps._
     var sawError  = false
 
+    def result(): Option[String] =
+      if (!sawError) None else {
+        ps.close()
+        Some(new String(baos.toByteArray, "UTF-8"))
+      }
+
     tree.skipList.iterator.foreach { leaf =>
-      val parent  = leaf.parent
       val pv      = tree.pointView(leaf.value, tx)
-      val idx     = parent.hyperCube.indexOf(pv)
-      if (idx < 0) {
-        println(s"Severe problem with $leaf - reported parent is $parent which doesn't contain the point $pv")
-        sawError  = true
-      } else {
-        val saw   = parent.child(idx)
-        if (saw != leaf) {
-          println(s"$leaf with point $pv reported parent $parent but in orthant $idx we see $saw")
+
+      @tailrec def findLeaf(b: tree.BranchLike = tree.lastTreeImpl,
+                            lvl: Int = tree.numLevels, doPrint: Boolean = false): Option[(tree.BranchLike, Int)] = {
+        if (doPrint) println(s"...checking $b in level $lvl")
+        val idx = b.hyperCube.indexOf(pv)
+        b.child(idx) match {
+          case `leaf` => Some(b -> lvl)
+
+          case cb: tree.BranchLike if cb.hyperCube.contains(pv) =>
+            findLeaf(cb, lvl = lvl, doPrint = doPrint)
+
+          case _ =>
+            b.prevOption match {
+              case Some(pb: tree.BranchLike) =>
+                findLeaf(pb, lvl = lvl - 1, doPrint = doPrint)
+
+              case _ => None
+            }
+        }
+      }
+
+      findLeaf() match {
+        case None =>
+          val foundLevelSkip = HASkipList.debugFindLevel(tree.skipList, leaf)
+          println(s"Severe problem with $leaf - in skip list (level $foundLevelSkip) but octree does not find it")
           sawError  = true
 
-          def sanitize(b: tree.BranchLike, lvl: Int): Unit = {
-            println(s"...checking $b in level $lvl")
-            val idx = b.hyperCube.indexOf(pv)
-            b.child(idx) match {
-              case `leaf` =>
-                println(s"...that is the correct parent!")
-                if (!reportOnly) {
-                  leaf.parent = b
-                }
+        //          def findP0(point: D#PointLike)(implicit tx: S#Tx): tree.LeftBranch = {
+        //            @tailrec def stepLeft(lb: tree.LeftBranch): tree.LeftBranch = {
+        //              val qidx = lb.hyperCube.indexOf(point)
+        //              lb.child(qidx) match {
+        //                case _: tree.LeafOrEmpty => lb
+        //                case cb: tree.LeftBranch =>
+        //                  if (!cb.hyperCube.contains(point)) lb else stepLeft(cb)
+        //              }
+        //            }
+        //
+        //            @tailrec def step(b: tree.BranchLike): tree.LeftBranch = b match {
+        //              case lb: tree.LeftBranch => stepLeft(lb)
+        //              case rb: tree.RightBranch =>
+        //                val qidx = rb.hyperCube.indexOf(point)
+        //                val n = rb.child(qidx) match {
+        //                  case cb: tree.BranchLike if cb.hyperCube.contains(point) => cb
+        //                  case _ => rb.prev
+        //                }
+        //                step(n)
+        //            }
+        //
+        //            step(tree.lastTreeImpl)
+        //          }
+        //
+        //          val par0    = findP0(pv)
+        //          val parIdx  = par0.hyperCube.indexOf(pv)
+        //          par0.child(parIdx) match {
+        //            case tree.EmptyValue =>
+        //              println("...parent in P0 is empty :-)")
+        //              if (!reportOnly && foundLevelSkip == 1) { // this one is fixable
+        //                // ...
+        //              }
+        //            case _ =>
+        //              println("...parent in P0 is NOT empty :-(")
+        //          }
 
-              case cb: tree.BranchLike if cb.hyperCube.contains(pv) =>
-                sanitize(cb, lvl)
-
-              case _ =>
-                b.prevOption match {
-                  case Some(pb: tree.BranchLike) =>
-                    sanitize(pb, lvl - 1)
-
-                  case _ =>
-                    println(s"...this is bad. can't locate leaf!")
-                }
+          if (!reportOnly && foundLevelSkip == 1) { // this one is fixable
+            try {
+              sanitizing = true
+              tree.skipList.remove(leaf)
+            } finally {
+              sanitizing = false
+              return result() // hacky!!! skipList iterator possibly invalid, thus abort straight after removal
             }
           }
 
-          sanitize(tree.lastTreeImpl, tree.numLevels)
+        case Some((foundParent, foundLevel)) =>
+          val foundLevelSkip = HASkipList.debugFindLevel(tree.skipList, leaf)
+          if (foundLevel != foundLevelSkip) {
+            println(s"Severe problem with $leaf - is in skip list level $foundLevelSkip versus octree level $foundLevel")
+            sawError  = true
+          }
 
-          //          @tailrec def descend(n: Child): Unit =
-          //            saw match {
-          //              case cb: BranchLike =>
-          //                val idx1 = cb.hyperCube.indexOf(pv)
-          //                if (idx1 < 0) {
-          //                  println(s"...what's worse, leaf doesn't lie in descending branch $cb")
-          //                } else {
-          //                  val cc = cb.child(idx1)
-          //                  if (cc == leaf) {
-          //                    println("...we found a direct parent.")
-          //
-          //                    @tailrec def goRight(b: BranchLike): Unit =
-          //                      b.nextOption match {
-          //                        case Some(br: BranchLike) if br.child(idx1) == leaf =>
-          //                          println(s"...we found a higher level branch $br")
-          //                          goRight(br)
-          //
-          //                        case _ =>
-          //                          println(s"...the correct parent is $b")
-          //                          if (!reportOnly) {
-          //                            leaf.parent = b
-          //                          }
-          //                      }
-          //
-          //                    goRight(cb)
-          //
-          //                  } else {
-          //                    println(s"...we found a descending node $cc")
-          //                    descend(cc)
-          //                  }
-          //                }
-          //
-          //              case _ => println(s"...what's worse, what we see is not a branch to descend to")
-          //            }
-          //
-          //          descend(saw)
+          val parent  = leaf.parent
+          val idx     = parent.hyperCube.indexOf(pv)
+          if (idx < 0) {
+            println(s"Severe problem with $leaf - reported parent is $parent which doesn't contain the point $pv")
+            sawError  = true
+          } else {
+            val saw   = parent.child(idx)
+            if (saw != leaf) {
+              println(s"$leaf with point $pv reported parent $parent but in orthant $idx we see $saw")
+              sawError  = true
+
+              findLeaf(doPrint = true) match {
+                case Some((b, _)) =>
+                  println(s"...that is the correct parent!")
+                  if (!reportOnly) {
+                    leaf.parent = b
+                  }
+
+                case None => println(s"...this is bad. can't locate leaf!")
+              }
+
+            } else {
+
+              @tailrec def fuckYou(p: tree.BranchLike, lvl: Int): Unit = {
+                def fuckYou2(p0: tree.BranchLike): Unit = {
+                  val iii = p0.hyperCube.indexOf(pv)
+                  if (iii < 0) {
+                    println(s"Very bad, ancestor $p0 doesn't contain $leaf")
+                    sawError = true
+                  } else {
+                    p0.child(iii) match {
+                      case p1: tree.BranchLike =>
+                        fuckYou2(p1)
+                      case `leaf` =>
+                      case _ =>
+                        println(s"Very bad, $leaf not found in level $lvl")
+                        sawError = true
+                    }
+                  }
+                }
+                fuckYou2(p)
+
+                if (lvl > 1) {
+                  p.prevOption match {
+                    case Some(prev: tree.BranchLike) =>
+                      fuckYou(prev, lvl - 1)
+                    case _ =>
+                      println(s"For $leaf, it's parent $p in level $lvl has no prev link")
+                      sawError = true
+                  }
+                }
+              }
+
+              fuckYou(parent, foundLevel)
+            }
+          }
         }
-      }
     }
-    if (!sawError) None else {
-      ps.close()
-      Some(new String(baos.toByteArray, "UTF-8"))
-    }
+
+    result()
   }
 }
 
@@ -439,12 +507,11 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       //  steps by Lemma 5.) Then we go to the same square q
       //  in Qi+1 and insert x."
 
-      /**
-       * The reverse process of `findP0`: Finds the lowest
-       * common ancestor interesting node of this node
-       * which is also contained in Qi+1. Returns this node
-       * in Qi+1, or empty if no such node exists.
-       */
+      /** The reverse process of `findP0`: Finds the lowest
+        * common ancestor interesting node of this node
+        * which is also contained in Qi+1. Returns this node
+        * in Qi+1, or empty if no such node exists.
+        */
       @tailrec def findPN(b: BranchLike): NextOption = b match {
         case tb: TopBranch    => tb.next
         case cb: ChildBranch  => cb.next match {
@@ -540,7 +607,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       }
 
       step(0) match {
-        case _: LeafOrEmpty =>
+        case _: LeafOrEmpty   =>
         case next: BranchLike => removeAllLeaves(next)
       }
     }
@@ -588,8 +655,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final def update(elem: A)(implicit tx: S#Tx): Option[A] =
     insertLeaf(elem) match {
-      case EmptyValue => None
-      case oldLeaf: LeafImpl => Some(oldLeaf.value)
+      case EmptyValue         => None
+      case oldLeaf: LeafImpl  => Some(oldLeaf.value)
     }
 
   final def remove(elem: A)(implicit tx: S#Tx): Boolean =
@@ -597,16 +664,16 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final def removeAt(point: D#PointLike)(implicit tx: S#Tx): Option[A] =
     removeLeafAt(point) match {
-      case EmptyValue => None
-      case oldLeaf: LeafImpl => Some(oldLeaf.value)
+      case EmptyValue         => None
+      case oldLeaf: LeafImpl  => Some(oldLeaf.value)
     }
 
   final def contains(elem: A)(implicit tx: S#Tx): Boolean = {
     val point = pointView(elem, tx)
     if (!hyperCube.contains(point)) return false
     findAt(point) match {
-      case l: LeafImpl => l.value == elem
-      case _ => false
+      case l: LeafImpl  => l.value == elem
+      case _            => false
     }
   }
 
@@ -618,8 +685,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   final def get(point: D#PointLike)(implicit tx: S#Tx): Option[A] = {
     if (!hyperCube.contains(point)) return None
     findAt(point) match {
-      case l: LeafImpl => Some(l.value)
-      case _ => None
+      case l: LeafImpl  => Some(l.value)
+      case _            => None
     }
   }
 
@@ -745,8 +812,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     val res = findLeafInP0(p0, point) // p0.findImmediateLeaf( point )
 
     res match {
-      case l: LeafImpl => removeLeaf(point, l)
-      case _ =>
+      case l: LeafImpl  => removeLeaf(point, l)
+      case _            =>
     }
 
     res
@@ -833,7 +900,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   private def removeLeaf(point: D#PointLike, l: LeafImpl)(implicit tx: S#Tx): Unit = {
     // this will trigger removals from upper levels
-    skipList.remove(l)
+    val skipOk = skipList.remove(l)
+    assert(skipOk, s"Leaf $l with point $point was not found in skip list")
     // now l is in P0. demote it once more (this will dispose the leaf)
     l.parent.demoteLeaf(point /* pointView( l.value ) */ , l)
   }
@@ -1535,10 +1603,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final protected type ChildOption = Child with Writable
 
-  /**
-   * A node is an object that can be
-   * stored in a orthant of a branch.
-   */
+  /** A node is an object that can be stored in a orthant of a branch. */
   protected sealed trait NonEmpty extends Identifiable[S#ID] /* extends Down with Child */ {
     protected def shortString: String
 
@@ -1552,12 +1617,11 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     override def hashCode = id.hashCode()
 
-    /**
-     * Computes the greatest interesting hyper-cube within
-     * a given hyper-cube `mq` so that this (leaf's or node's)
-     * hyper-cube and the given point will be placed in
-     * separated orthants of this resulting hyper-cube.
-     */
+    /** Computes the greatest interesting hyper-cube within
+      * a given hyper-cube `mq` so that this (leaf's or node's)
+      * hyper-cube and the given point will be placed in
+      * separated orthants of this resulting hyper-cube.
+      */
     def union(mq: D#HyperCube, point: D#PointLike)(implicit tx: S#Tx): D#HyperCube
 
     /**
@@ -1567,19 +1631,16 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     def orthantIndexIn(iq: D#HyperCube)(implicit tx: S#Tx): Int
   }
 
-  /**
-   * A tree element in Q0 has markers for the
-   * in-order traversal. NOT ANYMORE
-   */
+  /** A tree element in Q0 has markers for the
+    * in-order traversal. NOT ANYMORE
+    */
   protected sealed trait LeftNonEmpty extends Left with NonEmpty
 
   protected sealed trait Left
   protected sealed trait LeftChild extends Left with Child
   protected type LeftChildOption = LeftChild with Writable
 
-  /**
-   * A common trait used in pattern matching, comprised of `Leaf` and `LeftChildBranch`.
-   */
+  /** A common trait used in pattern matching, comprised of `Leaf` and `LeftChildBranch`. */
   protected sealed trait LeftNonEmptyChild extends LeftNonEmpty with NonEmptyChild with LeftChild with Writable /* Mutable[ S ] */ {
     def updateParentLeft(p: LeftBranch)(implicit tx: S#Tx): Unit
   }
@@ -1587,9 +1648,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
   protected sealed trait RightChild extends Child
   protected type RightChildOption = RightChild with Writable
 
-  /**
-   * A common trait used in pattern matching, comprised of `Leaf` and `RightChildBranch`.
-   */
+  /** A common trait used in pattern matching, comprised of `Leaf` and `RightChildBranch`. */
   protected sealed trait RightNonEmptyChild extends RightChild with NonEmptyChild with Writable {
     def updateParentRight(p: RightBranch)(implicit tx: S#Tx): Unit
   }
@@ -1603,16 +1662,15 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     new LeafImpl(id, value, parentRef)
   }
 
-  /**
-   * A leaf in the octree, carrying a map entry
-   * in the form of a point and associated value.
-   * Note that a single instance of a leaf is used
-   * across the levels of the octree! That means
-   * that multiple child pointers may go to the
-   * same leaf, while the parent of a leaf always
-   * points into the highest level octree that
-   * the leaf resides in, according to the skiplist.
-   */
+  /** A leaf in the octree, carrying a map entry
+    * in the form of a point and associated value.
+    * Note that a single instance of a leaf is used
+    * across the levels of the octree! That means
+    * that multiple child pointers may go to the
+    * same leaf, while the parent of a leaf always
+    * points into the highest level octree that
+    * the leaf resides in, according to the skiplist.
+    */
   protected final class LeafImpl(val id: S#ID, val value: A, /* val point: D#PointLike, */ parentRef: S#Var[BranchLike])
     extends LeftNonEmptyChild with RightNonEmptyChild with LeafOrEmpty with Leaf {
 
@@ -1650,37 +1708,29 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     def remove()(implicit tx: S#Tx): Unit = dispose()
   }
 
-  /**
-   * Nodes are defined by a hyperCube area as well as a list of children,
-   * as well as a pointer `next` to the corresponding node in the
-   * next highest tree. A `Branch` also provides various search methods.
-   */
+  /** Nodes are defined by a hyperCube area as well as a list of children,
+    * as well as a pointer `next` to the corresponding node in the
+    * next highest tree. A `Branch` also provides various search methods.
+    */
   protected sealed trait BranchLike extends NonEmpty with Writable /* Mutable[ S ] */ with Branch {
-    /**
-     * Returns the child for a given
-     * orthant index
-     */
+    /** Returns the child for a given orthant index. */
     def child(idx: Int)(implicit tx: S#Tx): ChildOption
 
-    /**
-     * Assuming that the given `leaf` is a child of this node,
-     * removes the child from this node's children. This method
-     * will perform further clean-up such as merging this node
-     * with its parent if it becomes uninteresting as part of the
-     * removal.
-     */
+    /** Assuming that the given `leaf` is a child of this node,
+      * removes the child from this node's children. This method
+      * will perform further clean-up such as merging this node
+      * with its parent if it becomes uninteresting as part of the
+      * removal.
+      */
     def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit
 
-    /**
-     * Returns the hyper-cube covered by this node
-     */
+    /** Returns the hyper-cube covered by this node. */
     def hyperCube: D#HyperCube
 
-    /**
-     * Returns the corresponding interesting
-     * node in Qi+1, or `empty` if no such
-     * node exists.
-     */
+    /** Returns the corresponding interesting
+      * node in Qi+1, or `empty` if no such
+      * node exists.
+      */
     final def next(implicit tx: S#Tx): NextOption = nextRef()
 
     final def nextOption(implicit tx: S#Tx): Option[BranchLike] = next match {
@@ -1754,8 +1804,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     * of type `RightChild`. It furthermore defines the node in Qi-1 via the
     * `prev` method.
     */
-  protected sealed trait RightBranch extends Next with BranchLike /* with Writable */
-  /* Mutable[ S ] */ {
+  protected sealed trait RightBranch extends Next with BranchLike {
     protected def children: Array[S#Var[RightChildOption]]
 
     final def prevOption: Option[Branch] = Some(prev: Branch)
@@ -1850,6 +1899,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit = {
       val qidx = hyperCube.indexOf(point)
+      assert(child(qidx) == leaf)
       updateChild(qidx, EmptyValue)
 
       @tailrec def findParent(b: BranchLike, idx: Int): BranchLike = b.child(idx) match {
@@ -1881,12 +1931,16 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     final def updateChild(idx: Int, c: LeftChildOption)(implicit tx: S#Tx): Unit            = children(idx)() = c
 
     final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit = {
-      // val point = pointView( leaf.value )
-      val qidx = hyperCube.indexOf(point)
-      assert(child(qidx) == leaf, "Internal error - expected leaf not found")
-      updateChild(qidx, EmptyValue)
-      leafRemoved()
-      leaf.remove() // dispose()
+      val qidx  = hyperCube.indexOf(point)
+      val ok    = child(qidx) == leaf
+      if (ok) {
+        updateChild(qidx, EmptyValue)
+        leafRemoved()
+        leaf.remove() // dispose()
+      } else {
+        if (!DeterministicSkipOctree.sanitizing)
+          assert(assertion = false, s"Internal error - expected $leaf not found in $this")
+      }
     }
 
     final def insert(point: D#PointLike, value: A)(implicit tx: S#Tx): LeafImpl = {
