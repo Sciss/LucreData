@@ -169,6 +169,160 @@ object DeterministicSkipOctree {
 
   private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
+  def verifyConsistency[S <: Sys[S], D <: Space[D], A](tree: DeterministicSkipOctree[S, D, A], reportOnly: Boolean)
+                                                      (implicit tx: S#Tx): Vec[String] = {
+    val q               = tree.hyperCube
+    var level           = tree.numLevels
+    var h: tree.Branch  = tree.lastTreeImpl
+    var currUnlinkedOcs = Set.empty[D#HyperCube]
+    var currPoints      = Set.empty[tree.LeafImpl]
+    var errors          = Vec.empty[String]
+    do {
+      if (h.hyperCube != q) {
+        errors :+= s"Root level quad is ${h.hyperCube} while it should be $q in level $level"
+      }
+      val nextUnlinkedOcs = currUnlinkedOcs
+
+      val nextPoints  = currPoints
+      currUnlinkedOcs = Set.empty
+      currPoints      = Set.empty
+
+      def checkChildren(n: tree.Branch, depth: Int): Unit = {
+        def assertInfo = s"in level $level / depth $depth"
+
+        var i = 0
+        while (i < tree.numOrthants) {
+          n.child(i) match {
+            case cb: tree.Branch =>
+              val nq = n.hyperCube.orthant(i)
+              val cq = cb.hyperCube
+              if (!nq.contains(cq)) {
+                errors :+= s"Node has invalid hyper-cube ($cq), expected: $nq $assertInfo"
+              }
+              if (n.hyperCube.indexOf(cq) != i) {
+                errors :+= s"Mismatch between index-of and used orthant ($i), with parent ${n.hyperCube} and $cq"
+              }
+              cb.nextOption match {
+                case Some(next) =>
+                  if (next.prevOption != Some(cb)) {
+                    errors :+= s"Asymmetric next link $cq $assertInfo"
+                  }
+                  if (next.hyperCube != cq) {
+                    errors :+= s"Next hyper-cube does not match ($cq vs. ${next.hyperCube}) $assertInfo"
+                  }
+                case None =>
+                  if (nextUnlinkedOcs.contains(cq)) {
+                    errors :+= s"Double missing link for $cq $assertInfo"
+                  }
+              }
+              cb.prevOption match {
+                case Some(prev) =>
+                  if (prev.nextOption != Some(cb)) {
+                    errors :+= s"Asymmetric prev link $cq $assertInfo"
+                  }
+                  if (prev.hyperCube != cq) {
+                    errors :+= s"Next hyper-cube do not match ($cq vs. ${prev.hyperCube}) $assertInfo"
+                  }
+                case None => currUnlinkedOcs += cq
+              }
+              checkChildren(cb, depth + 1)
+
+            case l: tree.LeafImpl =>
+              currPoints += l // .value
+
+            case _ =>
+          }
+          i += 1
+        }
+      }
+
+      checkChildren(h, 0)
+      val pointsOnlyInNext = nextPoints.filterNot(currPoints.contains(_))
+      if (pointsOnlyInNext.nonEmpty) {
+        errors :+= s"Points in next which aren't in current (${pointsOnlyInNext.take(10).map(_.value)}); in level $level"
+        if (!reportOnly && level == 1) {
+          assert(h.prevOption.isEmpty)
+
+          def newNode(b: tree.LeftBranch, qidx: Int, iq: D#HyperCube)(implicit tx: S#Tx): tree.LeftChildBranch = {
+            val sz  = tree.numOrthants // b.children.length
+            val ch  = tx.newVarArray[tree.LeftChildOption](sz)
+            val cid = tx.newID()
+            var i = 0
+            while (i < sz) {
+              ch(i) = tx.newVar[tree.LeftChildOption](cid, tree.EmptyValue)(tree.LeftChildOptionSerializer)
+              i += 1
+            }
+            val parentRef   = tx.newVar[tree.LeftBranch](cid, b)(tree.LeftBranchSerializer)
+            val rightRef    = tx.newVar[tree.NextOption](cid, tree.EmptyValue)(tree.RightOptionReader)
+            val n           = new tree.LeftChildBranch(
+              cid, parentRef, iq, children = ch, nextRef = rightRef
+            )
+            b.updateChild(qidx, n)
+            n
+          }
+
+          def insert(b: tree.LeftBranch, point: D#PointLike, leaf: tree.LeafImpl)(implicit tx: S#Tx): Unit = {
+            val qidx = b.hyperCube.indexOf(point)
+            b.child(qidx) match {
+              case tree.EmptyValue =>
+                b.updateChild(qidx, leaf)
+
+              case old: tree.LeftNonEmptyChild =>
+                // define the greatest interesting square for the new node to insert
+                // in this node at qidx:
+                val qn2 = old.union(b.hyperCube.orthant(qidx), point)
+                // create the new node (this adds it to the children!)
+                val n2 = newNode(b, qidx, qn2)
+                val oidx = old.orthantIndexIn(qn2)
+                n2.updateChild(oidx, old)
+                val lidx = qn2.indexOf(point)
+                assert(oidx != lidx)
+                // This is a tricky bit! And a reason
+                // why should eventually try to do without
+                // parent pointers at all. Since `old`
+                // may be a leaf whose parent points
+                // to a higher level tree, we need to
+                // check first if the parent is `this`,
+                // and if so, adjust the parent to point
+                // to the new intermediate node `ne`!
+                if (old.parent == this) old.updateParentLeft(n2)
+                n2.updateChild(lidx, leaf)
+            }
+          }
+
+          h match {
+            case lb: tree.LeftBranch =>
+              pointsOnlyInNext.foreach { leaf =>
+                val point = tree.pointView(leaf.value, tx)
+
+                def goDown(b: tree.LeftBranch): Unit = {
+                  val idx   = b.hyperCube.indexOf(point)
+                  if (idx < 0) {
+                    errors :+= s"Can't repair because $point is not in $lb"
+                  } else {
+                    b.child(idx) match {
+                      case lb1: tree.LeftBranch => goDown(lb1)
+                      case _ =>
+                        insert(b, point, leaf)
+                    }
+                  }
+                }
+
+                goDown(lb)
+              }
+
+            case _ =>
+              errors +:= "Can't repair because not in left branch !?"
+          }
+        }
+      }
+      h = h.prevOption.orNull
+      level -= 1
+    } while (h != null)
+
+    errors
+  }
+
   /** Checks the tree for correctness.
     *
     * @param reportOnly if `true` simply scans the tree, if `false` it will apply corrections if necessary
@@ -180,12 +334,20 @@ object DeterministicSkipOctree {
     val ps        = new PrintStream(baos)
     import ps._
     var sawError  = false
+    var repair    = !reportOnly
 
     def result(): Option[String] =
       if (!sawError) None else {
         ps.close()
         Some(new String(baos.toByteArray, "UTF-8"))
       }
+
+    val cons = verifyConsistency(tree, reportOnly = reportOnly)
+    if (cons.nonEmpty) {
+      cons.foreach(println)
+      sawError  = true
+      repair    = false // stay on the safe side; require that consistency within tree is repaired first
+    }
 
     tree.skipList.iterator.foreach { leaf =>
       val pv      = tree.pointView(leaf.value, tx)
@@ -216,43 +378,7 @@ object DeterministicSkipOctree {
           println(s"Severe problem with $leaf - in skip list (level $foundLevelSkip) but octree does not find it")
           sawError  = true
 
-        //          def findP0(point: D#PointLike)(implicit tx: S#Tx): tree.LeftBranch = {
-        //            @tailrec def stepLeft(lb: tree.LeftBranch): tree.LeftBranch = {
-        //              val qidx = lb.hyperCube.indexOf(point)
-        //              lb.child(qidx) match {
-        //                case _: tree.LeafOrEmpty => lb
-        //                case cb: tree.LeftBranch =>
-        //                  if (!cb.hyperCube.contains(point)) lb else stepLeft(cb)
-        //              }
-        //            }
-        //
-        //            @tailrec def step(b: tree.BranchLike): tree.LeftBranch = b match {
-        //              case lb: tree.LeftBranch => stepLeft(lb)
-        //              case rb: tree.RightBranch =>
-        //                val qidx = rb.hyperCube.indexOf(point)
-        //                val n = rb.child(qidx) match {
-        //                  case cb: tree.BranchLike if cb.hyperCube.contains(point) => cb
-        //                  case _ => rb.prev
-        //                }
-        //                step(n)
-        //            }
-        //
-        //            step(tree.lastTreeImpl)
-        //          }
-        //
-        //          val par0    = findP0(pv)
-        //          val parIdx  = par0.hyperCube.indexOf(pv)
-        //          par0.child(parIdx) match {
-        //            case tree.EmptyValue =>
-        //              println("...parent in P0 is empty :-)")
-        //              if (!reportOnly && foundLevelSkip == 1) { // this one is fixable
-        //                // ...
-        //              }
-        //            case _ =>
-        //              println("...parent in P0 is NOT empty :-(")
-        //          }
-
-          if (!reportOnly && foundLevelSkip == 1) { // this one is fixable
+          if (repair && foundLevelSkip == 1) { // this one is fixable
             try {
               sanitizing = true
               tree.skipList.remove(leaf)
@@ -283,46 +409,12 @@ object DeterministicSkipOctree {
               findLeaf(doPrint = true) match {
                 case Some((b, _)) =>
                   println(s"...that is the correct parent!")
-                  if (!reportOnly) {
+                  if (repair) {
                     leaf.parent = b
                   }
 
                 case None => println(s"...this is bad. can't locate leaf!")
               }
-
-            } else {
-
-              @tailrec def fuckYou(p: tree.BranchLike, lvl: Int): Unit = {
-                def fuckYou2(p0: tree.BranchLike): Unit = {
-                  val iii = p0.hyperCube.indexOf(pv)
-                  if (iii < 0) {
-                    println(s"Very bad, ancestor $p0 doesn't contain $leaf")
-                    sawError = true
-                  } else {
-                    p0.child(iii) match {
-                      case p1: tree.BranchLike =>
-                        fuckYou2(p1)
-                      case `leaf` =>
-                      case _ =>
-                        println(s"Very bad, $leaf not found in level $lvl")
-                        sawError = true
-                    }
-                  }
-                }
-                fuckYou2(p)
-
-                if (lvl > 1) {
-                  p.prevOption match {
-                    case Some(prev: tree.BranchLike) =>
-                      fuckYou(prev, lvl - 1)
-                    case _ =>
-                      println(s"For $leaf, it's parent $p in level $lvl has no prev link")
-                      sawError = true
-                  }
-                }
-              }
-
-              fuckYou(parent, foundLevel)
             }
           }
         }
@@ -1958,6 +2050,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           val oidx = old.orthantIndexIn(qn2)
           n2.updateChild(oidx, old)
           val lidx = qn2.indexOf(point)
+          assert(oidx != lidx)
           // This is a tricky bit! And a reason
           // why should eventually try to do without
           // parent pointers at all. Since `old`
@@ -2000,7 +2093,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
      *          parent and is already stored in this node's children
      *          at index `qidx`
      */
-    @inline private def newNode(qidx: Int, iq: D#HyperCube)(implicit tx: S#Tx): LeftChildBranch = {
+    private def newNode(qidx: Int, iq: D#HyperCube)(implicit tx: S#Tx): LeftChildBranch = {
       val sz  = children.length
       val ch  = tx.newVarArray[LeftChildOption](sz)
       val cid = tx.newID()
@@ -2089,7 +2182,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     new LeftChildBranch(id, parentRef, hyperCube, children = ch, nextRef = nextRef)
   }
 
-  private final class LeftChildBranch(val id: S#ID, parentRef: S#Var[LeftBranch], val hyperCube: D#HyperCube,
+  protected final class LeftChildBranch(val id: S#ID, parentRef: S#Var[LeftBranch], val hyperCube: D#HyperCube,
                                       protected val children: Array[S#Var[LeftChildOption]],
                                       protected val nextRef: S#Var[NextOption])
     extends LeftBranch with ChildBranch with LeftNonEmptyChild {

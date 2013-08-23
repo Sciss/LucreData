@@ -79,64 +79,16 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
       }
    }
 
-   def verifyConsistency[ S <: Sys[ S ], D <: Space[ D ]]( t: DeterministicSkipOctree[ S, D, D#Point ])
-                                                         ( implicit cursor: Cursor[ S ]) {
-      When( "the internals of the structure are checked" )
-      Then( "they should be consistent with the underlying algorithm" )
+  def verifyConsistency[S <: Sys[S], D <: Space[D]](t: DeterministicSkipOctree[S, D, D#Point])
+                                                   (implicit cursor: Cursor[S]) {
+    When("the internals of the structure are checked")
+    Then("they should be consistent with the underlying algorithm")
 
-      val q = t.hyperCube
-      var h: t.Branch = cursor.step { implicit tx => t.lastTreeImpl }
-      var currUnlinkedOcs  = Set.empty[ D#HyperCube ]
-      var currPoints       = Set.empty[ D#PointLike ]
-      var prevs = 0
-      do {
-         assert( h.hyperCube == q, "Root level quad is " + h.hyperCube + " while it should be " + q + " in level n - " + prevs )
-         val nextUnlinkedOcs  = currUnlinkedOcs
-         val nextPoints       = currPoints
-         currUnlinkedOcs      = Set.empty
-         currPoints           = Set.empty
+    val res = cursor.step { implicit tx => DeterministicSkipOctree.verifyConsistency(t) }
+    assert(res.isEmpty, res.mkString("\n"))
+  }
 
-         def checkChildren( n: t.Branch, depth: Int )( implicit tx: S#Tx ) {
-            def assertInfo = " in level n-" + prevs + " / depth " + depth
-
-            var i = 0; while( i < t.numOrthants ) {
-               n.child( i ) match {
-                  case cb: t.Branch =>
-                     val nq = n.hyperCube.orthant( i )
-                     val cq = cb.hyperCube
-                     assert( nq.contains( cq ), "Node has invalid hyper-cube (" + cq + "), expected: " + nq + assertInfo )
-                     assert( n.hyperCube.indexOf( cq ) == i, "Mismatch between index-of and used orthant (" + i + "), with parent " + n.hyperCube + " and " + cq )
-                     cb.nextOption match {
-                        case Some( next ) =>
-                           assert( next.prevOption == Some( cb ), "Asymmetric next link " + cq + assertInfo )
-                           assert( next.hyperCube == cq, "Next hyper-cube does not match (" + cq + " vs. " + next.hyperCube + ")" + assertInfo )
-                        case None =>
-                           assert( !nextUnlinkedOcs.contains( cq ), "Double missing link for " + cq + assertInfo )
-                     }
-                     cb.prevOption match {
-                        case Some( prev ) =>
-                           assert( prev.nextOption == Some( cb ), "Asymmetric prev link " + cq + assertInfo )
-                           assert( prev.hyperCube == cq, "Next hyper-cube do not match (" + cq + " vs. " + prev.hyperCube + ")" + assertInfo )
-                        case None => currUnlinkedOcs += cq
-                     }
-                     checkChildren( cb, depth + 1 )
-
-                  case l: t.Leaf =>
-                     currPoints += l.value
-
-                  case _ =>
-               }
-            i += 1 }
-         }
-         cursor.step { implicit tx => checkChildren( h, 0 )}
-         val pointsOnlyInNext    = nextPoints.filterNot( currPoints.contains( _ ))
-         assert( pointsOnlyInNext.isEmpty, "Points in next which aren't in current (" + pointsOnlyInNext.take( 10 ) + "); in level n-" + prevs )
-         h = h.prevOption.orNull
-         prevs += 1
-      } while( h != null )
-   }
-
-   def verifyElems[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
+  def verifyElems[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ],
                                                      m: MSet[ D#Point ])( implicit cursor: Cursor[ S ]) {
       When( "the structure t is compared to an independently maintained map m" )
       val onlyInM  = cursor.step { implicit tx => m.filterNot { e =>
