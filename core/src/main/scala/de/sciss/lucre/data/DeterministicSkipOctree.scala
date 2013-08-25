@@ -169,14 +169,25 @@ object DeterministicSkipOctree {
 
   private def opNotSupported : Nothing = sys.error( "Operation not supported" )
 
-  def verifyConsistency[S <: Sys[S], D <: Space[D], A](tree: DeterministicSkipOctree[S, D, A], reportOnly: Boolean)
-                                                      (implicit tx: S#Tx): Vec[String] = {
+  /* A debugging facility to inpect an octree only (not the skip list) for internal structural consistency.
+   *
+   * @param tree       the tree to inspect.
+   * @param reportOnly if `true`, merely reports anomalies but does not try to resolve them. If `false` attempts to
+   *                   fix corrupt entries.
+   * @return           empty if there were no inconsistencies found, otherwise a list of textual descriptions
+   *                   of the problems found
+   */
+  private def verifyOctreeConsistency[S <: Sys[S], D <: Space[D], A](tree: DeterministicSkipOctree[S, D, A],
+                                                                     reportOnly: Boolean)
+                                                                    (implicit tx: S#Tx): Vec[String] = {
     val q               = tree.hyperCube
     var level           = tree.numLevels
     var h: tree.Branch  = tree.lastTreeImpl
     var currUnlinkedOcs = Set.empty[D#HyperCube]
     var currPoints      = Set.empty[tree.LeafImpl]
     var errors          = Vec.empty[String]
+    val repair          = !reportOnly
+
     do {
       if (h.hyperCube != q) {
         errors :+= s"Root level quad is ${h.hyperCube} while it should be $q in level $level"
@@ -193,7 +204,16 @@ object DeterministicSkipOctree {
         var i = 0
         while (i < tree.numOrthants) {
           n.child(i) match {
-            case cb: tree.Branch =>
+            case cb: tree.ChildBranch =>
+              if (cb.parent != n) {
+                errors :+= s"Child branch $cb has invalid parent ${cb.parent}, expected: $n $assertInfo"
+                if (repair) {
+                  (n, cb) match {
+                    case (pl: tree.LeftBranch , cbl: tree.LeftChildBranch ) => cbl.parent = pl
+                    case (pr: tree.RightBranch, cbr: tree.RightChildBranch) => cbr.parent = pr
+                  }
+                }
+              }
               val nq = n.hyperCube.orthant(i)
               val cq = cb.hyperCube
               if (!nq.contains(cq)) {
@@ -237,10 +257,10 @@ object DeterministicSkipOctree {
       }
 
       checkChildren(h, 0)
-      val pointsOnlyInNext = nextPoints.filterNot(currPoints.contains(_))
+      val pointsOnlyInNext = nextPoints.filterNot(currPoints.contains)
       if (pointsOnlyInNext.nonEmpty) {
         errors :+= s"Points in next which aren't in current (${pointsOnlyInNext.take(10).map(_.value)}); in level $level"
-        if (!reportOnly && level == 1) {
+        if (repair && level == 1) {
           assert(h.prevOption.isEmpty)
 
           def newNode(b: tree.LeftBranch, qidx: Int, iq: D#HyperCube)(implicit tx: S#Tx): tree.LeftChildBranch = {
@@ -326,35 +346,27 @@ object DeterministicSkipOctree {
   /** Checks the tree for correctness.
     *
     * @param reportOnly if `true` simply scans the tree, if `false` it will apply corrections if necessary
-    * @return  `None` if no problems were found, otherwise `Some` string describing the problems found
+    * @return  empty if no problems were found, otherwise a list of strings describing the problems found
     */
-  def debugSanitize[S <: Sys[S], D <: Space[D], A](tree: DeterministicSkipOctree[S, D, A], reportOnly: Boolean)
-                                                  (implicit tx: S#Tx): Option[String] = {
-    val baos      = new ByteArrayOutputStream()
-    val ps        = new PrintStream(baos)
-    import ps._
-    var sawError  = false
+  def verifyConsistency[S <: Sys[S], D <: Space[D], A](tree: DeterministicSkipOctree[S, D, A], reportOnly: Boolean)
+                                                      (implicit tx: S#Tx): Vec[String] = {
+    var errors    = Vec.empty[String]
     var repair    = !reportOnly
 
-    def result(): Option[String] =
-      if (!sawError) None else {
-        ps.close()
-        Some(new String(baos.toByteArray, "UTF-8"))
-      }
-
-    val cons = verifyConsistency(tree, reportOnly = reportOnly)
-    if (cons.nonEmpty) {
-      cons.foreach(println)
-      sawError  = true
+    val treeOnlyErrors = verifyOctreeConsistency(tree, reportOnly = reportOnly)
+    errors ++= treeOnlyErrors
+    if (treeOnlyErrors.nonEmpty) {
       repair    = false // stay on the safe side; require that consistency within tree is repaired first
     }
 
+    // Take skip list as reference. Find if octree levels do not match skip list levels,
+    // or whether points in the skip list are not found in the octree.
     tree.skipList.iterator.foreach { leaf =>
-      val pv      = tree.pointView(leaf.value, tx)
+      val pv = tree.pointView(leaf.value, tx)
 
       @tailrec def findLeaf(b: tree.BranchLike = tree.lastTreeImpl,
                             lvl: Int = tree.numLevels, doPrint: Boolean = false): Option[(tree.BranchLike, Int)] = {
-        if (doPrint) println(s"...checking $b in level $lvl")
+        if (doPrint) errors :+= s"...checking $b in level $lvl"
         val idx = b.hyperCube.indexOf(pv)
         b.child(idx) match {
           case `leaf` => Some(b -> lvl)
@@ -375,8 +387,7 @@ object DeterministicSkipOctree {
       findLeaf() match {
         case None =>
           val foundLevelSkip = HASkipList.debugFindLevel(tree.skipList, leaf)
-          println(s"Severe problem with $leaf - in skip list (level $foundLevelSkip) but octree does not find it")
-          sawError  = true
+          errors :+= s"Severe problem with $leaf - in skip list (level $foundLevelSkip) but octree does not find it"
 
           if (repair && foundLevelSkip == 1) { // this one is fixable
             try {
@@ -384,43 +395,77 @@ object DeterministicSkipOctree {
               tree.skipList.remove(leaf)
             } finally {
               sanitizing = false
-              return result() // hacky!!! skipList iterator possibly invalid, thus abort straight after removal
+              return errors // hacky!!! skipList iterator possibly invalid, thus abort straight after removal
             }
           }
 
         case Some((foundParent, foundLevel)) =>
           val foundLevelSkip = HASkipList.debugFindLevel(tree.skipList, leaf)
           if (foundLevel != foundLevelSkip) {
-            println(s"Severe problem with $leaf - is in skip list level $foundLevelSkip versus octree level $foundLevel")
-            sawError  = true
+            errors :+= s"Severe problem with $leaf - is in skip list level $foundLevelSkip versus octree level $foundLevel"
           }
 
           val parent  = leaf.parent
           val idx     = parent.hyperCube.indexOf(pv)
           if (idx < 0) {
-            println(s"Severe problem with $leaf - reported parent is $parent which doesn't contain the point $pv")
-            sawError  = true
+            errors :+= s"Severe problem with $leaf - reported parent is $parent which doesn't contain the point $pv"
           } else {
             val saw   = parent.child(idx)
             if (saw != leaf) {
-              println(s"$leaf with point $pv reported parent $parent but in orthant $idx we see $saw")
-              sawError  = true
+              errors :+= s"$leaf with point $pv reported parent $parent but in orthant $idx we see $saw"
 
               findLeaf(doPrint = true) match {
                 case Some((b, _)) =>
-                  println(s"...that is the correct parent!")
+                  errors :+= s"...that is the correct parent!"
                   if (repair) {
                     leaf.parent = b
                   }
 
-                case None => println(s"...this is bad. can't locate leaf!")
+                case None => errors :+= s"...this is bad. can't locate leaf!"
               }
             }
           }
         }
     }
 
-    result()
+    // Take octree as reference and see if it contains any points not in the skip list.
+    val inSkipList = tree.skipList.toSet
+
+    def checkInTreeLevel(b: tree.BranchLike, lvl: Int): Unit = {
+      val sz = tree.numOrthants
+      var i = 0
+      while (i < sz) {
+        b.child(i) match {
+          case l: tree.LeafImpl if !inSkipList(l) =>
+            errors :+= s"Only in octree level $lvl but not skip list: $l"
+            if (repair) {
+              println(s"\n============== BEFORE REMOVING $l ==============")
+              println(tree.debugPrint())
+              b.demoteLeaf(tree.pointView(l.value, tx), l)
+              println(s"\n============== AFTER REMOVING $l ==============")
+              println(tree.debugPrint())
+              return  // XXX dirty - but if there is more than one wrong leaf, continuing may reinstall a lonley parent
+            }
+
+          case cb: tree.BranchLike =>
+            checkInTreeLevel(cb, lvl)
+
+          case _ =>
+        }
+        i += 1
+      }
+    }
+
+    def checkInTree(t: tree.BranchLike, lvl: Int): Unit = {
+      checkInTreeLevel(t, lvl)
+      t.prevOption.foreach {
+        case p: tree.BranchLike => checkInTree(p, lvl - 1)
+      }
+    }
+
+    checkInTree(tree.lastTreeImpl, tree.numLevels)
+
+    errors
   }
 }
 
@@ -2235,8 +2280,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
               })
             }
             if (isLonely(i + 1)) {
-              val myIdx = parent.hyperCube.indexOf(hyperCube)
-              val p = parent
+              val p     = parent
+              val myIdx = p.hyperCube.indexOf(hyperCube)
               p.updateChild(myIdx, lonely)
               if (lonely.parent == this) lonely.updateParentLeft(p)
               remove() // dispose() // removeAndDispose()
@@ -2424,8 +2469,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
               })
             }
             if (isLonely(i + 1)) {
-              val myIdx   = parent.hyperCube.indexOf(hyperCube)
               val p       = parent
+              val myIdx   = p.hyperCube.indexOf(hyperCube)
               p.updateChild(myIdx, lonely)
               if (lonely.parent == this) lonely.updateParentRight(p)
               remove()
@@ -2448,34 +2493,34 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     println(skipList.debugPrint())
     println("Octree structure:")
 
-    def dumpTree(b: Branch, indent: Int): Unit = {
+    def dumpTree(b: BranchLike, indent: Int): Unit = {
       val iStr = " " * indent
       b match {
         case lb: LeftBranch =>
-          println(s"${iStr}Left Branch with ${b.hyperCube}")
+          println(s"${iStr}LeftBranch${lb.id} with ${b.hyperCube}")
         case _ =>
-          println(s"${iStr}Right Branch with ${b.hyperCube}")
+          println(s"${iStr}RightBranch${b.id} with ${b.hyperCube}")
       }
       for(i <- 0 until numOrthants) {
         print(s"$iStr  Child #${i+1} = ")
         b.child(i) match {
-          case cb: Branch =>
+          case cb: BranchLike =>
             println("Branch:")
             dumpTree(cb, indent + 4)
           case l: LeafImpl =>
-            println(s"Leaf ${l.value}")
+            println(s"Leaf${l.id} ${l.value}")
           case empty => println(empty)
         }
       }
     }
 
-    def dumpTrees(b: Branch, level: Int): Unit = {
+    def dumpTrees(b: BranchLike, level: Int): Unit = {
       println(s"\n---level $level----")
       dumpTree(b, 0)
       b.nextOption.foreach(b => dumpTrees(b, level + 1))
     }
 
-    dumpTrees(headTree, 0)
+    dumpTrees(head, 0)
     ps.close()
     new String(baos.toByteArray, "UTF-8")
   }
