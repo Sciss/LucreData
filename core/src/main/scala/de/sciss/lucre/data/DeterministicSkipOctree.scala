@@ -1747,9 +1747,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     override def toString = shortString + id
 
     override def equals(that: Any): Boolean = that match {
-      case n: NonEmpty =>
-        id == n.id
-      case _ => super.equals(that)
+      case n: Identifiable[_] => id == n.id   // do _not_ match against n: NonEmpty because that's an inner class!!!
+      case _                  => super.equals(that)
     }
 
     override def hashCode = id.hashCode()
