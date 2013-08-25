@@ -199,27 +199,29 @@ object HASkipList {
 
     def get(key: A)(implicit tx: S#Tx): Option[B] = {
       @tailrec def stepRight(n: Node[S, A, (A, B)]): Option[B] = {
-        val idx = indexInNodeR(key, n)
+        val idx   = indexInNodeR(key, n)
+        val idxP  = if (idx < 0) -(idx + 1) else idx
         if (n.isLeaf) {
-          if (idx < 0) {
-            val idxP = -(idx + 1)
+          if (idx < 0)
             Some(n.asLeaf.entry(idxP)._2)
-          } else None
+          else
+            None
         } else {
-          val c = n.asBranch.down(idx)
-          if (idx < n.size - 1) stepLeft(c) else stepRight(c)
+          val c = n.asBranch.down(idxP)
+          if (idxP < n.size - 1) stepLeft(c) else stepRight(c)
         }
       }
 
       @tailrec def stepLeft(n: Node[S, A, (A, B)]): Option[B] = {
-        val idx = indexInNodeL(key, n)
+        val idx  = indexInNodeL(key, n)
+        val idxP = if (idx < 0) -(idx + 1) else idx
         if (n.isLeaf) {
-          if (idx < 0) {
-            val idxP = -(idx + 1)
+          if (idx < 0)
             Some(n.asLeaf.entry(idxP)._2)
-          } else None
+          else
+            None
         } else {
-          stepLeft(n.asBranch.down(idx))
+          stepLeft(n.asBranch.down(idxP))
         }
       }
 
