@@ -202,9 +202,7 @@ sealed trait SkipList[S <: Sys[S], /* @spec(KeySpec) */ A, /* @spec(ValueSpec) *
 
   def keySerializer: Serializer[S#Tx, S#Acc, A]
 
-  /**
-   * The number of levels in the skip list.
-   */
+  /** The number of levels in the skip list. */
   def height(implicit tx: S#Tx): Int
 
   /** Reports the number of keys in the skip list (size of the bottom level).
