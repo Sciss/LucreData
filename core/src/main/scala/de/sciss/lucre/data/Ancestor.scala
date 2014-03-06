@@ -259,7 +259,7 @@ object Ancestor {
     }
   }
 
-  private sealed trait Mark[S <: Sys[S], Version, @spec(ValueSpec) A] extends Writable {
+  private sealed trait Mark[S <: Sys[S], Version, /* @spec(ValueSpec) */ A] extends Writable {
 
     // ---- abstract ----
 
@@ -292,13 +292,13 @@ object Ancestor {
     override def toString = "Mark(" + fullVertex.version + " -> " + value + ")"
   }
 
-  def newMap[S <: Sys[S], Version, @spec(ValueSpec) A](full: Tree[S, Version], rootVertex: Vertex[S, Version],
+  def newMap[S <: Sys[S], Version, /* @spec(ValueSpec) */ A](full: Tree[S, Version], rootVertex: Vertex[S, Version],
     rootValue: A)(implicit tx: S#Tx, valueSerializer: Serializer[S#Tx, S#Acc, A]): Map[S, Version, A] = {
 
     new MapNew[S, Version, A](full, rootVertex, rootValue, tx, valueSerializer)
   }
 
-  def readMap[S <: Sys[S], Version, @spec(ValueSpec) A](in: DataInput, access: S#Acc, full: Tree[S, Version])(
+  def readMap[S <: Sys[S], Version, /* @spec(ValueSpec) */ A](in: DataInput, access: S#Acc, full: Tree[S, Version])(
     implicit tx: S#Tx, valueSerializer: Serializer[S#Tx, S#Acc, A]): Map[S, Version, A] = {
 
     new MapRead[S, Version, A](full, in, access, tx, valueSerializer)
@@ -318,7 +318,7 @@ object Ancestor {
    *                `0` indicates that both refer to the same version, and `1` indicates that the full vertex lies
    *                right to the mark vertex in the post-order list
    */
-  private final class IsoResult[S <: Sys[S], Version, @spec(ValueSpec) A](val pre:  Mark[S, Version, A],
+  private final class IsoResult[S <: Sys[S], Version, /* @spec(ValueSpec) */ A](val pre:  Mark[S, Version, A],
                                                                           val preCmp: Int,
                                                                           val post: Mark[S, Version, A],
                                                                           val postCmp: Int) {
@@ -327,7 +327,7 @@ object Ancestor {
       "post " + (if (postCmp < 0) "< " else if (postCmp > 0) "> " else "== ") + post + ")"
   }
 
-  private sealed trait MapImpl[S <: Sys[S], Version, @spec(ValueSpec) A]
+  private sealed trait MapImpl[S <: Sys[S], Version, /* @spec(ValueSpec) */ A]
     extends Map[S, Version, A] with TotalOrder.Map.RelabelObserver[S#Tx, Mark[S, Version, A]] {
     me =>
 
@@ -606,7 +606,7 @@ object Ancestor {
     }
   }
 
-  sealed trait Map[S <: Sys[S], Version, @spec(ValueSpec) A] extends Writable with Disposable[S#Tx] {
+  sealed trait Map[S <: Sys[S], Version, /* @spec(ValueSpec) */ A] extends Writable with Disposable[S#Tx] {
     type K = Vertex[S, Version]
 
     def full: Tree[S, Version]

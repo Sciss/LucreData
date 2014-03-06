@@ -10,7 +10,9 @@ homepage in ThisBuild <<= name { n => Some(url("https://github.com/Sciss/" + n))
 
 licenses in ThisBuild := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-scalaVersion in ThisBuild := "2.10.2"
+scalaVersion in ThisBuild := "2.11.0-RC1"
+
+crossScalaVersions in ThisBuild := Seq("2.11.0-RC1", "2.10.3")
 
 resolvers in ThisBuild ++= Seq(
   "itextpdf.com" at "http://maven.itextpdf.com",
@@ -18,10 +20,10 @@ resolvers in ThisBuild ++= Seq(
 )
 
 libraryDependencies in ThisBuild ++= Seq(
-  "org.scalatest" %% "scalatest" % "1.9.1" % "test"
+  "org.scalatest" %% "scalatest" % "2.1.0" % "test"
 )
 
-retrieveManaged in ThisBuild := true
+// retrieveManaged in ThisBuild := true
 
 scalacOptions in ThisBuild ++= Seq("-deprecation", "-unchecked", "-feature")  // "-optimize" -> crashes scalac
 
