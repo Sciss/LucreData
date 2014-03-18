@@ -11,24 +11,18 @@ import stm.{Cursor, Durable, InMemory, Sys}
 object AncestorSuite2 {
   private final case class Vertex(parent: Int, children: Set[Int], mark: Option[Int])
 }
-/**
- * To run this test copy + paste the following into sbt:
- * {{
- * test-only de.sciss.lucre.data.AncestorSuite2
- * }}
+/*
+  To run this test copy + paste the following into sbt:
+
+  test-only de.sciss.lucre.data.AncestorSuite2
  */
 class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
   import AncestorSuite2._
 
-  val NUM1      = 10000
-  // gets frickin slow, hopefully online in the control structure 10000     // 933 // 10000
-  val MARK_LIVE = 0.25
-  // percentage of elements marked (0 to 1)
-  //   val MARK_POST              = 0.25
-  val RETRO_CHILD_PERCENTAGE = 0.2
-  // from those elements marked, amount which are inserted as retro-children (0 to 1)
+  val NUM1      = 4096 // 10000             // gets frickin slow, hopefully online in the control structure 10000     // 933 // 10000
+  val MARK_LIVE = 0.25              // percentage of elements marked (0 to 1)
+  val RETRO_CHILD_PERCENTAGE  = 0.2 // from those elements marked, amount which are inserted as retro-children (0 to 1)
   val RETRO_PARENT_PERCENTAGE = 0.2 // from those elements marked, amount which are inserted as retro-parents (0 to 1)
-  //   val INCR_TEST_STEP         = 10
 
   // When the map is tested in the incremental build-up, only perform test every x iterations,
   // where x is calculated as INCR_TEST_FACTOR.pow(n)

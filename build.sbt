@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version in ThisBuild := "2.2.2-SNAPSHOT"
+version in ThisBuild := "2.2.2"
 
 organization in ThisBuild := "de.sciss"
 
@@ -10,7 +10,7 @@ homepage in ThisBuild <<= name { n => Some(url("https://github.com/Sciss/" + n))
 
 licenses in ThisBuild := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-scalaVersion in ThisBuild := "2.11.0-RC1"
+scalaVersion in ThisBuild := "2.10.3"
 
 crossScalaVersions in ThisBuild := Seq("2.11.0-RC1", "2.10.3")
 
@@ -86,4 +86,4 @@ seq(lsSettings: _*)
 
 (LsKeys.ghUser in LsKeys.lsync) := Some("Sciss")
 
-(LsKeys.ghRepo in LsKeys.lsync) <<= name(Some(_))
+(LsKeys.ghRepo in LsKeys.lsync) := Some(name.value)

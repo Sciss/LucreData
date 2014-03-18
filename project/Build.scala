@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object Build extends sbt.Build {
-  lazy val stmVersion = "2.0.+"
+  lazy val stmVersion = "2.0.1+"
 
   lazy val root: Project = Project(
     id            = "lucredata",
@@ -45,7 +45,7 @@ object Build extends sbt.Build {
     settings      = Project.defaultSettings ++ Seq(
       libraryDependencies ++= Seq(
         "de.sciss" %% "lucrestm-bdb" % stmVersion % "test",
-        "de.sciss" %% "pdflitz" % "1.0.+" % "test"
+        "de.sciss" %% "pdflitz" % "1.0.1+" % "test"
       )
     )
   )
