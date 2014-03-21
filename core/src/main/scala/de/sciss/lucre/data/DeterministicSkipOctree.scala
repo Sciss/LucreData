@@ -1858,8 +1858,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     final def next(implicit tx: S#Tx): NextOption = nextRef()
 
     final def nextOption(implicit tx: S#Tx): Option[BranchLike] = next match {
-      case EmptyValue => None
-      case b: BranchLike => Some(b)
+      case EmptyValue     => None
+      case b: BranchLike  => Some(b)
     }
 
     /** Sets the corresponding interesting
@@ -1878,7 +1878,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
     /** Called when a leaf has been removed from the node.
       * The node may need to cleanup after this, e.g. promote
-      * an underfull node upwards.
+      * an under-full node upwards.
       */
     protected def leafRemoved()(implicit tx: S#Tx): Unit
 
@@ -2092,7 +2092,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           // and if so, adjust the parent to point
           // to the new intermediate node `ne`!
           if (old.parent == this) old.updateParentLeft(n2)
-          n2.newLeaf(lidx, value)
+          (n2: LeftBranch).newLeaf(lidx, value)   // cf. SI-8432
       }
     }
 
