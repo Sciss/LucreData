@@ -4,9 +4,11 @@ package data
 import org.scalatest.FunSpec
 import de.sciss.lucre.geom.{IntSquare => Q, IntPoint2D => P}
 
-/** To run only this suite
-  *
-  * test-only de.sciss.lucre.data.InterestingSquareSuite
+/*
+ To run only this suite
+
+test-only de.sciss.lucre.data.InterestingSquareSuite
+
   */
 class InterestingSquareSuite extends FunSpec {
   val p = Q(64, 64, 64)

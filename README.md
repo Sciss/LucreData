@@ -18,10 +18,12 @@ LucreData provides implementations for various data structures in the Scala prog
 
 ## requirements
 
-Builds with sbt 0.12 against Scala 2.10. Depends on [LucreSTM](http://github.com/Sciss/LucreSTM). Sub projects:
+Builds with sbt 0.13 against Scala 2.11, 2.10. Depends on [LucreSTM](http://github.com/Sciss/LucreSTM). Sub projects:
 
 * `core` &ndash; Transactional data structures (based on [LucreSTM](https://github.com/Sciss/LucreSTM)).
 * `views` &ndash; Some Swing based views to show the transactional data structures
+
+Due to a problem with Java Swing generics, the view tests currently require to compile on a JDK 6 instead of 7 or higher. This will be addressed in the next release.
 
 ## linking to LucreData
 
@@ -34,4 +36,4 @@ For a particular sub module:
     "de.sciss" %% "lucredata-core"  % v
     "de.sciss" %% "lucredata-views" % v
 
-The current version `v` is `"2.2.2+"`.
+The current version `v` is `"2.2.3+"`.

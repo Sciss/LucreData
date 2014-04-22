@@ -9,11 +9,12 @@ import stm.store.BerkeleyDB
 import java.io.File
 import stm.{Cursor, Durable, InMemory, Sys}
 
-/** To run this test copy + paste the following into sbt:
-  * {{
-  * test-only de.sciss.collection.txn.SkipListSuite
-  * }}
-  */
+/*
+ To run this test copy + paste the following into sbt:
+
+test-only de.sciss.collection.txn.SkipListSuite
+
+ */
 class SkipListSuite extends FeatureSpec with GivenWhenThen {
   val CONSISTENCY   = true
   val OBSERVATION   = true

@@ -56,7 +56,7 @@ object IntDistanceMeasure3D {
     def maxDistance(a: PointLike, b: HyperCube) = b.maxDistanceSq(a)
   }
 
-  private sealed trait ClipLike[@specialized(Long) M] extends DistanceMeasure[M, ThreeDim] {
+  private sealed trait ClipLike[M] extends DistanceMeasure[M, ThreeDim] {
     protected def underlying: DistanceMeasure[M, ThreeDim]
 
     protected def clipping: HyperCube
@@ -72,7 +72,7 @@ object IntDistanceMeasure3D {
   private final class LongClip(protected val underlying: LongImpl, protected val clipping: HyperCube)
     extends ClipLike[Long] with LongImpl
 
-  private sealed trait ApproximateLike[ @specialized( Long ) M ] extends Impl[ M ] {
+  private sealed trait ApproximateLike[M] extends Impl[M] {
     protected def underlying: DistanceMeasure[M, ThreeDim]
     protected def thresh: M
 
@@ -91,7 +91,7 @@ object IntDistanceMeasure3D {
   private final class LongApproximate(protected val underlying: LongImpl, protected val thresh: Long)
     extends ApproximateLike[Long] with LongImpl
 
-  private sealed trait OrthantLike[@specialized(Long) M]
+  private sealed trait OrthantLike[M]
     extends DistanceMeasure[M, ThreeDim] {
 
     protected def underlying: DistanceMeasure[M, ThreeDim]
@@ -144,7 +144,7 @@ object IntDistanceMeasure3D {
   private final class LongOrthant(protected val underlying: DistanceMeasure[Long, ThreeDim], protected val idx: Int)
     extends OrthantLike[Long] with LongImpl
 
-  private sealed trait ExceptOrthantLike[@specialized(Long) M]
+  private sealed trait ExceptOrthantLike[M]
     extends DistanceMeasure[M, ThreeDim] {
 
     protected def underlying: DistanceMeasure[M, ThreeDim]
@@ -313,7 +313,7 @@ object IntDistanceMeasure3D {
     }
   }
 
-  sealed trait Impl[@specialized(Long) M] extends Ops[M, ThreeDim] {
+  sealed trait Impl[M] extends Ops[M, ThreeDim] {
     protected def zeroValue: M
 
     // TODO XXX WARNING: this is probably faulty

@@ -202,7 +202,7 @@ object LongDistanceMeasure2D {
       } else Long.MaxValue
   }
 
-  private sealed trait ClipLike[@specialized(Long) M] extends Impl[M] {
+  private sealed trait ClipLike[M] extends Impl[M] {
     protected def underlying: Impl[M]
 
     protected def quad: HyperCube
@@ -220,7 +220,7 @@ object LongDistanceMeasure2D {
   private final class SqrClip(protected val underlying: SqrImpl, protected val quad: HyperCube)
     extends ClipLike[Sqr] with SqrImpl
 
-  private sealed trait ApproximateLike[@specialized(Long) M] extends Impl[M] {
+  private sealed trait ApproximateLike[M] extends Impl[M] {
     protected def underlying: Impl[M]
 
     protected def thresh: M
@@ -242,7 +242,7 @@ object LongDistanceMeasure2D {
   private final class SqrApproximate(protected val underlying: SqrImpl, protected val thresh: Sqr)
     extends ApproximateLike[Sqr] with SqrImpl
 
-  private sealed trait QuadrantLike[ @specialized( Long ) M ] extends Impl[ M ] {
+  private sealed trait QuadrantLike[M] extends Impl[M] {
     private val right   = idx == 0 || idx == 3
     private val bottom  = idx >= 2
 
@@ -290,7 +290,7 @@ object LongDistanceMeasure2D {
 
   // praktisch werden alle logischen statements, die zum ausschluss fuehren (maxValue)
   // von Quadrant uebernommen und umgekehrt (a & b --> !a | !b)
-  private sealed trait ExceptQuadrantLike[@specialized(Long) M] extends Impl[M] {
+  private sealed trait ExceptQuadrantLike[M] extends Impl[M] {
     private val right   = idx == 0 || idx == 3
     private val bottom  = idx >= 2
 
@@ -425,7 +425,7 @@ object LongDistanceMeasure2D {
     }
   }
 
-  private sealed trait Impl[@specialized(Long) M] extends Ops[M, TwoDim] {
+  private sealed trait Impl[M] extends Ops[M, TwoDim] {
     def zeroValue: M
 
     //      final def filter( p: PointLike ) : Boolean = new Filter( this, p )

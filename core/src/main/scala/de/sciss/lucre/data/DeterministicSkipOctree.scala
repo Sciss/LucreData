@@ -815,7 +815,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
   }
 
-  final def nearestNeighbor[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
+  final def nearestNeighbor[M](point: D#PointLike, metric: DistanceMeasure[M, D])
                                                  (implicit tx: S#Tx): A = {
     val nn = new NN(point, metric).find()
     stat_report()
@@ -825,7 +825,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
   }
 
-  final def nearestNeighborOption[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
+  final def nearestNeighborOption[M](point: D#PointLike, metric: DistanceMeasure[M, D])
                                                        (implicit tx: S#Tx): Option[A] = {
     val nn = new NN(point, metric).find()
     stat_report()
@@ -874,7 +874,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     this
   }
 
-  final def rangeQuery[@specialized(Long) Area](qs: QueryShape[Area, D])(implicit tx: S#Tx): Iterator[S#Tx, A] = {
+  final def rangeQuery[Area](qs: QueryShape[Area, D])(implicit tx: S#Tx): Iterator[S#Tx, A] = {
     val q = new RangeQuery(qs)
     q.findNextValue()
     q
@@ -1033,9 +1033,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
 
   final def iterator(implicit tx: S#Tx): Iterator[S#Tx, A] = skipList.iterator.map(_.value)
 
-  private final class NNIter[@specialized(Long) M](val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M)
+  private final class NNIter[M](val bestLeaf: LeafOrEmpty, val bestDist: M, val rmax: M)
 
-  private final class NN[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
+  private final class NN[M](point: D#PointLike, metric: DistanceMeasure[M, D])
     extends scala.math.Ordering[VisitedNode[M]] {
 
     stat_reset()
@@ -1284,7 +1284,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
         val b0      = inLowestLevel(b)
         val numAnc  = 1 // XXX TODO needs to be retrieved from metric and numDim
 
-        @tailrec def checkendorfer(b: Branch, si: Int, _anc: Int) {
+        @tailrec def checkendorfer(b: Branch, si: Int, _anc: Int): Unit = {
           val a   = ancestorOf(b)
           val ai  = a.hyperCube.indexOf(b.hyperCube)
           var anc = _anc
@@ -1582,12 +1582,12 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
   }
 
-  private final class VisitedNode[@specialized(Long) M](val n: Branch, val minDist: M /*, val maxDist: M */) {
+  private final class VisitedNode[M](val n: Branch, val minDist: M /*, val maxDist: M */) {
     override def toString = s"($n, min = $minDist" // , max = $maxDist)"
   }
 
   // note: Iterator is not specialized, hence we can safe use the effort to specialize in A anyway
-  private final class RangeQuery[@specialized(Long) Area](qs: QueryShape[Area, D]) extends Iterator[S#Tx, A] {
+  private final class RangeQuery[Area](qs: QueryShape[Area, D]) extends Iterator[S#Tx, A] {
     val sz          = numOrthants
     val stabbing    = MQueue.empty[(BranchLike, Area)]
     // Tuple2 is specialized for Long, too!
@@ -2419,7 +2419,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       nextRef.dispose()
     }
 
-    def write(out: DataOutput) {
+    def write(out: DataOutput): Unit = {
       out.writeByte(5)
       id.write(out)
       parentRef.write(out)

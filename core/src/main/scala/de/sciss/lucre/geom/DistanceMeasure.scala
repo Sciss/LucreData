@@ -15,7 +15,7 @@ package de.sciss.lucre
 package geom
 
 object DistanceMeasure {
-  trait Ops[@specialized(Long) M, D <: Space[D]] extends DistanceMeasure[M, D] {
+  trait Ops[M, D <: Space[D]] extends DistanceMeasure[M, D] {
     /**
      * Applies a filter to this measure by constraining distances
      * to objects `b` which lie within the given `IntSquare`. That
@@ -66,7 +66,7 @@ object DistanceMeasure {
  * the square root of the distances, while still preserving
  * the ordering between the possible results.
  */
-trait DistanceMeasure[@specialized(Long) M, D <: Space[D]] {
+trait DistanceMeasure[M, D <: Space[D]] {
   //   def manifest: Manifest[ M ]
   def newArray(size: Int): Array[M]
 

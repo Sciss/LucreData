@@ -85,7 +85,7 @@ class InteractiveSkipListView[S <: Sys[S]](access: Source[S#Tx, HASkipList.Set[S
     val b = new JButton(lb)
     b.setFocusable(false)
     b.addActionListener(new ActionListener {
-      def actionPerformed(e: ActionEvent) {
+      def actionPerformed(e: ActionEvent): Unit = {
         action
         slv.repaint()
       }

@@ -4,9 +4,11 @@ import de.sciss.lucre.stm.InMemory
 import de.sciss.lucre.geom.{IntSquare, IntPoint2D, IntSpace}
 import org.scalatest.FunSpec
 
-/** To run only this suite
-  *
-  * test-only de.sciss.lucre.data.PathoSuite
+/*
+ To run only this suite
+
+test-only de.sciss.lucre.data.PathoSuite
+
   */
 class PathoSuite extends FunSpec {
   type S  = InMemory

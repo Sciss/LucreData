@@ -18,7 +18,6 @@ package data
 import geom.{DistanceMeasure, IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
 import stm.{Disposable, Sys}
 import geom.IntSpace.ThreeDim
-import scala.{specialized => spec}
 import serial.{DataInput, DataOutput, Serializer, Writable}
 
 //import stm.{SpecGroup => ialized}
@@ -507,11 +506,10 @@ object Ancestor {
     }
   }
 
-  // XXX boom! specialized
-  private final class MapNew[S <: Sys[S], Version, /* @spec(ialized) */ A](val full: Tree[S, Version],
-                                                                     rootVertex: Vertex[S, Version],
-                                                                     rootValue: A, tx0: S#Tx,
-                                                                     val valueSerializer: Serializer[S#Tx, S#Acc, A])
+  private final class MapNew[S <: Sys[S], Version, A](val full: Tree[S, Version],
+                                                      rootVertex: Vertex[S, Version],
+                                                      rootValue: A, tx0: S#Tx,
+                                                      val valueSerializer: Serializer[S#Tx, S#Acc, A])
     extends MapImpl[S, Version, A] {
     me =>
 
@@ -557,10 +555,9 @@ object Ancestor {
     }
   }
 
-  // XXX boom! specialized
-  private final class MapRead[S <: Sys[S], Version, /* @spec(ialized) */ A](val full: Tree[S, Version], in: DataInput,
-                                                                      access: S#Acc, tx0: S#Tx,
-                                                                      val valueSerializer: Serializer[S#Tx, S#Acc, A])
+  private final class MapRead[S <: Sys[S], Version, A](val full: Tree[S, Version], in: DataInput,
+                                                       access: S#Acc, tx0: S#Tx,
+                                                       val valueSerializer: Serializer[S#Tx, S#Acc, A])
     extends MapImpl[S, Version, A] {
     me =>
 

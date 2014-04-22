@@ -13,9 +13,10 @@ import collection.immutable.{Vector => Vec}
 import serial.{Reader, Writable, DataInput, DataOutput, Serializer}
 
 /*
-  To run this test copy + paste the following into sbt:
+ To run this test copy + paste the following into sbt:
 
-  test-only de.sciss.lucre.data.AncestorRetroSuite
+test-only de.sciss.lucre.data.AncestorRetroSuite
+
 */
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
   val PARENT_LOOKUP             = true
@@ -72,9 +73,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
         if (id == 0) v.preHeadKey else v.preTailKey
       }
 
-      def write(v: FullVertexPre[S], out: DataOutput) {
-        v.write(out)
-      }
+      def write(v: FullVertexPre[S], out: DataOutput): Unit = v.write(out)
     }
   }
 
@@ -83,7 +82,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
     def id: Int
 
-    final def write(out: DataOutput) {
+    final def write(out: DataOutput): Unit = {
       out.writeByte(id)
       source.write(out)
     }
@@ -132,9 +131,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
         val preOrder      = TotalOrder.Map.empty[S, FullVertexPre[S]](orderObserver, _.order, 0)
         val postOrder     = TotalOrder.Map.empty[S, FullVertex[S]](orderObserver, _.post, Int.MaxValue /* - 1 */)
         implicit lazy val vertexSer: Serializer[S#Tx, S#Acc, FullVertex[S]] = new Serializer[S#Tx, S#Acc, FullVertex[S]] {
-          def write(v: FullVertex[S], out: DataOutput) {
-            v.write(out)
-          }
+          def write(v: FullVertex[S], out: DataOutput): Unit = v.write(out)
 
           def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): FullVertex[S] = {
             new FullVertex[S] {
@@ -259,7 +256,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
       v
     }
 
-    //      def validate() {
+    //      def validate(): Unit = {
     ////         When( "the size of the vertices is queried from the quadtree" )
     ////         Then( "it should be equal to the number of observed labelings and relabelings" )
     ////         val qsz = t.system.step { implicit tx => t.size }
@@ -505,7 +502,8 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
   class Config[S <: Sys[S]](val t: FullTree[S], val treeSeq: Vec[FullVertex[S]],
                             val parents: Map[FullVertex[S], FullVertex[S]])
 
-  def withSys[S <: Sys[S] with Cursor[S]](sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit) {
+  def withSys[S <: Sys[S] with Cursor[S]](sysName: String, sysCreator: () => S,
+                                          sysCleanUp: (S, Boolean) => Unit): Unit = {
     def randomlyFilledTree(n: Int)(implicit system: S): Config[S] = {
       Given("a randomly filled tree, corresponding node orders and their quadtree")
       val (t, treeSeq, parents) = system.step { implicit tx =>
@@ -622,7 +620,7 @@ class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
 
             //         if( verbose ) printPrePost( t, treeSeq )
 
-            @tailrec def testChild(version: Int, child: FullVertex[S]) {
+            @tailrec def testChild(version: Int, child: FullVertex[S]): Unit = {
               parents.get(child) match {
                 case None =>
 

@@ -105,12 +105,11 @@ object HASkipList {
     case _ => sys.error(s"Not a HA Skip List: $list")
   }
 
-  // XXX boom! specialized runtime AbstractMethodError
-  private final class SetImpl[S <: Sys[S], /* @spec(ialized) */ A](val id: S#ID, val minGap: Int,
-                                                             protected val keyObserver: SkipList.KeyObserver[S#Tx, A],
-                                                             _downNode: SetImpl[S, A] => S#Var[Node[S, A, A]])
-                                                            (implicit val ordering: Ordering[S#Tx, A],
-                                                             val keySerializer: Serializer[S#Tx, S#Acc, A])
+  private final class SetImpl[S <: Sys[S], A](val id: S#ID, val minGap: Int,
+                                              protected val keyObserver: SkipList.KeyObserver[S#Tx, A],
+                                              _downNode: SetImpl[S, A] => S#Var[Node[S, A, A]])
+                                             (implicit val ordering: Ordering[S#Tx, A],
+                                              val keySerializer: Serializer[S#Tx, S#Acc, A])
     extends Impl[S, A, A] with HASkipList.Set[S, A] {
 
     protected val downNode = _downNode(this)
@@ -972,8 +971,7 @@ object HASkipList {
                                             (implicit tx: S#Tx, list: Impl[S, A, E]): Branch[S, A, E]
   }
 
-  // XXX boom! specialized
-  sealed trait Node[S <: Sys[S], /* @spec(ialized) */ A, /* @spec(ialized) */ E] {
+  sealed trait Node[S <: Sys[S], A, E] {
     private[HASkipList] def removeColumn(idx: Int)(implicit tx: S#Tx, list: Impl[S, A, E]): Node[S, A, E]
 
     def size: Int

@@ -71,9 +71,7 @@ object InteractiveSkipOctreePanel {
       case IndexedSeq(x, y) => IntSquare(x, y, ext)
     }
 
-    def consistency() {
-      cons()
-    }
+    def consistency(): Unit = cons()
 
     val view = {
       val res = new SkipQuadtreeView[S, IntPoint2D](access, cursor, identity)
@@ -81,17 +79,13 @@ object InteractiveSkipOctreePanel {
       res
     }
 
-    def repaint() {
-      view.repaint()
-    }
+    def repaint(): Unit = view.repaint()
 
     //      val baseDistance = IntDistanceMeasure2D$.euclideanSq
 
     def highlight: Set[IntPoint2D] = view.highlight
 
-    def highlight_=(points: Set[IntPoint2D]) {
-      view.highlight = points
-    }
+    def highlight_=(points: Set[IntPoint2D]): Unit = view.highlight = points
 
     val distanceMeasures = IndexedSeq(
       "Euclidean" -> IntDistanceMeasure2D.euclideanSq,
@@ -105,7 +99,7 @@ object InteractiveSkipOctreePanel {
 
     private val colrTrns = new Color(0x00, 0x00, 0xFF, 0x40)
 
-    private def topPaint(h: QuadView.PaintHelper) {
+    private def topPaint(h: QuadView.PaintHelper): Unit =
       rangeHyperCube.foreach { q =>
         h.g2.setColor(Color.blue)
         val side = q.extent << 1
@@ -113,7 +107,6 @@ object InteractiveSkipOctreePanel {
         h.g2.setColor(colrTrns)
         h.g2.fillRect(q.left, q.top, side, side)
       }
-    }
   }
 
   //   private final class Model3D[ S <: Sys[ S ]]( tree: txn.SkipOctree[ S, Space.IntThreeDim, IntPoint3DLike ])
@@ -129,10 +122,10 @@ object InteractiveSkipOctreePanel {
   //      }
   //
   //      val view = new SkipOctree3DView( tree )
-  //      def repaint() { view.treeUpdated() }
+  //      def repaint(): Unit = { view.treeUpdated() }
   ////      val baseDistance = IntDistanceMeasure3D$.euclideanSq
   //      def highlight: Set[ IntPoint3DLike ] = view.highlight
-  //      def highlight_=( points: Set[ IntPoint3DLike ]) { view.highlight = points }
+  //      def highlight_=( points: Set[ IntPoint3DLike ]): Unit = { view.highlight = points }
   //
   //      val distanceMeasures = IndexedSeq(
   //         "Euclidean" -> IntDistanceMeasure3D$.euclideanSq,
@@ -142,7 +135,7 @@ object InteractiveSkipOctreePanel {
   //
   //      var rangeHyperCube = Option.empty[ IntCubeLike ]
   //
-  //      def addPDFSupport( f: JFrame ) {
+  //      def addPDFSupport( f: JFrame ): Unit = {
   //         PDFSupport.addMenu[ JComponent ]( f, view :: Nil, _ => () )
   //      }
   //   }
@@ -181,7 +174,7 @@ object InteractiveSkipOctreePanel {
 
     def cursor: Cursor[S]
 
-    final def addMouseAdapter(ma: MouseListener with MouseMotionListener) {
+    final def addMouseAdapter(ma: MouseListener with MouseMotionListener): Unit = {
       view.addMouseListener(ma)
       view.addMouseMotionListener(ma)
     }

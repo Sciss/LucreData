@@ -33,7 +33,7 @@ object ThesisPlaneTest extends App {
     var isoPre  = Map[Int, E](pre ('a').tag -> preM ('a'))
     var isoPost = Map[Int, E](post('a').tag -> postM('a'))
 
-    def insert(parent: Char, child: Char) {
+    def insert(parent: Char, child: Char): Unit = {
 //      println(s"Insert $child")
       val ppre  = pre(parent)
       val cpre  = ppre.append() // 0.125

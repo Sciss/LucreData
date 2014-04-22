@@ -6,10 +6,11 @@ import org.scalatest.{GivenWhenThen, FeatureSpec}
 import stm.InMemory
 import collection.breakOut
 
-/** To run this test copy + paste the following into sbt:
-  * {{
-  * test-only de.sciss.lucre.data.SkipListMapSuite
-  * }}
+/*
+ To run this test copy + paste the following into sbt:
+
+test-only de.sciss.lucre.data.SkipListMapSuite
+
   */
 class SkipListMapSuite extends FeatureSpec with GivenWhenThen {
   val SEED  = 0L

@@ -22,7 +22,7 @@ object InteractiveSkipOctreeApp extends App with Runnable {
     val a       = args.headOption.getOrElse("")
     val thesis  = args.contains("--thesis")
 
-    val (frame, mod) = if (a.startsWith("--db")) {
+    val (frame, modView) = if (a.startsWith("--db")) {
       val dir = if (a == "--dbtmp") {
         File.createTempFile("octree", "_database")
       } else {
@@ -38,7 +38,7 @@ object InteractiveSkipOctreeApp extends App with Runnable {
       }
       if (thesis) system.step(implicit tx => addThesisPoints(model))
       val fr = makeFrame(model)
-      (fr, model)
+      (fr, model.view: QuadView)
 
     } else {
       implicit val system: InMemory = InMemory()
@@ -47,13 +47,13 @@ object InteractiveSkipOctreeApp extends App with Runnable {
       }
       if (thesis) system.step(implicit tx => addThesisPoints(model))
       val fr = makeFrame(model)
-      (fr, model)
+      (fr, model.view: QuadView)
     }
 
-    new de.sciss.pdflitz.SaveAction(mod.view :: Nil).setupMenu(frame)
+    new de.sciss.pdflitz.SaveAction(modView :: Nil).setupMenu(frame)
   }
 
-  def addThesisPoints[S <: Sys[S]](model: Model2D[S])(implicit tx: S#Tx) {
+  def addThesisPoints[S <: Sys[S]](model: Model2D[S])(implicit tx: S#Tx): Unit = {
     val allPoints = Vector(
       ('a',  57.5, 509.5),
       ('b', 161.5, 463.5),

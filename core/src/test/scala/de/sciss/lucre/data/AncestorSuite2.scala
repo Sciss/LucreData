@@ -8,14 +8,15 @@ import annotation.tailrec
 import collection.immutable.IntMap
 import stm.{Cursor, Durable, InMemory, Sys}
 
+/*
+ To run this test copy + paste the following into sbt:
+
+test-only de.sciss.lucre.data.AncestorSuite2
+
+ */
 object AncestorSuite2 {
   private final case class Vertex(parent: Int, children: Set[Int], mark: Option[Int])
 }
-/*
-  To run this test copy + paste the following into sbt:
-
-  test-only de.sciss.lucre.data.AncestorSuite2
- */
 class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
   import AncestorSuite2._
 
@@ -56,8 +57,9 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
     })
   }
 
-  def withSys[S <: Sys[S] with Cursor[S]](sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit) {
-    def scenarioWithTime(name: String, descr: String)(body: => Unit) {
+  def withSys[S <: Sys[S] with Cursor[S]](sysName: String, sysCreator: () => S,
+                                          sysCleanUp: (S, Boolean) => Unit): Unit = {
+    def scenarioWithTime(name: String, descr: String)(body: => Unit): Unit = {
       scenario(descr) {
         val t1 = System.currentTimeMillis()
         body

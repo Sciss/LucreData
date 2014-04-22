@@ -13,7 +13,7 @@ object PaperTest extends App with Runnable {
 
    val sz = 128
 
-  def run() {
+  def run(): Unit = {
     implicit val system     = InMemory()
     implicit val pointView  = (p: TwoDim#Point, t: Any) => p
     import TwoDim.pointSerializer

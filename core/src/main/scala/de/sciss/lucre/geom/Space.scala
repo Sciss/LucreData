@@ -47,7 +47,7 @@ trait Space[D <: Space[D]] {
   //    * Represents larger values from multiplications
   //    * (e.g. areas, squared distances).
   //    */
-  //   @specialized( Int, Long ) type BigNum
+  //   type BigNum
 
   /**
    * Given that the space is limited, this represents the farthest

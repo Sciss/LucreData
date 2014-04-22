@@ -36,32 +36,30 @@ class SkipQuadtreeView[ S <: Sys[ S ], A ]( access: Source[ S#Tx, DeterministicS
 extends QuadView {
 //   private type Child = txn.DeterministicSkipOctree.Node[ S, Space.IntTwoDim, A ]
 
-   def t( implicit tx: S#Tx ) : DeterministicSkipOctree[ S, IntSpace.TwoDim, A ] = access()
+  def t(implicit tx: S#Tx): DeterministicSkipOctree[S, IntSpace.TwoDim, A] = access()
 
-   var highlight  = Set.empty[ A ]
-   var gridColor  = new Color( 0x00, 0x00, 0x00, 0x30 )
-   private var scaleVar = 1.0
+  var highlight = Set.empty[A]
+  var gridColor = new Color(0x00, 0x00, 0x00, 0x30)
+  private var scaleVar = 1.0
 
-   private val hyperCube = cursor.step { implicit tx => t.hyperCube }
+  private val hyperCube = cursor.step { implicit tx => t.hyperCube }
 
-   setPrefSz( 3 )
+  setPrefSz(3)
 
-   def scale : Double = scaleVar
-   def scale_=( factor: Double ) {
-      scaleVar = factor
-   }
+  def scale: Double = scaleVar
 
-   private def setPrefSz( lvl: Int ) {
-      val w1   = ((hyperCube.extent.toLong << 1) * scale + 0.5).toInt + 1
-      val in   = getInsets
-      setPreferredSize( new Dimension( ((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom) ))
-   }
+  def scale_=(factor: Double): Unit = scaleVar = factor
 
-   def adjustPreferredSize() {
-      setPrefSz( cursor.step { implicit tx => t.numLevels })
-   }
+  private def setPrefSz(lvl: Int): Unit = {
+    val w1 = ((hyperCube.extent.toLong << 1) * scale + 0.5).toInt + 1
+    val in = getInsets
+    setPreferredSize(new Dimension(((w1 + 16) * lvl - 16) + (in.left + in.right), w1 + (in.top + in.bottom)))
+  }
 
-   protected def draw( h: QuadView.PaintHelper ) {
+  def adjustPreferredSize(): Unit =
+    setPrefSz( cursor.step { implicit tx => t.numLevels })
+
+  protected def draw(h: QuadView.PaintHelper): Unit = {
       var (tr, n) = cursor.step { implicit tx => val res = t; (res, res.headTree) }
       val q = hyperCube
       val dx = ((q.extent.toLong << 1) * scale + 0.5).toInt + 16
@@ -73,8 +71,8 @@ extends QuadView {
       }
    }
 
-   private def draw( tr: DeterministicSkipOctree[ S, IntSpace.TwoDim, A ],
-                     h: QuadView.PaintHelper, quad: DeterministicSkipOctree[ S, IntSpace.TwoDim, A ]#Child ) {
+  private def draw(tr: DeterministicSkipOctree[S, IntSpace.TwoDim, A],
+                   h: QuadView.PaintHelper, quad: DeterministicSkipOctree[S, IntSpace.TwoDim, A]#Child): Unit =
       quad match {
          case l: tr.Leaf =>
             h.drawPoint( pointView( l.value ), highlight.contains( l.value ))
@@ -85,5 +83,4 @@ extends QuadView {
             }
          case _ =>
       }
-   }
 }

@@ -11,12 +11,11 @@ import stm.store.BerkeleyDB
 import stm.{Cursor, Durable, InMemory, Sys}
 import scala.util.control.NonFatal
 
-/**
- *
- * To run this test copy + paste the following into sbt:
- * {{
- * test-only de.sciss.lucre.data.OctreeSuite
- * }}
+/*
+ To run this test copy + paste the following into sbt:
+
+test-only de.sciss.lucre.data.OctreeSuite
+
  */
 class OctreeSuite extends FeatureSpec with GivenWhenThen {
   val CONSISTENCY     = true
@@ -33,7 +32,8 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
 
   val cube = IntCube(0x40000000, 0x40000000, 0x40000000, 0x40000000)
 
-  def withSys[S <: Sys[S] with Cursor[S]](sysName: String, sysCreator: () => S, sysCleanUp: (S, Boolean) => Unit) {
+  def withSys[S <: Sys[S] with Cursor[S]](sysName: String, sysCreator: () => S,
+                                          sysCleanUp: (S, Boolean) => Unit): Unit = {
     withTree[S](sysName, () => {
       implicit val sys = sysCreator()
       val t = sys.step { implicit tx =>
@@ -211,22 +211,22 @@ class OctreeSuite extends FeatureSpec with GivenWhenThen {
      })
    }
 
-  //   def no[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
-  //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
+  //   def no[ S <: Sys[ S ], M, D <: Space[ D ]](
+  //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]): Unit = {
   //      t.system.step( implicit tx => () )
   //   }
   //
-  //   def yes1[ S <: Sys[ S ], @specialized( Long ) M, D <: Space[ D ]](
-  //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
+  //   def yes1[ S <: Sys[ S ], M, D <: Space[ D ]](
+  //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]): Unit = {
   //      t.system.step( tx => () )
   //   }
   //
   //   def yes2[ S <: Sys[ S ], M, D <: Space[ D ]](
-  //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]) {
+  //      t: SkipOctree[ S, D, D#Point ], euclideanDist: DistanceMeasure[ M, D ]): Unit = {
   //      t.system.step( implicit tx => () )
   //   }
 
-  //   def yes[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point ) {
+  //   def yes[ S <: Sys[ S ], D <: Space[ D ]]( t: SkipOctree[ S, D, D#Point ], pointFun: Int => D#Point ): Unit = {
   //      val ps = Seq.empty[ D#Point ]
   //      t.system.step { implicit tx =>
   //         ps.map( p => p -> p )

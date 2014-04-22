@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version            in ThisBuild := "2.2.3-SNAPSHOT"
+version            in ThisBuild := "2.2.3"
 
 organization       in ThisBuild := "de.sciss"
 
@@ -10,24 +10,22 @@ homepage           in ThisBuild := Some(url("https://github.com/Sciss/" + name.v
 
 licenses           in ThisBuild := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
 
-scalaVersion       in ThisBuild := "2.11.0-RC3"
+scalaVersion       in ThisBuild := "2.11.0"
 
-crossScalaVersions in ThisBuild := Seq("2.11.0-RC3", "2.10.4")
+crossScalaVersions in ThisBuild := Seq("2.11.0", "2.10.4")
 
 resolvers in ThisBuild ++= Seq(
   "itextpdf.com"      at "http://maven.itextpdf.com",
   "Oracle Repository" at "http://download.oracle.com/maven"
 )
 
-libraryDependencies in ThisBuild ++= Seq(
-  "org.scalatest" %% "scalatest" % "2.1.2" % "test"
-)
+libraryDependencies in ThisBuild += "org.scalatest" %% "scalatest" % "2.1.3" % "test"
 
 // retrieveManaged in ThisBuild := true
 
-scalacOptions in ThisBuild ++= Seq("-deprecation", "-unchecked", "-feature")  // "-optimize" -> crashes scalac
+scalacOptions in ThisBuild ++= Seq("-deprecation", "-unchecked", "-feature", "-Xfuture")  // "-optimize" -> crashes scalac
 
-scalacOptions in ThisBuild += "-no-specialization"    // specialization still broken in Scala 2.10
+// scalacOptions in ThisBuild += "-no-specialization"    // specialization still broken in Scala 2.10
 
 scalacOptions in ThisBuild ++= Seq("-Xelide-below", "INFO")     // elide debug logging!
 

@@ -17,11 +17,9 @@ package data
 import collection.immutable.{IndexedSeq => Vec}
 import collection.mutable
 import annotation.tailrec
-import scala.{specialized => spec}
-//import stm.{SpecGroup => ialized}
 
 object Iterator {
-  private final class Map[-Tx, @spec(ValueSpec) +A, @spec(ValueSpec) B](peer: Iterator[Tx, A], fun: A => B)
+  private final class Map[-Tx, +A, B](peer: Iterator[Tx, A], fun: A => B)
   extends Iterator[Tx, B] {
     def hasNext(implicit tx: Tx): Boolean  = peer.hasNext
     def next() (implicit tx: Tx): B        = fun(peer.next())
@@ -49,7 +47,7 @@ object Iterator {
     override def toString = peer.toString()
   }
 
-  private final class Filter[-Tx, @spec(ValueSpec) A](peer: Iterator[Tx, A], p: A => Boolean)
+  private final class Filter[-Tx, A](peer: Iterator[Tx, A], p: A => Boolean)
     extends Iterator[Tx, A] {
 
     private var nextValue = Option.empty[A]
@@ -77,7 +75,7 @@ object Iterator {
     override def toString = peer.toString + ".filter(" + p + ")"
   }
 
-  private final class Collect[-Tx, @spec(ValueSpec) A, @spec(ValueSpec) B](peer: Iterator[Tx, A], pf: PartialFunction[A, B])
+  private final class Collect[-Tx, A, B](peer: Iterator[Tx, A], pf: PartialFunction[A, B])
     extends Iterator[Tx, B] {
 
     private val pfl = pf.lift
@@ -106,7 +104,7 @@ object Iterator {
     override def toString = peer.toString + ".collect(" + pf + ")"
   }
 
-  private final class FlatMap[-Tx, @spec(ValueSpec) A, @spec(ValueSpec) B](peer: Iterator[Tx, A], fun: A => Iterable[B])
+  private final class FlatMap[-Tx, A, B](peer: Iterator[Tx, A], fun: A => Iterable[B])
     extends Iterator[Tx, B] {
 
     private var nextValue: collection.Iterator[B] = collection.Iterator.empty
@@ -132,7 +130,7 @@ object Iterator {
     override def toString = peer.toString + ".flatMap(" + fun + ")"
   }
 }
-trait Iterator[-Tx, @spec(ValueSpec) +A] {
+trait Iterator[-Tx, +A] {
   peer =>
 
   def hasNext(implicit tx: Tx): Boolean

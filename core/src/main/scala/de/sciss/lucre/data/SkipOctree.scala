@@ -121,7 +121,7 @@ trait SkipOctree[S <: Sys[S], D <: Space[D], A] extends Mutable[S#ID, S#Tx] {
     */
   def update(elem: A)(implicit tx: S#Tx): Option[A]
 
-  def rangeQuery[@specialized(Long) Area](qs: QueryShape[Area, D])(implicit tx: S#Tx): Iterator[S#Tx, A]
+  def rangeQuery[Area](qs: QueryShape[Area, D])(implicit tx: S#Tx): Iterator[S#Tx, A]
 
   /** Tests whether the tree contains an element. */
   def contains(elem: A)(implicit tx: S#Tx): Boolean
@@ -169,14 +169,14 @@ trait SkipOctree[S <: Sys[S], D <: Space[D], A] extends Mutable[S#ID, S#Tx] {
     *
     * @throws  NoSuchElementException  if the tree is empty
     */
-  def nearestNeighbor[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
-                                           (implicit tx: S#Tx): A
+  def nearestNeighbor[M](point: D#PointLike, metric: DistanceMeasure[M, D])
+                        (implicit tx: S#Tx): A
 
   /** Same as `nearestNeighbor` but returning an `Option`, thus not throwing an exception
     * if no neighbor is found.
     */
-  def nearestNeighborOption[@specialized(Long) M](point: D#PointLike, metric: DistanceMeasure[M, D])
-                                                 (implicit tx: S#Tx): Option[A]
+  def nearestNeighborOption[M](point: D#PointLike, metric: DistanceMeasure[M, D])
+                              (implicit tx: S#Tx): Option[A]
 
   /** An `Iterator` which iterates over the points stored
     * in the octree, using an in-order traversal directed

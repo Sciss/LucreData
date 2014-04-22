@@ -10,6 +10,12 @@ import stm.{Cursor, Durable, InMemory, Sys}
 import collection.immutable.{Vector => Vec}
 import serial.{DataInput, DataOutput, Writable}
 
+/*
+ To run this test copy + paste the following into sbt:
+
+test-only de.sciss.lucre.data.TotalOrderSuite
+
+ */
 object TotalOrderSuite {
   object MapHolder {
     final class Serializer[S <: Sys[S]](observer: RelabelObserver[S#Tx, MapHolder[S]], tx0: S#Tx)
@@ -35,12 +41,6 @@ object TotalOrderSuite {
     }
   }
 }
-/**
- * To run this test copy + paste the following into sbt:
- * {{
- * test-only de.sciss.lucre.data.TotalOrderSuite
- * }}
- */
 class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
   import TotalOrderSuite.MapHolder
 
@@ -75,8 +75,9 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
       })
    }
 
-   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S with Cursor[ S ], sysCleanUp: S => Unit ) {
-      def scenarioWithTime( descr: String )( body: => Unit ) {
+   def withSys[ S <: Sys[ S ]]( sysName: String, sysCreator: () => S with Cursor[ S ],
+                                sysCleanUp: S => Unit ): Unit = {
+      def scenarioWithTime( descr: String )( body: => Unit ): Unit = {
          scenario( descr ) {
             val t1 = System.currentTimeMillis()
             body
@@ -97,7 +98,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
             try {
                val to = system.step { implicit tx =>
                   TotalOrder.Set.empty[ S ] /* ( new RelabelObserver[ S#Tx, E ] {
-                     def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {
+                     def beforeRelabeling( first: E, num: Int )( implicit tx: S#Tx ): Unit = {
                         if( MONITOR_LABELING ) {
    //                     Txn.afterCommit( _ =>
                               println( "...relabeling " + num + " entries" )
@@ -105,7 +106,7 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
                         }
                      }
 
-                     def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) {}
+                     def afterRelabeling( first: E, num: Int )( implicit tx: S#Tx ) = ()
                   }) */
                }
                val rnd   = new util.Random( RND_SEED )
@@ -185,11 +186,11 @@ class TotalOrderSuite extends FeatureSpec with GivenWhenThen {
 
                val order = system.step { implicit tx =>
                   val ser = new MapHolder.Serializer( new RelabelObserver[ S#Tx, MapHolder[ S ]] {
-                     def beforeRelabeling( dirty: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
+                     def beforeRelabeling( dirty: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ): Unit = {
                         dirty.toIndexedSeq   // just to make sure the iterator succeeds
                      }
 
-                     def afterRelabeling( clean: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ) {
+                     def afterRelabeling( clean: Iterator[ S#Tx, MapHolder[ S ]])( implicit tx: S#Tx ): Unit = {
                         clean.toIndexedSeq   // just to make sure the iterator succeeds
                      }
                   }, tx )
