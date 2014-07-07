@@ -1,6 +1,6 @@
 name := "LucreData"
 
-version            in ThisBuild := "2.2.3"
+version            in ThisBuild := "2.3.0-SNAPSHOT"
 
 organization       in ThisBuild := "de.sciss"
 
@@ -8,18 +8,18 @@ description        in ThisBuild := "Transactional data structures (skip list, sk
 
 homepage           in ThisBuild := Some(url("https://github.com/Sciss/" + name.value))
 
-licenses           in ThisBuild := Seq("GPL v2+" -> url("http://www.gnu.org/licenses/gpl-2.0.txt"))
+licenses           in ThisBuild := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt"))
 
-scalaVersion       in ThisBuild := "2.11.0"
+scalaVersion       in ThisBuild := "2.11.1"
 
-crossScalaVersions in ThisBuild := Seq("2.11.0", "2.10.4")
+crossScalaVersions in ThisBuild := Seq("2.11.1", "2.10.4")
 
 resolvers in ThisBuild ++= Seq(
   "itextpdf.com"      at "http://maven.itextpdf.com",
   "Oracle Repository" at "http://download.oracle.com/maven"
 )
 
-libraryDependencies in ThisBuild += "org.scalatest" %% "scalatest" % "2.1.3" % "test"
+libraryDependencies in ThisBuild += "org.scalatest" %% "scalatest" % "2.2.0" % "test"
 
 // retrieveManaged in ThisBuild := true
 

@@ -21,8 +21,8 @@ test-only de.sciss.lucre.data.AncestorRetroSuite
 class AncestorRetroSuite extends FeatureSpec with GivenWhenThen {
   val PARENT_LOOKUP             = true
   val MARKED_ANCESTOR           = true
-  val NUM1                      = 10000   // 4407 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
-  val NUM2                      = 11000   // tree size in MARKED_ANCESTOR // 100000    // 150000
+  val NUM1                      = 5000 // 10000   // 4407 // 4407   // 10000 // 283 // 10000  // tree size in PARENT_LOOKUP
+  val NUM2                      = 5500 // 11000   // tree size in MARKED_ANCESTOR // 100000    // 150000
   val MARKER_PERCENTAGE         = 0.3     // 0.3       // 0.5 // percentage of elements marked (0 to 1)
   val RETRO_CHILD_PERCENTAGE    = 0.1     // from those elements marked, amount which are inserted as retro-children (0 to 1)
   val RETRO_PARENT_PERCENTAGE   = 0.1     // from those elements marked, amount which are inserted as retro-parents (0 to 1)

@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
  *
- *  This software is published under the GNU General Public License v2+
+ *  This software is published under the GNU Lesser General Public License v2.1+
  *
  *
  *  For further information, please contact Hanns Holger Rutz at
@@ -24,7 +24,7 @@ import serial.{Writable, DataInput, DataOutput, Serializer}
 import java.io.PrintStream
 import de.sciss.serial.impl.ByteArrayOutputStream
 
-/** A transactional determinstic skip octree as outlined in the paper by Eppstein et al.
+/** A transactional deterministic skip octree as outlined in the paper by Eppstein et al.
   * It is constructed from a given space (dimensions) and a skip-gap parameter
   * which determines the kind of skip list which is used to govern the
   * level decimation.
@@ -1985,8 +1985,8 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           // and if so, adjust the parent to point
           // to the new intermediate node `ne`!
           if (old.parent == this) old.updateParentRight(n2)
-          val lidx = qn2.indexOf(point)
-          n2.updateChild(lidx, leaf)
+          val lIdx = qn2.indexOf(point)
+          n2.updateChild(lIdx, leaf)
           leaf.parent = n2
       }
     }
@@ -2022,16 +2022,16 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
 
     final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit = {
-      val qidx = hyperCube.indexOf(point)
-      assert(child(qidx) == leaf)
-      updateChild(qidx, EmptyValue)
+      val qIdx = hyperCube.indexOf(point)
+      assert(child(qIdx) == leaf)
+      updateChild(qIdx, EmptyValue)
 
       @tailrec def findParent(b: BranchLike, idx: Int): BranchLike = b.child(idx) match {
         case sl: LeafImpl   => assert(sl == leaf); b
         case cb: BranchLike => findParent(cb, cb.hyperCube.indexOf(point))
       }
 
-      val newParent = findParent(prev, qidx)
+      val newParent = findParent(prev, qIdx)
       leafRemoved()
       leaf.parent = newParent
     }
@@ -2055,10 +2055,10 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     final def updateChild(idx: Int, c: LeftChildOption)(implicit tx: S#Tx): Unit            = children(idx)() = c
 
     final def demoteLeaf(point: D#PointLike, leaf: LeafImpl)(implicit tx: S#Tx): Unit = {
-      val qidx  = hyperCube.indexOf(point)
-      val ok    = child(qidx) == leaf
+      val qIdx  = hyperCube.indexOf(point)
+      val ok    = child(qIdx) == leaf
       if (ok) {
-        updateChild(qidx, EmptyValue)
+        updateChild(qIdx, EmptyValue)
         leafRemoved()
         leaf.remove() // dispose()
       } else {
@@ -2068,21 +2068,21 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
     }
 
     final def insert(point: D#PointLike, value: A)(implicit tx: S#Tx): LeafImpl = {
-      val qidx = hyperCube.indexOf(point)
-      child(qidx) match {
+      val qIdx = hyperCube.indexOf(point)
+      child(qIdx) match {
         case EmptyValue =>
-          newLeaf(qidx, /* point, */ value) // (this adds it to the children!)
+          newLeaf(qIdx, /* point, */ value) // (this adds it to the children!)
 
         case old: LeftNonEmptyChild =>
           // define the greatest interesting square for the new node to insert
           // in this node at qidx:
-          val qn2 = old.union(hyperCube.orthant(qidx), point)
+          val qn2 = old.union(hyperCube.orthant(qIdx), point)
           // create the new node (this adds it to the children!)
-          val n2 = newNode(qidx, qn2)
-          val oidx = old.orthantIndexIn(qn2)
-          n2.updateChild(oidx, old)
-          val lidx = qn2.indexOf(point)
-          assert(oidx != lidx)
+          val n2 = newNode(qIdx, qn2)
+          val oIdx = old.orthantIndexIn(qn2)
+          n2.updateChild(oIdx, old)
+          val lIdx = qn2.indexOf(point)
+          assert(oIdx != lIdx)
           // This is a tricky bit! And a reason
           // why should eventually try to do without
           // parent pointers at all. Since `old`
@@ -2092,7 +2092,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
           // and if so, adjust the parent to point
           // to the new intermediate node `ne`!
           if (old.parent == this) old.updateParentLeft(n2)
-          (n2: LeftBranch).newLeaf(lidx, value)   // cf. SI-8432
+          (n2: LeftBranch).newLeaf(lIdx, value)   // cf. SI-8432
       }
     }
 
@@ -2100,17 +2100,17 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       * leaf whose parent is this node, and which should be
       * ordered according to its position in this node.
       *
-      * @param   qidx  the orthant index of the new leaf in this node
+      * @param   qIdx  the orthant index of the new leaf in this node
       * @param   value the value associated with the new leaf
       * @return  the new leaf which has already assigned this node as
       *          parent and is already stored in this node's children
-      *          at index `qidx`
+      *          at index `qIdx`
       */
-    private def newLeaf(qidx: Int, value: A)(implicit tx: S#Tx): LeafImpl = {
+    private def newLeaf(qIdx: Int, value: A)(implicit tx: S#Tx): LeafImpl = {
       val leafID    = tx.newID()
       val parentRef = tx.newVar[BranchLike](leafID, this)
       val l         = new LeafImpl(leafID, value, parentRef)
-      updateChild(qidx, l)
+      updateChild(qIdx, l)
       l
     }
 
@@ -2123,9 +2123,9 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
      * @param   iq    the hyper-cube of the new node
      * @return  the new node which has already assigned this node as
      *          parent and is already stored in this node's children
-     *          at index `qidx`
+     *          at index `qIdx`
      */
-    private def newNode(qidx: Int, iq: D#HyperCube)(implicit tx: S#Tx): LeftChildBranch = {
+    private def newNode(qIdx: Int, iq: D#HyperCube)(implicit tx: S#Tx): LeftChildBranch = {
       val sz  = children.length
       val ch  = tx.newVarArray[LeftChildOption](sz)
       val cid = tx.newID()
@@ -2139,7 +2139,7 @@ sealed trait DeterministicSkipOctree[S <: Sys[S], D <: Space[D], A]
       val n           = new LeftChildBranch(
         cid, parentRef, iq, children = ch, nextRef = rightRef
       )
-      updateChild(qidx, n)
+      updateChild(qIdx, n)
       n
     }
   }

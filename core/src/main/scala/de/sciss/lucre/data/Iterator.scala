@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
  *
- *  This software is published under the GNU General Public License v2+
+ *  This software is published under the GNU Lesser General Public License v2.1+
  *
  *
  *  For further information, please contact Hanns Holger Rutz at
@@ -40,6 +40,7 @@ object Iterator {
 
   private final class Wrap[A](peer: collection.Iterator[A])
     extends Iterator[Any, A] {
+
     def hasNext(implicit tx: Any) = peer.hasNext
 
     def next()(implicit tx: Any): A = peer.next()
@@ -47,7 +48,15 @@ object Iterator {
     override def toString = peer.toString()
   }
 
-  private final class Filter[-Tx, A](peer: Iterator[Tx, A], p: A => Boolean)
+  private final class Concat[Tx, A](a: Iterator[Tx, A], b: Iterator[Tx, A])
+    extends Iterator[Tx, A] {
+
+    def hasNext(implicit tx: Tx): Boolean = a.hasNext || b.hasNext
+
+    def next()(implicit tx: Tx): A = if (a.hasNext) a.next() else b.next()
+  }
+
+  private final class Filter[Tx, A](peer: Iterator[Tx, A], p: A => Boolean)
     extends Iterator[Tx, A] {
 
     private var nextValue = Option.empty[A]
@@ -72,10 +81,10 @@ object Iterator {
       res
     }
 
-    override def toString = peer.toString + ".filter(" + p + ")"
+    override def toString = s"$peer.filter($p)"
   }
 
-  private final class Collect[-Tx, A, B](peer: Iterator[Tx, A], pf: PartialFunction[A, B])
+  private final class Collect[Tx, A, B](peer: Iterator[Tx, A], pf: PartialFunction[A, B])
     extends Iterator[Tx, B] {
 
     private val pfl = pf.lift
@@ -101,10 +110,10 @@ object Iterator {
       res
     }
 
-    override def toString = peer.toString + ".collect(" + pf + ")"
+    override def toString = s"$peer.collect($pf)"
   }
 
-  private final class FlatMap[-Tx, A, B](peer: Iterator[Tx, A], fun: A => Iterable[B])
+  private final class FlatMap[Tx, A, B](peer: Iterator[Tx, A], fun: A => Iterable[B])
     extends Iterator[Tx, B] {
 
     private var nextValue: collection.Iterator[B] = collection.Iterator.empty
@@ -127,9 +136,15 @@ object Iterator {
       res
     }
 
-    override def toString = peer.toString + ".flatMap(" + fun + ")"
+    override def toString = s"$peer.flatMap($fun)"
   }
 }
+
+/** Important implementation note:
+  * Currently transactional iterators must be consumed within the
+  * same transaction that they were created in. This may be
+  * relaxed in the future.
+  */
 trait Iterator[-Tx, +A] {
   peer =>
 
@@ -139,10 +154,10 @@ trait Iterator[-Tx, +A] {
   final def foreach(fun: A => Unit)(implicit tx: Tx): Unit =
     while (hasNext) fun(next())
 
-  final def toIndexedSeq  (implicit tx: Tx): Vec[A] = fromBuilder(Vector.newBuilder[A])
-  final def toList        (implicit tx: Tx): List[A]    = fromBuilder(List.newBuilder[A])
-  final def toSeq         (implicit tx: Tx): Seq[A]     = fromBuilder(Seq.newBuilder[A])
-  final def toSet[B >: A] (implicit tx: Tx): Set[B]     = fromBuilder(Set.newBuilder[B])
+  final def toIndexedSeq  (implicit tx: Tx): Vec [A]  = fromBuilder(Vector.newBuilder[A])
+  final def toList        (implicit tx: Tx): List[A]  = fromBuilder(List  .newBuilder[A])
+  final def toSeq         (implicit tx: Tx): Seq [A]  = fromBuilder(Seq   .newBuilder[A])
+  final def toSet[B >: A] (implicit tx: Tx): Set [B]  = fromBuilder(Set   .newBuilder[B])
 
   private def fromBuilder[To](b: mutable.Builder[A, To])(implicit tx: Tx): To = {
     while (hasNext) b += next()
@@ -180,6 +195,9 @@ trait Iterator[-Tx, +A] {
     res.step()
     res
   }
+
+  final def ++[B >: A, Tx1 <: Tx](that: Iterator[Tx1, B])(implicit tx: Tx): Iterator[Tx1, B] =
+    new Iterator.Concat(this, that)
 
   final def isEmpty (implicit tx: Tx): Boolean = !hasNext
   final def nonEmpty(implicit tx: Tx): Boolean = hasNext

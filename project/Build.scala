@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object Build extends sbt.Build {
-  lazy val stmVersion     = "2.0.4"
+  lazy val stmVersion     = "2.1.0-SNAPSHOT"
   lazy val pdflitzVersion = "1.1.0"
 
   lazy val root: Project = Project(
@@ -45,8 +45,8 @@ object Build extends sbt.Build {
     dependencies  = Seq(core),
     settings      = Project.defaultSettings ++ Seq(
       libraryDependencies ++= Seq(
-        "de.sciss" %% "lucrestm-bdb" % stmVersion % "test",
-        "de.sciss" %% "pdflitz" % pdflitzVersion % "test"
+        "de.sciss" %% "lucrestm-bdb" % stmVersion     % "test",
+        "de.sciss" %% "pdflitz"      % pdflitzVersion % "test"
       )
     )
   )

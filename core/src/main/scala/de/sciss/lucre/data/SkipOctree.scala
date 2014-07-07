@@ -4,7 +4,7 @@
  *
  *  Copyright (c) 2011-2014 Hanns Holger Rutz. All rights reserved.
  *
- *  This software is published under the GNU General Public License v2+
+ *  This software is published under the GNU Lesser General Public License v2.1+
  *
  *
  *  For further information, please contact Hanns Holger Rutz at
@@ -18,7 +18,7 @@ package data
 import geom.{Space, DistanceMeasure, QueryShape}
 import collection.immutable.{IndexedSeq => Vec}
 import stm.{Mutable, Sys}
-import serial.{DataInput, Serializer}
+import de.sciss.serial.{DataOutput, DataInput, Serializer}
 
 object SkipOctree {
   implicit def nonTxnPointView[D <: Space[D], A](implicit view: A => D#PointLike): (A, Any) => D#PointLike =
@@ -30,16 +30,30 @@ object SkipOctree {
     DeterministicSkipOctree.empty[S, D, A](hyperCube)
 
   def read[S <: Sys[S], D <: Space[D], A](in: DataInput, access: S#Acc)(
-    implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
-    keySerializer: Serializer[S#Tx, S#Acc, A]): SkipOctree[S, D, A] =
+      implicit tx: S#Tx, view: (A, S#Tx) => D#PointLike, space: D,
+      keySerializer: Serializer[S#Tx, S#Acc, A]): SkipOctree[S, D, A] =
     DeterministicSkipOctree.read[S, D, A](in, access)
+
+  implicit def serializer[S <: Sys[S], D <: Space[D], A](implicit view: (A, S#Tx) => D#PointLike, space: D,
+      keySerializer: Serializer[S#Tx, S#Acc, A]): Serializer[S#Tx, S#Acc, SkipOctree[S, D, A]] = new Ser[S, D, A]
+
+  private final class Ser[S <: Sys[S], D <: Space[D], A](implicit view: (A, S#Tx) => D#PointLike, space: D, keySerializer: Serializer[S#Tx, S#Acc, A])
+    extends Serializer[S#Tx, S#Acc, /* Deterministic */ SkipOctree[S, D, A]] {
+
+    def read(in: DataInput, access: S#Acc)(implicit tx: S#Tx): SkipOctree[S, D, A] =
+      DeterministicSkipOctree.read(in, access)
+
+    override def toString = "SkipOctree.serializer"
+
+    def write(v: SkipOctree[S, D, A], out: DataOutput): Unit = v.write(out)
+  }
 }
-/**
- * A `SkipOctree` is a multi-dimensional data structure that
- * maps coordinates to values. It extends the interface
- * of scala's mutable `Map` and adds further operations such
- * as range requires and nearest neighbour search.
- */
+
+/** A `SkipOctree` is a multi-dimensional data structure that
+  * maps coordinates to values. It extends the interface
+  * of Scala's mutable `Map` and adds further operations such
+  * as range requires and nearest neighbour search.
+  */
 trait SkipOctree[S <: Sys[S], D <: Space[D], A] extends Mutable[S#ID, S#Tx] {
   /** The space (i.e., resolution and dimensionality) underlying the tree. */
   def space: D

@@ -2,7 +2,7 @@
 
 ## statement
 
-(C)opyright 2011&ndash;2014 Hanns Holger Rutz. This software is released under the [GNU General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt).
+(C)opyright 2011&ndash;2014 Hanns Holger Rutz. This software is released under the [GNU Lesser General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt) v2.1+.
 
 LucreData provides implementations for various data structures in the Scala programming language related to marked ancestor problems and spatial nearest neighbour queries. These are mutable structures implemented transactionally on top of the LucreSTM library.
 
@@ -36,4 +36,4 @@ For a particular sub module:
     "de.sciss" %% "lucredata-core"  % v
     "de.sciss" %% "lucredata-views" % v
 
-The current version `v` is `"2.2.3+"`.
+The current stable version `v` is `"2.2.3"`. Snapshot is `"2.3.0-SNAPSHOT"`.
