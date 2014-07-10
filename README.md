@@ -36,4 +36,4 @@ For a particular sub module:
     "de.sciss" %% "lucredata-core"  % v
     "de.sciss" %% "lucredata-views" % v
 
-The current stable version `v` is `"2.2.3"`. Snapshot is `"2.3.0-SNAPSHOT"`.
+The current version `v` is `"2.3.0"`.

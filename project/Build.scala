@@ -2,7 +2,7 @@ import sbt._
 import Keys._
 
 object Build extends sbt.Build {
-  lazy val stmVersion     = "2.1.0-SNAPSHOT"
+  lazy val stmVersion     = "2.1.0"
   lazy val pdflitzVersion = "1.1.0"
 
   lazy val root: Project = Project(
@@ -16,17 +16,6 @@ object Build extends sbt.Build {
       publishArtifact in (Compile, packageSrc) := false  // there are no sources
     )
   )
-
-  // convert the base version to a compatible version for
-  // library dependencies. e.g. `"1.3.1"` -> `"1.3.+"`
-  object Compatible {
-    def unapply(v: String) = {
-      require(v.count(_ == '.') == 2)
-      val i = v.lastIndexOf('.') + 1
-      val c = v.substring(0, i) + "+"
-      Some(c)
-    }
-  }
 
   lazy val core = Project(
     id        = "lucredata-core",
