@@ -250,7 +250,7 @@ class InteractiveSkipOctreePanel[S <: Sys[S], D <: Space[D], Point <: D#PointLik
     b
   }
 
-  private def combo(items: String*)(action: Int => Unit): JComboBox = {
+  private def combo(items: String*)(action: Int => Unit): Unit /* JComboBox */ = {
     val b = new JComboBox(items.toArray[AnyRef])
     b.putClientProperty("JComboBox.isSquare", true)
     b.putClientProperty("JComponent.sizeVariant", "mini")
@@ -259,7 +259,7 @@ class InteractiveSkipOctreePanel[S <: Sys[S], D <: Space[D], Point <: D#PointLik
       def actionPerformed(e: ActionEvent): Unit = action(b.getSelectedIndex)
     })
     p.add(b)
-    b
+    // b
   }
 
   private def makeSpace(): Unit = p.add(Box.createHorizontalStrut(8))
