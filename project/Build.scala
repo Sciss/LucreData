@@ -2,8 +2,8 @@ import sbt._
 import Keys._
 
 object Build extends sbt.Build {
-  lazy val stmVersion     = "2.1.0"
-  lazy val pdflitzVersion = "1.1.0"
+  lazy val stmVersion     = "2.1.1"
+  lazy val pdflitzVersion = "1.1.0"  // new major version exists
 
   lazy val root: Project = Project(
     id            = "lucredata",
