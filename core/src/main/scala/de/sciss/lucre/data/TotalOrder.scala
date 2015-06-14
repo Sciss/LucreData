@@ -487,11 +487,11 @@ object TotalOrder {
         }
         if (next.isDefined) {
           val nextTag = map.entryView(next.get).tag
-          assert(recTag < nextTag, "rec " + recTag + " >= next " + nextTag + " - " + msg)
+          assert(recTag < nextTag, s"rec $recTag >= next $nextTag - $msg")
         }
       }
 
-      override def toString = "Map.Entry" + id
+      override def toString = s"Map.Entry$id"
 
       private[TotalOrder] def prev(implicit tx: S#Tx): KOpt = prevRef()
       private[TotalOrder] def next(implicit tx: S#Tx): KOpt = nextRef()
@@ -599,8 +599,7 @@ object TotalOrder {
 
     {
       val version = in.readByte()
-      require(version == SER_VERSION, "Incompatible serialized version (found " + version +
-        ", required " + SER_VERSION + ").")
+      require(version == SER_VERSION, s"Incompatible serialized version (found $version, required $SER_VERSION).")
     }
 
     val sizeVal = tx0.readIntVar(id, in)
@@ -696,7 +695,7 @@ object TotalOrder {
   sealed trait Map[S <: Sys[S], A] extends TotalOrder[S] {
     map =>
 
-    override def toString = "Map" + id
+    override def toString = s"Map$id"
 
     final type           E    = Map.Entry[S, A]
     final protected type KOpt = KeyOption[S, A]
