@@ -2,7 +2,7 @@ lazy val baseName       = "LucreData"
 lazy val baseNameL      = baseName.toLowerCase
 lazy val projectVersion = "2.4.0-SNAPSHOT"
 
-lazy val stmVersion       = "2.1.1"
+lazy val stmVersion       = "2.2.0-SNAPSHOT"
 lazy val pdflitzVersion   = "1.2.1"
 lazy val scalaTestVersion = "2.2.5"
 
