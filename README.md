@@ -1,5 +1,8 @@
 # LucreData
 
+[![Build Status](https://travis-ci.org/Sciss/LucreData.svg?branch=master)](https://travis-ci.org/Sciss/LucreData)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/de.sciss/lucredata_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/de.sciss/lucredata_2.11)
+
 ## statement
 
 (C)opyright 2011&ndash;2014 Hanns Holger Rutz. This software is released under the [GNU Lesser General Public License](http://github.com/Sciss/LucreData/blob/master/licenses/LucreData-License.txt) v2.1+.
@@ -36,4 +39,4 @@ For a particular sub module:
     "de.sciss" %% "lucredata-core"  % v
     "de.sciss" %% "lucredata-views" % v
 
-The current version `v` is `"2.3.1"`.
+The current version `v` is `"2.3.2"`.
