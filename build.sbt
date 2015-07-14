@@ -1,6 +1,6 @@
 lazy val baseName       = "LucreData"
 lazy val baseNameL      = baseName.toLowerCase
-lazy val projectVersion = "2.3.2"
+lazy val projectVersion = "2.3.3-SNAPSHOT"
 
 lazy val stmVersion       = "2.1.2"
 lazy val pdflitzVersion   = "1.2.1"
@@ -12,8 +12,8 @@ lazy val commonSettings = Seq(
   description         := "Transactional data structures (skip list, skip octree, total order) for Scala",
   homepage            := Some(url(s"https://github.com/Sciss/$baseName")),
   licenses            := Seq("LGPL v2.1+" -> url("http://www.gnu.org/licenses/lgpl-2.1.txt")),
-  scalaVersion        := "2.11.6",
-  crossScalaVersions  := Seq("2.11.6", "2.10.5"),
+  scalaVersion        := "2.11.7",
+  crossScalaVersions  := Seq("2.11.7", "2.10.6"),
   resolvers          ++= Seq(
     "itextpdf.com"      at "http://maven.itextpdf.com",
     "Oracle Repository" at "http://download.oracle.com/maven"

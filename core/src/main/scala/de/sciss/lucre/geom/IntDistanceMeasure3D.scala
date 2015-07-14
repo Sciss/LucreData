@@ -16,7 +16,7 @@ package geom
 
 object IntDistanceMeasure3D {
   import IntSpace.ThreeDim
-  import ThreeDim._
+  import ThreeDim.{PointLike, HyperCube => Cube3D}
   import Space.{bigZero => Zero}
   import DistanceMeasure.Ops
 
@@ -52,32 +52,32 @@ object IntDistanceMeasure3D {
     override def toString = "IntDistanceMeasure3D.euclideanSq"
 
     def distance   (a: PointLike, b: PointLike) = b.distanceSq   (a)
-    def minDistance(a: PointLike, b: HyperCube) = b.minDistanceSq(a)
-    def maxDistance(a: PointLike, b: HyperCube) = b.maxDistanceSq(a)
+    def minDistance(a: PointLike, b: Cube3D) = b.minDistanceSq(a)
+    def maxDistance(a: PointLike, b: Cube3D) = b.maxDistanceSq(a)
   }
 
   private sealed trait ClipLike[M] extends DistanceMeasure[M, ThreeDim] {
     protected def underlying: DistanceMeasure[M, ThreeDim]
 
-    protected def clipping: HyperCube
+    protected def clipping: Cube3D
 
     def distance   (a: PointLike, b: PointLike): M = if (clipping.contains(b)) underlying.distance   (a, b) else maxValue
-    def minDistance(a: PointLike, b: HyperCube): M = if (clipping.contains(b)) underlying.minDistance(a, b) else maxValue
-    def maxDistance(a: PointLike, b: HyperCube): M = if (clipping.contains(b)) underlying.maxDistance(a, b) else maxValue
+    def minDistance(a: PointLike, b: Cube3D): M = if (clipping.contains(b)) underlying.minDistance(a, b) else maxValue
+    def maxDistance(a: PointLike, b: Cube3D): M = if (clipping.contains(b)) underlying.maxDistance(a, b) else maxValue
   }
 
-  private final class SqrClip(protected val underlying: SqrImpl, protected val clipping: HyperCube)
+  private final class SqrClip(protected val underlying: SqrImpl, protected val clipping: Cube3D)
     extends ClipLike[BigInt] with SqrImpl
 
-  private final class LongClip(protected val underlying: LongImpl, protected val clipping: HyperCube)
+  private final class LongClip(protected val underlying: LongImpl, protected val clipping: Cube3D)
     extends ClipLike[Long] with LongImpl
 
   private sealed trait ApproximateLike[M] extends Impl[M] {
     protected def underlying: DistanceMeasure[M, ThreeDim]
     protected def thresh: M
 
-    def minDistance(a: PointLike, b: HyperCube): M = underlying.minDistance(a, b)
-    def maxDistance(a: PointLike, b: HyperCube): M = underlying.maxDistance(a, b)
+    def minDistance(a: PointLike, b: Cube3D): M = underlying.minDistance(a, b)
+    def maxDistance(a: PointLike, b: Cube3D): M = underlying.maxDistance(a, b)
 
     def distance(a: PointLike, b: PointLike): M = {
       val res = underlying.distance(a, b) // b.distanceSq( a )
@@ -113,7 +113,7 @@ object IntDistanceMeasure3D {
       } else maxValue
     }
 
-    def minDistance(p: PointLike, q: HyperCube): M = {
+    def minDistance(p: PointLike, q: Cube3D): M = {
       val qe    = q.extent
       val qem1  = qe - 1
 
@@ -125,7 +125,7 @@ object IntDistanceMeasure3D {
       } else maxValue
     }
 
-    def maxDistance( p: PointLike, q: HyperCube ) : M = {
+    def maxDistance( p: PointLike, q: Cube3D ) : M = {
       val qe    = q.extent
       val qem1  = qe - 1
 
@@ -165,7 +165,7 @@ object IntDistanceMeasure3D {
       } else maxValue
     }
 
-    def minDistance(p: PointLike, q: HyperCube): M = {
+    def minDistance(p: PointLike, q: Cube3D): M = {
       val qe    = q.extent
       val qem1  = qe - 1
 
@@ -177,7 +177,7 @@ object IntDistanceMeasure3D {
       } else maxValue
     }
 
-    def maxDistance(p: PointLike, q: HyperCube): M = {
+    def maxDistance(p: PointLike, q: Cube3D): M = {
       val qe    = q.extent
       val qem1  = qe - 1
 
@@ -223,7 +223,7 @@ object IntDistanceMeasure3D {
       apply(dx, dy)
     }
 
-    def minDistance(a: PointLike, q: HyperCube): Long = {
+    def minDistance(a: PointLike, q: Cube3D): Long = {
       val px    = a.x
       val py    = a.y
       val qe    = q.extent
@@ -282,7 +282,7 @@ object IntDistanceMeasure3D {
       applyMin(dx, dy)
     }
 
-    def maxDistance( a: PointLike, q: HyperCube ) : Long = {
+    def maxDistance( a: PointLike, q: Cube3D ) : Long = {
       val px    = a.x
       val py    = a.y
       val qcx   = q.cx
@@ -317,7 +317,7 @@ object IntDistanceMeasure3D {
     protected def zeroValue: M
 
     // TODO XXX WARNING: this is probably faulty
-    override def stabbingDirections(v: PointLike, parent: HyperCube, child: HyperCube): List[Int] = {
+    override def stabbingDirections(v: PointLike, parent: Cube3D, child: Cube3D): List[Int] = {
       val vx  = v.x
       val vy  = v.y
       val pl  = parent.left
@@ -553,7 +553,7 @@ object IntDistanceMeasure3D {
 
     final def compareMeasure(a: BigInt, b: BigInt): Int = if (a > b) 1 else if (a < b) -1 else 0
 
-    final def clip(quad: HyperCube): MS = new SqrClip(this, quad)
+    final def clip(quad: Cube3D): MS = new SqrClip(this, quad)
 
     final def approximate(thresh: BigInt): MS = new SqrApproximate(this, thresh)
 
@@ -580,7 +580,7 @@ object IntDistanceMeasure3D {
 
     final def compareMeasure(a: Long, b: Long): Int = if (a > b) 1 else if (a < b) -1 else 0
 
-    final def clip       (quad: HyperCube): ML = new LongClip       (this, quad  )
+    final def clip       (quad: Cube3D): ML = new LongClip       (this, quad  )
     final def approximate(thresh: Long)   : ML = new LongApproximate(this, thresh)
 
     final def orthant(idx: Int): ML = {

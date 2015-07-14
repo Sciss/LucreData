@@ -1,12 +1,14 @@
 package de.sciss.lucre
 package data
 
-import org.scalatest.{GivenWhenThen, FeatureSpec}
 import java.io.File
-import stm.store.BerkeleyDB
-import annotation.tailrec
-import collection.immutable.IntMap
-import stm.{Cursor, Durable, InMemory, Sys}
+
+import de.sciss.lucre.stm.store.BerkeleyDB
+import de.sciss.lucre.stm.{Cursor, Durable, InMemory, Sys}
+import org.scalatest.{FeatureSpec, GivenWhenThen}
+
+import scala.annotation.tailrec
+import scala.collection.immutable.IntMap
 
 /*
  To run this test copy + paste the following into sbt:
@@ -64,12 +66,12 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
         val t1 = System.currentTimeMillis()
         body
         val t2 = System.currentTimeMillis()
-        println("For " + name + "(" + sysName + ") the tests took " + TestUtil.formatSeconds((t2 - t1) * 0.001))
+        println(s"For $name ($sysName) the tests took ${TestUtil.formatSeconds((t2 - t1) * 0.001)}")
       }
     }
 
 
-    feature("Marked ancestor lookup is verified on a dedicated structore in " + sysName) {
+    feature(s"Marked ancestor lookup is verified on a dedicated structore in $sysName") {
       scenarioWithTime("Marked-Ancestors", "Verifying marked ancestor lookup") {
         implicit val system = sysCreator()
         var success = false
@@ -147,7 +149,7 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
               }
 
               mark.foreach { value =>
-                assert(map.add(fullVertex, value), "Mark.add says mark existed for " + version)
+                assert(map.add(fullVertex, value), s"Mark.add says mark existed for $version")
               }
 
               (_mapFV, _mapRepr) // , _values
@@ -168,15 +170,15 @@ class AncestorSuite2 extends FeatureSpec with GivenWhenThen {
                 @tailrec def findManual(i: Int): (Int, Int) = {
                   val v = mapRepr(i)
                   v.mark match {
-                    case Some(_value) if (i <= query) => (i, _value)
-                    case _                            => findManual(v.parent)
+                    case Some(_value) if i <= query => (i, _value)
+                    case _                          => findManual(v.parent)
                   }
                 }
                 val (manVersion, manValue) = findManual(query)
-                assert(ancVersion == manVersion, "Query " + query + " yields marked version " + ancVersion +
-                  " where manual result says it should be " + manVersion)
-                assert(ancValue == manValue, "Query " + query + " yields marked value " + ancValue +
-                  " where manual result says it should be " + manValue)
+                assert(ancVersion == manVersion,
+                  s"Query $query yields marked version $ancVersion where manual result says it should be $manVersion")
+                assert(ancValue == manValue,
+                  s"Query $query yields marked value $ancValue where manual result says it should be $manValue")
               }
             }
           }

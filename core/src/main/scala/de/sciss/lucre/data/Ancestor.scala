@@ -15,10 +15,10 @@ package de.sciss
 package lucre
 package data
 
-import geom.{DistanceMeasure, IntSpace, IntDistanceMeasure3D, IntPoint3D, IntCube}
-import stm.{Disposable, Sys}
-import geom.IntSpace.ThreeDim
-import serial.{DataInput, DataOutput, Serializer, Writable}
+import de.sciss.lucre.geom.IntSpace.ThreeDim
+import de.sciss.lucre.geom.{DistanceMeasure, IntCube, IntDistanceMeasure3D, IntPoint3D, IntSpace}
+import de.sciss.lucre.stm.{Disposable, Sys}
+import de.sciss.serial.{DataInput, DataOutput, Serializer, Writable}
 
 //import stm.{SpecGroup => ialized}
 
@@ -106,7 +106,7 @@ object Ancestor {
 
     // ---- implementation ----
 
-    override def toString = "Ancestor.Tree(root=" + root + ")"
+    override def toString = s"Ancestor.Tree(root=$root)"
 
     implicit protected object VertexSerializer extends Serializer[S#Tx, S#Acc, K] {
       def write(v: K, out: DataOutput): Unit = v.write(out)
@@ -145,10 +145,10 @@ object Ancestor {
       def tree = me
 
       val version = newChild
-      val pre     = parent.pre.append()
+      val pre     = parent.pre .append ()
       val post    = parent.post.prepend()
 
-      override def toString = super.toString + "@r-ch"
+      override def toString = s"${super.toString}@r-ch"
     }
 
     final def insertRetroParent(child: K, newParent: Version)(implicit tx: S#Tx): K = {
@@ -157,10 +157,10 @@ object Ancestor {
         def tree = me
 
         val version = newParent
-        val pre     = child.pre.prepend()
-        val post    = child.post.append()
+        val pre     = child.pre .prepend()
+        val post    = child.post.append ()
 
-        override def toString = super.toString + "@r-par"
+        override def toString = s"${super.toString}@r-par"
       }
     }
   }
@@ -186,8 +186,8 @@ object Ancestor {
 
     {
       val serVer = in.readByte()
-      require(serVer == SER_VERSION, "Incompatible serialized version (found " + serVer +
-        ", required " + SER_VERSION + ").")
+      if (serVer != SER_VERSION)
+        sys.error(s"Incompatible serialized version (found $serVer, required $SER_VERSION).")
     }
 
     protected val order = TotalOrder.Set.read[S](in, access)(tx0)
@@ -217,9 +217,9 @@ object Ancestor {
   private final val metric = chebyMetric.orthant(2)
 
   private final class FilterMetric(pred: Int => Boolean) extends IntDistanceMeasure3D.LongImpl {
-    import IntSpace.ThreeDim.{PointLike, HyperCube}
+    import IntSpace.ThreeDim.{HyperCube, PointLike}
 
-    override def toString = "Ancestor.FilterMetric@" + pred.hashCode.toHexString
+    override def toString = s"Ancestor.FilterMetric@${pred.hashCode.toHexString}"
 
     def distance(a: PointLike, b: PointLike): Long = {
       if (b.x <= a.x && b.y >= a.y && pred(b.z)) {
@@ -276,7 +276,7 @@ object Ancestor {
       post.removeAndDispose()
     }
 
-    override def toString = "Mark(" + fullVertex.version + " -> " + value + ")"
+    override def toString = s"Mark(${fullVertex.version} -> $value)"
   }
 
   def newMap[S <: Sys[S], Version, /* @spec(ValueSpec) */ A](full: Tree[S, Version], rootVertex: Vertex[S, Version],
@@ -310,8 +310,11 @@ object Ancestor {
                                                                           val post: Mark[S, Version, A],
                                                                           val postCmp: Int) {
 
-    override def toString = "Iso(pre " + (if (preCmp < 0) "< " else if (preCmp > 0) "> " else "== ") + pre + "," +
-      "post " + (if (postCmp < 0) "< " else if (postCmp > 0) "> " else "== ") + post + ")"
+    override def toString = {
+      val preS  = if (preCmp  < 0) "< " else if (preCmp  > 0) "> " else "== "
+      val postS = if (postCmp < 0) "< " else if (postCmp > 0) "> " else "== "
+      s"Iso(pre $preS$pre,post $postS$post)"
+    }
   }
 
   private sealed trait MapImpl[S <: Sys[S], Version, /* @spec(ValueSpec) */ A]
@@ -331,7 +334,7 @@ object Ancestor {
 
     // ---- implementation ----
 
-    override def toString = "Ancestor.Map(tree=" + full + ")"
+    override def toString = s"Ancestor.Map(tree=$full)"
 
     final protected def preOrdering: Ordering[S#Tx, M] = new Ordering[S#Tx, M] {
       def compare(a: M, b: M)(implicit tx: S#Tx): Int = a.pre compare b.pre
@@ -375,13 +378,51 @@ object Ancestor {
     }
 
     final def add(entry: (K, A))(implicit tx: S#Tx): Boolean = {
-      val mv = wrap(entry)
+      val vertex  = entry._1
+      val iso0    = query(vertex)
+      val iso     = if (iso0.preCmp != 0) iso0 else {
+        // replace existing entry
+        // XXX TODO -- we could use
+        // the iso's pre and succ pointers,
+        // but it's getting nasty, so we'll...
+        val old: M = new M {
+          def map         = me
+          val fullVertex  = vertex
+          val value       = entry._2
+          val pre         = iso0.pre.pre
+          val post        = iso0.pre.post
+        }
+        assert(preList .remove(old))
+        assert(postList.remove(old))
+        assert(skip    .remove(old))
+        iso0.pre.removeAndDispose() // iso.pre is a VM!
+
+        // ...so we'll just repeat the search for the sake of simplicity.
+        query(vertex)
+      }
+      val mv: M = new M {
+        def map         = me
+        val fullVertex  = vertex
+        val value       = entry._2
+        val pre         = preOrder .insert()
+        val post        = postOrder.insert()
+        if (iso.preCmp <= 0) {
+          preOrder .placeBefore(iso.pre , this)
+        } else {
+          preOrder .placeAfter (iso.pre , this)
+        }
+        if (iso.postCmp <= 0) {
+          postOrder.placeBefore(iso.post, this)
+        } else {
+          postOrder.placeAfter (iso.post, this)
+        }
+      }
       preList  += mv
       postList += mv
       skip.add(mv)
     }
 
-    final def +=( entry: (K, A) )( implicit tx: S#Tx ) : this.type = {
+    final def +=(entry: (K, A))(implicit tx: S#Tx): this.type = {
       add(entry)
       this
     }
@@ -402,28 +443,6 @@ object Ancestor {
         }
       })
       new IsoResult(cmPreN, cmPreCmp, cmPostN, cmPostCmp)
-    }
-
-    private def wrap(entry: (K, A))(implicit tx: S#Tx): M = {
-      val vertex  = entry._1
-      val iso     = query(vertex)
-      new M {
-        def map         = me
-        val fullVertex  = vertex
-        val value       = entry._2
-        val pre         = preOrder.insert()
-        val post        = postOrder.insert()
-        if (iso.preCmp <= 0) {
-          preOrder.placeBefore(iso.pre, this)
-        } else {
-          preOrder.placeAfter(iso.pre, this)
-        }
-        if (iso.postCmp <= 0) {
-          postOrder.placeBefore(iso.post, this)
-        } else {
-          postOrder.placeAfter(iso.post, this)
-        }
-      }
     }
 
     final def remove(vertex: K)(implicit tx: S#Tx): Boolean = {
@@ -455,9 +474,9 @@ object Ancestor {
         // assert(iso.postCmp == 0)
         (vertex, iso.pre.value)
       } else {
-        val preTag  = iso.pre.pre.tag
+        val preTag  = iso.pre .pre .tag
         val postTag = iso.post.post.tag
-        val x       = if (iso.preCmp < 0) preTag - 1 else preTag
+        val x       = if (iso.preCmp  < 0) preTag  - 1 else preTag
         val y       = if (iso.postCmp > 0) postTag + 1 else postTag
         val nn      = skip.nearestNeighbor(IntPoint3D(x, y, vertex.versionInt), metric)
         (nn.fullVertex, nn.value)
@@ -482,11 +501,11 @@ object Ancestor {
     private def nearestWithMetric(vertex: K, iso: IsoResult[S, Version, A],
                                   metric: DistanceMeasure[Long, ThreeDim])
                                  (implicit tx: S#Tx): Option[(K, A)] = {
-      val preTag  = iso.pre.pre.tag
+      val preTag  = iso.pre .pre .tag
       val postTag = iso.post.post.tag
       val x       = if (iso.preCmp  < 0) preTag  - 1 else preTag
       val y       = if (iso.postCmp > 0) postTag + 1 else postTag
-      val nnOpt   = skip.nearestNeighborOption(IntPoint3D(x, y, vertex.versionInt), metric)
+      val nnOpt: Option[M] = skip.nearestNeighborOption[Long](IntPoint3D(x, y, vertex.versionInt), metric)
       nnOpt.map { nn => (nn.fullVertex, nn.value) }
     }
 
@@ -532,7 +551,7 @@ object Ancestor {
         def post        = postOrder.root
         val value       = rootValue
 
-        override def toString = "Root(" + value + ")"
+        override def toString = s"Root($value)"
       }
       (skip += res)(tx0)
       res
@@ -563,8 +582,8 @@ object Ancestor {
 
     {
       val serVer = in.readByte()
-      require(serVer == SER_VERSION, "Incompatible serialized version (found " + serVer +
-        ", required " + SER_VERSION + ").")
+      if (serVer != SER_VERSION)
+        sys.error(s"Incompatible serialized version (found $serVer, required $SER_VERSION).")
     }
 
     protected val preOrder: TotalOrder.Map[S, M] =
